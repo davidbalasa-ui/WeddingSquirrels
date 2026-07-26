@@ -77,10 +77,16 @@ export function MoneyBoard({
         <p className="mt-2 text-sm text-muted">
           ${money(grandPaid)} paid of ${money(grandTotal)}
         </p>
-        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
           <div className="rounded-xl bg-[var(--accent-soft)] px-3 py-2">
             <p className="text-xs text-muted">Budget left</p>
-            <p className="font-semibold text-[var(--accent)]">${money(Math.max(0, budgetTotal - budgetPaid))}</p>
+            <p className="font-semibold text-[var(--accent)]">
+              ${money(Math.max(0, budgetTotal - budgetPaid))}
+            </p>
+          </div>
+          <div className="rounded-xl bg-[var(--accent-soft)] px-3 py-2">
+            <p className="text-xs text-muted">Minor paid</p>
+            <p className="font-semibold text-[var(--accent)]">${money(minorPaid)}</p>
           </div>
           <div className="rounded-xl bg-[var(--warn-soft)] px-3 py-2">
             <p className="text-xs text-muted">Minor unpaid</p>
