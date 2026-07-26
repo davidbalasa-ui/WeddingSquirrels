@@ -157,6 +157,93 @@ export async function setBudgetOwner(budgetItemId: string, ownerId: string | nul
   revalidatePath("/money");
 }
 
+function parseMoney(raw: string) {
+  if (!raw.trim()) return null;
+  const n = Number.parseFloat(raw.replace(/[$,]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+export async function saveBudgetItem(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+
+  const id = String(formData.get("id") || "");
+  const name = String(formData.get("name") || "").trim();
+  const price = parseMoney(String(formData.get("price") || "")) ?? 0;
+  const amountPaid = parseMoney(String(formData.get("amountPaid") || "")) ?? 0;
+  const note = String(formData.get("note") || "").trim();
+  const ownerRaw = String(formData.get("ownerId") || "");
+  const ownerId = ownerRaw === "david" || ownerRaw === "haley" ? ownerRaw : null;
+
+  if (!id || !name) return;
+
+  await prisma.budgetItem.update({
+    where: { id },
+    data: { name, price, amountPaid, note: note || null, ownerId },
+  });
+
+  revalidatePath("/money");
+}
+
+export async function createBudgetItem(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+
+  const name = String(formData.get("name") || "").trim();
+  const price = parseMoney(String(formData.get("price") || "")) ?? 0;
+  const amountPaid = parseMoney(String(formData.get("amountPaid") || "")) ?? 0;
+  const note = String(formData.get("note") || "").trim();
+  if (!name) return;
+
+  const last = await prisma.budgetItem.findFirst({ orderBy: { sortOrder: "desc" } });
+  await prisma.budgetItem.create({
+    data: {
+      name,
+      price,
+      amountPaid,
+      note: note || null,
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+
+  revalidatePath("/money");
+}
+
+export async function deleteBudgetItem(id: string): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+
+  await prisma.task.updateMany({ where: { budgetItemId: id }, data: { budgetItemId: null } });
+  await prisma.budgetItem.delete({ where: { id } });
+  revalidatePath("/money");
+  revalidatePath("/today");
+}
+
+export async function saveMinorExpense(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+
+  const id = String(formData.get("id") || "");
+  const amountNeeded = parseMoney(String(formData.get("amountNeeded") || ""));
+  const amountSpent = parseMoney(String(formData.get("amountSpent") || "")) ?? 0;
+  const planNotes = String(formData.get("planNotes") || "");
+
+  if (!id) return;
+
+  await prisma.task.update({
+    where: { id },
+    data: {
+      amountNeeded,
+      amountSpent,
+      planNotes,
+    },
+  });
+
+  revalidatePath("/money");
+  revalidatePath(`/work/${id}`);
+  revalidatePath("/today");
+}
+
 export async function createPinAccount(formData: FormData): Promise<void> {
   const session = await requireSession();
   if (!session.canManageAccounts) throw new Error("FORBIDDEN");

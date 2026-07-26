@@ -371,7 +371,15 @@ async function main() {
       }
       const due = inferDueDate(item.title);
       if (due && (!earliestDue || due < earliestDue)) earliestDue = due;
-      if (!budgetItemId) budgetItemId = matchBudget(item.title, budgetIds);
+    }
+
+    // Only link packages that clearly belong on the main budget (e.g. photographer).
+    // DIY / decision money (centerpieces, etc.) stays off the budget → Minor expenses.
+    if (bucket.def?.key === "photos" || bucket.def?.key === "payments") {
+      for (const item of items) {
+        budgetItemId = matchBudget(item.title, budgetIds);
+        if (budgetItemId) break;
+      }
     }
 
     const title = bucket.def?.title || items[0].title;
