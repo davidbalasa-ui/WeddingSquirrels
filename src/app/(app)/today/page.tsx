@@ -4,7 +4,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { ShowDoneToggle } from "@/components/ShowDoneToggle";
 import { TaskCard } from "@/components/TaskCard";
 import { prisma } from "@/lib/db";
-import { listTasks } from "@/lib/tasks";
+import { listOrgCards, listTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
 
 export default async function TodayPage({
@@ -15,7 +15,10 @@ export default async function TodayPage({
   const session = await requirePageSession({ need: "canSeeTasks" });
   const sp = await searchParams;
   const showDone = sp.done === "1";
-  const tasks = await listTasks(session, { showDone });
+  const [orgCards, tasks] = await Promise.all([
+    listOrgCards(session, { showDone }),
+    listTasks(session, { showDone }),
+  ]);
 
   let people = await prisma.person.findMany({ orderBy: { sortOrder: "asc" } });
   if (session.assigneeFilter?.length) {
@@ -42,6 +45,17 @@ export default async function TodayPage({
           <ShowDoneToggle />
         </Suspense>
       </div>
+
+      {orgCards.length > 0 ? (
+        <section className="mb-4 flex flex-col gap-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+            Shared countdown cards
+          </p>
+          {orgCards.map((task) => (
+            <TaskCard key={task.id} task={task} />
+          ))}
+        </section>
+      ) : null}
 
       <div className="mb-3">
         <AddTaskButton people={people} />

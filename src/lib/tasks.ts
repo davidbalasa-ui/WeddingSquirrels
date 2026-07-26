@@ -45,7 +45,7 @@ export async function listTasks(
   opts: { showDone?: boolean; personId?: string | null } = {},
 ) {
   const base = taskVisibilityWhere(session);
-  const and: Prisma.TaskWhereInput[] = [base, { parentId: null }];
+  const and: Prisma.TaskWhereInput[] = [base, { parentId: null }, { orgKey: null }];
 
   if (!opts.showDone) {
     and.push({ status: { not: "done" } });
@@ -83,6 +83,27 @@ export async function listTasks(
   });
 
   return rankTasks(tasks);
+}
+
+export async function listOrgCards(session: SessionAccount, opts: { showDone?: boolean } = {}) {
+  const base = taskVisibilityWhere(session);
+  const and: Prisma.TaskWhereInput[] = [
+    base,
+    { parentId: null },
+    { orgKey: { in: ["week_before", "day_before"] } },
+  ];
+  if (!opts.showDone) {
+    and.push({ status: { not: "done" } });
+  }
+
+  return prisma.task.findMany({
+    where: { AND: and },
+    include: {
+      assignees: { include: { person: true } },
+      children: true,
+    },
+    orderBy: [{ sortOrder: "asc" }],
+  });
 }
 
 export async function getTaskWorkspace(session: SessionAccount, id: string) {

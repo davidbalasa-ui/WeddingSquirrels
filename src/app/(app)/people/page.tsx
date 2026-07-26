@@ -8,6 +8,14 @@ import { prisma } from "@/lib/db";
 import { listTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
 
+function filterHref(who: string, showDone: boolean) {
+  const params = new URLSearchParams();
+  if (who !== "all") params.set("who", who);
+  if (showDone) params.set("done", "1");
+  const q = params.toString();
+  return q ? `/people?${q}` : "/people";
+}
+
 export default async function PeoplePage({
   searchParams,
 }: {
@@ -22,32 +30,73 @@ export default async function PeoplePage({
     people = people.filter((p) => session.assigneeFilter!.includes(p.id));
   }
 
-  const who = sp.who || people[0]?.id || "david";
-  const tasks = await listTasks(session, { showDone, personId: who });
+  const who = sp.who || "all";
+  const personId = who === "all" ? null : who;
+  const tasks = await listTasks(session, { showDone, personId });
+
+  const hasDavid = people.some((p) => p.id === "david");
+  const hasHaley = people.some((p) => p.id === "haley");
+
+  const orderedFilters: { id: string; label: string }[] = [{ id: "all", label: "All" }];
+  const preferred = ["david", "haley"];
+  for (const id of preferred) {
+    const person = people.find((p) => p.id === id);
+    if (person) orderedFilters.push({ id: person.id, label: person.name });
+  }
+  if (hasDavid && hasHaley) {
+    orderedFilters.push({ id: "both", label: "Both" });
+  }
+  for (const person of people) {
+    if (preferred.includes(person.id)) continue;
+    orderedFilters.push({ id: person.id, label: person.name });
+  }
+
+  const activeLabel =
+    who === "all"
+      ? "everyone"
+      : who === "both"
+        ? "David & Haley together"
+        : people.find((p) => p.id === who)?.name || who;
 
   return (
     <>
-      <AppHeader session={session} title="By person" subtitle="Who needs to do what" />
+      <AppHeader
+        session={session}
+        title="By person"
+        subtitle={`Showing ${activeLabel} · ${tasks.length} task${tasks.length === 1 ? "" : "s"}`}
+      />
 
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-        {people.map((person) => {
-          const active = who === person.id;
-          return (
-            <Link
-              key={person.id}
-              href={`/people?who=${person.id}${showDone ? "&done=1" : ""}`}
-              className="shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold"
-              style={{
-                borderColor: active ? "var(--accent)" : "var(--line)",
-                background: active ? "var(--accent-soft)" : "var(--bg-elevated)",
-                color: active ? "var(--accent)" : "var(--muted)",
-              }}
-            >
-              {person.name}
-            </Link>
-          );
-        })}
-      </div>
+      <section className="card mb-4 p-3">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+          Filter by owner
+        </p>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {orderedFilters.map((filter) => {
+            const active = who === filter.id;
+            return (
+              <Link
+                key={filter.id}
+                href={filterHref(filter.id, showDone)}
+                className="shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold"
+                style={{
+                  borderColor: active ? "var(--accent)" : "var(--line)",
+                  background: active ? "var(--accent-soft)" : "transparent",
+                  color: active ? "var(--accent)" : "var(--muted)",
+                }}
+              >
+                {filter.label}
+              </Link>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-xs text-muted">
+          {who === "all"
+            ? "All decision packages you can see."
+            : who === "both"
+              ? "Only tasks owned by both David and Haley."
+              : `Only tasks owned by ${activeLabel} (including shared ones).`}
+        </p>
+      </section>
 
       <div className="mb-3 flex justify-end">
         <Suspense>
@@ -64,7 +113,7 @@ export default async function PeoplePage({
           <TaskCard key={task.id} task={task} />
         ))}
         {tasks.length === 0 ? (
-          <div className="card p-6 text-center text-sm text-muted">No tasks for this person.</div>
+          <div className="card p-6 text-center text-sm text-muted">No tasks for this filter.</div>
         ) : null}
       </div>
     </>

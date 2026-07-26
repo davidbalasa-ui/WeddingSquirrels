@@ -445,6 +445,10 @@ async function main() {
     guests: await prisma.guest.count(),
   };
   console.log("Seed complete:", counts);
+
+  const { ensureOrgCards } = await import("../src/lib/org-cards");
+  await ensureOrgCards(prisma);
+  console.log("Org cards ensured (week before + day before)");
 }
 
 main()

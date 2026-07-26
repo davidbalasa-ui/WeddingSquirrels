@@ -49,9 +49,12 @@ model Task {
   parent          Task?          @relation("TaskTree", fields: [parentId], references: [id], onDelete: Cascade)
   children        Task[]         @relation("TaskTree")
   assignees       TaskAssignee[]
+  /// Special shared org cards: "week_before" | "day_before" (null = normal decision)
+  orgKey          String?
 
   @@index([status, dueDate])
   @@index([parentId])
+  @@unique([orgKey])
 }
 
 model TaskAssignee {
