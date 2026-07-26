@@ -55,6 +55,15 @@ export function MoneyBoard({
   const budgetTotal = items.reduce((s, i) => s + i.price, 0);
   const budgetPaid = items.reduce((s, i) => s + i.amountPaid, 0);
 
+  const sortedItems = [...items].sort((a, b) => {
+    const aLeft = Math.max(0, a.price - a.amountPaid);
+    const bLeft = Math.max(0, b.price - b.amountPaid);
+    const aDone = aLeft <= 0.001 ? 1 : 0;
+    const bDone = bLeft <= 0.001 ? 1 : 0;
+    if (aDone !== bDone) return aDone - bDone; // $0 left sinks to bottom
+    return 0;
+  });
+
   const minorNeeded = minor.reduce((s, m) => s + (m.amountNeeded ?? m.amountSpent), 0);
   const minorPaid = minor.reduce((s, m) => s + m.amountSpent, 0);
   const minorUnpaid = Math.max(0, minorNeeded - minorPaid);
@@ -101,7 +110,7 @@ export function MoneyBoard({
           {canEdit ? "Tap the star to edit any line — totals, paid, notes, owner." : "Main budget lines"}
         </p>
         <div className="flex flex-col gap-3">
-          {items.map((item) => {
+          {sortedItems.map((item) => {
             const remaining = Math.max(0, item.price - item.amountPaid);
             const selected =
               item.ownerId === "david" ? "david" : item.ownerId === "haley" ? "haley" : null;
