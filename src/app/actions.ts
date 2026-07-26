@@ -114,6 +114,55 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
   revalidatePath("/money");
 }
 
+export async function createTaskPackage(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const title = String(formData.get("title") || "").trim();
+  const summary = String(formData.get("summary") || "").trim();
+  const planNotes = String(formData.get("planNotes") || "").trim();
+  const assigneeIds = formData.getAll("assignees").map(String).filter(Boolean);
+
+  if (!title) return;
+
+  // Scoped accounts can only assign within their filter
+  let people = assigneeIds;
+  if (session.assigneeFilter?.length) {
+    people = people.filter((id) => session.assigneeFilter!.includes(id));
+    if (people.length === 0) people = [...session.assigneeFilter];
+  } else if (people.length === 0) {
+    people = ["david", "haley"];
+  }
+
+  const last = await prisma.task.findFirst({
+    where: { parentId: null },
+    orderBy: { sortOrder: "desc" },
+  });
+
+  const task = await prisma.task.create({
+    data: {
+      title,
+      summary:
+        summary ||
+        "Open this card to write the decision, money needed, money spent, and mark it done when finished.",
+      planNotes,
+      status: "todo",
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+      amountSpent: 0,
+    },
+  });
+
+  for (const personId of [...new Set(people)]) {
+    const exists = await prisma.person.findUnique({ where: { id: personId } });
+    if (!exists) continue;
+    await prisma.taskAssignee.create({ data: { taskId: task.id, personId } });
+  }
+
+  revalidatePath("/today");
+  revalidatePath("/people");
+  redirect(`/work/${task.id}`);
+}
+
 export async function saveStepNotes(formData: FormData): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeTasks) throw new Error("FORBIDDEN");

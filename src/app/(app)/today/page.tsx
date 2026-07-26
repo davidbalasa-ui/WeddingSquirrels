@@ -1,7 +1,9 @@
 import { Suspense } from "react";
+import { AddTaskButton } from "@/components/AddTaskButton";
 import { AppHeader } from "@/components/AppHeader";
 import { ShowDoneToggle } from "@/components/ShowDoneToggle";
 import { TaskCard } from "@/components/TaskCard";
+import { prisma } from "@/lib/db";
 import { listTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
 
@@ -14,6 +16,11 @@ export default async function TodayPage({
   const sp = await searchParams;
   const showDone = sp.done === "1";
   const tasks = await listTasks(session, { showDone });
+
+  let people = await prisma.person.findMany({ orderBy: { sortOrder: "asc" } });
+  if (session.assigneeFilter?.length) {
+    people = people.filter((p) => session.assigneeFilter!.includes(p.id));
+  }
 
   const openCount = tasks.filter((t) => t.status !== "done").length;
 
@@ -36,10 +43,14 @@ export default async function TodayPage({
         </Suspense>
       </div>
 
+      <div className="mb-3">
+        <AddTaskButton people={people} />
+      </div>
+
       <div className="flex flex-col gap-3">
         {tasks.length === 0 ? (
           <div className="card p-6 text-center text-sm text-muted">
-            {showDone ? "No tasks yet." : "Nothing open. You’re caught up — or turn on Show done."}
+            {showDone ? "No tasks yet." : "Nothing open yet — add a new task above."}
           </div>
         ) : (
           tasks.map((task) => <TaskCard key={task.id} task={task} />)

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { AddTaskButton } from "@/components/AddTaskButton";
 import { AppHeader } from "@/components/AppHeader";
 import { ShowDoneToggle } from "@/components/ShowDoneToggle";
 import { TaskCard } from "@/components/TaskCard";
@@ -52,6 +53,10 @@ export default async function PeoplePage({
         <Suspense>
           <ShowDoneToggle />
         </Suspense>
+      </div>
+
+      <div className="mb-3">
+        <AddTaskButton people={people} />
       </div>
 
       <div className="flex flex-col gap-3">
