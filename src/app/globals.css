@@ -125,3 +125,32 @@ a {
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+.star-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--accent) 55%, var(--muted));
+  transition: color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+}
+
+.star-btn:hover,
+.star-btn:focus-visible {
+  color: var(--accent);
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.star-btn:active {
+  transform: scale(0.94);
+}
+
+.star-btn-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}

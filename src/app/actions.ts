@@ -237,3 +237,82 @@ export async function deletePinAccount(accountId: string) {
   await prisma.pinAccount.delete({ where: { id: accountId } });
   revalidatePath("/accounts");
 }
+
+async function requireTimelineEditor() {
+  const session = await requireSession();
+  if (!session.canSeeTimeline) throw new Error("FORBIDDEN");
+  // Helpers with timeline can edit; masters always can
+  return session;
+}
+
+export async function saveTimelineBlock(formData: FormData): Promise<void> {
+  await requireTimelineEditor();
+
+  const id = String(formData.get("id") || "");
+  const startAt = String(formData.get("startAt") || "").trim();
+  const endAtRaw = String(formData.get("endAt") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
+
+  if (!id || !startAt || !notes) return;
+
+  await prisma.timelineBlock.update({
+    where: { id },
+    data: {
+      startAt,
+      endAt: endAtRaw || null,
+      notes,
+    },
+  });
+
+  revalidatePath("/day");
+}
+
+export async function createTimelineBlock(formData: FormData): Promise<void> {
+  await requireTimelineEditor();
+
+  const startAt = String(formData.get("startAt") || "").trim() || "TBD";
+  const endAtRaw = String(formData.get("endAt") || "").trim();
+  const notes = String(formData.get("notes") || "").trim() || "New moment";
+
+  const last = await prisma.timelineBlock.findFirst({
+    orderBy: { sortOrder: "desc" },
+  });
+
+  await prisma.timelineBlock.create({
+    data: {
+      startAt,
+      endAt: endAtRaw || null,
+      notes,
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+
+  revalidatePath("/day");
+}
+
+export async function deleteTimelineBlock(blockId: string): Promise<void> {
+  await requireTimelineEditor();
+  await prisma.timelineBlock.delete({ where: { id: blockId } });
+  revalidatePath("/day");
+}
+
+export async function moveTimelineBlock(blockId: string, direction: "up" | "down"): Promise<void> {
+  await requireTimelineEditor();
+
+  const blocks = await prisma.timelineBlock.findMany({ orderBy: { sortOrder: "asc" } });
+  const index = blocks.findIndex((b) => b.id === blockId);
+  if (index < 0) return;
+
+  const swapWith = direction === "up" ? index - 1 : index + 1;
+  if (swapWith < 0 || swapWith >= blocks.length) return;
+
+  const a = blocks[index];
+  const b = blocks[swapWith];
+
+  await prisma.$transaction([
+    prisma.timelineBlock.update({ where: { id: a.id }, data: { sortOrder: b.sortOrder } }),
+    prisma.timelineBlock.update({ where: { id: b.id }, data: { sortOrder: a.sortOrder } }),
+  ]);
+
+  revalidatePath("/day");
+}
