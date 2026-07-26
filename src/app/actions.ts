@@ -9,6 +9,7 @@ import {
   requireSession,
   unlockWithPin,
 } from "@/lib/auth";
+import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
 
 export type UnlockState = { error?: string };
 
@@ -75,6 +76,8 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
   const amountNeededRaw = String(formData.get("amountNeeded") || "").trim();
   const amountSpentRaw = String(formData.get("amountSpent") || "").trim();
   const markDone = formData.get("markDone") === "on";
+  const assigneeIds = formData.getAll("assignees").map(String).filter(Boolean);
+  const newPerson = String(formData.get("newPerson") || "").trim();
 
   const task = await prisma.task.findUnique({
     where: { id },
@@ -96,6 +99,9 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
   const amountSpent =
     amountSpentRaw === "" ? 0 : Number.parseFloat(amountSpentRaw.replace(/[$,]/g, ""));
 
+  // Only masters (or unscoped accounts) can reassign / add new people
+  const canManageOwners = session.isMaster || !session.assigneeFilter?.length;
+
   await prisma.task.update({
     where: { id },
     data: {
@@ -107,6 +113,15 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
       completedAt: markDone ? new Date() : null,
     },
   });
+
+  if (canManageOwners) {
+    const people = await resolveAssigneeIds(assigneeIds, newPerson || null, {
+      fallback: task.assignees.map((a) => a.personId),
+    });
+    if (people.length > 0) {
+      await setTaskAssignees(id, people);
+    }
+  }
 
   revalidatePath("/today");
   revalidatePath("/people");
@@ -122,17 +137,19 @@ export async function createTaskPackage(formData: FormData): Promise<void> {
   const summary = String(formData.get("summary") || "").trim();
   const planNotes = String(formData.get("planNotes") || "").trim();
   const assigneeIds = formData.getAll("assignees").map(String).filter(Boolean);
+  const newPerson = String(formData.get("newPerson") || "").trim();
 
   if (!title) return;
 
-  // Scoped accounts can only assign within their filter
-  let people = assigneeIds;
-  if (session.assigneeFilter?.length) {
-    people = people.filter((id) => session.assigneeFilter!.includes(id));
-    if (people.length === 0) people = [...session.assigneeFilter];
-  } else if (people.length === 0) {
-    people = ["david", "haley"];
-  }
+  const canManageOwners = session.isMaster || !session.assigneeFilter?.length;
+  const people = await resolveAssigneeIds(
+    assigneeIds,
+    canManageOwners ? newPerson || null : null,
+    {
+      restrictTo: session.assigneeFilter,
+      fallback: session.assigneeFilter?.length ? session.assigneeFilter : ["david", "haley"],
+    },
+  );
 
   const last = await prisma.task.findFirst({
     where: { parentId: null },
@@ -152,11 +169,7 @@ export async function createTaskPackage(formData: FormData): Promise<void> {
     },
   });
 
-  for (const personId of [...new Set(people)]) {
-    const exists = await prisma.person.findUnique({ where: { id: personId } });
-    if (!exists) continue;
-    await prisma.taskAssignee.create({ data: { taskId: task.id, personId } });
-  }
+  await setTaskAssignees(task.id, people);
 
   revalidatePath("/today");
   revalidatePath("/people");

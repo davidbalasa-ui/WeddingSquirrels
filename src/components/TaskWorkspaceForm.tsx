@@ -2,15 +2,27 @@
 
 import { useTransition } from "react";
 import { saveStepNotes, saveTaskWorkspace, toggleTaskDone } from "@/app/actions";
+import { AssigneeFields } from "@/components/AssigneeFields";
 import type { TaskWorkspace } from "@/lib/tasks";
 import { dueLabel } from "@/lib/tasks";
 
-export function TaskWorkspaceForm({ task }: { task: TaskWorkspace }) {
+type PersonOption = { id: string; name: string };
+
+export function TaskWorkspaceForm({
+  task,
+  people,
+  canManageOwners,
+}: {
+  task: TaskWorkspace;
+  people: PersonOption[];
+  canManageOwners: boolean;
+}) {
   const [pending, startTransition] = useTransition();
   const label = dueLabel(task.dueDate, task.status);
-  const people = task.assignees.map((a) => a.person.name).join(" · ");
+  const ownerNames = task.assignees.map((a) => a.person.name).join(" · ");
   const childTotal = task.children.length;
   const childDone = task.children.filter((c) => c.status === "done").length;
+  const selectedIds = task.assignees.map((a) => a.personId);
 
   return (
     <div className="flex flex-col gap-4 pb-8">
@@ -20,7 +32,7 @@ export function TaskWorkspaceForm({ task }: { task: TaskWorkspace }) {
           {task.summary || "A decision you need to make and finish."}
         </p>
         <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted">
-          <span>{people || "Unassigned"}</span>
+          <span>{ownerNames || "Unassigned"}</span>
           {label ? (
             <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 font-semibold text-[var(--accent)]">
               {label}
@@ -49,6 +61,12 @@ export function TaskWorkspaceForm({ task }: { task: TaskWorkspace }) {
             className="w-full resize-y rounded-xl border border-line bg-transparent px-3 py-3 text-[15px] leading-relaxed outline-none focus:border-[var(--accent)]"
           />
         </label>
+
+        {canManageOwners ? (
+          <AssigneeFields people={people} selectedIds={selectedIds} allowNew />
+        ) : (
+          <p className="text-sm text-muted">Owners: {ownerNames || "Unassigned"}</p>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createTaskPackage } from "@/app/actions";
+import { AssigneeFields } from "@/components/AssigneeFields";
 import { StarIcon } from "@/components/StarIcon";
 
 type PersonOption = { id: string; name: string };
@@ -70,27 +71,11 @@ export function AddTaskButton({ people }: { people: PersonOption[] }) {
           />
         </label>
 
-        {people.length > 0 ? (
-          <fieldset>
-            <legend className="mb-2 text-xs text-muted">Assigned to</legend>
-            <div className="flex flex-wrap gap-2">
-              {people.map((person) => (
-                <label
-                  key={person.id}
-                  className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    name="assignees"
-                    value={person.id}
-                    defaultChecked={person.id === "david" || person.id === "haley"}
-                  />
-                  {person.name}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        ) : null}
+        <AssigneeFields
+          people={people}
+          selectedIds={["david", "haley"].filter((id) => people.some((p) => p.id === id))}
+          allowNew
+        />
 
         <button
           type="submit"
