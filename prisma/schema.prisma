@@ -102,6 +102,21 @@ model Guest {
   sortOrder Int     @default(0)
 }
 
+model CalendarEvent {
+  id        String   @id @default(cuid())
+  title     String
+  notes     String?
+  startDate DateTime
+  endDate   DateTime
+  /// Stable key for seeded events: bachelorette | bachelor | wedding
+  eventKey  String?  @unique
+  color     String   @default("#2f5d50")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startDate, endDate])
+}
+
 model PinAccount {
   id                 String   @id @default(cuid())
   name               String

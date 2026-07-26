@@ -5,17 +5,20 @@ import { usePathname } from "next/navigation";
 import type { SessionAccount } from "@/lib/types";
 
 const items = [
-  { href: "/today", label: "Today", key: "tasks", need: "canSeeTasks" as const },
-  { href: "/people", label: "People", key: "people", need: "canSeeTasks" as const },
-  { href: "/money", label: "Money", key: "money", need: "canSeeBudget" as const },
-  { href: "/day", label: "Day-of", key: "day", need: "canSeeTimeline" as const },
-  { href: "/guests", label: "Guests", key: "guests", need: "canSeeGuests" as const },
-  { href: "/accounts", label: "Accounts", key: "accounts", need: "canManageAccounts" as const },
+  { href: "/today", label: "Today", need: "canSeeTasks" as const },
+  { href: "/people", label: "People", need: "canSeeTasks" as const },
+  { href: "/calendar", label: "Cal", need: "canSeeTasks" as const },
+  { href: "/money", label: "Money", need: "canSeeBudget" as const },
+  { href: "/day", label: "Day-of", need: "canSeeTimeline" as const },
+  { href: "/guests", label: "Guests", need: "canSeeGuests" as const },
+  { href: "/accounts", label: "Accounts", need: "canManageAccounts" as const },
 ];
 
 export function BottomNav({ session }: { session: SessionAccount }) {
   const pathname = usePathname();
-  const visible = items.filter((item) => session[item.need] || (item.need === "canManageAccounts" && session.isMaster));
+  const visible = items.filter(
+    (item) => session[item.need] || (item.need === "canManageAccounts" && session.isMaster),
+  );
 
   return (
     <nav className="nav-bar" aria-label="Main">

@@ -94,10 +94,10 @@ a {
   left: 50%;
   bottom: 12px;
   transform: translateX(-50%);
-  width: min(520px, calc(100% - 24px));
-  display: grid;
-  grid-auto-flow: column;
-  gap: 4px;
+  width: min(560px, calc(100% - 16px));
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
   padding: 8px;
   border-radius: 22px;
   background: rgba(255, 253, 248, 0.92);
@@ -105,6 +105,7 @@ a {
   backdrop-filter: blur(12px);
   box-shadow: var(--shadow);
   z-index: 40;
+  -webkit-overflow-scrolling: touch;
 }
 
 .nav-link {
@@ -113,12 +114,15 @@ a {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 8px 4px;
+  padding: 8px 10px;
   border-radius: 16px;
   color: var(--muted);
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex: 1 0 auto;
+  min-width: 3.4rem;
 }
 
 .nav-link[data-active="true"] {

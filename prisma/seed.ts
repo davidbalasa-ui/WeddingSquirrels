@@ -449,6 +449,10 @@ async function main() {
   const { ensureOrgCards } = await import("../src/lib/org-cards");
   await ensureOrgCards(prisma);
   console.log("Org cards ensured (week before + day before)");
+
+  const { ensureCalendarEvents } = await import("../src/lib/calendar-events");
+  await ensureCalendarEvents(prisma);
+  console.log("Calendar events ensured (bachelorette, bachelor, wedding)");
 }
 
 main()

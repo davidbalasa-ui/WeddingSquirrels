@@ -10,6 +10,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:org-cards": "tsx scripts/ensure-org-cards.ts",
+    "db:calendar": "tsx scripts/ensure-calendar-events.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "postinstall": "prisma generate"
   },
