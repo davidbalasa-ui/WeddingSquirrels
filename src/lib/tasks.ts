@@ -4,7 +4,21 @@ import type { SessionAccount } from "@/lib/types";
 import { startOfDay, endOfDay, addDays } from "date-fns";
 
 export type TaskWithAssignees = Prisma.TaskGetPayload<{
-  include: { assignees: { include: { person: true } } };
+  include: {
+    assignees: { include: { person: true } };
+    children: true;
+  };
+}>;
+
+export type TaskWorkspace = Prisma.TaskGetPayload<{
+  include: {
+    assignees: { include: { person: true } };
+    children: {
+      include: { assignees: { include: { person: true } } };
+      orderBy: { sortOrder: "asc" };
+    };
+    budgetItem: true;
+  };
 }>;
 
 export function taskVisibilityWhere(session: SessionAccount): Prisma.TaskWhereInput {
@@ -15,11 +29,14 @@ export function taskVisibilityWhere(session: SessionAccount): Prisma.TaskWhereIn
     return {};
   }
   return {
-    assignees: {
-      some: {
-        personId: { in: session.assigneeFilter },
+    OR: [
+      { assignees: { some: { personId: { in: session.assigneeFilter } } } },
+      {
+        children: {
+          some: { assignees: { some: { personId: { in: session.assigneeFilter } } } },
+        },
       },
-    },
+    ],
   };
 }
 
@@ -28,7 +45,7 @@ export async function listTasks(
   opts: { showDone?: boolean; personId?: string | null } = {},
 ) {
   const base = taskVisibilityWhere(session);
-  const and: Prisma.TaskWhereInput[] = [base];
+  const and: Prisma.TaskWhereInput[] = [base, { parentId: null }];
 
   if (!opts.showDone) {
     and.push({ status: { not: "done" } });
@@ -43,17 +60,61 @@ export async function listTasks(
         ],
       });
     } else {
-      and.push({ assignees: { some: { personId: opts.personId } } });
+      and.push({
+        OR: [
+          { assignees: { some: { personId: opts.personId } } },
+          {
+            children: {
+              some: { assignees: { some: { personId: opts.personId } } },
+            },
+          },
+        ],
+      });
     }
   }
 
   const tasks = await prisma.task.findMany({
     where: { AND: and },
-    include: { assignees: { include: { person: true } } },
-    orderBy: [{ dueDate: "asc" }, { title: "asc" }],
+    include: {
+      assignees: { include: { person: true } },
+      children: true,
+    },
+    orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }, { title: "asc" }],
   });
 
   return rankTasks(tasks);
+}
+
+export async function getTaskWorkspace(session: SessionAccount, id: string) {
+  const task = await prisma.task.findUnique({
+    where: { id },
+    include: {
+      assignees: { include: { person: true } },
+      children: {
+        include: { assignees: { include: { person: true } } },
+        orderBy: { sortOrder: "asc" },
+      },
+      budgetItem: true,
+    },
+  });
+  if (!task) return null;
+
+  // Only top-level packages are workspaces; if child, redirect to parent
+  if (task.parentId) {
+    return getTaskWorkspace(session, task.parentId);
+  }
+
+  if (!session.canSeeTasks) return null;
+  if (session.assigneeFilter?.length) {
+    const ok =
+      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
+      task.children.some((c) =>
+        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
+      );
+    if (!ok) return null;
+  }
+
+  return task;
 }
 
 function rankTasks(tasks: TaskWithAssignees[]) {

@@ -30,7 +30,7 @@ export default async function TodayPage({
       />
 
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm text-muted">Tap the circle to finish a task</p>
+        <p className="text-sm text-muted">Tap a card to decide, note, budget, and finish</p>
         <Suspense>
           <ShowDoneToggle />
         </Suspense>

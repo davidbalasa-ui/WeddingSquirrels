@@ -38,12 +38,16 @@ export async function toggleTaskDone(taskId: string) {
 
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    include: { assignees: true },
+    include: { assignees: true, children: { include: { assignees: true } } },
   });
   if (!task) throw new Error("NOT_FOUND");
 
   if (session.assigneeFilter?.length) {
-    const ok = task.assignees.some((a) => session.assigneeFilter!.includes(a.personId));
+    const ok =
+      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
+      task.children.some((c) =>
+        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
+      );
     if (!ok) throw new Error("FORBIDDEN");
   }
 
@@ -58,6 +62,83 @@ export async function toggleTaskDone(taskId: string) {
 
   revalidatePath("/today");
   revalidatePath("/people");
+  revalidatePath(`/work/${task.parentId || task.id}`);
+}
+
+export async function saveTaskWorkspace(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const id = String(formData.get("id") || "");
+  const planNotes = String(formData.get("planNotes") || "");
+  const summary = String(formData.get("summary") || "");
+  const amountNeededRaw = String(formData.get("amountNeeded") || "").trim();
+  const amountSpentRaw = String(formData.get("amountSpent") || "").trim();
+  const markDone = formData.get("markDone") === "on";
+
+  const task = await prisma.task.findUnique({
+    where: { id },
+    include: { assignees: true, children: { include: { assignees: true } } },
+  });
+  if (!task || task.parentId) throw new Error("NOT_FOUND");
+
+  if (session.assigneeFilter?.length) {
+    const ok =
+      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
+      task.children.some((c) =>
+        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
+      );
+    if (!ok) throw new Error("FORBIDDEN");
+  }
+
+  const amountNeeded =
+    amountNeededRaw === "" ? null : Number.parseFloat(amountNeededRaw.replace(/[$,]/g, ""));
+  const amountSpent =
+    amountSpentRaw === "" ? 0 : Number.parseFloat(amountSpentRaw.replace(/[$,]/g, ""));
+
+  await prisma.task.update({
+    where: { id },
+    data: {
+      planNotes,
+      summary: summary || task.summary,
+      amountNeeded: Number.isFinite(amountNeeded as number) ? amountNeeded : null,
+      amountSpent: Number.isFinite(amountSpent) ? amountSpent : 0,
+      status: markDone ? "done" : task.status === "done" ? "todo" : task.status,
+      completedAt: markDone ? new Date() : null,
+    },
+  });
+
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath(`/work/${id}`);
+  revalidatePath("/money");
+}
+
+export async function saveStepNotes(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const id = String(formData.get("id") || "");
+  const planNotes = String(formData.get("planNotes") || "");
+
+  const step = await prisma.task.findUnique({
+    where: { id },
+    include: { assignees: true },
+  });
+  if (!step) throw new Error("NOT_FOUND");
+
+  if (session.assigneeFilter?.length) {
+    const ok = step.assignees.some((a) => session.assigneeFilter!.includes(a.personId));
+    if (!ok && !session.isMaster) throw new Error("FORBIDDEN");
+  }
+
+  await prisma.task.update({
+    where: { id },
+    data: { planNotes },
+  });
+
+  revalidatePath(`/work/${step.parentId || step.id}`);
+  revalidatePath("/today");
 }
 
 export async function setBudgetOwner(budgetItemId: string, ownerId: string | null) {

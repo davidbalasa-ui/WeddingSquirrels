@@ -8,11 +8,11 @@ datasource db {
 }
 
 model AppSettings {
-  id           Int      @id @default(1)
-  weddingDate  DateTime
-  timezone     String   @default("America/Detroit")
-  coupleNames  String   @default("David & Haley")
-  updatedAt    DateTime @updatedAt
+  id          Int      @id @default(1)
+  weddingDate DateTime
+  timezone    String   @default("America/Detroit")
+  coupleNames String   @default("David & Haley")
+  updatedAt   DateTime @updatedAt
 }
 
 model Person {
@@ -23,23 +23,35 @@ model Person {
   budgets   BudgetItem[]   @relation("BudgetOwner")
 }
 
+/// Decision workspace: either a top-level package or a nested step.
 model Task {
-  id             String         @id @default(cuid())
-  title          String
-  status         String         @default("todo") // todo | doing | done | blocked
-  dueDate        DateTime?
-  helpText       String?
-  sourceRow      Int?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  completedAt    DateTime?
-  budgetItemId   String?
-  budgetItem     BudgetItem?    @relation(fields: [budgetItemId], references: [id])
+  id              String         @id @default(cuid())
+  title           String
+  /// Short “what is this” explanation for the package/step
+  summary         String?
+  /// Writable plan: what is being decided / done
+  planNotes       String?
+  status          String         @default("todo") // todo | doing | done | blocked
+  dueDate         DateTime?
+  amountNeeded    Float?
+  amountSpent     Float          @default(0)
+  helpText        String?
+  sourceRow       Int?
+  sortOrder       Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  completedAt     DateTime?
+  budgetItemId    String?
+  budgetItem      BudgetItem?    @relation(fields: [budgetItemId], references: [id])
   timelineBlockId String?
-  timelineBlock  TimelineBlock? @relation(fields: [timelineBlockId], references: [id])
-  assignees      TaskAssignee[]
+  timelineBlock   TimelineBlock? @relation(fields: [timelineBlockId], references: [id])
+  parentId        String?
+  parent          Task?          @relation("TaskTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children        Task[]         @relation("TaskTree")
+  assignees       TaskAssignee[]
 
   @@index([status, dueDate])
+  @@index([parentId])
 }
 
 model TaskAssignee {
@@ -53,38 +65,38 @@ model TaskAssignee {
 }
 
 model BudgetItem {
-  id          String    @id @default(cuid())
-  name        String
-  price       Float
-  amountPaid  Float     @default(0)
-  payByDate   DateTime?
-  ownerId     String?
-  owner       Person?   @relation("BudgetOwner", fields: [ownerId], references: [id])
-  sortOrder   Int       @default(0)
-  note        String?
-  tasks       Task[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String    @id @default(cuid())
+  name       String
+  price      Float
+  amountPaid Float     @default(0)
+  payByDate  DateTime?
+  ownerId    String?
+  owner      Person?   @relation("BudgetOwner", fields: [ownerId], references: [id])
+  sortOrder  Int       @default(0)
+  note       String?
+  tasks      Task[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model TimelineBlock {
-  id        String    @id @default(cuid())
+  id        String  @id @default(cuid())
   startAt   String
   endAt     String?
   notes     String
-  sortOrder Int       @default(0)
+  sortOrder Int     @default(0)
   tasks     Task[]
 }
 
 model Guest {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   nameLine1 String
   nameLine2 String?
   street    String?
   city      String?
   state     String?
   zip       String?
-  sortOrder Int    @default(0)
+  sortOrder Int     @default(0)
 }
 
 model PinAccount {
