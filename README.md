@@ -5,13 +5,15 @@ Mobile-first wedding planner for David & Haley (wedding day: **October 16, 2026*
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind
-- Prisma + SQLite locally (swap to **Neon Postgres** for Vercel production)
+- Prisma + **Neon Postgres**
 - PIN accounts (master `0425` administers visibility)
+- Hosted on **Vercel**
 
-## Local setup
+## Setup
 
 ```bash
 npm install
+# Put Neon connection string + PIN_SESSION_SECRET in .env
 npx prisma db push
 npm run db:seed
 npm run dev
@@ -33,11 +35,12 @@ Excel seed sources (from your Downloads folder):
 - `Wedding Timeline.xlsx`
 - `Guest Addresses.xlsx`
 
-## Production (Vercel + Neon)
+## Deploy
 
-1. Create a Neon Postgres database and copy `DATABASE_URL`
-2. Change `prisma/schema.prisma` datasource `provider` to `postgresql`
-3. Set Vercel env vars: `DATABASE_URL`, `PIN_SESSION_SECRET`
-4. Deploy the GitHub repo; run `prisma db push` + `npm run db:seed` against Neon (or a migrate step in CI)
+1. Neon project → copy pooled `DATABASE_URL`
+2. Vercel project linked to this GitHub repo
+3. Env vars: `DATABASE_URL`, `PIN_SESSION_SECRET`
+4. From your machine (Excel files available): `npx prisma db push && npm run db:seed` against Neon
+5. Deploy / redeploy on Vercel
 
-Keep the GitHub repo **private** once guest addresses are in any remote seed path.
+Keep the GitHub repo **private**.
