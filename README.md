@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WeddingSquirrels
 
-## Getting Started
+Mobile-first wedding planner for David & Haley (wedding day: **October 16, 2026**).
 
-First, run the development server:
+## Stack
+
+- Next.js (App Router) + TypeScript + Tailwind
+- Prisma + SQLite locally (swap to **Neon Postgres** for Vercel production)
+- PIN accounts (master `0425` administers visibility)
+
+## Local setup
 
 ```bash
+npm install
+npx prisma db push
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### PINs (seeded)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| PIN  | Account         | Access                                      |
+|------|-----------------|---------------------------------------------|
+| 0425 | Master          | Everything + Accounts admin                 |
+| 0999 | Mother in law   | Shelly tasks only · no budget/guests/day-of |
 
-## Learn More
+Excel seed sources (from your Downloads folder):
 
-To learn more about Next.js, take a look at the following resources:
+- `Wedding Master TO-DO.xlsx`
+- `Finances.xlsx`
+- `Wedding Timeline.xlsx`
+- `Guest Addresses.xlsx`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Production (Vercel + Neon)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Create a Neon Postgres database and copy `DATABASE_URL`
+2. Change `prisma/schema.prisma` datasource `provider` to `postgresql`
+3. Set Vercel env vars: `DATABASE_URL`, `PIN_SESSION_SECRET`
+4. Deploy the GitHub repo; run `prisma db push` + `npm run db:seed` against Neon (or a migrate step in CI)
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Keep the GitHub repo **private** once guest addresses are in any remote seed path.
