@@ -31,8 +31,11 @@ export function AppHeader({
           <p className="font-[family-name:var(--font-display)] text-lg text-[var(--accent)]">{days}</p>
           <p className="text-[11px] text-muted">days to go</p>
           <form action={lockAction} className="mt-2">
-            <button type="submit" className="text-xs font-semibold text-muted underline-offset-2 hover:underline">
-              Lock
+            <button
+              type="submit"
+              className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-ink hover:bg-[var(--surface)]"
+            >
+              Log out
             </button>
           </form>
         </div>

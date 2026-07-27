@@ -232,8 +232,21 @@ async function main() {
 
   await prisma.pinAccount.create({
     data: {
-      name: "Master",
+      name: "David",
       pinHash: await hash("0425", 10),
+      isMaster: true,
+      canSeeTasks: true,
+      canSeeBudget: true,
+      canSeeGuests: true,
+      canSeeTimeline: true,
+      canManageAccounts: true,
+    },
+  });
+
+  await prisma.pinAccount.create({
+    data: {
+      name: "Haley",
+      pinHash: await hash("1016", 10),
       isMaster: true,
       canSeeTasks: true,
       canSeeBudget: true,

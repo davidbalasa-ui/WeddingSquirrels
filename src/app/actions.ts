@@ -357,8 +357,21 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
     .filter(Boolean);
 
   const existing = await prisma.pinAccount.findUnique({ where: { id } });
-  if (!existing || existing.isMaster || !name) return;
+  if (!existing || !name) return;
   if (pin && !/^\d{4,8}$/.test(pin)) return;
+
+  // Masters keep full privileges; only name / PIN can change.
+  if (existing.isMaster) {
+    await prisma.pinAccount.update({
+      where: { id },
+      data: {
+        name,
+        ...(pin ? { pinHash: await hashPin(pin) } : {}),
+      },
+    });
+    revalidatePath("/accounts");
+    return;
+  }
 
   await prisma.pinAccount.update({
     where: { id },

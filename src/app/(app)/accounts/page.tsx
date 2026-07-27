@@ -108,71 +108,77 @@ export default async function AccountsPage() {
                 </div>
               </div>
 
-              {!account.isMaster ? (
-                <details className="mt-3">
-                  <summary className="cursor-pointer text-sm font-semibold text-[var(--accent)]">
-                    Edit
-                  </summary>
-                  <form action={updatePinAccount} className="mt-3 flex flex-col gap-3">
-                    <input type="hidden" name="id" value={account.id} />
-                    <label className="text-sm">
-                      <span className="mb-1 block text-muted">Name</span>
-                      <input
-                        name="name"
-                        defaultValue={account.name}
-                        className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm">
-                      <span className="mb-1 block text-muted">New PIN (optional)</span>
-                      <input
-                        name="pin"
-                        inputMode="numeric"
-                        pattern="\d{4,8}"
-                        placeholder="Leave blank to keep"
-                        className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
-                      />
-                    </label>
-                    <fieldset className="grid grid-cols-2 gap-2 text-sm">
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" name="canSeeTasks" defaultChecked={account.canSeeTasks} /> Tasks
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" name="canSeeBudget" defaultChecked={account.canSeeBudget} /> Money
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" name="canSeeGuests" defaultChecked={account.canSeeGuests} /> Guests
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" name="canSeeTimeline" defaultChecked={account.canSeeTimeline} /> Day-of
-                      </label>
-                    </fieldset>
-                    <fieldset>
-                      <legend className="mb-2 text-sm text-muted">Task filter</legend>
-                      <div className="flex flex-wrap gap-2">
-                        {people.map((person) => (
-                          <label
-                            key={person.id}
-                            className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm"
-                          >
-                            <input
-                              type="checkbox"
-                              name="assigneeFilter"
-                              value={person.id}
-                              defaultChecked={filter.includes(person.id)}
-                            />
-                            {person.name}
-                          </label>
-                        ))}
-                      </div>
-                    </fieldset>
-                    <button
-                      type="submit"
-                      className="rounded-full bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white"
-                    >
-                      Save changes
-                    </button>
-                  </form>
+              <details className="mt-3">
+                <summary className="cursor-pointer text-sm font-semibold text-[var(--accent)]">
+                  Edit
+                </summary>
+                <form action={updatePinAccount} className="mt-3 flex flex-col gap-3">
+                  <input type="hidden" name="id" value={account.id} />
+                  <label className="text-sm">
+                    <span className="mb-1 block text-muted">Name</span>
+                    <input
+                      name="name"
+                      defaultValue={account.name}
+                      className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    <span className="mb-1 block text-muted">New PIN (optional)</span>
+                    <input
+                      name="pin"
+                      inputMode="numeric"
+                      pattern="\d{4,8}"
+                      placeholder="Leave blank to keep"
+                      className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
+                    />
+                  </label>
+                  {!account.isMaster ? (
+                    <>
+                      <fieldset className="grid grid-cols-2 gap-2 text-sm">
+                        <label className="flex items-center gap-2">
+                          <input type="checkbox" name="canSeeTasks" defaultChecked={account.canSeeTasks} /> Tasks
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input type="checkbox" name="canSeeBudget" defaultChecked={account.canSeeBudget} /> Money
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input type="checkbox" name="canSeeGuests" defaultChecked={account.canSeeGuests} /> Guests
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input type="checkbox" name="canSeeTimeline" defaultChecked={account.canSeeTimeline} /> Day-of
+                        </label>
+                      </fieldset>
+                      <fieldset>
+                        <legend className="mb-2 text-sm text-muted">Task filter</legend>
+                        <div className="flex flex-wrap gap-2">
+                          {people.map((person) => (
+                            <label
+                              key={person.id}
+                              className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                name="assigneeFilter"
+                                value={person.id}
+                                defaultChecked={filter.includes(person.id)}
+                              />
+                              {person.name}
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted">Master accounts always have full access.</p>
+                  )}
+                  <button
+                    type="submit"
+                    className="rounded-full bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white"
+                  >
+                    Save changes
+                  </button>
+                </form>
+                {!account.isMaster ? (
                   <form
                     action={async () => {
                       "use server";
@@ -184,8 +190,8 @@ export default async function AccountsPage() {
                       Delete account
                     </button>
                   </form>
-                </details>
-              ) : null}
+                ) : null}
+              </details>
             </article>
           );
         })}
