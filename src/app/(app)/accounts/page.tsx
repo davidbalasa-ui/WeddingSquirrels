@@ -72,7 +72,7 @@ export default async function AccountsPage() {
 
           <button
             type="submit"
-            className="rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white"
+            className="btn-primary"
           >
             Add PIN account
           </button>
@@ -173,7 +173,7 @@ export default async function AccountsPage() {
                   )}
                   <button
                     type="submit"
-                    className="rounded-full bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white"
+                    className="btn-primary"
                   >
                     Save changes
                   </button>

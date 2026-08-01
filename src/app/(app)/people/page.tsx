@@ -33,6 +33,8 @@ export default async function PeoplePage({
   const who = sp.who || "all";
   const personId = who === "all" ? null : who;
   const tasks = await listTasks(session, { showDone, personId });
+  const priorityTasks = tasks.filter((t) => t.escalatedAt);
+  const regularTasks = tasks.filter((t) => !t.escalatedAt);
 
   const hasDavid = people.some((p) => p.id === "david");
   const hasHaley = people.some((p) => p.id === "haley");
@@ -41,7 +43,12 @@ export default async function PeoplePage({
   const preferred = ["david", "haley"];
   for (const id of preferred) {
     const person = people.find((p) => p.id === id);
-    if (person) orderedFilters.push({ id: person.id, label: person.name });
+    if (person) {
+      orderedFilters.push({
+        id: person.id,
+        label: person.id === "david" ? "David items" : "Haley items",
+      });
+    }
   }
   if (hasDavid && hasHaley) {
     orderedFilters.push({ id: "both", label: "Both" });
@@ -55,8 +62,12 @@ export default async function PeoplePage({
     who === "all"
       ? "everyone"
       : who === "both"
-        ? "David & Haley together"
-        : people.find((p) => p.id === who)?.name || who;
+        ? "both of you"
+        : who === "david"
+          ? "David only"
+          : who === "haley"
+            ? "Haley only"
+            : people.find((p) => p.id === who)?.name || who;
 
   return (
     <>
@@ -77,7 +88,7 @@ export default async function PeoplePage({
               <Link
                 key={filter.id}
                 href={filterHref(filter.id, showDone)}
-                className="shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold"
+                className="filter-pill shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold"
                 style={{
                   borderColor: active ? "var(--accent)" : "var(--line)",
                   background: active ? "var(--accent-soft)" : "transparent",
@@ -93,8 +104,12 @@ export default async function PeoplePage({
           {who === "all"
             ? "All decision packages you can see."
             : who === "both"
-              ? "Only tasks owned by both David and Haley."
-              : `Only tasks owned by ${activeLabel} (including shared ones).`}
+              ? "Tasks assigned to both David and Haley."
+              : who === "david"
+                ? "Tasks assigned to David only (not shared)."
+                : who === "haley"
+                  ? "Tasks assigned to Haley only (not shared)."
+                  : `Tasks assigned to ${activeLabel}.`}
         </p>
       </section>
 
@@ -109,7 +124,17 @@ export default async function PeoplePage({
       </div>
 
       <div className="flex flex-col gap-3">
-        {tasks.map((task) => (
+        {priorityTasks.length > 0 ? (
+          <section className="flex flex-col gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--warn)]">
+              Priority — pinned to top
+            </p>
+            {priorityTasks.map((task) => (
+              <TaskCard key={task.id} task={task} />
+            ))}
+          </section>
+        ) : null}
+        {regularTasks.map((task) => (
           <TaskCard key={task.id} task={task} />
         ))}
         {tasks.length === 0 ? (

@@ -88,7 +88,7 @@ export function PinPad() {
           type="button"
           onClick={() => submit(pin)}
           disabled={pending}
-          className="rounded-full bg-[var(--accent)] px-6 py-3 text-sm font-semibold text-white"
+          className="btn-primary"
         >
           {pending ? "Unlocking…" : "Unlock"}
         </button>

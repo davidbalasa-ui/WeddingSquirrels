@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { saveStepNotes, saveTaskWorkspace, toggleTaskDone } from "@/app/actions";
+import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
 import { AssigneeFields } from "@/components/AssigneeFields";
 import type { TaskWorkspace } from "@/lib/tasks";
 import { dueLabel } from "@/lib/tasks";
@@ -19,13 +20,30 @@ export function TaskWorkspaceForm({
 }) {
   const [pending, startTransition] = useTransition();
   const label = dueLabel(task.dueDate, task.status);
+  const dueDateValue = task.dueDate
+    ? `${task.dueDate.getFullYear()}-${String(task.dueDate.getMonth() + 1).padStart(2, "0")}-${String(task.dueDate.getDate()).padStart(2, "0")}`
+    : "";
   const ownerNames = task.assignees.map((a) => a.person.name).join(" · ");
   const childTotal = task.children.length;
   const childDone = task.children.filter((c) => c.status === "done").length;
   const selectedIds = task.assignees.map((a) => a.personId);
+  const escalated = Boolean(task.escalatedAt);
 
   return (
     <div className="flex flex-col gap-4 pb-8">
+      {escalated ? (
+        <section className="card border-[var(--warn)] bg-[var(--warn-soft)] p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--warn)]">
+            Priority pin active
+          </p>
+          <p className="mt-1 text-sm text-[var(--warn)]">
+            Pinned to the top of Today{task.escalatedBy ? ` by ${task.escalatedBy}` : ""}.
+          </p>
+        </section>
+      ) : null}
+
+      <EscalatePriorityButton taskId={task.id} escalated={escalated} />
+
       <section className="card p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">What is this</p>
         <p className="mt-2 text-sm leading-relaxed text-ink">
@@ -58,7 +76,7 @@ export function TaskWorkspaceForm({
             defaultValue={task.planNotes || ""}
             rows={5}
             placeholder="Write what you’re doing, what you decided, who is helping, and anything still open…"
-            className="w-full resize-y rounded-xl border border-line bg-transparent px-3 py-3 text-[15px] leading-relaxed outline-none focus:border-[var(--accent)]"
+            className="field-input text-[15px] leading-relaxed"
           />
         </label>
 
@@ -67,6 +85,18 @@ export function TaskWorkspaceForm({
         ) : (
           <p className="text-sm text-muted">Owners: {ownerNames || "Unassigned"}</p>
         )}
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+            Due date
+          </span>
+          <input
+            name="dueDate"
+            type="date"
+            defaultValue={dueDateValue}
+            className="field-input text-[15px]"
+          />
+        </label>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
@@ -78,7 +108,7 @@ export function TaskWorkspaceForm({
               inputMode="decimal"
               defaultValue={task.amountNeeded ?? ""}
               placeholder="0"
-              className="w-full rounded-xl border border-line bg-transparent px-3 py-3 text-[15px] outline-none focus:border-[var(--accent)]"
+              className="field-input text-[15px]"
             />
           </label>
           <label className="block">
@@ -90,7 +120,7 @@ export function TaskWorkspaceForm({
               inputMode="decimal"
               defaultValue={task.amountSpent || ""}
               placeholder="0"
-              className="w-full rounded-xl border border-line bg-transparent px-3 py-3 text-[15px] outline-none focus:border-[var(--accent)]"
+              className="field-input text-[15px]"
             />
           </label>
         </div>
@@ -103,20 +133,17 @@ export function TaskWorkspaceForm({
           </p>
         ) : null}
 
-        <label className="flex items-center gap-3 rounded-xl border border-line px-3 py-3">
+        <label className="flex min-h-[48px] items-center gap-3 rounded-xl border border-line px-3 py-3">
           <input
             type="checkbox"
             name="markDone"
             defaultChecked={task.status === "done"}
-            className="h-5 w-5 accent-[var(--accent)]"
+            className="h-6 w-6 accent-[var(--accent)]"
           />
           <span className="text-sm font-semibold">Mark this decision completed</span>
         </label>
 
-        <button
-          type="submit"
-          className="rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white"
-        >
+        <button type="submit" className="btn-primary">
           Save decision
         </button>
       </form>
@@ -137,7 +164,7 @@ export function TaskWorkspaceForm({
                     aria-label={stepDone ? "Mark step not done" : "Mark step done"}
                     disabled={pending}
                     onClick={() => startTransition(() => toggleTaskDone(step.id))}
-                    className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line"
+                    className="step-check mt-0.5 shrink-0"
                     style={{
                       background: stepDone ? "var(--accent)" : "transparent",
                       color: stepDone ? "white" : "var(--muted)",

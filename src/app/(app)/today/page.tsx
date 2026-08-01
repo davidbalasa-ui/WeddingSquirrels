@@ -26,6 +26,8 @@ export default async function TodayPage({
   }
 
   const openCount = tasks.filter((t) => t.status !== "done").length;
+  const priorityTasks = tasks.filter((t) => t.escalatedAt);
+  const regularTasks = tasks.filter((t) => !t.escalatedAt);
 
   return (
     <>
@@ -67,7 +69,21 @@ export default async function TodayPage({
             {showDone ? "No tasks yet." : "Nothing open yet — add a new task above."}
           </div>
         ) : (
-          tasks.map((task) => <TaskCard key={task.id} task={task} />)
+          <>
+            {priorityTasks.length > 0 ? (
+              <section className="flex flex-col gap-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--warn)]">
+                  Priority — pinned to top
+                </p>
+                {priorityTasks.map((task) => (
+                  <TaskCard key={task.id} task={task} />
+                ))}
+              </section>
+            ) : null}
+            {regularTasks.map((task) => (
+              <TaskCard key={task.id} task={task} />
+            ))}
+          </>
         )}
       </div>
     </>

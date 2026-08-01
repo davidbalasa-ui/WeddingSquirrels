@@ -91,13 +91,13 @@ export function DayTimeline({
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="submit"
-                    className="rounded-full bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white"
+                    className="btn-primary"
                   >
                     Save
                   </button>
                   <button
                     type="button"
-                    className="rounded-full border border-line px-4 py-2.5 text-sm font-semibold text-muted"
+                    className="btn-secondary"
                     onClick={() => setEditingId(null)}
                   >
                     Cancel
@@ -224,7 +224,7 @@ export function DayTimeline({
               </label>
               <button
                 type="submit"
-                className="rounded-full bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white"
+                className="btn-primary"
               >
                 Add to timeline
               </button>

@@ -66,6 +66,38 @@ export async function toggleTaskDone(taskId: string) {
   revalidatePath(`/work/${task.parentId || task.id}`);
 }
 
+export async function toggleTaskEscalation(taskId: string) {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { assignees: true, children: { include: { assignees: true } } },
+  });
+  if (!task || task.parentId) throw new Error("NOT_FOUND");
+
+  if (session.assigneeFilter?.length) {
+    const ok =
+      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
+      task.children.some((c) =>
+        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
+      );
+    if (!ok) throw new Error("FORBIDDEN");
+  }
+
+  const escalated = Boolean(task.escalatedAt);
+  await prisma.task.update({
+    where: { id: taskId },
+    data: escalated
+      ? { escalatedAt: null, escalatedBy: null }
+      : { escalatedAt: new Date(), escalatedBy: session.name },
+  });
+
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath(`/work/${taskId}`);
+}
+
 export async function saveTaskWorkspace(formData: FormData): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeTasks) throw new Error("FORBIDDEN");
@@ -75,6 +107,7 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
   const summary = String(formData.get("summary") || "");
   const amountNeededRaw = String(formData.get("amountNeeded") || "").trim();
   const amountSpentRaw = String(formData.get("amountSpent") || "").trim();
+  const dueDateRaw = String(formData.get("dueDate") || "").trim();
   const markDone = formData.get("markDone") === "on";
   const assigneeIds = formData.getAll("assignees").map(String).filter(Boolean);
   const newPerson = String(formData.get("newPerson") || "").trim();
@@ -107,6 +140,7 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
     data: {
       planNotes,
       summary: summary || task.summary,
+      dueDate: parseDueDate(dueDateRaw),
       amountNeeded: Number.isFinite(amountNeeded as number) ? amountNeeded : null,
       amountSpent: Number.isFinite(amountSpent) ? amountSpent : 0,
       status: markDone ? "done" : task.status === "done" ? "todo" : task.status,
@@ -127,6 +161,8 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
   revalidatePath("/people");
   revalidatePath(`/work/${id}`);
   revalidatePath("/money");
+  revalidatePath("/calendar");
+  redirect("/today");
 }
 
 export async function createTaskPackage(formData: FormData): Promise<void> {
@@ -136,6 +172,7 @@ export async function createTaskPackage(formData: FormData): Promise<void> {
   const title = String(formData.get("title") || "").trim();
   const summary = String(formData.get("summary") || "").trim();
   const planNotes = String(formData.get("planNotes") || "").trim();
+  const dueDateRaw = String(formData.get("dueDate") || "").trim();
   const assigneeIds = formData.getAll("assignees").map(String).filter(Boolean);
   const newPerson = String(formData.get("newPerson") || "").trim();
 
@@ -163,6 +200,7 @@ export async function createTaskPackage(formData: FormData): Promise<void> {
         summary ||
         "Open this card to write the decision, money needed, money spent, and mark it done when finished.",
       planNotes,
+      dueDate: parseDueDate(dueDateRaw),
       status: "todo",
       sortOrder: (last?.sortOrder ?? -1) + 1,
       amountSpent: 0,
@@ -173,6 +211,7 @@ export async function createTaskPackage(formData: FormData): Promise<void> {
 
   revalidatePath("/today");
   revalidatePath("/people");
+  revalidatePath("/calendar");
   redirect(`/work/${task.id}`);
 }
 
@@ -223,6 +262,13 @@ function parseMoney(raw: string) {
   if (!raw.trim()) return null;
   const n = Number.parseFloat(raw.replace(/[$,]/g, ""));
   return Number.isFinite(n) ? n : null;
+}
+
+function parseDueDate(raw: string): Date | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const d = new Date(`${trimmed}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 export async function saveBudgetItem(formData: FormData): Promise<void> {
@@ -477,4 +523,39 @@ export async function moveTimelineBlock(blockId: string, direction: "up" | "down
   ]);
 
   revalidatePath("/day");
+}
+
+export async function saveGuest(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeGuests) throw new Error("FORBIDDEN");
+
+  const id = String(formData.get("id") || "");
+  const nameLine1 = String(formData.get("nameLine1") || "").trim();
+  const nameLine2Raw = String(formData.get("nameLine2") || "").trim();
+  const person1TableNumberRaw = String(formData.get("person1TableNumber") || "").trim();
+  const person1TableSpot = String(formData.get("person1TableSpot") || "").trim();
+  const person2TableNumberRaw = String(formData.get("person2TableNumber") || "").trim();
+  const person2TableSpot = String(formData.get("person2TableSpot") || "").trim();
+
+  if (!id || !nameLine1) return;
+
+  const parseTableNumber = (raw: string) => {
+    if (!raw) return null;
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  await prisma.guest.update({
+    where: { id },
+    data: {
+      nameLine1,
+      nameLine2: nameLine2Raw || null,
+      person1TableNumber: parseTableNumber(person1TableNumberRaw),
+      person1TableSpot: person1TableSpot || null,
+      person2TableNumber: parseTableNumber(person2TableNumberRaw),
+      person2TableSpot: person2TableSpot || null,
+    },
+  });
+
+  revalidatePath("/guests");
 }

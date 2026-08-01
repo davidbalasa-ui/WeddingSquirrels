@@ -11,7 +11,7 @@ export function ShowDoneToggle() {
   return (
     <button
       type="button"
-      className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-muted"
+      className="filter-pill rounded-full border border-line px-3 py-2 text-xs font-semibold text-muted"
       style={{ background: showDone ? "var(--accent-soft)" : "var(--bg-elevated)", color: showDone ? "var(--accent)" : undefined }}
       onClick={() => {
         const next = new URLSearchParams(params.toString());

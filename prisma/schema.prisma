@@ -51,6 +51,9 @@ model Task {
   assignees       TaskAssignee[]
   /// Special shared org cards: "week_before" | "day_before" (null = normal decision)
   orgKey          String?
+  /// When set, task is pinned to the top as priority
+  escalatedAt     DateTime?
+  escalatedBy     String?
 
   @@index([status, dueDate])
   @@index([parentId])
@@ -92,14 +95,18 @@ model TimelineBlock {
 }
 
 model Guest {
-  id        String  @id @default(cuid())
-  nameLine1 String
-  nameLine2 String?
-  street    String?
-  city      String?
-  state     String?
-  zip       String?
-  sortOrder Int     @default(0)
+  id                 String  @id @default(cuid())
+  nameLine1          String
+  nameLine2          String?
+  street             String?
+  city               String?
+  state              String?
+  zip                String?
+  person1TableNumber Int?
+  person1TableSpot   String?
+  person2TableNumber Int?
+  person2TableSpot   String?
+  sortOrder          Int     @default(0)
 }
 
 model CalendarEvent {

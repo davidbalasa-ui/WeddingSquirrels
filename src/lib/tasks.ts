@@ -59,16 +59,23 @@ export async function listTasks(
           { assignees: { some: { personId: "haley" } } },
         ],
       });
+    } else if (opts.personId === "david") {
+      and.push({
+        AND: [
+          { assignees: { some: { personId: "david" } } },
+          { NOT: { assignees: { some: { personId: "haley" } } } },
+        ],
+      });
+    } else if (opts.personId === "haley") {
+      and.push({
+        AND: [
+          { assignees: { some: { personId: "haley" } } },
+          { NOT: { assignees: { some: { personId: "david" } } } },
+        ],
+      });
     } else {
       and.push({
-        OR: [
-          { assignees: { some: { personId: opts.personId } } },
-          {
-            children: {
-              some: { assignees: { some: { personId: opts.personId } } },
-            },
-          },
-        ],
+        assignees: { some: { personId: opts.personId } },
       });
     }
   }
@@ -143,6 +150,7 @@ function rankTasks(tasks: TaskWithAssignees[]) {
   const week = endOfDay(addDays(today, 7));
 
   const score = (task: TaskWithAssignees) => {
+    if (task.escalatedAt) return -1;
     if (task.status === "done") return 9000;
     if (!task.dueDate) return 8000;
     const d = task.dueDate;
@@ -156,6 +164,9 @@ function rankTasks(tasks: TaskWithAssignees[]) {
     const sa = score(a);
     const sb = score(b);
     if (sa !== sb) return sa - sb;
+    if (a.escalatedAt && b.escalatedAt) {
+      return b.escalatedAt.getTime() - a.escalatedAt.getTime();
+    }
     const da = a.dueDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
     const db = b.dueDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
     if (da !== db) return da - db;

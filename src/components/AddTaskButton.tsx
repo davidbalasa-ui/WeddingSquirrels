@@ -15,7 +15,7 @@ export function AddTaskButton({ people }: { people: PersonOption[] }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-[18px] border border-dashed border-line bg-[color-mix(in_srgb,var(--bg-elevated)_70%,transparent)] px-4 py-4 text-sm font-semibold text-[var(--accent)]"
+        className="flex w-full items-center justify-center gap-2 rounded-[18px] border border-dashed border-line bg-[color-mix(in_srgb,var(--bg-elevated)_70%,transparent)] px-4 py-4 text-sm font-semibold text-[var(--accent)] min-h-[48px]"
       >
         <StarIcon size={16} />
         Add new task
@@ -46,9 +46,14 @@ export function AddTaskButton({ people }: { people: PersonOption[] }) {
             name="title"
             required
             placeholder="What needs deciding or doing?"
-            className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+            className="field-input"
             autoFocus
           />
+        </label>
+
+        <label className="block text-sm">
+          <span className="mb-1 block text-xs text-muted">Due date (optional)</span>
+          <input name="dueDate" type="date" className="field-input" />
         </label>
 
         <label className="block text-sm">
@@ -57,7 +62,7 @@ export function AddTaskButton({ people }: { people: PersonOption[] }) {
             name="summary"
             rows={2}
             placeholder="Short explanation of the decision…"
-            className="w-full resize-y rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+            className="field-input resize-y"
           />
         </label>
 
@@ -67,7 +72,7 @@ export function AddTaskButton({ people }: { people: PersonOption[] }) {
             name="planNotes"
             rows={3}
             placeholder="Start the plan here…"
-            className="w-full resize-y rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+            className="field-input resize-y"
           />
         </label>
 
@@ -77,10 +82,7 @@ export function AddTaskButton({ people }: { people: PersonOption[] }) {
           allowNew
         />
 
-        <button
-          type="submit"
-          className="rounded-full bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white"
-        >
+        <button type="submit" className="btn-primary">
           Create task
         </button>
       </form>

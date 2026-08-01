@@ -23,13 +23,14 @@ export function AssigneeFields({
           {people.map((person) => (
             <label
               key={person.id}
-              className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-sm"
+              className="owner-pill flex items-center gap-2 rounded-full border border-line px-3 py-2 text-sm"
             >
               <input
                 type="checkbox"
                 name="assignees"
                 value={person.id}
                 defaultChecked={selected.size ? selected.has(person.id) : false}
+                className="h-5 w-5 accent-[var(--accent)]"
               />
               {person.name}
             </label>
@@ -43,7 +44,7 @@ export function AssigneeFields({
           <input
             name="newPerson"
             placeholder="e.g. Avalon, Mom, Barry"
-            className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+            className="field-input"
           />
         </label>
       ) : null}

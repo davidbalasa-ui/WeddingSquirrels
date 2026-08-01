@@ -1,4 +1,5 @@
 import { AppHeader } from "@/components/AppHeader";
+import { GuestCard } from "@/components/GuestCard";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/session";
 
@@ -11,17 +12,7 @@ export default async function GuestsPage() {
       <AppHeader session={session} title="Guests" subtitle={`${guests.length} households`} />
       <div className="flex flex-col gap-3">
         {guests.map((guest) => (
-          <article key={guest.id} className="card p-4">
-            <p className="font-semibold">
-              {guest.nameLine1}
-              {guest.nameLine2 ? ` ${guest.nameLine2}` : ""}
-            </p>
-            <p className="mt-1 text-sm text-muted">
-              {[guest.street, [guest.city, guest.state].filter(Boolean).join(", "), guest.zip]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-          </article>
+          <GuestCard key={guest.id} guest={guest} />
         ))}
       </div>
     </>
