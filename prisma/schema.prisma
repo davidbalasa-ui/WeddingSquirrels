@@ -16,11 +16,12 @@ model AppSettings {
 }
 
 model Person {
-  id        String         @id
-  name      String
-  sortOrder Int            @default(0)
-  assignees TaskAssignee[]
-  budgets   BudgetItem[]   @relation("BudgetOwner")
+  id            String         @id
+  name          String
+  sortOrder     Int            @default(0)
+  assignees     TaskAssignee[]
+  budgets       BudgetItem[]   @relation("BudgetOwner")
+  shoppingItems ShoppingItem[]
 }
 
 /// Decision workspace: either a top-level package or a nested step.
@@ -49,6 +50,7 @@ model Task {
   parent          Task?          @relation("TaskTree", fields: [parentId], references: [id], onDelete: Cascade)
   children        Task[]         @relation("TaskTree")
   assignees       TaskAssignee[]
+  shoppingItems   ShoppingItem[]
   /// Special shared org cards: "week_before" | "day_before" (null = normal decision)
   orgKey          String?
   /// When set, task is pinned to the top as priority
@@ -138,4 +140,23 @@ model PinAccount {
   assigneeFilterJson String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+model ShoppingItem {
+  id         String   @id @default(cuid())
+  name       String
+  quantity   String?
+  note       String?
+  purchased  Boolean  @default(false)
+  ownerId    String?
+  owner      Person?  @relation(fields: [ownerId], references: [id])
+  taskId     String?
+  task       Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([purchased, sortOrder])
+  @@index([ownerId])
+  @@index([taskId])
 }

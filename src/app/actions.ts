@@ -559,3 +559,96 @@ export async function saveGuest(formData: FormData): Promise<void> {
 
   revalidatePath("/guests");
 }
+
+function parseShoppingOwnerId(raw: string): string | null {
+  return raw === "david" || raw === "haley" ? raw : null;
+}
+
+async function resolveShoppingTaskId(raw: string): Promise<string | null> {
+  if (!raw) return null;
+  const task = await prisma.task.findFirst({
+    where: { id: raw, parentId: null },
+    select: { id: true },
+  });
+  return task?.id ?? null;
+}
+
+export async function createShoppingItem(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const name = String(formData.get("name") || "").trim();
+  const quantity = String(formData.get("quantity") || "").trim();
+  const note = String(formData.get("note") || "").trim();
+  const ownerId = parseShoppingOwnerId(String(formData.get("ownerId") || ""));
+  const taskId = await resolveShoppingTaskId(String(formData.get("taskId") || "").trim());
+
+  if (!name) return;
+
+  const last = await prisma.shoppingItem.findFirst({ orderBy: { sortOrder: "desc" } });
+  await prisma.shoppingItem.create({
+    data: {
+      name,
+      quantity: quantity || null,
+      note: note || null,
+      ownerId,
+      taskId,
+      purchased: false,
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+
+  revalidatePath("/shop");
+}
+
+export async function saveShoppingItem(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const id = String(formData.get("id") || "");
+  const name = String(formData.get("name") || "").trim();
+  const quantity = String(formData.get("quantity") || "").trim();
+  const note = String(formData.get("note") || "").trim();
+  const ownerId = parseShoppingOwnerId(String(formData.get("ownerId") || ""));
+  const taskId = await resolveShoppingTaskId(String(formData.get("taskId") || "").trim());
+  const purchased = formData.get("purchased") === "on";
+
+  if (!id || !name) return;
+
+  await prisma.shoppingItem.update({
+    where: { id },
+    data: {
+      name,
+      quantity: quantity || null,
+      note: note || null,
+      ownerId,
+      taskId,
+      purchased,
+    },
+  });
+
+  revalidatePath("/shop");
+}
+
+export async function toggleShoppingPurchased(itemId: string): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const item = await prisma.shoppingItem.findUnique({ where: { id: itemId } });
+  if (!item) throw new Error("NOT_FOUND");
+
+  await prisma.shoppingItem.update({
+    where: { id: itemId },
+    data: { purchased: !item.purchased },
+  });
+
+  revalidatePath("/shop");
+}
+
+export async function deleteShoppingItem(itemId: string): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  await prisma.shoppingItem.delete({ where: { id: itemId } });
+  revalidatePath("/shop");
+}
