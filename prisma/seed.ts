@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
 import * as XLSX from "xlsx";
+import fs from "fs";
 import path from "path";
 import { inferDueDate, weddingDate } from "../src/lib/due-dates";
 
@@ -142,6 +143,13 @@ const PACKAGES: PackageDef[] = [
 
 function readSheet(fileName: string) {
   const filePath = path.join(DOWNLOADS, fileName);
+  if (!fs.existsSync(filePath)) {
+    console.warn(
+      `[seed] Spreadsheet not found: ${filePath} — skipping its rows. ` +
+        `Place the file in your Downloads folder to seed this data.`
+    );
+    return [] as (string | number | null)[][];
+  }
   const wb = XLSX.readFile(filePath);
   const sheet = wb.Sheets[wb.SheetNames[0]];
   return XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, { header: 1, defval: null });
