@@ -20,6 +20,18 @@ export async function verifyPin(pin: string, pinHash: string) {
   return compare(pin, pinHash);
 }
 
+function parseAssigneeFilter(raw: string | null): string[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    const ids = parsed.filter((v): v is string => typeof v === "string" && v.length > 0);
+    return ids.length > 0 ? ids : null;
+  } catch {
+    return null;
+  }
+}
+
 function toSession(account: {
   id: string;
   name: string;
@@ -28,28 +40,57 @@ function toSession(account: {
   canSeeBudget: boolean;
   canSeeGuests: boolean;
   canSeeTimeline: boolean;
+  canSeeShop: boolean;
+  canSeeCalendar: boolean;
+  canSeePeople: boolean;
+  canSeeRequests: boolean;
+  canEditBudget: boolean;
+  canEditTimeline: boolean;
   canManageAccounts: boolean;
   assigneeFilterJson: string | null;
+  linkedPersonId: string | null;
 }): SessionAccount {
-  let assigneeFilter: string[] | null = null;
-  if (account.assigneeFilterJson) {
-    try {
-      const parsed = JSON.parse(account.assigneeFilterJson) as string[];
-      assigneeFilter = Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
-    } catch {
-      assigneeFilter = null;
-    }
+  const assigneeFilter = parseAssigneeFilter(account.assigneeFilterJson);
+
+  // Masters always get full module access regardless of DB flags.
+  if (account.isMaster) {
+    return {
+      id: account.id,
+      name: account.name,
+      isMaster: true,
+      canSeeTasks: true,
+      canSeeBudget: true,
+      canSeeGuests: true,
+      canSeeTimeline: true,
+      canSeeShop: true,
+      canSeeCalendar: true,
+      canSeePeople: true,
+      canSeeRequests: true,
+      canEditBudget: true,
+      canEditTimeline: true,
+      canManageAccounts: true,
+      assigneeFilter: null,
+      linkedPersonId: account.linkedPersonId,
+    };
   }
+
   return {
     id: account.id,
     name: account.name,
-    isMaster: account.isMaster,
+    isMaster: false,
     canSeeTasks: account.canSeeTasks,
     canSeeBudget: account.canSeeBudget,
     canSeeGuests: account.canSeeGuests,
     canSeeTimeline: account.canSeeTimeline,
+    canSeeShop: account.canSeeShop,
+    canSeeCalendar: account.canSeeCalendar,
+    canSeePeople: account.canSeePeople,
+    canSeeRequests: account.canSeeRequests,
+    canEditBudget: account.canEditBudget,
+    canEditTimeline: account.canEditTimeline,
     canManageAccounts: account.canManageAccounts,
-    assigneeFilter: account.isMaster ? null : assigneeFilter,
+    assigneeFilter,
+    linkedPersonId: account.linkedPersonId,
   };
 }
 

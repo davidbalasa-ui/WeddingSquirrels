@@ -247,7 +247,14 @@ async function main() {
       canSeeBudget: true,
       canSeeGuests: true,
       canSeeTimeline: true,
+      canSeeShop: true,
+      canSeeCalendar: true,
+      canSeePeople: true,
+      canSeeRequests: true,
+      canEditBudget: true,
+      canEditTimeline: true,
       canManageAccounts: true,
+      linkedPersonId: "david",
     },
   });
 
@@ -260,7 +267,14 @@ async function main() {
       canSeeBudget: true,
       canSeeGuests: true,
       canSeeTimeline: true,
+      canSeeShop: true,
+      canSeeCalendar: true,
+      canSeePeople: true,
+      canSeeRequests: true,
+      canEditBudget: true,
+      canEditTimeline: true,
       canManageAccounts: true,
+      linkedPersonId: "haley",
     },
   });
 
@@ -272,8 +286,15 @@ async function main() {
       canSeeBudget: false,
       canSeeGuests: false,
       canSeeTimeline: false,
+      canSeeShop: true,
+      canSeeCalendar: true,
+      canSeePeople: true,
+      canSeeRequests: true,
+      canEditBudget: false,
+      canEditTimeline: false,
       canManageAccounts: false,
       assigneeFilterJson: JSON.stringify(["shelly"]),
+      linkedPersonId: "shelly",
     },
   });
 

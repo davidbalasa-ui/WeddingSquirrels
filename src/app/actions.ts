@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { moneyEditable, timelineEditable } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   clearSession,
@@ -244,7 +245,7 @@ export async function saveStepNotes(formData: FormData): Promise<void> {
 
 export async function setBudgetOwner(budgetItemId: string, ownerId: string | null) {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   if (ownerId !== null && ownerId !== "david" && ownerId !== "haley") {
     throw new Error("INVALID_OWNER");
@@ -273,7 +274,7 @@ function parseDueDate(raw: string): Date | null {
 
 export async function saveBudgetItem(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim();
@@ -295,7 +296,7 @@ export async function saveBudgetItem(formData: FormData): Promise<void> {
 
 export async function createBudgetItem(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   const name = String(formData.get("name") || "").trim();
   const price = parseMoney(String(formData.get("price") || "")) ?? 0;
@@ -319,7 +320,7 @@ export async function createBudgetItem(formData: FormData): Promise<void> {
 
 export async function deleteBudgetItem(id: string): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   await prisma.task.updateMany({ where: { budgetItemId: id }, data: { budgetItemId: null } });
   await prisma.budgetItem.delete({ where: { id } });
@@ -329,7 +330,7 @@ export async function deleteBudgetItem(id: string): Promise<void> {
 
 export async function saveMinorExpense(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   const id = String(formData.get("id") || "");
   const amountNeeded = parseMoney(String(formData.get("amountNeeded") || ""));
@@ -354,7 +355,7 @@ export async function saveMinorExpense(formData: FormData): Promise<void> {
 
 export async function createPinAccount(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canManageAccounts) throw new Error("FORBIDDEN");
+  if (!(session.isMaster || session.canManageAccounts)) throw new Error("FORBIDDEN");
 
   const name = String(formData.get("name") || "").trim();
   const pin = String(formData.get("pin") || "").trim();
@@ -388,7 +389,7 @@ export async function createPinAccount(formData: FormData): Promise<void> {
 
 export async function updatePinAccount(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canManageAccounts) throw new Error("FORBIDDEN");
+  if (!(session.isMaster || session.canManageAccounts)) throw new Error("FORBIDDEN");
 
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim();
@@ -437,7 +438,7 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
 
 export async function deletePinAccount(accountId: string) {
   const session = await requireSession();
-  if (!session.canManageAccounts) throw new Error("FORBIDDEN");
+  if (!(session.isMaster || session.canManageAccounts)) throw new Error("FORBIDDEN");
 
   const existing = await prisma.pinAccount.findUnique({ where: { id: accountId } });
   if (!existing || existing.isMaster) throw new Error("FORBIDDEN");
@@ -448,8 +449,7 @@ export async function deletePinAccount(accountId: string) {
 
 async function requireTimelineEditor() {
   const session = await requireSession();
-  if (!session.canSeeTimeline) throw new Error("FORBIDDEN");
-  // Helpers with timeline can edit; masters always can
+  if (!session.canSeeTimeline || !timelineEditable(session)) throw new Error("FORBIDDEN");
   return session;
 }
 

@@ -22,6 +22,7 @@ model Person {
   assignees     TaskAssignee[]
   budgets       BudgetItem[]   @relation("BudgetOwner")
   shoppingItems ShoppingItem[]
+  pinAccounts   PinAccount[]
 }
 
 /// Decision workspace: either a top-level package or a nested step.
@@ -135,9 +136,17 @@ model PinAccount {
   canSeeBudget       Boolean  @default(false)
   canSeeGuests       Boolean  @default(false)
   canSeeTimeline     Boolean  @default(false)
+  canSeeShop         Boolean  @default(true)
+  canSeeCalendar     Boolean  @default(true)
+  canSeePeople       Boolean  @default(true)
+  canSeeRequests     Boolean  @default(true)
+  canEditBudget      Boolean  @default(false)
+  canEditTimeline    Boolean  @default(false)
   canManageAccounts  Boolean  @default(false)
-  /// JSON string array of Person.id values; null/empty = all people (for masters)
+  /// JSON string array of Person.id values; null/empty = all tasks (not “none”)
   assigneeFilterJson String?
+  linkedPersonId     String?
+  linkedPerson       Person?  @relation(fields: [linkedPersonId], references: [id])
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

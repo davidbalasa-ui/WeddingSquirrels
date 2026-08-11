@@ -5,7 +5,17 @@ import type { SessionAccount } from "@/lib/types";
 export async function requirePageSession(opts?: {
   need?: keyof Pick<
     SessionAccount,
-    "canSeeTasks" | "canSeeBudget" | "canSeeGuests" | "canSeeTimeline" | "canManageAccounts"
+    | "canSeeTasks"
+    | "canSeeBudget"
+    | "canSeeGuests"
+    | "canSeeTimeline"
+    | "canSeeShop"
+    | "canSeeCalendar"
+    | "canSeePeople"
+    | "canSeeRequests"
+    | "canEditBudget"
+    | "canEditTimeline"
+    | "canManageAccounts"
   >;
 }) {
   const session = await getSession();

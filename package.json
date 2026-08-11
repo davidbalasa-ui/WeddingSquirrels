@@ -12,6 +12,7 @@
     "db:org-cards": "tsx scripts/ensure-org-cards.ts",
     "db:calendar": "tsx scripts/ensure-calendar-events.ts",
     "db:masters": "tsx scripts/ensure-masters.ts",
+    "db:backfill-permissions": "tsx scripts/backfill-permissions.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "postinstall": "prisma generate"
   },

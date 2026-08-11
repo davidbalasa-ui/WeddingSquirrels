@@ -6,9 +6,9 @@ import type { SessionAccount } from "@/lib/types";
 
 const items = [
   { href: "/today", label: "Today", need: "canSeeTasks" as const },
-  { href: "/people", label: "People", need: "canSeeTasks" as const },
-  { href: "/calendar", label: "Cal", need: "canSeeTasks" as const },
-  { href: "/shop", label: "Shop", need: "canSeeTasks" as const },
+  { href: "/people", label: "People", need: "canSeePeople" as const },
+  { href: "/calendar", label: "Cal", need: "canSeeCalendar" as const },
+  { href: "/shop", label: "Shop", need: "canSeeShop" as const },
   { href: "/money", label: "Money", need: "canSeeBudget" as const },
   { href: "/day", label: "Day-of", need: "canSeeTimeline" as const },
   { href: "/guests", label: "Guests", need: "canSeeGuests" as const },

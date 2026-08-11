@@ -6,7 +6,7 @@ import { taskVisibilityWhere } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
 
 export default async function CalendarPage() {
-  const session = await requirePageSession({ need: "canSeeTasks" });
+  const session = await requirePageSession({ need: "canSeeCalendar" });
 
   const [events, tasks] = await Promise.all([
     prisma.calendarEvent.findMany({ orderBy: { startDate: "asc" } }),

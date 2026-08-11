@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/AppHeader";
 import { MoneyBoard } from "@/components/MoneyBoard";
+import { moneyEditable } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/session";
 
@@ -29,7 +30,7 @@ export default async function MoneyPage() {
   return (
     <>
       <AppHeader session={session} title="Money" subtitle="Budget + minor expenses from decisions" />
-      <MoneyBoard items={items} minor={minorCandidates} canEdit={session.isMaster} />
+      <MoneyBoard items={items} minor={minorCandidates} canEdit={moneyEditable(session)} />
     </>
   );
 }
