@@ -413,13 +413,16 @@ export function AccountAccessPanel({
               </div>
             </fieldset>
           </>
+        ) : isMaster ? (
+          <p className="text-xs text-muted">
+            Masters already see all budget items and tasks; per-item shares are for helpers.
+          </p>
         ) : (
           <p className="rounded-xl border border-dashed border-line px-3 py-2 text-xs text-muted">
-            {/* TODO(WP3): when BudgetItemShare / TaskShare land, enable pickers and
-                persist via setBudgetItemShares / setTaskShares (or account-scoped sync). */}
-            Shared budget &amp; task pickers unlock after item-sharing (WP3). Save still
-            accepts <code>sharedBudgetItemIds</code> / <code>sharedTaskIds</code> when
-            available.
+            {/* Fallback if share tables are unavailable on this deployment. */}
+            Shared budget &amp; task pickers require item-sharing tables. Save accepts{" "}
+            <code>sharedBudgetItemIds</code> / <code>sharedTaskIds</code> when available
+            (synced like setBudgetItemShares / setTaskShares).
           </p>
         )}
       </section>
