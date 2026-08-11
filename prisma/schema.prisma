@@ -52,6 +52,7 @@ model Task {
   children        Task[]         @relation("TaskTree")
   assignees       TaskAssignee[]
   shoppingItems   ShoppingItem[]
+  shares          TaskShare[]
   /// Special shared org cards: "week_before" | "day_before" (null = normal decision)
   orgKey          String?
   /// When set, task is pinned to the top as priority
@@ -61,6 +62,16 @@ model Task {
   @@index([status, dueDate])
   @@index([parentId])
   @@unique([orgKey])
+}
+
+model TaskShare {
+  taskId       String
+  pinAccountId String
+  task         Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  pinAccount   PinAccount @relation(fields: [pinAccountId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, pinAccountId])
+  @@index([pinAccountId])
 }
 
 model TaskAssignee {
@@ -74,18 +85,29 @@ model TaskAssignee {
 }
 
 model BudgetItem {
-  id         String    @id @default(cuid())
+  id         String            @id @default(cuid())
   name       String
   price      Float
-  amountPaid Float     @default(0)
+  amountPaid Float             @default(0)
   payByDate  DateTime?
   ownerId    String?
-  owner      Person?   @relation("BudgetOwner", fields: [ownerId], references: [id])
-  sortOrder  Int       @default(0)
+  owner      Person?           @relation("BudgetOwner", fields: [ownerId], references: [id])
+  sortOrder  Int               @default(0)
   note       String?
   tasks      Task[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  shares     BudgetItemShare[]
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+}
+
+model BudgetItemShare {
+  budgetItemId String
+  pinAccountId String
+  budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id], onDelete: Cascade)
+  pinAccount   PinAccount @relation(fields: [pinAccountId], references: [id], onDelete: Cascade)
+
+  @@id([budgetItemId, pinAccountId])
+  @@index([pinAccountId])
 }
 
 model TimelineBlock {
@@ -147,6 +169,8 @@ model PinAccount {
   assigneeFilterJson String?
   linkedPersonId     String?
   linkedPerson       Person?  @relation(fields: [linkedPersonId], references: [id])
+  budgetItemShares   BudgetItemShare[]
+  taskShares         TaskShare[]
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

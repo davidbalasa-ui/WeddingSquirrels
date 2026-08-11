@@ -11,6 +11,7 @@ import {
   unlockWithPin,
 } from "@/lib/auth";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
+import { sessionCanAccessTask } from "@/lib/tasks";
 
 export type UnlockState = { error?: string };
 
@@ -34,24 +35,23 @@ export async function lockAction() {
   redirect("/");
 }
 
+const taskAccessInclude = {
+  assignees: true,
+  shares: true,
+  children: { include: { assignees: true, shares: true } },
+  parent: { include: { assignees: true, shares: true } },
+} as const;
+
 export async function toggleTaskDone(taskId: string) {
   const session = await requireSession();
   if (!session.canSeeTasks) throw new Error("FORBIDDEN");
 
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    include: { assignees: true, children: { include: { assignees: true } } },
+    include: taskAccessInclude,
   });
   if (!task) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok =
-      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
-      task.children.some((c) =>
-        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
-      );
-    if (!ok) throw new Error("FORBIDDEN");
-  }
+  if (!sessionCanAccessTask(session, task)) throw new Error("FORBIDDEN");
 
   const done = task.status === "done";
   await prisma.task.update({
@@ -73,18 +73,10 @@ export async function toggleTaskEscalation(taskId: string) {
 
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    include: { assignees: true, children: { include: { assignees: true } } },
+    include: taskAccessInclude,
   });
   if (!task || task.parentId) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok =
-      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
-      task.children.some((c) =>
-        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
-      );
-    if (!ok) throw new Error("FORBIDDEN");
-  }
+  if (!sessionCanAccessTask(session, task)) throw new Error("FORBIDDEN");
 
   const escalated = Boolean(task.escalatedAt);
   await prisma.task.update({
@@ -115,18 +107,10 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
 
   const task = await prisma.task.findUnique({
     where: { id },
-    include: { assignees: true, children: { include: { assignees: true } } },
+    include: taskAccessInclude,
   });
   if (!task || task.parentId) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok =
-      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
-      task.children.some((c) =>
-        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
-      );
-    if (!ok) throw new Error("FORBIDDEN");
-  }
+  if (!sessionCanAccessTask(session, task)) throw new Error("FORBIDDEN");
 
   const amountNeeded =
     amountNeededRaw === "" ? null : Number.parseFloat(amountNeededRaw.replace(/[$,]/g, ""));
@@ -225,14 +209,10 @@ export async function saveStepNotes(formData: FormData): Promise<void> {
 
   const step = await prisma.task.findUnique({
     where: { id },
-    include: { assignees: true },
+    include: taskAccessInclude,
   });
   if (!step) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok = step.assignees.some((a) => session.assigneeFilter!.includes(a.personId));
-    if (!ok && !session.isMaster) throw new Error("FORBIDDEN");
-  }
+  if (!sessionCanAccessTask(session, step)) throw new Error("FORBIDDEN");
 
   await prisma.task.update({
     where: { id },
@@ -241,6 +221,70 @@ export async function saveStepNotes(formData: FormData): Promise<void> {
 
   revalidatePath(`/work/${step.parentId || step.id}`);
   revalidatePath("/today");
+}
+
+/** Replace-all budget item shares. Masters / canEditBudget only. */
+export async function setBudgetItemShares(budgetItemId: string, pinAccountIds: string[]) {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
+
+  const item = await prisma.budgetItem.findUnique({ where: { id: budgetItemId } });
+  if (!item) throw new Error("NOT_FOUND");
+
+  const uniqueIds = [...new Set(pinAccountIds.filter(Boolean))];
+  const accounts = uniqueIds.length
+    ? await prisma.pinAccount.findMany({
+        where: { id: { in: uniqueIds } },
+        select: { id: true },
+      })
+    : [];
+  const validIds = accounts.map((a) => a.id);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.budgetItemShare.deleteMany({ where: { budgetItemId } });
+    if (validIds.length) {
+      await tx.budgetItemShare.createMany({
+        data: validIds.map((pinAccountId) => ({ budgetItemId, pinAccountId })),
+      });
+    }
+  });
+
+  revalidatePath("/money");
+}
+
+/** Replace-all task shares. Masters / unscoped managers only. */
+export async function setTaskShares(taskId: string, pinAccountIds: string[]) {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const canManage = session.isMaster || !session.assigneeFilter?.length;
+  if (!canManage) throw new Error("FORBIDDEN");
+
+  const task = await prisma.task.findUnique({ where: { id: taskId } });
+  if (!task || task.parentId) throw new Error("NOT_FOUND");
+
+  const uniqueIds = [...new Set(pinAccountIds.filter(Boolean))];
+  const accounts = uniqueIds.length
+    ? await prisma.pinAccount.findMany({
+        where: { id: { in: uniqueIds } },
+        select: { id: true },
+      })
+    : [];
+  const validIds = accounts.map((a) => a.id);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.taskShare.deleteMany({ where: { taskId } });
+    if (validIds.length) {
+      await tx.taskShare.createMany({
+        data: validIds.map((pinAccountId) => ({ taskId, pinAccountId })),
+      });
+    }
+  });
+
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath(`/work/${taskId}`);
+  revalidatePath("/money");
 }
 
 export async function setBudgetOwner(budgetItemId: string, ownerId: string | null) {
