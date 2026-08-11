@@ -25,7 +25,12 @@ export default async function WorkPage({ params }: { params: Promise<{ id: strin
       <Link href="/today" className="mb-3 inline-block text-sm font-semibold text-[var(--accent)]">
         ← Back to Today
       </Link>
-      <TaskWorkspaceForm task={task} people={people} canManageOwners={canManageOwners} />
+      <TaskWorkspaceForm
+        task={task}
+        people={people}
+        canManageOwners={canManageOwners}
+        canSeeRequests={session.canSeeRequests}
+      />
     </>
   );
 }

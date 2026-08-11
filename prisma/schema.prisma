@@ -52,6 +52,7 @@ model Task {
   children        Task[]         @relation("TaskTree")
   assignees       TaskAssignee[]
   shoppingItems   ShoppingItem[]
+  requests        Request[]
   /// Special shared org cards: "week_before" | "day_before" (null = normal decision)
   orgKey          String?
   /// When set, task is pinned to the top as priority
@@ -147,8 +148,34 @@ model PinAccount {
   assigneeFilterJson String?
   linkedPersonId     String?
   linkedPerson       Person?  @relation(fields: [linkedPersonId], references: [id])
+  requestsSent       Request[] @relation("RequestsSent")
+  requestsReceived   Request[] @relation("RequestsReceived")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+/// In-app ask between PinAccounts (login identities), not Persons.
+model Request {
+  id                  String      @id @default(cuid())
+  title               String
+  note                String?
+  status              String      @default("open") // open | done | declined
+  senderAccountId     String
+  recipientAccountId  String
+  taskId              String?
+  readAt              DateTime?
+  completedAt         DateTime?
+  declinedAt          DateTime?
+  declineNote         String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  senderAccount       PinAccount  @relation("RequestsSent", fields: [senderAccountId], references: [id], onDelete: Cascade)
+  recipientAccount    PinAccount  @relation("RequestsReceived", fields: [recipientAccountId], references: [id], onDelete: Cascade)
+  task                Task?       @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([recipientAccountId, status, readAt])
+  @@index([senderAccountId, status])
+  @@index([taskId])
 }
 
 model ShoppingItem {

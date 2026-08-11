@@ -131,6 +131,31 @@ a {
   color: var(--accent);
 }
 
+.nav-link-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.25rem;
+}
+
+.nav-badge {
+  position: absolute;
+  top: -0.55rem;
+  right: -0.85rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.15rem;
+  text-align: center;
+  pointer-events: none;
+}
+
 .star-btn {
   display: inline-flex;
   align-items: center;

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTransition } from "react";
 import { saveStepNotes, saveTaskWorkspace, toggleTaskDone } from "@/app/actions";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
@@ -13,10 +14,12 @@ export function TaskWorkspaceForm({
   task,
   people,
   canManageOwners,
+  canSeeRequests = false,
 }: {
   task: TaskWorkspace;
   people: PersonOption[];
   canManageOwners: boolean;
+  canSeeRequests?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const label = dueLabel(task.dueDate, task.status);
@@ -43,6 +46,15 @@ export function TaskWorkspaceForm({
       ) : null}
 
       <EscalatePriorityButton taskId={task.id} escalated={escalated} />
+
+      {canSeeRequests && !task.parentId ? (
+        <Link
+          href={`/requests?taskId=${task.id}`}
+          className="inline-flex min-h-[44px] items-center text-sm font-semibold text-[var(--accent)]"
+        >
+          Ask someone about this →
+        </Link>
+      ) : null}
 
       <section className="card p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">What is this</p>

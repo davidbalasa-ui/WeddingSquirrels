@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { moneyEditable, timelineEditable } from "@/lib/access";
+import {
+  assertTransition,
+  canViewRequest,
+} from "@/lib/requests";
 import { prisma } from "@/lib/db";
 import {
   clearSession,
@@ -652,3 +656,191 @@ export async function deleteShoppingItem(itemId: string): Promise<void> {
   await prisma.shoppingItem.delete({ where: { id: itemId } });
   revalidatePath("/shop");
 }
+
+function revalidateRequests() {
+  revalidatePath("/requests");
+  revalidatePath("/", "layout");
+}
+
+async function resolveRequestTaskId(raw: string): Promise<string | null> {
+  if (!raw) return null;
+  const task = await prisma.task.findFirst({
+    where: { id: raw, parentId: null },
+    select: { id: true },
+  });
+  return task?.id ?? null;
+}
+
+export async function createRequest(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  assertTransition(session, null, "create");
+
+  const title = String(formData.get("title") || "").trim();
+  const note = String(formData.get("note") || "").trim();
+  const recipientAccountId = String(formData.get("recipientAccountId") || "").trim();
+  const taskId = await resolveRequestTaskId(String(formData.get("taskId") || "").trim());
+
+  if (!title || !recipientAccountId) return;
+  if (recipientAccountId === session.id) throw new Error("FORBIDDEN");
+
+  const recipient = await prisma.pinAccount.findUnique({
+    where: { id: recipientAccountId },
+    select: { id: true },
+  });
+  if (!recipient) throw new Error("NOT_FOUND");
+
+  await prisma.request.create({
+    data: {
+      title,
+      note: note || null,
+      status: "open",
+      senderAccountId: session.id,
+      recipientAccountId,
+      taskId,
+    },
+  });
+
+  revalidateRequests();
+}
+
+export async function saveRequest(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeRequests) throw new Error("FORBIDDEN");
+
+  const id = String(formData.get("id") || "").trim();
+  if (!id) return;
+
+  const existing = await prisma.request.findUnique({ where: { id } });
+  if (!existing) throw new Error("NOT_FOUND");
+  assertTransition(session, existing, "edit");
+
+  const title = String(formData.get("title") || "").trim();
+  const note = String(formData.get("note") || "").trim();
+  const taskId = await resolveRequestTaskId(String(formData.get("taskId") || "").trim());
+
+  if (!title) return;
+
+  await prisma.request.update({
+    where: { id },
+    data: {
+      title,
+      note: note || null,
+      taskId,
+    },
+  });
+
+  revalidateRequests();
+}
+
+export async function markRequestRead(requestId: string): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeRequests) throw new Error("FORBIDDEN");
+
+  const existing = await prisma.request.findUnique({ where: { id: requestId } });
+  if (!existing) throw new Error("NOT_FOUND");
+  if (!canViewRequest(session, existing)) throw new Error("FORBIDDEN");
+
+  // Only the recipient marks read; sender expand must not clear badge.
+  if (existing.recipientAccountId !== session.id) return;
+  if (existing.readAt) return;
+
+  await prisma.request.update({
+    where: { id: requestId },
+    data: { readAt: new Date() },
+  });
+
+  revalidateRequests();
+}
+
+export async function completeRequest(requestId: string): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeRequests) throw new Error("FORBIDDEN");
+
+  const existing = await prisma.request.findUnique({ where: { id: requestId } });
+  if (!existing) throw new Error("NOT_FOUND");
+  assertTransition(session, existing, "complete");
+
+  const now = new Date();
+  await prisma.request.update({
+    where: { id: requestId },
+    data: {
+      status: "done",
+      completedAt: now,
+      declinedAt: null,
+      declineNote: null,
+      // Done clears badge (closed never counts as unread).
+      readAt: existing.readAt ?? now,
+    },
+  });
+
+  revalidateRequests();
+}
+
+export async function declineRequest(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeRequests) throw new Error("FORBIDDEN");
+
+  const id = String(formData.get("id") || "").trim();
+  const declineNote = String(formData.get("declineNote") || "").trim();
+  if (!id) return;
+
+  const existing = await prisma.request.findUnique({ where: { id } });
+  if (!existing) throw new Error("NOT_FOUND");
+
+  // Double decline is safe: already declined → no-op.
+  if (existing.status === "declined") {
+    revalidateRequests();
+    return;
+  }
+
+  assertTransition(session, existing, "decline");
+
+  const now = new Date();
+  await prisma.request.update({
+    where: { id },
+    data: {
+      status: "declined",
+      declinedAt: now,
+      declineNote: declineNote || null,
+      completedAt: null,
+      readAt: existing.readAt ?? now,
+    },
+  });
+
+  revalidateRequests();
+}
+
+export async function reopenRequest(requestId: string): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeRequests) throw new Error("FORBIDDEN");
+
+  const existing = await prisma.request.findUnique({ where: { id: requestId } });
+  if (!existing) throw new Error("NOT_FOUND");
+  assertTransition(session, existing, "reopen");
+
+  await prisma.request.update({
+    where: { id: requestId },
+    data: {
+      status: "open",
+      completedAt: null,
+      declinedAt: null,
+      declineNote: null,
+      readAt: null,
+    },
+  });
+
+  revalidateRequests();
+}
+
+export async function deleteRequest(requestId: string): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeRequests) throw new Error("FORBIDDEN");
+
+  const existing = await prisma.request.findUnique({ where: { id: requestId } });
+  if (!existing) throw new Error("NOT_FOUND");
+  assertTransition(session, existing, "delete");
+
+  await prisma.request.delete({ where: { id: requestId } });
+  revalidateRequests();
+}
+
