@@ -232,3 +232,44 @@ a {
   min-height: 44px;
   cursor: pointer;
 }
+
+@media print {
+  body {
+    background: white;
+  }
+
+  .nav-bar,
+  .print-hide {
+    display: none !important;
+  }
+
+  .app-shell {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    min-height: auto;
+  }
+
+  header.sticky {
+    position: static;
+    border: none;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .card {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .print-section,
+  .money-print-table tr {
+    break-inside: avoid;
+  }
+
+  .money-print-table th,
+  .money-print-table td {
+    font-size: 11pt;
+  }
+}

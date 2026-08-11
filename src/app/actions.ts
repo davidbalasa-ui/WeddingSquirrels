@@ -242,13 +242,22 @@ export async function saveStepNotes(formData: FormData): Promise<void> {
   revalidatePath("/today");
 }
 
+function parseBudgetPersonId(raw: string): string | null {
+  if (raw === "david" || raw === "haley") return raw;
+  return null;
+}
+
+function assertBudgetPersonId(id: string | null): asserts id is string | null {
+  if (id !== null && id !== "david" && id !== "haley") {
+    throw new Error("INVALID_PERSON");
+  }
+}
+
 export async function setBudgetOwner(budgetItemId: string, ownerId: string | null) {
   const session = await requireSession();
   if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
 
-  if (ownerId !== null && ownerId !== "david" && ownerId !== "haley") {
-    throw new Error("INVALID_OWNER");
-  }
+  assertBudgetPersonId(ownerId);
 
   await prisma.budgetItem.update({
     where: { id: budgetItemId },
@@ -256,12 +265,17 @@ export async function setBudgetOwner(budgetItemId: string, ownerId: string | nul
   });
 
   revalidatePath("/money");
+  revalidatePath("/money/print");
 }
 
 function parseMoney(raw: string) {
   if (!raw.trim()) return null;
   const n = Number.parseFloat(raw.replace(/[$,]/g, ""));
   return Number.isFinite(n) ? n : null;
+}
+
+function clampMoney(n: number) {
+  return Math.max(0, n);
 }
 
 function parseDueDate(raw: string): Date | null {
@@ -271,26 +285,64 @@ function parseDueDate(raw: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+export async function setBudgetPayByDate(itemId: string, dateRaw: string) {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+
+  await prisma.budgetItem.update({
+    where: { id: itemId },
+    data: { payByDate: parseDueDate(dateRaw) },
+  });
+
+  revalidatePath("/money");
+  revalidatePath("/money/print");
+}
+
+export async function setBudgetPaidBy(itemId: string, paidById: string | null) {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+
+  assertBudgetPersonId(paidById);
+
+  await prisma.budgetItem.update({
+    where: { id: itemId },
+    data: { paidById },
+  });
+
+  revalidatePath("/money");
+  revalidatePath("/money/print");
+}
+
 export async function saveBudgetItem(formData: FormData): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
 
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim();
-  const price = parseMoney(String(formData.get("price") || "")) ?? 0;
-  const amountPaid = parseMoney(String(formData.get("amountPaid") || "")) ?? 0;
+  const price = clampMoney(parseMoney(String(formData.get("price") || "")) ?? 0);
+  const amountPaid = clampMoney(parseMoney(String(formData.get("amountPaid") || "")) ?? 0);
   const note = String(formData.get("note") || "").trim();
-  const ownerRaw = String(formData.get("ownerId") || "");
-  const ownerId = ownerRaw === "david" || ownerRaw === "haley" ? ownerRaw : null;
+  const ownerId = parseBudgetPersonId(String(formData.get("ownerId") || ""));
+  const paidById = parseBudgetPersonId(String(formData.get("paidById") || ""));
+  const payByDate = parseDueDate(String(formData.get("payByDate") || ""));
 
   if (!id || !name) return;
 
   await prisma.budgetItem.update({
     where: { id },
-    data: { name, price, amountPaid, note: note || null, ownerId },
+    data: {
+      name,
+      price,
+      amountPaid,
+      note: note || null,
+      ownerId,
+      paidById,
+      payByDate,
+    },
   });
 
   revalidatePath("/money");
+  revalidatePath("/money/print");
 }
 
 export async function createBudgetItem(formData: FormData): Promise<void> {
@@ -298,9 +350,12 @@ export async function createBudgetItem(formData: FormData): Promise<void> {
   if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
 
   const name = String(formData.get("name") || "").trim();
-  const price = parseMoney(String(formData.get("price") || "")) ?? 0;
-  const amountPaid = parseMoney(String(formData.get("amountPaid") || "")) ?? 0;
+  const price = clampMoney(parseMoney(String(formData.get("price") || "")) ?? 0);
+  const amountPaid = clampMoney(parseMoney(String(formData.get("amountPaid") || "")) ?? 0);
   const note = String(formData.get("note") || "").trim();
+  const ownerId = parseBudgetPersonId(String(formData.get("ownerId") || ""));
+  const paidById = parseBudgetPersonId(String(formData.get("paidById") || ""));
+  const payByDate = parseDueDate(String(formData.get("payByDate") || ""));
   if (!name) return;
 
   const last = await prisma.budgetItem.findFirst({ orderBy: { sortOrder: "desc" } });
@@ -310,11 +365,15 @@ export async function createBudgetItem(formData: FormData): Promise<void> {
       price,
       amountPaid,
       note: note || null,
+      ownerId,
+      paidById,
+      payByDate,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });
 
   revalidatePath("/money");
+  revalidatePath("/money/print");
 }
 
 export async function deleteBudgetItem(id: string): Promise<void> {
@@ -324,6 +383,7 @@ export async function deleteBudgetItem(id: string): Promise<void> {
   await prisma.task.updateMany({ where: { budgetItemId: id }, data: { budgetItemId: null } });
   await prisma.budgetItem.delete({ where: { id } });
   revalidatePath("/money");
+  revalidatePath("/money/print");
   revalidatePath("/today");
 }
 
@@ -348,6 +408,7 @@ export async function saveMinorExpense(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/money");
+  revalidatePath("/money/print");
   revalidatePath(`/work/${id}`);
   revalidatePath("/today");
 }

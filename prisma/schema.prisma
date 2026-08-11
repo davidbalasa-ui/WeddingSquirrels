@@ -21,6 +21,7 @@ model Person {
   sortOrder     Int            @default(0)
   assignees     TaskAssignee[]
   budgets       BudgetItem[]   @relation("BudgetOwner")
+  budgetsPaid   BudgetItem[]   @relation("BudgetPayer")
   shoppingItems ShoppingItem[]
 }
 
@@ -80,6 +81,8 @@ model BudgetItem {
   payByDate  DateTime?
   ownerId    String?
   owner      Person?   @relation("BudgetOwner", fields: [ownerId], references: [id])
+  paidById   String?
+  paidBy     Person?   @relation("BudgetPayer", fields: [paidById], references: [id])
   sortOrder  Int       @default(0)
   note       String?
   tasks      Task[]

@@ -1,5 +1,4 @@
-import { AppHeader } from "@/components/AppHeader";
-import { MoneyBoard } from "@/components/MoneyBoard";
+import { MoneyPrintView } from "@/components/MoneyPrintView";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/session";
 
@@ -11,8 +10,9 @@ function toDateInput(value: Date | null) {
   return `${y}-${m}-${d}`;
 }
 
-export default async function MoneyPage() {
+export default async function MoneyPrintPage() {
   const session = await requirePageSession({ need: "canSeeBudget" });
+  void session;
 
   const [items, minorCandidates] = await Promise.all([
     prisma.budgetItem.findMany({ orderBy: { sortOrder: "asc" } }),
@@ -26,7 +26,6 @@ export default async function MoneyPage() {
       select: {
         id: true,
         title: true,
-        summary: true,
         planNotes: true,
         amountNeeded: true,
         amountSpent: true,
@@ -35,23 +34,19 @@ export default async function MoneyPage() {
   ]);
 
   return (
-    <>
-      <AppHeader session={session} title="Money" subtitle="Budget + minor expenses from decisions" />
-      <MoneyBoard
-        items={items.map((item) => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          amountPaid: item.amountPaid,
-          ownerId: item.ownerId,
-          paidById: item.paidById,
-          payByDate: toDateInput(item.payByDate),
-          note: item.note,
-          sortOrder: item.sortOrder,
-        }))}
-        minor={minorCandidates}
-        canEdit={session.canSeeBudget && session.isMaster}
-      />
-    </>
+    <MoneyPrintView
+      items={items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        ownerId: item.ownerId,
+        paidById: item.paidById,
+        price: item.price,
+        amountPaid: item.amountPaid,
+        payByDate: toDateInput(item.payByDate),
+        note: item.note,
+        sortOrder: item.sortOrder,
+      }))}
+      minor={minorCandidates}
+    />
   );
 }
