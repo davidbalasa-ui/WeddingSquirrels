@@ -19,13 +19,26 @@ export default async function WorkPage({ params }: { params: Promise<{ id: strin
 
   const canManageOwners = session.isMaster || !session.assigneeFilter?.length;
 
+  const shareAccounts = canManageOwners
+    ? await prisma.pinAccount.findMany({
+        where: { isMaster: false },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      })
+    : [];
+
   return (
     <>
       <AppHeader session={session} title={task.title} subtitle="Decision workspace" />
       <Link href="/today" className="mb-3 inline-block text-sm font-semibold text-[var(--accent)]">
         ← Back to Today
       </Link>
-      <TaskWorkspaceForm task={task} people={people} canManageOwners={canManageOwners} />
+      <TaskWorkspaceForm
+        task={task}
+        people={people}
+        canManageOwners={canManageOwners}
+        shareAccounts={shareAccounts}
+      />
     </>
   );
 }

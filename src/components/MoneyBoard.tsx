@@ -6,6 +6,7 @@ import {
   deleteBudgetItem,
   saveBudgetItem,
   saveMinorExpense,
+  setBudgetItemShares,
   setBudgetOwner,
 } from "@/app/actions";
 import { StarIcon } from "@/components/StarIcon";
@@ -17,7 +18,10 @@ export type BudgetItemView = {
   amountPaid: number;
   ownerId: string | null;
   note: string | null;
+  sharedPinAccountIds?: string[];
 };
+
+export type ShareAccountOption = { id: string; name: string };
 
 export type MinorExpenseView = {
   id: string;
@@ -42,15 +46,23 @@ export function MoneyBoard({
   items,
   minor,
   canEdit,
+  shareAccounts = [],
+  emptyMessage = null,
 }: {
   items: BudgetItemView[];
   minor: MinorExpenseView[];
   canEdit: boolean;
+  shareAccounts?: ShareAccountOption[];
+  emptyMessage?: string | null;
 }) {
   const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
   const [editingMinorId, setEditingMinorId] = useState<string | null>(null);
   const [addingBudget, setAddingBudget] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  if (emptyMessage) {
+    return <div className="card p-5 text-sm text-muted">{emptyMessage}</div>;
+  }
 
   const budgetTotal = items.reduce((s, i) => s + i.price, 0);
   const budgetPaid = items.reduce((s, i) => s + i.amountPaid, 0);
@@ -134,7 +146,9 @@ export function MoneyBoard({
                   </div>
                   <form
                     action={async (fd) => {
+                      const shareIds = fd.getAll("shareAccounts").map(String).filter(Boolean);
                       await saveBudgetItem(fd);
+                      await setBudgetItemShares(item.id, shareIds);
                       setEditingBudgetId(null);
                     }}
                     className="flex flex-col gap-3"
@@ -198,6 +212,31 @@ export function MoneyBoard({
                         ))}
                       </div>
                     </fieldset>
+                    {shareAccounts.length > 0 ? (
+                      <fieldset>
+                        <legend className="mb-2 text-xs text-muted">Share with accounts…</legend>
+                        <div className="flex flex-col gap-2">
+                          {shareAccounts.map((account) => {
+                            const checked = (item.sharedPinAccountIds ?? []).includes(account.id);
+                            return (
+                              <label
+                                key={account.id}
+                                className="flex items-center gap-2 text-sm"
+                              >
+                                <input
+                                  type="checkbox"
+                                  name="shareAccounts"
+                                  value={account.id}
+                                  defaultChecked={checked}
+                                  className="h-5 w-5 accent-[var(--accent)]"
+                                />
+                                {account.name}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </fieldset>
+                    ) : null}
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="submit"

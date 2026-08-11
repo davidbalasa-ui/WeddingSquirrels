@@ -1,22 +1,30 @@
 "use client";
 
 import { useTransition } from "react";
-import { saveStepNotes, saveTaskWorkspace, toggleTaskDone } from "@/app/actions";
+import {
+  saveStepNotes,
+  saveTaskWorkspace,
+  setTaskShares,
+  toggleTaskDone,
+} from "@/app/actions";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
 import { AssigneeFields } from "@/components/AssigneeFields";
 import type { TaskWorkspace } from "@/lib/tasks";
 import { dueLabel } from "@/lib/tasks";
 
 type PersonOption = { id: string; name: string };
+type ShareAccountOption = { id: string; name: string };
 
 export function TaskWorkspaceForm({
   task,
   people,
   canManageOwners,
+  shareAccounts = [],
 }: {
   task: TaskWorkspace;
   people: PersonOption[];
   canManageOwners: boolean;
+  shareAccounts?: ShareAccountOption[];
 }) {
   const [pending, startTransition] = useTransition();
   const label = dueLabel(task.dueDate, task.status);
@@ -27,6 +35,7 @@ export function TaskWorkspaceForm({
   const childTotal = task.children.length;
   const childDone = task.children.filter((c) => c.status === "done").length;
   const selectedIds = task.assignees.map((a) => a.personId);
+  const sharedIds = new Set(task.shares.map((s) => s.pinAccountId));
   const escalated = Boolean(task.escalatedAt);
 
   return (
@@ -64,7 +73,16 @@ export function TaskWorkspaceForm({
         </div>
       </section>
 
-      <form action={saveTaskWorkspace} className="card flex flex-col gap-4 p-4">
+      <form
+        action={async (fd) => {
+          if (canManageOwners) {
+            const shareIds = fd.getAll("shareAccounts").map(String).filter(Boolean);
+            await setTaskShares(task.id, shareIds);
+          }
+          await saveTaskWorkspace(fd);
+        }}
+        className="card flex flex-col gap-4 p-4"
+      >
         <input type="hidden" name="id" value={task.id} />
 
         <label className="block">
@@ -85,6 +103,28 @@ export function TaskWorkspaceForm({
         ) : (
           <p className="text-sm text-muted">Owners: {ownerNames || "Unassigned"}</p>
         )}
+
+        {canManageOwners && shareAccounts.length > 0 ? (
+          <fieldset>
+            <legend className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+              Share with accounts…
+            </legend>
+            <div className="flex flex-col gap-2">
+              {shareAccounts.map((account) => (
+                <label key={account.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="shareAccounts"
+                    value={account.id}
+                    defaultChecked={sharedIds.has(account.id)}
+                    className="h-5 w-5 accent-[var(--accent)]"
+                  />
+                  {account.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
 
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">

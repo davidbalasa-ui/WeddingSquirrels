@@ -16,6 +16,7 @@ import {
   unlockWithPin,
 } from "@/lib/auth";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
+import { sessionCanAccessTask } from "@/lib/tasks";
 
 export type UnlockState = { error?: string };
 
@@ -39,24 +40,23 @@ export async function lockAction() {
   redirect("/");
 }
 
+const taskAccessInclude = {
+  assignees: true,
+  shares: true,
+  children: { include: { assignees: true, shares: true } },
+  parent: { include: { assignees: true, shares: true } },
+} as const;
+
 export async function toggleTaskDone(taskId: string) {
   const session = await requireSession();
   if (!session.canSeeTasks) throw new Error("FORBIDDEN");
 
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    include: { assignees: true, children: { include: { assignees: true } } },
+    include: taskAccessInclude,
   });
   if (!task) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok =
-      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
-      task.children.some((c) =>
-        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
-      );
-    if (!ok) throw new Error("FORBIDDEN");
-  }
+  if (!sessionCanAccessTask(session, task)) throw new Error("FORBIDDEN");
 
   const done = task.status === "done";
   await prisma.task.update({
@@ -78,18 +78,10 @@ export async function toggleTaskEscalation(taskId: string) {
 
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    include: { assignees: true, children: { include: { assignees: true } } },
+    include: taskAccessInclude,
   });
   if (!task || task.parentId) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok =
-      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
-      task.children.some((c) =>
-        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
-      );
-    if (!ok) throw new Error("FORBIDDEN");
-  }
+  if (!sessionCanAccessTask(session, task)) throw new Error("FORBIDDEN");
 
   const escalated = Boolean(task.escalatedAt);
   await prisma.task.update({
@@ -120,18 +112,10 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
 
   const task = await prisma.task.findUnique({
     where: { id },
-    include: { assignees: true, children: { include: { assignees: true } } },
+    include: taskAccessInclude,
   });
   if (!task || task.parentId) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok =
-      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
-      task.children.some((c) =>
-        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
-      );
-    if (!ok) throw new Error("FORBIDDEN");
-  }
+  if (!sessionCanAccessTask(session, task)) throw new Error("FORBIDDEN");
 
   const amountNeeded =
     amountNeededRaw === "" ? null : Number.parseFloat(amountNeededRaw.replace(/[$,]/g, ""));
@@ -230,14 +214,10 @@ export async function saveStepNotes(formData: FormData): Promise<void> {
 
   const step = await prisma.task.findUnique({
     where: { id },
-    include: { assignees: true },
+    include: taskAccessInclude,
   });
   if (!step) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok = step.assignees.some((a) => session.assigneeFilter!.includes(a.personId));
-    if (!ok && !session.isMaster) throw new Error("FORBIDDEN");
-  }
+  if (!sessionCanAccessTask(session, step)) throw new Error("FORBIDDEN");
 
   await prisma.task.update({
     where: { id },
@@ -246,6 +226,70 @@ export async function saveStepNotes(formData: FormData): Promise<void> {
 
   revalidatePath(`/work/${step.parentId || step.id}`);
   revalidatePath("/today");
+}
+
+/** Replace-all budget item shares. Masters / canEditBudget only. */
+export async function setBudgetItemShares(budgetItemId: string, pinAccountIds: string[]) {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
+
+  const item = await prisma.budgetItem.findUnique({ where: { id: budgetItemId } });
+  if (!item) throw new Error("NOT_FOUND");
+
+  const uniqueIds = [...new Set(pinAccountIds.filter(Boolean))];
+  const accounts = uniqueIds.length
+    ? await prisma.pinAccount.findMany({
+        where: { id: { in: uniqueIds } },
+        select: { id: true },
+      })
+    : [];
+  const validIds = accounts.map((a) => a.id);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.budgetItemShare.deleteMany({ where: { budgetItemId } });
+    if (validIds.length) {
+      await tx.budgetItemShare.createMany({
+        data: validIds.map((pinAccountId) => ({ budgetItemId, pinAccountId })),
+      });
+    }
+  });
+
+  revalidatePath("/money");
+}
+
+/** Replace-all task shares. Masters / unscoped managers only. */
+export async function setTaskShares(taskId: string, pinAccountIds: string[]) {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const canManage = session.isMaster || !session.assigneeFilter?.length;
+  if (!canManage) throw new Error("FORBIDDEN");
+
+  const task = await prisma.task.findUnique({ where: { id: taskId } });
+  if (!task || task.parentId) throw new Error("NOT_FOUND");
+
+  const uniqueIds = [...new Set(pinAccountIds.filter(Boolean))];
+  const accounts = uniqueIds.length
+    ? await prisma.pinAccount.findMany({
+        where: { id: { in: uniqueIds } },
+        select: { id: true },
+      })
+    : [];
+  const validIds = accounts.map((a) => a.id);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.taskShare.deleteMany({ where: { taskId } });
+    if (validIds.length) {
+      await tx.taskShare.createMany({
+        data: validIds.map((pinAccountId) => ({ taskId, pinAccountId })),
+      });
+    }
+  });
+
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath(`/work/${taskId}`);
+  revalidatePath("/money");
 }
 
 export async function setBudgetOwner(budgetItemId: string, ownerId: string | null) {
@@ -391,16 +435,66 @@ function parseAccountFlags(formData: FormData) {
 }
 
 /**
- * TODO(WP3): When BudgetItemShare / TaskShare models exist, sync this account's
- * membership using setBudgetItemShares / setTaskShares (or equivalent account-scoped write).
- * Until then, share ID lists are accepted and ignored so the Accounts UI can land first.
+ * Account-scoped share sync (WP3).
+ * Mirrors setBudgetItemShares / setTaskShares membership for one PIN account without
+ * wiping other accounts' shares on each item/task.
  */
-async function syncAccountShares(_args: {
+async function syncAccountShares(args: {
   pinAccountId: string;
   sharedBudgetItemIds: string[];
   sharedTaskIds: string[];
 }): Promise<void> {
-  // no-op until WP3 share tables are available on this branch
+  const wantedBudget = [...new Set(args.sharedBudgetItemIds.filter(Boolean))];
+  const wantedTasks = [...new Set(args.sharedTaskIds.filter(Boolean))];
+
+  if (wantedBudget.length) {
+    const found = await prisma.budgetItem.count({ where: { id: { in: wantedBudget } } });
+    if (found !== wantedBudget.length) throw new Error("INVALID_BUDGET_SHARE");
+  }
+  if (wantedTasks.length) {
+    const found = await prisma.task.count({
+      where: { id: { in: wantedTasks }, parentId: null },
+    });
+    if (found !== wantedTasks.length) throw new Error("INVALID_TASK_SHARE");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.budgetItemShare.deleteMany({
+      where: wantedBudget.length
+        ? { pinAccountId: args.pinAccountId, budgetItemId: { notIn: wantedBudget } }
+        : { pinAccountId: args.pinAccountId },
+    });
+    if (wantedBudget.length) {
+      await tx.budgetItemShare.createMany({
+        data: wantedBudget.map((budgetItemId) => ({
+          budgetItemId,
+          pinAccountId: args.pinAccountId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    await tx.taskShare.deleteMany({
+      where: wantedTasks.length
+        ? { pinAccountId: args.pinAccountId, taskId: { notIn: wantedTasks } }
+        : { pinAccountId: args.pinAccountId },
+    });
+    if (wantedTasks.length) {
+      await tx.taskShare.createMany({
+        data: wantedTasks.map((taskId) => ({
+          taskId,
+          pinAccountId: args.pinAccountId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  });
+
+  // Keep list pages in sync the same way setBudgetItemShares / setTaskShares do.
+  revalidatePath("/money");
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath("/accounts");
 }
 
 export async function createPinAccount(formData: FormData): Promise<void> {

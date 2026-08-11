@@ -19,24 +19,28 @@ function parseAssigneeFilterJson(raw: string | null): string[] {
   }
 }
 
-function toPanelAccount(account: {
-  id: string;
-  name: string;
-  isMaster: boolean;
-  canSeeTasks: boolean;
-  canSeePeople: boolean;
-  canSeeCalendar: boolean;
-  canSeeShop: boolean;
-  canSeeBudget: boolean;
-  canEditBudget: boolean;
-  canSeeTimeline: boolean;
-  canEditTimeline: boolean;
-  canSeeGuests: boolean;
-  canSeeRequests: boolean;
-  canManageAccounts: boolean;
-  linkedPersonId: string | null;
-  assigneeFilterJson: string | null;
-}): AccountPanelAccount {
+function toPanelAccount(
+  account: {
+    id: string;
+    name: string;
+    isMaster: boolean;
+    canSeeTasks: boolean;
+    canSeePeople: boolean;
+    canSeeCalendar: boolean;
+    canSeeShop: boolean;
+    canSeeBudget: boolean;
+    canEditBudget: boolean;
+    canSeeTimeline: boolean;
+    canEditTimeline: boolean;
+    canSeeGuests: boolean;
+    canSeeRequests: boolean;
+    canManageAccounts: boolean;
+    linkedPersonId: string | null;
+    assigneeFilterJson: string | null;
+    budgetItemShares: { budgetItemId: string }[];
+    taskShares: { taskId: string }[];
+  },
+): AccountPanelAccount {
   return {
     id: account.id,
     name: account.name,
@@ -54,22 +58,42 @@ function toPanelAccount(account: {
     canManageAccounts: account.canManageAccounts,
     linkedPersonId: account.linkedPersonId,
     assigneeFilter: parseAssigneeFilterJson(account.assigneeFilterJson),
+    sharedBudgetItemIds: account.budgetItemShares.map((s) => s.budgetItemId),
+    sharedTaskIds: account.taskShares.map((s) => s.taskId),
   };
 }
 
 export default async function AccountsPage() {
   const session = await requirePageSession({ need: "canManageAccounts" });
-  const [accounts, people] = await Promise.all([
-    prisma.pinAccount.findMany({ orderBy: [{ isMaster: "desc" }, { name: "asc" }] }),
+  const [accounts, people, budgetItems, tasks] = await Promise.all([
+    prisma.pinAccount.findMany({
+      orderBy: [{ isMaster: "desc" }, { name: "asc" }],
+      include: {
+        budgetItemShares: { select: { budgetItemId: true } },
+        taskShares: { select: { taskId: true } },
+      },
+    }),
     prisma.person.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.budgetItem.findMany({
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    }),
+    prisma.task.findMany({
+      where: { parentId: null },
+      orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
+      select: { id: true, title: true },
+    }),
   ]);
 
-  // WP3 share pickers: enable when BudgetItemShare / TaskShare are in the schema.
-  const sharesEnabled = false;
-  const budgetShareOptions: { id: string; label: string }[] = [];
-  const taskShareOptions: { id: string; label: string }[] = [];
-  // TODO(WP3): load budget items + top-level tasks and per-account share ids when available.
-  // Then call setBudgetItemShares / setTaskShares from syncAccountShares in actions.
+  const sharesEnabled = true;
+  const budgetShareOptions = budgetItems.map((item) => ({
+    id: item.id,
+    label: item.name,
+  }));
+  const taskShareOptions = tasks.map((task) => ({
+    id: task.id,
+    label: task.title,
+  }));
 
   const peopleOptions = people.map((p) => ({ id: p.id, name: p.name }));
 
@@ -78,7 +102,7 @@ export default async function AccountsPage() {
       <AppHeader
         session={session}
         title="Accounts"
-        subtitle="PINs, linked people, modules, and task filters"
+        subtitle="PINs, linked people, modules, task filters, and shared items"
       />
 
       <AccountAccessPanel

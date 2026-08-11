@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type { SessionAccount } from "@/lib/types";
 
 export type Permission = keyof Pick<
@@ -60,3 +61,33 @@ export function normalizeAccountFlags<T extends {
   };
 }
 
+/**
+ * Budget item visibility for a session.
+ * Masters: all. Others with canSeeBudget: owned by linkedPersonId OR shared to session.
+ * Without canSeeBudget: none.
+ */
+export function budgetVisibilityWhere(session: SessionAccount): Prisma.BudgetItemWhereInput {
+  if (session.isMaster) return {};
+  if (!session.canSeeBudget) return { id: "__none__" };
+
+  const or: Prisma.BudgetItemWhereInput[] = [
+    { shares: { some: { pinAccountId: session.id } } },
+  ];
+  if (session.linkedPersonId) {
+    or.push({ ownerId: session.linkedPersonId });
+  }
+  return { OR: or };
+}
+
+/** True when a canSeeBudget non-master has no linked person and no item shares yet. */
+export function showNothingSharedYet(
+  session: SessionAccount,
+  shareCount: number,
+): boolean {
+  return (
+    !session.isMaster &&
+    session.canSeeBudget &&
+    !session.linkedPersonId &&
+    shareCount === 0
+  );
+}
