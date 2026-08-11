@@ -1,7 +1,61 @@
 import { AppHeader } from "@/components/AppHeader";
-import { createPinAccount, deletePinAccount, updatePinAccount } from "@/app/actions";
+import {
+  AccountAccessPanel,
+  type AccountPanelAccount,
+} from "@/components/AccountAccessPanel";
+import { createPinAccount, updatePinAccount } from "@/app/actions";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/session";
+
+function parseAssigneeFilterJson(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((v): v is string => typeof v === "string" && v.length > 0);
+  } catch {
+    // Corrupt filter JSON → empty selection (all tasks visible).
+    return [];
+  }
+}
+
+function toPanelAccount(account: {
+  id: string;
+  name: string;
+  isMaster: boolean;
+  canSeeTasks: boolean;
+  canSeePeople: boolean;
+  canSeeCalendar: boolean;
+  canSeeShop: boolean;
+  canSeeBudget: boolean;
+  canEditBudget: boolean;
+  canSeeTimeline: boolean;
+  canEditTimeline: boolean;
+  canSeeGuests: boolean;
+  canSeeRequests: boolean;
+  canManageAccounts: boolean;
+  linkedPersonId: string | null;
+  assigneeFilterJson: string | null;
+}): AccountPanelAccount {
+  return {
+    id: account.id,
+    name: account.name,
+    isMaster: account.isMaster,
+    canSeeTasks: account.canSeeTasks,
+    canSeePeople: account.canSeePeople,
+    canSeeCalendar: account.canSeeCalendar,
+    canSeeShop: account.canSeeShop,
+    canSeeBudget: account.canSeeBudget,
+    canEditBudget: account.canEditBudget,
+    canSeeTimeline: account.canSeeTimeline,
+    canEditTimeline: account.canEditTimeline,
+    canSeeGuests: account.canSeeGuests,
+    canSeeRequests: account.canSeeRequests,
+    canManageAccounts: account.canManageAccounts,
+    linkedPersonId: account.linkedPersonId,
+    assigneeFilter: parseAssigneeFilterJson(account.assigneeFilterJson),
+  };
+}
 
 export default async function AccountsPage() {
   const session = await requirePageSession({ need: "canManageAccounts" });
@@ -10,191 +64,45 @@ export default async function AccountsPage() {
     prisma.person.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
 
+  // WP3 share pickers: enable when BudgetItemShare / TaskShare are in the schema.
+  const sharesEnabled = false;
+  const budgetShareOptions: { id: string; label: string }[] = [];
+  const taskShareOptions: { id: string; label: string }[] = [];
+  // TODO(WP3): load budget items + top-level tasks and per-account share ids when available.
+  // Then call setBudgetItemShares / setTaskShares from syncAccountShares in actions.
+
+  const peopleOptions = people.map((p) => ({ id: p.id, name: p.name }));
+
   return (
     <>
       <AppHeader
         session={session}
         title="Accounts"
-        subtitle="PINs, names, and what each person can see"
+        subtitle="PINs, linked people, modules, and task filters"
       />
 
-      <section className="card mb-4 p-4">
-        <h2 className="font-[family-name:var(--font-display)] text-xl">Add account</h2>
-        <form action={createPinAccount} className="mt-3 flex flex-col gap-3">
-          <label className="text-sm">
-            <span className="mb-1 block text-muted">Name</span>
-            <input
-              name="name"
-              required
-              placeholder="Mother in law"
-              className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
-            />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-muted">PIN</span>
-            <input
-              name="pin"
-              required
-              inputMode="numeric"
-              pattern="\d{4,8}"
-              placeholder="0999"
-              className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
-            />
-          </label>
-
-          <fieldset className="grid grid-cols-2 gap-2 text-sm">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="canSeeTasks" defaultChecked /> Tasks
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="canSeeBudget" /> Money
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="canSeeGuests" /> Guests
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="canSeeTimeline" /> Day-of
-            </label>
-          </fieldset>
-
-          <fieldset>
-            <legend className="mb-2 text-sm text-muted">Only show tasks for</legend>
-            <div className="flex flex-wrap gap-2">
-              {people.map((person) => (
-                <label key={person.id} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm">
-                  <input type="checkbox" name="assigneeFilter" value={person.id} />
-                  {person.name}
-                </label>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-muted">Leave all unchecked to show every task (still limited by modules).</p>
-          </fieldset>
-
-          <button
-            type="submit"
-            className="btn-primary"
-          >
-            Add PIN account
-          </button>
-        </form>
-      </section>
+      <AccountAccessPanel
+        mode="create"
+        people={peopleOptions}
+        action={createPinAccount}
+        sharesEnabled={sharesEnabled}
+        budgetShareOptions={budgetShareOptions}
+        taskShareOptions={taskShareOptions}
+      />
 
       <div className="flex flex-col gap-3">
-        {accounts.map((account) => {
-          const filter: string[] = account.assigneeFilterJson
-            ? (JSON.parse(account.assigneeFilterJson) as string[])
-            : [];
-
-          return (
-            <article key={account.id} className="card p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-lg font-semibold">{account.name}</h3>
-                  <p className="text-xs text-muted">
-                    {account.isMaster
-                      ? "Master · full access"
-                      : [
-                          account.canSeeTasks && "Tasks",
-                          account.canSeeBudget && "Money",
-                          account.canSeeGuests && "Guests",
-                          account.canSeeTimeline && "Day-of",
-                        ]
-                          .filter(Boolean)
-                          .join(" · ") || "No modules"}
-                  </p>
-                  {!account.isMaster && filter.length > 0 ? (
-                    <p className="mt-1 text-xs text-muted">Filter: {filter.join(", ")}</p>
-                  ) : null}
-                </div>
-              </div>
-
-              <details className="mt-3">
-                <summary className="cursor-pointer text-sm font-semibold text-[var(--accent)]">
-                  Edit
-                </summary>
-                <form action={updatePinAccount} className="mt-3 flex flex-col gap-3">
-                  <input type="hidden" name="id" value={account.id} />
-                  <label className="text-sm">
-                    <span className="mb-1 block text-muted">Name</span>
-                    <input
-                      name="name"
-                      defaultValue={account.name}
-                      className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
-                    />
-                  </label>
-                  <label className="text-sm">
-                    <span className="mb-1 block text-muted">New PIN (optional)</span>
-                    <input
-                      name="pin"
-                      inputMode="numeric"
-                      pattern="\d{4,8}"
-                      placeholder="Leave blank to keep"
-                      className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
-                    />
-                  </label>
-                  {!account.isMaster ? (
-                    <>
-                      <fieldset className="grid grid-cols-2 gap-2 text-sm">
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="canSeeTasks" defaultChecked={account.canSeeTasks} /> Tasks
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="canSeeBudget" defaultChecked={account.canSeeBudget} /> Money
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="canSeeGuests" defaultChecked={account.canSeeGuests} /> Guests
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="canSeeTimeline" defaultChecked={account.canSeeTimeline} /> Day-of
-                        </label>
-                      </fieldset>
-                      <fieldset>
-                        <legend className="mb-2 text-sm text-muted">Task filter</legend>
-                        <div className="flex flex-wrap gap-2">
-                          {people.map((person) => (
-                            <label
-                              key={person.id}
-                              className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm"
-                            >
-                              <input
-                                type="checkbox"
-                                name="assigneeFilter"
-                                value={person.id}
-                                defaultChecked={filter.includes(person.id)}
-                              />
-                              {person.name}
-                            </label>
-                          ))}
-                        </div>
-                      </fieldset>
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted">Master accounts always have full access.</p>
-                  )}
-                  <button
-                    type="submit"
-                    className="btn-primary"
-                  >
-                    Save changes
-                  </button>
-                </form>
-                {!account.isMaster ? (
-                  <form
-                    action={async () => {
-                      "use server";
-                      await deletePinAccount(account.id);
-                    }}
-                    className="mt-2"
-                  >
-                    <button type="submit" className="text-sm font-semibold text-[var(--danger)]">
-                      Delete account
-                    </button>
-                  </form>
-                ) : null}
-              </details>
-            </article>
-          );
-        })}
+        {accounts.map((account) => (
+          <AccountAccessPanel
+            key={account.id}
+            mode="edit"
+            people={peopleOptions}
+            account={toPanelAccount(account)}
+            action={updatePinAccount}
+            sharesEnabled={sharesEnabled}
+            budgetShareOptions={budgetShareOptions}
+            taskShareOptions={taskShareOptions}
+          />
+        ))}
       </div>
     </>
   );

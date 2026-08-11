@@ -32,3 +32,31 @@ export function moneyEditable(session: SessionAccount): boolean {
 export function timelineEditable(session: SessionAccount): boolean {
   return session.isMaster || session.canEditTimeline;
 }
+
+/** Account admin: masters always; others need canManageAccounts. */
+export function canManageAccounts(session: SessionAccount): boolean {
+  return session.isMaster || session.canManageAccounts;
+}
+
+/**
+ * Normalize module flags before write.
+ * - Edit implies See for Money / Day-of
+ * - Edit flags clear when corresponding See is off (UI should also enforce)
+ */
+export function normalizeAccountFlags<T extends {
+  canSeeBudget: boolean;
+  canEditBudget: boolean;
+  canSeeTimeline: boolean;
+  canEditTimeline: boolean;
+}>(flags: T): T {
+  const canEditBudget = flags.canSeeBudget ? flags.canEditBudget : false;
+  const canEditTimeline = flags.canSeeTimeline ? flags.canEditTimeline : false;
+  return {
+    ...flags,
+    canSeeBudget: canEditBudget ? true : flags.canSeeBudget,
+    canEditBudget,
+    canSeeTimeline: canEditTimeline ? true : flags.canSeeTimeline,
+    canEditTimeline,
+  };
+}
+

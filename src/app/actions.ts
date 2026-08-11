@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { moneyEditable, timelineEditable } from "@/lib/access";
+import {
+  canManageAccounts,
+  moneyEditable,
+  normalizeAccountFlags,
+  timelineEditable,
+} from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   clearSession,
@@ -353,35 +358,93 @@ export async function saveMinorExpense(formData: FormData): Promise<void> {
   revalidatePath("/today");
 }
 
+function parseLinkedPersonId(raw: string): string | null {
+  const value = raw.trim();
+  return value ? value : null;
+}
+
+function parseAccountFlags(formData: FormData) {
+  const raw = {
+    canSeeTasks: formData.get("canSeeTasks") === "on",
+    canSeeBudget: formData.get("canSeeBudget") === "on",
+    canSeeGuests: formData.get("canSeeGuests") === "on",
+    canSeeTimeline: formData.get("canSeeTimeline") === "on",
+    canManageAccounts: formData.get("canManageAccounts") === "on",
+    canSeeShop: formData.get("canSeeShop") === "on",
+    canSeeCalendar: formData.get("canSeeCalendar") === "on",
+    canSeePeople: formData.get("canSeePeople") === "on",
+    canSeeRequests: formData.get("canSeeRequests") === "on",
+    canEditBudget: formData.get("canEditBudget") === "on",
+    canEditTimeline: formData.get("canEditTimeline") === "on",
+    linkedPersonId: parseLinkedPersonId(String(formData.get("linkedPersonId") || "")),
+    assigneeFilter: formData.getAll("assigneeFilter").map(String).filter(Boolean),
+    sharedBudgetItemIds: formData.getAll("sharedBudgetItemIds").map(String).filter(Boolean),
+    sharedTaskIds: formData.getAll("sharedTaskIds").map(String).filter(Boolean),
+  };
+  return {
+    ...normalizeAccountFlags(raw),
+    linkedPersonId: raw.linkedPersonId,
+    assigneeFilter: raw.assigneeFilter,
+    sharedBudgetItemIds: raw.sharedBudgetItemIds,
+    sharedTaskIds: raw.sharedTaskIds,
+  };
+}
+
+/**
+ * TODO(WP3): When BudgetItemShare / TaskShare models exist, sync this account's
+ * membership using setBudgetItemShares / setTaskShares (or equivalent account-scoped write).
+ * Until then, share ID lists are accepted and ignored so the Accounts UI can land first.
+ */
+async function syncAccountShares(_args: {
+  pinAccountId: string;
+  sharedBudgetItemIds: string[];
+  sharedTaskIds: string[];
+}): Promise<void> {
+  // no-op until WP3 share tables are available on this branch
+}
+
 export async function createPinAccount(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!(session.isMaster || session.canManageAccounts)) throw new Error("FORBIDDEN");
+  if (!canManageAccounts(session)) throw new Error("FORBIDDEN");
 
   const name = String(formData.get("name") || "").trim();
   const pin = String(formData.get("pin") || "").trim();
-  const canSeeTasks = formData.get("canSeeTasks") === "on";
-  const canSeeBudget = formData.get("canSeeBudget") === "on";
-  const canSeeGuests = formData.get("canSeeGuests") === "on";
-  const canSeeTimeline = formData.get("canSeeTimeline") === "on";
-  const assigneeFilter = formData
-    .getAll("assigneeFilter")
-    .map(String)
-    .filter(Boolean);
+  const flags = parseAccountFlags(formData);
 
   if (!name || !/^\d{4,8}$/.test(pin)) return;
 
-  await prisma.pinAccount.create({
+  if (flags.linkedPersonId) {
+    const person = await prisma.person.findUnique({ where: { id: flags.linkedPersonId } });
+    if (!person) return;
+  }
+
+  const created = await prisma.pinAccount.create({
     data: {
       name,
       pinHash: await hashPin(pin),
       isMaster: false,
-      canSeeTasks,
-      canSeeBudget,
-      canSeeGuests,
-      canSeeTimeline,
-      canManageAccounts: false,
-      assigneeFilterJson: assigneeFilter.length ? JSON.stringify(assigneeFilter) : null,
+      canSeeTasks: flags.canSeeTasks,
+      canSeeBudget: flags.canSeeBudget,
+      canSeeGuests: flags.canSeeGuests,
+      canSeeTimeline: flags.canSeeTimeline,
+      canManageAccounts: flags.canManageAccounts,
+      canSeeShop: flags.canSeeShop,
+      canSeeCalendar: flags.canSeeCalendar,
+      canSeePeople: flags.canSeePeople,
+      canSeeRequests: flags.canSeeRequests,
+      canEditBudget: flags.canEditBudget,
+      canEditTimeline: flags.canEditTimeline,
+      linkedPersonId: flags.linkedPersonId,
+      assigneeFilterJson: flags.assigneeFilter.length
+        ? JSON.stringify(flags.assigneeFilter)
+        : null,
     },
+  });
+
+  await syncAccountShares({
+    pinAccountId: created.id,
+    sharedBudgetItemIds: flags.sharedBudgetItemIds,
+    sharedTaskIds: flags.sharedTaskIds,
   });
 
   revalidatePath("/accounts");
@@ -389,30 +452,36 @@ export async function createPinAccount(formData: FormData): Promise<void> {
 
 export async function updatePinAccount(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!(session.isMaster || session.canManageAccounts)) throw new Error("FORBIDDEN");
+  if (!canManageAccounts(session)) throw new Error("FORBIDDEN");
 
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim();
   const pin = String(formData.get("pin") || "").trim();
-  const canSeeTasks = formData.get("canSeeTasks") === "on";
-  const canSeeBudget = formData.get("canSeeBudget") === "on";
-  const canSeeGuests = formData.get("canSeeGuests") === "on";
-  const canSeeTimeline = formData.get("canSeeTimeline") === "on";
-  const assigneeFilter = formData
-    .getAll("assigneeFilter")
-    .map(String)
-    .filter(Boolean);
+  const flags = parseAccountFlags(formData);
+  const wantMaster = formData.get("isMaster") === "on";
 
   const existing = await prisma.pinAccount.findUnique({ where: { id } });
   if (!existing || !name) return;
   if (pin && !/^\d{4,8}$/.test(pin)) return;
 
-  // Masters keep full privileges; only name / PIN can change.
-  if (existing.isMaster) {
+  if (flags.linkedPersonId) {
+    const person = await prisma.person.findUnique({ where: { id: flags.linkedPersonId } });
+    if (!person) return;
+  }
+
+  // Cannot demote the last master.
+  if (existing.isMaster && !wantMaster && formData.has("isMaster")) {
+    const masterCount = await prisma.pinAccount.count({ where: { isMaster: true } });
+    if (masterCount <= 1) throw new Error("Cannot demote the last master");
+  }
+
+  // Masters keep full privileges; only identity fields can change (unless demoted by another master).
+  if (existing.isMaster && !(formData.has("isMaster") && !wantMaster)) {
     await prisma.pinAccount.update({
       where: { id },
       data: {
         name,
+        linkedPersonId: flags.linkedPersonId,
         ...(pin ? { pinHash: await hashPin(pin) } : {}),
       },
     });
@@ -425,12 +494,29 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
     data: {
       name,
       ...(pin ? { pinHash: await hashPin(pin) } : {}),
-      canSeeTasks,
-      canSeeBudget,
-      canSeeGuests,
-      canSeeTimeline,
-      assigneeFilterJson: assigneeFilter.length ? JSON.stringify(assigneeFilter) : null,
+      ...(formData.has("isMaster") ? { isMaster: wantMaster } : {}),
+      canSeeTasks: flags.canSeeTasks,
+      canSeeBudget: flags.canSeeBudget,
+      canSeeGuests: flags.canSeeGuests,
+      canSeeTimeline: flags.canSeeTimeline,
+      canManageAccounts: flags.canManageAccounts,
+      canSeeShop: flags.canSeeShop,
+      canSeeCalendar: flags.canSeeCalendar,
+      canSeePeople: flags.canSeePeople,
+      canSeeRequests: flags.canSeeRequests,
+      canEditBudget: flags.canEditBudget,
+      canEditTimeline: flags.canEditTimeline,
+      linkedPersonId: flags.linkedPersonId,
+      assigneeFilterJson: flags.assigneeFilter.length
+        ? JSON.stringify(flags.assigneeFilter)
+        : null,
     },
+  });
+
+  await syncAccountShares({
+    pinAccountId: id,
+    sharedBudgetItemIds: flags.sharedBudgetItemIds,
+    sharedTaskIds: flags.sharedTaskIds,
   });
 
   revalidatePath("/accounts");
@@ -438,10 +524,12 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
 
 export async function deletePinAccount(accountId: string) {
   const session = await requireSession();
-  if (!(session.isMaster || session.canManageAccounts)) throw new Error("FORBIDDEN");
+  if (!canManageAccounts(session)) throw new Error("FORBIDDEN");
 
   const existing = await prisma.pinAccount.findUnique({ where: { id: accountId } });
-  if (!existing || existing.isMaster) throw new Error("FORBIDDEN");
+  if (!existing) return;
+  // Cannot delete masters (cascade of related rows is DB-level when shares/requests exist).
+  if (existing.isMaster) throw new Error("FORBIDDEN");
 
   await prisma.pinAccount.delete({ where: { id: accountId } });
   revalidatePath("/accounts");

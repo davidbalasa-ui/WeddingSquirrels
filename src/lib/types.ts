@@ -18,13 +18,36 @@ export type SessionAccount = {
   linkedPersonId: string | null;
 };
 
-export type AccountPermissionsInput = {
+export type AccountModuleFlags = {
+  canSeeTasks: boolean;
+  canSeePeople: boolean;
+  canSeeCalendar: boolean;
+  canSeeShop: boolean;
+  canSeeBudget: boolean;
+  canEditBudget: boolean;
+  canSeeTimeline: boolean;
+  canEditTimeline: boolean;
+  canSeeGuests: boolean;
+  canSeeRequests: boolean;
+  canManageAccounts: boolean;
+};
+
+export type AccountPermissionsInput = AccountModuleFlags & {
   name: string;
   pin: string;
-  canSeeTasks: boolean;
-  canSeeBudget: boolean;
-  canSeeGuests: boolean;
-  canSeeTimeline: boolean;
-  canManageAccounts: boolean;
+  linkedPersonId: string | null;
   assigneeFilter: string[];
+  /** Optional WP3 share lists (budget item ids / task ids). */
+  sharedBudgetItemIds?: string[];
+  sharedTaskIds?: string[];
+};
+
+export type PersonOption = {
+  id: string;
+  name: string;
+};
+
+export type ShareOption = {
+  id: string;
+  label: string;
 };
