@@ -9,7 +9,7 @@ export default async function ShopPage({
 }: {
   searchParams: Promise<{ who?: string; purchased?: string }>;
 }) {
-  const session = await requirePageSession({ need: "canSeeTasks" });
+  const session = await requirePageSession({ need: "canSeeShop" });
   const sp = await searchParams;
   const who = sp.who || "all";
   const showPurchased = sp.purchased === "1";

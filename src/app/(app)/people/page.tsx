@@ -21,7 +21,7 @@ export default async function PeoplePage({
 }: {
   searchParams: Promise<{ who?: string; done?: string }>;
 }) {
-  const session = await requirePageSession({ need: "canSeeTasks" });
+  const session = await requirePageSession({ need: "canSeePeople" });
   const sp = await searchParams;
   const showDone = sp.done === "1";
 

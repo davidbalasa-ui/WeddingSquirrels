@@ -2,14 +2,28 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
+import {
+  assertCan,
+  canManageAccounts,
+  moneyEditable,
+  timelineEditable,
+} from "@/lib/access";
 import {
   clearSession,
   hashPin,
   requireSession,
   unlockWithPin,
 } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
+import {
+  canCompleteRequest,
+  canDeclineRequest,
+  canDeleteRequest,
+  canEditRequest,
+  canReopenRequest,
+  canViewRequest,
+} from "@/lib/requests";
 
 export type UnlockState = { error?: string };
 
@@ -255,7 +269,7 @@ function assertBudgetPersonId(id: string | null): asserts id is string | null {
 
 export async function setBudgetOwner(budgetItemId: string, ownerId: string | null) {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   assertBudgetPersonId(ownerId);
 
@@ -287,7 +301,7 @@ function parseDueDate(raw: string): Date | null {
 
 export async function setBudgetPayByDate(itemId: string, dateRaw: string) {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   await prisma.budgetItem.update({
     where: { id: itemId },
@@ -300,7 +314,7 @@ export async function setBudgetPayByDate(itemId: string, dateRaw: string) {
 
 export async function setBudgetPaidBy(itemId: string, paidById: string | null) {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   assertBudgetPersonId(paidById);
 
@@ -315,7 +329,7 @@ export async function setBudgetPaidBy(itemId: string, paidById: string | null) {
 
 export async function saveBudgetItem(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim();
@@ -347,7 +361,7 @@ export async function saveBudgetItem(formData: FormData): Promise<void> {
 
 export async function createBudgetItem(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   const name = String(formData.get("name") || "").trim();
   const price = clampMoney(parseMoney(String(formData.get("price") || "")) ?? 0);
@@ -378,7 +392,7 @@ export async function createBudgetItem(formData: FormData): Promise<void> {
 
 export async function deleteBudgetItem(id: string): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   await prisma.task.updateMany({ where: { budgetItemId: id }, data: { budgetItemId: null } });
   await prisma.budgetItem.delete({ where: { id } });
@@ -389,7 +403,7 @@ export async function deleteBudgetItem(id: string): Promise<void> {
 
 export async function saveMinorExpense(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeBudget || !session.isMaster) throw new Error("FORBIDDEN");
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
 
   const id = String(formData.get("id") || "");
   const amountNeeded = parseMoney(String(formData.get("amountNeeded") || ""));
@@ -413,34 +427,64 @@ export async function saveMinorExpense(formData: FormData): Promise<void> {
   revalidatePath("/today");
 }
 
+function parseLinkedPersonId(raw: string): string | null {
+  const value = raw.trim();
+  return value ? value : null;
+}
+
+function parseAccountFlags(formData: FormData) {
+  return {
+    canSeeTasks: formData.get("canSeeTasks") === "on",
+    canSeeBudget: formData.get("canSeeBudget") === "on",
+    canSeeGuests: formData.get("canSeeGuests") === "on",
+    canSeeTimeline: formData.get("canSeeTimeline") === "on",
+    canManageAccounts: formData.get("canManageAccounts") === "on",
+    canSeeShop: formData.get("canSeeShop") === "on",
+    canSeeCalendar: formData.get("canSeeCalendar") === "on",
+    canSeePeople: formData.get("canSeePeople") === "on",
+    canSeeRequests: formData.get("canSeeRequests") === "on",
+    canEditBudget: formData.get("canEditBudget") === "on",
+    canEditTimeline: formData.get("canEditTimeline") === "on",
+    linkedPersonId: parseLinkedPersonId(String(formData.get("linkedPersonId") || "")),
+    assigneeFilter: formData.getAll("assigneeFilter").map(String).filter(Boolean),
+  };
+}
+
 export async function createPinAccount(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canManageAccounts) throw new Error("FORBIDDEN");
+  if (!canManageAccounts(session)) throw new Error("FORBIDDEN");
 
   const name = String(formData.get("name") || "").trim();
   const pin = String(formData.get("pin") || "").trim();
-  const canSeeTasks = formData.get("canSeeTasks") === "on";
-  const canSeeBudget = formData.get("canSeeBudget") === "on";
-  const canSeeGuests = formData.get("canSeeGuests") === "on";
-  const canSeeTimeline = formData.get("canSeeTimeline") === "on";
-  const assigneeFilter = formData
-    .getAll("assigneeFilter")
-    .map(String)
-    .filter(Boolean);
+  const flags = parseAccountFlags(formData);
 
   if (!name || !/^\d{4,8}$/.test(pin)) return;
+
+  if (flags.linkedPersonId) {
+    const person = await prisma.person.findUnique({ where: { id: flags.linkedPersonId } });
+    if (!person) return;
+  }
 
   await prisma.pinAccount.create({
     data: {
       name,
       pinHash: await hashPin(pin),
       isMaster: false,
-      canSeeTasks,
-      canSeeBudget,
-      canSeeGuests,
-      canSeeTimeline,
-      canManageAccounts: false,
-      assigneeFilterJson: assigneeFilter.length ? JSON.stringify(assigneeFilter) : null,
+      canSeeTasks: flags.canSeeTasks,
+      canSeeBudget: flags.canSeeBudget,
+      canSeeGuests: flags.canSeeGuests,
+      canSeeTimeline: flags.canSeeTimeline,
+      canManageAccounts: flags.canManageAccounts,
+      canSeeShop: flags.canSeeShop,
+      canSeeCalendar: flags.canSeeCalendar,
+      canSeePeople: flags.canSeePeople,
+      canSeeRequests: flags.canSeeRequests,
+      canEditBudget: flags.canEditBudget,
+      canEditTimeline: flags.canEditTimeline,
+      linkedPersonId: flags.linkedPersonId,
+      assigneeFilterJson: flags.assigneeFilter.length
+        ? JSON.stringify(flags.assigneeFilter)
+        : null,
     },
   });
 
@@ -449,19 +493,12 @@ export async function createPinAccount(formData: FormData): Promise<void> {
 
 export async function updatePinAccount(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canManageAccounts) throw new Error("FORBIDDEN");
+  if (!canManageAccounts(session)) throw new Error("FORBIDDEN");
 
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim();
   const pin = String(formData.get("pin") || "").trim();
-  const canSeeTasks = formData.get("canSeeTasks") === "on";
-  const canSeeBudget = formData.get("canSeeBudget") === "on";
-  const canSeeGuests = formData.get("canSeeGuests") === "on";
-  const canSeeTimeline = formData.get("canSeeTimeline") === "on";
-  const assigneeFilter = formData
-    .getAll("assigneeFilter")
-    .map(String)
-    .filter(Boolean);
+  const flags = parseAccountFlags(formData);
 
   const existing = await prisma.pinAccount.findUnique({ where: { id } });
   if (!existing || !name) return;
@@ -480,16 +517,31 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
     return;
   }
 
+  if (flags.linkedPersonId) {
+    const person = await prisma.person.findUnique({ where: { id: flags.linkedPersonId } });
+    if (!person) return;
+  }
+
   await prisma.pinAccount.update({
     where: { id },
     data: {
       name,
       ...(pin ? { pinHash: await hashPin(pin) } : {}),
-      canSeeTasks,
-      canSeeBudget,
-      canSeeGuests,
-      canSeeTimeline,
-      assigneeFilterJson: assigneeFilter.length ? JSON.stringify(assigneeFilter) : null,
+      canSeeTasks: flags.canSeeTasks,
+      canSeeBudget: flags.canSeeBudget,
+      canSeeGuests: flags.canSeeGuests,
+      canSeeTimeline: flags.canSeeTimeline,
+      canManageAccounts: flags.canManageAccounts,
+      canSeeShop: flags.canSeeShop,
+      canSeeCalendar: flags.canSeeCalendar,
+      canSeePeople: flags.canSeePeople,
+      canSeeRequests: flags.canSeeRequests,
+      canEditBudget: flags.canEditBudget,
+      canEditTimeline: flags.canEditTimeline,
+      linkedPersonId: flags.linkedPersonId,
+      assigneeFilterJson: flags.assigneeFilter.length
+        ? JSON.stringify(flags.assigneeFilter)
+        : null,
     },
   });
 
@@ -498,7 +550,7 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
 
 export async function deletePinAccount(accountId: string) {
   const session = await requireSession();
-  if (!session.canManageAccounts) throw new Error("FORBIDDEN");
+  if (!canManageAccounts(session)) throw new Error("FORBIDDEN");
 
   const existing = await prisma.pinAccount.findUnique({ where: { id: accountId } });
   if (!existing || existing.isMaster) throw new Error("FORBIDDEN");
@@ -507,10 +559,272 @@ export async function deletePinAccount(accountId: string) {
   revalidatePath("/accounts");
 }
 
+export async function setBudgetItemShares(budgetItemId: string, pinAccountIds: string[]) {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
+
+  const item = await prisma.budgetItem.findUnique({ where: { id: budgetItemId }, select: { id: true } });
+  if (!item) throw new Error("NOT_FOUND");
+
+  const uniqueIds = [...new Set(pinAccountIds.filter(Boolean))];
+  if (uniqueIds.length) {
+    const accounts = await prisma.pinAccount.findMany({
+      where: { id: { in: uniqueIds }, isMaster: false },
+      select: { id: true },
+    });
+    if (accounts.length !== uniqueIds.length) throw new Error("INVALID_ACCOUNT");
+  }
+
+  await prisma.$transaction([
+    prisma.budgetItemShare.deleteMany({ where: { budgetItemId } }),
+    ...(uniqueIds.length
+      ? [
+          prisma.budgetItemShare.createMany({
+            data: uniqueIds.map((pinAccountId) => ({ budgetItemId, pinAccountId })),
+          }),
+        ]
+      : []),
+  ]);
+
+  revalidatePath("/money");
+  revalidatePath("/money/print");
+}
+
+export async function setTaskShares(taskId: string, pinAccountIds: string[]) {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { assignees: true, children: { include: { assignees: true } } },
+  });
+  if (!task || task.parentId) throw new Error("NOT_FOUND");
+
+  if (session.assigneeFilter?.length) {
+    const ok =
+      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
+      task.children.some((c) =>
+        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
+      );
+    if (!ok) throw new Error("FORBIDDEN");
+  }
+
+  const uniqueIds = [...new Set(pinAccountIds.filter(Boolean))];
+  if (uniqueIds.length) {
+    const accounts = await prisma.pinAccount.findMany({
+      where: { id: { in: uniqueIds }, isMaster: false },
+      select: { id: true },
+    });
+    if (accounts.length !== uniqueIds.length) throw new Error("INVALID_ACCOUNT");
+  }
+
+  await prisma.$transaction([
+    prisma.taskShare.deleteMany({ where: { taskId } }),
+    ...(uniqueIds.length
+      ? [
+          prisma.taskShare.createMany({
+            data: uniqueIds.map((pinAccountId) => ({ taskId, pinAccountId })),
+          }),
+        ]
+      : []),
+  ]);
+
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath(`/work/${taskId}`);
+}
+
+function revalidateRequests() {
+  revalidatePath("/requests");
+  revalidatePath("/", "layout");
+}
+
+export async function createRequest(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeRequests");
+
+  const title = String(formData.get("title") || "").trim();
+  const note = String(formData.get("note") || "").trim();
+  const recipientAccountId = String(formData.get("recipientAccountId") || "").trim();
+  const taskIdRaw = String(formData.get("taskId") || "").trim();
+
+  if (!title || !recipientAccountId) return;
+  if (recipientAccountId === session.id) throw new Error("INVALID_RECIPIENT");
+
+  const recipient = await prisma.pinAccount.findUnique({
+    where: { id: recipientAccountId },
+    select: { id: true },
+  });
+  if (!recipient) throw new Error("NOT_FOUND");
+
+  let taskId: string | null = null;
+  if (taskIdRaw) {
+    const task = await prisma.task.findFirst({
+      where: { id: taskIdRaw, parentId: null },
+      select: { id: true },
+    });
+    if (!task) throw new Error("NOT_FOUND");
+    taskId = task.id;
+  }
+
+  await prisma.request.create({
+    data: {
+      title,
+      note: note || null,
+      status: "open",
+      senderAccountId: session.id,
+      recipientAccountId,
+      taskId,
+    },
+  });
+
+  revalidateRequests();
+}
+
+export async function saveRequest(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeRequests");
+
+  const id = String(formData.get("id") || "").trim();
+  const title = String(formData.get("title") || "").trim();
+  const note = String(formData.get("note") || "").trim();
+  const taskIdRaw = String(formData.get("taskId") || "").trim();
+
+  if (!id || !title) return;
+
+  const row = await prisma.request.findUnique({ where: { id } });
+  if (!row || !canViewRequest(session, row) || !canEditRequest(session, row)) {
+    throw new Error("FORBIDDEN");
+  }
+
+  let taskId: string | null = null;
+  if (taskIdRaw) {
+    const task = await prisma.task.findFirst({
+      where: { id: taskIdRaw, parentId: null },
+      select: { id: true },
+    });
+    if (!task) throw new Error("NOT_FOUND");
+    taskId = task.id;
+  }
+
+  await prisma.request.update({
+    where: { id },
+    data: {
+      title,
+      note: note || null,
+      taskId,
+    },
+  });
+
+  revalidateRequests();
+}
+
+export async function markRequestRead(requestId: string): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeRequests");
+
+  const row = await prisma.request.findUnique({ where: { id: requestId } });
+  if (!row || !canViewRequest(session, row)) throw new Error("FORBIDDEN");
+  if (row.recipientAccountId !== session.id) throw new Error("FORBIDDEN");
+  if (row.readAt) return;
+
+  await prisma.request.update({
+    where: { id: requestId },
+    data: { readAt: new Date() },
+  });
+
+  revalidateRequests();
+}
+
+export async function completeRequest(requestId: string): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeRequests");
+
+  const row = await prisma.request.findUnique({ where: { id: requestId } });
+  if (!row || !canViewRequest(session, row) || !canCompleteRequest(session, row)) {
+    throw new Error("FORBIDDEN");
+  }
+
+  await prisma.request.update({
+    where: { id: requestId },
+    data: {
+      status: "done",
+      completedAt: new Date(),
+      declinedAt: null,
+      declineNote: null,
+      readAt: row.readAt ?? new Date(),
+    },
+  });
+
+  revalidateRequests();
+}
+
+export async function declineRequest(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeRequests");
+
+  const id = String(formData.get("id") || "").trim();
+  const declineNote = String(formData.get("declineNote") || "").trim();
+  if (!id) return;
+
+  const row = await prisma.request.findUnique({ where: { id } });
+  if (!row || !canViewRequest(session, row) || !canDeclineRequest(session, row)) {
+    throw new Error("FORBIDDEN");
+  }
+
+  await prisma.request.update({
+    where: { id },
+    data: {
+      status: "declined",
+      declinedAt: new Date(),
+      declineNote: declineNote || null,
+      completedAt: null,
+      readAt: row.readAt ?? new Date(),
+    },
+  });
+
+  revalidateRequests();
+}
+
+export async function reopenRequest(requestId: string): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeRequests");
+
+  const row = await prisma.request.findUnique({ where: { id: requestId } });
+  if (!row || !canViewRequest(session, row) || !canReopenRequest(session, row)) {
+    throw new Error("FORBIDDEN");
+  }
+
+  await prisma.request.update({
+    where: { id: requestId },
+    data: {
+      status: "open",
+      completedAt: null,
+      declinedAt: null,
+      declineNote: null,
+      readAt: null,
+    },
+  });
+
+  revalidateRequests();
+}
+
+export async function deleteRequest(requestId: string): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeRequests");
+
+  const row = await prisma.request.findUnique({ where: { id: requestId } });
+  if (!row || !canViewRequest(session, row) || !canDeleteRequest(session, row)) {
+    throw new Error("FORBIDDEN");
+  }
+
+  await prisma.request.delete({ where: { id: requestId } });
+  revalidateRequests();
+}
+
 async function requireTimelineEditor() {
   const session = await requireSession();
-  if (!session.canSeeTimeline) throw new Error("FORBIDDEN");
-  // Helpers with timeline can edit; masters always can
+  if (!timelineEditable(session)) throw new Error("FORBIDDEN");
   return session;
 }
 
@@ -636,7 +950,7 @@ async function resolveShoppingTaskId(raw: string): Promise<string | null> {
 
 export async function createShoppingItem(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+  assertCan(session, "canSeeShop");
 
   const name = String(formData.get("name") || "").trim();
   const quantity = String(formData.get("quantity") || "").trim();
@@ -664,7 +978,7 @@ export async function createShoppingItem(formData: FormData): Promise<void> {
 
 export async function saveShoppingItem(formData: FormData): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+  assertCan(session, "canSeeShop");
 
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim();
@@ -693,7 +1007,7 @@ export async function saveShoppingItem(formData: FormData): Promise<void> {
 
 export async function toggleShoppingPurchased(itemId: string): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+  assertCan(session, "canSeeShop");
 
   const item = await prisma.shoppingItem.findUnique({ where: { id: itemId } });
   if (!item) throw new Error("NOT_FOUND");
@@ -708,7 +1022,7 @@ export async function toggleShoppingPurchased(itemId: string): Promise<void> {
 
 export async function deleteShoppingItem(itemId: string): Promise<void> {
   const session = await requireSession();
-  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+  assertCan(session, "canSeeShop");
 
   await prisma.shoppingItem.delete({ where: { id: itemId } });
   revalidatePath("/shop");

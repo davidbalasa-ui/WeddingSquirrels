@@ -29,6 +29,13 @@ function toSession(account: {
   canSeeGuests: boolean;
   canSeeTimeline: boolean;
   canManageAccounts: boolean;
+  canSeeShop: boolean;
+  canSeeCalendar: boolean;
+  canSeePeople: boolean;
+  canSeeRequests: boolean;
+  canEditBudget: boolean;
+  canEditTimeline: boolean;
+  linkedPersonId: string | null;
   assigneeFilterJson: string | null;
 }): SessionAccount {
   let assigneeFilter: string[] | null = null;
@@ -40,16 +47,45 @@ function toSession(account: {
       assigneeFilter = null;
     }
   }
+
+  if (account.isMaster) {
+    return {
+      id: account.id,
+      name: account.name,
+      isMaster: true,
+      canSeeTasks: true,
+      canSeeBudget: true,
+      canSeeGuests: true,
+      canSeeTimeline: true,
+      canManageAccounts: true,
+      canSeeShop: true,
+      canSeeCalendar: true,
+      canSeePeople: true,
+      canSeeRequests: true,
+      canEditBudget: true,
+      canEditTimeline: true,
+      linkedPersonId: account.linkedPersonId,
+      assigneeFilter: null,
+    };
+  }
+
   return {
     id: account.id,
     name: account.name,
-    isMaster: account.isMaster,
+    isMaster: false,
     canSeeTasks: account.canSeeTasks,
     canSeeBudget: account.canSeeBudget,
     canSeeGuests: account.canSeeGuests,
     canSeeTimeline: account.canSeeTimeline,
     canManageAccounts: account.canManageAccounts,
-    assigneeFilter: account.isMaster ? null : assigneeFilter,
+    canSeeShop: account.canSeeShop,
+    canSeeCalendar: account.canSeeCalendar,
+    canSeePeople: account.canSeePeople,
+    canSeeRequests: account.canSeeRequests,
+    canEditBudget: account.canEditBudget,
+    canEditTimeline: account.canEditTimeline,
+    linkedPersonId: account.linkedPersonId,
+    assigneeFilter,
   };
 }
 

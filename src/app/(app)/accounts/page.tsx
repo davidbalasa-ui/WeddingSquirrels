@@ -3,6 +3,75 @@ import { createPinAccount, deletePinAccount, updatePinAccount } from "@/app/acti
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/session";
 
+const MODULE_FLAGS = [
+  { name: "canSeeTasks", label: "Tasks" },
+  { name: "canSeeBudget", label: "Money" },
+  { name: "canSeeGuests", label: "Guests" },
+  { name: "canSeeTimeline", label: "Day-of" },
+  { name: "canSeeShop", label: "Shop" },
+  { name: "canSeeCalendar", label: "Calendar" },
+  { name: "canSeePeople", label: "People" },
+  { name: "canSeeRequests", label: "Ask" },
+  { name: "canEditBudget", label: "Edit money" },
+  { name: "canEditTimeline", label: "Edit day-of" },
+  { name: "canManageAccounts", label: "Manage accounts" },
+] as const;
+
+function accountSummary(account: {
+  isMaster: boolean;
+  canSeeTasks: boolean;
+  canSeeBudget: boolean;
+  canSeeGuests: boolean;
+  canSeeTimeline: boolean;
+  canSeeShop: boolean;
+  canSeeCalendar: boolean;
+  canSeePeople: boolean;
+  canSeeRequests: boolean;
+  canEditBudget: boolean;
+  canEditTimeline: boolean;
+  canManageAccounts: boolean;
+}) {
+  if (account.isMaster) return "Master · full access";
+  return (
+    [
+      account.canSeeTasks && "Tasks",
+      account.canSeeBudget && "Money",
+      account.canSeeGuests && "Guests",
+      account.canSeeTimeline && "Day-of",
+      account.canSeeShop && "Shop",
+      account.canSeeCalendar && "Cal",
+      account.canSeePeople && "People",
+      account.canSeeRequests && "Ask",
+      account.canEditBudget && "Edit money",
+      account.canEditTimeline && "Edit day-of",
+      account.canManageAccounts && "Accounts",
+    ]
+      .filter(Boolean)
+      .join(" · ") || "No modules"
+  );
+}
+
+function FlagCheckboxes({
+  defaults,
+}: {
+  defaults?: Partial<Record<(typeof MODULE_FLAGS)[number]["name"], boolean>>;
+}) {
+  return (
+    <fieldset className="grid grid-cols-2 gap-2 text-sm">
+      {MODULE_FLAGS.map((flag) => (
+        <label key={flag.name} className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name={flag.name}
+            defaultChecked={defaults?.[flag.name] ?? false}
+          />
+          {flag.label}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
 export default async function AccountsPage() {
   const session = await requirePageSession({ need: "canManageAccounts" });
   const [accounts, people] = await Promise.all([
@@ -15,7 +84,7 @@ export default async function AccountsPage() {
       <AppHeader
         session={session}
         title="Accounts"
-        subtitle="PINs, names, and what each person can see"
+        subtitle="PINs, linked person, and module access"
       />
 
       <section className="card mb-4 p-4">
@@ -27,7 +96,7 @@ export default async function AccountsPage() {
               name="name"
               required
               placeholder="Mother in law"
-              className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
+              className="field-input"
             />
           </label>
           <label className="text-sm">
@@ -38,42 +107,51 @@ export default async function AccountsPage() {
               inputMode="numeric"
               pattern="\d{4,8}"
               placeholder="0999"
-              className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
+              className="field-input"
             />
           </label>
 
-          <fieldset className="grid grid-cols-2 gap-2 text-sm">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="canSeeTasks" defaultChecked /> Tasks
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="canSeeBudget" /> Money
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="canSeeGuests" /> Guests
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="canSeeTimeline" /> Day-of
-            </label>
-          </fieldset>
+          <label className="text-sm">
+            <span className="mb-1 block text-muted">Linked person (money owner filter)</span>
+            <select name="linkedPersonId" defaultValue="" className="field-input">
+              <option value="">None</option>
+              {people.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <FlagCheckboxes
+            defaults={{
+              canSeeTasks: true,
+              canSeeShop: true,
+              canSeeCalendar: true,
+              canSeePeople: true,
+              canSeeRequests: true,
+            }}
+          />
 
           <fieldset>
             <legend className="mb-2 text-sm text-muted">Only show tasks for</legend>
             <div className="flex flex-wrap gap-2">
               {people.map((person) => (
-                <label key={person.id} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm">
+                <label
+                  key={person.id}
+                  className="filter-pill flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm"
+                >
                   <input type="checkbox" name="assigneeFilter" value={person.id} />
                   {person.name}
                 </label>
               ))}
             </div>
-            <p className="mt-2 text-xs text-muted">Leave all unchecked to show every task (still limited by modules).</p>
+            <p className="mt-2 text-xs text-muted">
+              Leave all unchecked to show every task (still limited by modules).
+            </p>
           </fieldset>
 
-          <button
-            type="submit"
-            className="btn-primary"
-          >
+          <button type="submit" className="btn-primary">
             Add PIN account
           </button>
         </form>
@@ -90,20 +168,21 @@ export default async function AccountsPage() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-lg font-semibold">{account.name}</h3>
-                  <p className="text-xs text-muted">
-                    {account.isMaster
-                      ? "Master · full access"
-                      : [
-                          account.canSeeTasks && "Tasks",
-                          account.canSeeBudget && "Money",
-                          account.canSeeGuests && "Guests",
-                          account.canSeeTimeline && "Day-of",
-                        ]
-                          .filter(Boolean)
-                          .join(" · ") || "No modules"}
-                  </p>
+                  <p className="text-xs text-muted">{accountSummary(account)}</p>
+                  {!account.isMaster && account.linkedPersonId ? (
+                    <p className="mt-1 text-xs text-muted">
+                      Linked:{" "}
+                      {people.find((p) => p.id === account.linkedPersonId)?.name ||
+                        account.linkedPersonId}
+                    </p>
+                  ) : null}
                   {!account.isMaster && filter.length > 0 ? (
-                    <p className="mt-1 text-xs text-muted">Filter: {filter.join(", ")}</p>
+                    <p className="mt-1 text-xs text-muted">
+                      Filter:{" "}
+                      {filter
+                        .map((id) => people.find((p) => p.id === id)?.name || id)
+                        .join(", ")}
+                    </p>
                   ) : null}
                 </div>
               </div>
@@ -116,11 +195,7 @@ export default async function AccountsPage() {
                   <input type="hidden" name="id" value={account.id} />
                   <label className="text-sm">
                     <span className="mb-1 block text-muted">Name</span>
-                    <input
-                      name="name"
-                      defaultValue={account.name}
-                      className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
-                    />
+                    <input name="name" defaultValue={account.name} className="field-input" />
                   </label>
                   <label className="text-sm">
                     <span className="mb-1 block text-muted">New PIN (optional)</span>
@@ -129,32 +204,48 @@ export default async function AccountsPage() {
                       inputMode="numeric"
                       pattern="\d{4,8}"
                       placeholder="Leave blank to keep"
-                      className="w-full rounded-xl border border-line bg-transparent px-3 py-2"
+                      className="field-input"
                     />
                   </label>
                   {!account.isMaster ? (
                     <>
-                      <fieldset className="grid grid-cols-2 gap-2 text-sm">
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="canSeeTasks" defaultChecked={account.canSeeTasks} /> Tasks
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="canSeeBudget" defaultChecked={account.canSeeBudget} /> Money
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="canSeeGuests" defaultChecked={account.canSeeGuests} /> Guests
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="canSeeTimeline" defaultChecked={account.canSeeTimeline} /> Day-of
-                        </label>
-                      </fieldset>
+                      <label className="text-sm">
+                        <span className="mb-1 block text-muted">Linked person</span>
+                        <select
+                          name="linkedPersonId"
+                          defaultValue={account.linkedPersonId ?? ""}
+                          className="field-input"
+                        >
+                          <option value="">None</option>
+                          {people.map((person) => (
+                            <option key={person.id} value={person.id}>
+                              {person.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <FlagCheckboxes
+                        defaults={{
+                          canSeeTasks: account.canSeeTasks,
+                          canSeeBudget: account.canSeeBudget,
+                          canSeeGuests: account.canSeeGuests,
+                          canSeeTimeline: account.canSeeTimeline,
+                          canSeeShop: account.canSeeShop,
+                          canSeeCalendar: account.canSeeCalendar,
+                          canSeePeople: account.canSeePeople,
+                          canSeeRequests: account.canSeeRequests,
+                          canEditBudget: account.canEditBudget,
+                          canEditTimeline: account.canEditTimeline,
+                          canManageAccounts: account.canManageAccounts,
+                        }}
+                      />
                       <fieldset>
                         <legend className="mb-2 text-sm text-muted">Task filter</legend>
                         <div className="flex flex-wrap gap-2">
                           {people.map((person) => (
                             <label
                               key={person.id}
-                              className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm"
+                              className="filter-pill flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm"
                             >
                               <input
                                 type="checkbox"
@@ -169,12 +260,11 @@ export default async function AccountsPage() {
                       </fieldset>
                     </>
                   ) : (
-                    <p className="text-xs text-muted">Master accounts always have full access.</p>
+                    <p className="text-xs text-muted">
+                      Master accounts always have full access. Only name and PIN can change.
+                    </p>
                   )}
-                  <button
-                    type="submit"
-                    className="btn-primary"
-                  >
+                  <button type="submit" className="btn-primary">
                     Save changes
                   </button>
                 </form>

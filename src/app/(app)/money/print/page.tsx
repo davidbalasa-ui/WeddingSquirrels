@@ -1,4 +1,5 @@
 import { MoneyPrintView } from "@/components/MoneyPrintView";
+import { moneyEditable } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/session";
 
@@ -12,10 +13,13 @@ function toDateInput(value: Date | null) {
 
 export default async function MoneyPrintPage() {
   const session = await requirePageSession({ need: "canSeeBudget" });
-  void session;
+  const canEdit = moneyEditable(session);
 
-  const [items, minorCandidates] = await Promise.all([
-    prisma.budgetItem.findMany({ orderBy: { sortOrder: "asc" } }),
+  const [allItems, minorCandidates] = await Promise.all([
+    prisma.budgetItem.findMany({
+      orderBy: { sortOrder: "asc" },
+      include: { shares: { select: { pinAccountId: true } } },
+    }),
     prisma.task.findMany({
       where: {
         parentId: null,
@@ -33,6 +37,17 @@ export default async function MoneyPrintPage() {
     }),
   ]);
 
+  const items =
+    session.isMaster || canEdit
+      ? allItems
+      : session.canSeeBudget
+        ? allItems.filter(
+            (item) =>
+              (session.linkedPersonId != null && item.ownerId === session.linkedPersonId) ||
+              item.shares.some((share) => share.pinAccountId === session.id),
+          )
+        : [];
+
   return (
     <MoneyPrintView
       items={items.map((item) => ({
@@ -46,7 +61,7 @@ export default async function MoneyPrintPage() {
         note: item.note,
         sortOrder: item.sortOrder,
       }))}
-      minor={minorCandidates}
+      minor={canEdit ? minorCandidates : []}
     />
   );
 }

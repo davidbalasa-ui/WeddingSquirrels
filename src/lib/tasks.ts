@@ -36,6 +36,7 @@ export function taskVisibilityWhere(session: SessionAccount): Prisma.TaskWhereIn
           some: { assignees: { some: { personId: { in: session.assigneeFilter } } } },
         },
       },
+      { shares: { some: { pinAccountId: session.id } } },
     ],
   };
 }
@@ -134,7 +135,12 @@ export async function getTaskWorkspace(session: SessionAccount, id: string) {
 
   if (!session.canSeeTasks) return null;
   if (session.assigneeFilter?.length) {
+    const shared = await prisma.taskShare.findFirst({
+      where: { taskId: task.id, pinAccountId: session.id },
+      select: { taskId: true },
+    });
     const ok =
+      Boolean(shared) ||
       task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
       task.children.some((c) =>
         c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),

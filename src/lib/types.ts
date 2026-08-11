@@ -7,6 +7,13 @@ export type SessionAccount = {
   canSeeGuests: boolean;
   canSeeTimeline: boolean;
   canManageAccounts: boolean;
+  canSeeShop: boolean;
+  canSeeCalendar: boolean;
+  canSeePeople: boolean;
+  canSeeRequests: boolean;
+  canEditBudget: boolean;
+  canEditTimeline: boolean;
+  linkedPersonId: string | null;
   assigneeFilter: string[] | null;
 };
 
@@ -18,5 +25,12 @@ export type AccountPermissionsInput = {
   canSeeGuests: boolean;
   canSeeTimeline: boolean;
   canManageAccounts: boolean;
+  canSeeShop: boolean;
+  canSeeCalendar: boolean;
+  canSeePeople: boolean;
+  canSeeRequests: boolean;
+  canEditBudget: boolean;
+  canEditTimeline: boolean;
+  linkedPersonId: string | null;
   assigneeFilter: string[];
 };

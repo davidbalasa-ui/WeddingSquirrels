@@ -23,17 +23,15 @@ model Person {
   budgets       BudgetItem[]   @relation("BudgetOwner")
   budgetsPaid   BudgetItem[]   @relation("BudgetPayer")
   shoppingItems ShoppingItem[]
+  pinAccounts   PinAccount[]
 }
 
-/// Decision workspace: either a top-level package or a nested step.
 model Task {
   id              String         @id @default(cuid())
   title           String
-  /// Short “what is this” explanation for the package/step
   summary         String?
-  /// Writable plan: what is being decided / done
   planNotes       String?
-  status          String         @default("todo") // todo | doing | done | blocked
+  status          String         @default("todo")
   dueDate         DateTime?
   amountNeeded    Float?
   amountSpent     Float          @default(0)
@@ -52,9 +50,9 @@ model Task {
   children        Task[]         @relation("TaskTree")
   assignees       TaskAssignee[]
   shoppingItems   ShoppingItem[]
-  /// Special shared org cards: "week_before" | "day_before" (null = normal decision)
+  shares          TaskShare[]
+  requests        Request[]
   orgKey          String?
-  /// When set, task is pinned to the top as priority
   escalatedAt     DateTime?
   escalatedBy     String?
 
@@ -74,20 +72,41 @@ model TaskAssignee {
 }
 
 model BudgetItem {
-  id         String    @id @default(cuid())
+  id         String            @id @default(cuid())
   name       String
   price      Float
-  amountPaid Float     @default(0)
+  amountPaid Float             @default(0)
   payByDate  DateTime?
   ownerId    String?
-  owner      Person?   @relation("BudgetOwner", fields: [ownerId], references: [id])
+  owner      Person?           @relation("BudgetOwner", fields: [ownerId], references: [id])
   paidById   String?
-  paidBy     Person?   @relation("BudgetPayer", fields: [paidById], references: [id])
-  sortOrder  Int       @default(0)
+  paidBy     Person?           @relation("BudgetPayer", fields: [paidById], references: [id])
+  sortOrder  Int               @default(0)
   note       String?
   tasks      Task[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  shares     BudgetItemShare[]
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+}
+
+model BudgetItemShare {
+  budgetItemId String
+  pinAccountId String
+  budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id], onDelete: Cascade)
+  pinAccount   PinAccount @relation(fields: [pinAccountId], references: [id], onDelete: Cascade)
+
+  @@id([budgetItemId, pinAccountId])
+  @@index([pinAccountId])
+}
+
+model TaskShare {
+  taskId       String
+  pinAccountId String
+  task         Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  pinAccount   PinAccount @relation(fields: [pinAccountId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, pinAccountId])
+  @@index([pinAccountId])
 }
 
 model TimelineBlock {
@@ -120,7 +139,6 @@ model CalendarEvent {
   notes     String?
   startDate DateTime
   endDate   DateTime
-  /// Stable key for seeded events: bachelorette | bachelor | wedding
   eventKey  String?  @unique
   color     String   @default("#2f5d50")
   createdAt DateTime @default(now())
@@ -130,19 +148,30 @@ model CalendarEvent {
 }
 
 model PinAccount {
-  id                 String   @id @default(cuid())
+  id                 String            @id @default(cuid())
   name               String
   pinHash            String
-  isMaster           Boolean  @default(false)
-  canSeeTasks        Boolean  @default(true)
-  canSeeBudget       Boolean  @default(false)
-  canSeeGuests       Boolean  @default(false)
-  canSeeTimeline     Boolean  @default(false)
-  canManageAccounts  Boolean  @default(false)
-  /// JSON string array of Person.id values; null/empty = all people (for masters)
+  isMaster           Boolean           @default(false)
+  canSeeTasks        Boolean           @default(true)
+  canSeeBudget       Boolean           @default(false)
+  canSeeGuests       Boolean           @default(false)
+  canSeeTimeline     Boolean           @default(false)
+  canManageAccounts  Boolean           @default(false)
+  canSeeShop         Boolean           @default(true)
+  canSeeCalendar     Boolean           @default(true)
+  canSeePeople       Boolean           @default(true)
+  canSeeRequests     Boolean           @default(true)
+  canEditBudget      Boolean           @default(false)
+  canEditTimeline    Boolean           @default(false)
+  linkedPersonId     String?
+  linkedPerson       Person?           @relation(fields: [linkedPersonId], references: [id])
   assigneeFilterJson String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  budgetShares       BudgetItemShare[]
+  taskShares         TaskShare[]
+  requestsSent       Request[]         @relation("RequestsSent")
+  requestsReceived   Request[]         @relation("RequestsReceived")
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 }
 
 model ShoppingItem {
@@ -161,5 +190,28 @@ model ShoppingItem {
 
   @@index([purchased, sortOrder])
   @@index([ownerId])
+  @@index([taskId])
+}
+
+model Request {
+  id                 String     @id @default(cuid())
+  title              String
+  note               String?
+  status             String     @default("open")
+  senderAccountId    String
+  senderAccount      PinAccount @relation("RequestsSent", fields: [senderAccountId], references: [id], onDelete: Cascade)
+  recipientAccountId String
+  recipientAccount   PinAccount @relation("RequestsReceived", fields: [recipientAccountId], references: [id], onDelete: Cascade)
+  taskId             String?
+  task               Task?      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  readAt             DateTime?
+  completedAt        DateTime?
+  declinedAt         DateTime?
+  declineNote        String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([recipientAccountId, status, readAt])
+  @@index([senderAccountId, status])
   @@index([taskId])
 }
