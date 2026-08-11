@@ -6,6 +6,7 @@ import {
   assertCan,
   canManageAccounts,
   moneyEditable,
+  normalizeAccountFlags,
   timelineEditable,
 } from "@/lib/access";
 import {
@@ -433,7 +434,7 @@ function parseLinkedPersonId(raw: string): string | null {
 }
 
 function parseAccountFlags(formData: FormData) {
-  return {
+  const raw = {
     canSeeTasks: formData.get("canSeeTasks") === "on",
     canSeeBudget: formData.get("canSeeBudget") === "on",
     canSeeGuests: formData.get("canSeeGuests") === "on",
@@ -447,7 +448,74 @@ function parseAccountFlags(formData: FormData) {
     canEditTimeline: formData.get("canEditTimeline") === "on",
     linkedPersonId: parseLinkedPersonId(String(formData.get("linkedPersonId") || "")),
     assigneeFilter: formData.getAll("assigneeFilter").map(String).filter(Boolean),
+    sharedBudgetItemIds: formData.getAll("sharedBudgetItemIds").map(String).filter(Boolean),
+    sharedTaskIds: formData.getAll("sharedTaskIds").map(String).filter(Boolean),
   };
+  return {
+    ...normalizeAccountFlags(raw),
+    linkedPersonId: raw.linkedPersonId,
+    assigneeFilter: raw.assigneeFilter,
+    sharedBudgetItemIds: raw.sharedBudgetItemIds,
+    sharedTaskIds: raw.sharedTaskIds,
+  };
+}
+
+/** Account-scoped share sync — does not wipe other accounts' item shares. */
+async function syncAccountShares(args: {
+  pinAccountId: string;
+  sharedBudgetItemIds: string[];
+  sharedTaskIds: string[];
+}): Promise<void> {
+  const wantedBudget = [...new Set(args.sharedBudgetItemIds.filter(Boolean))];
+  const wantedTasks = [...new Set(args.sharedTaskIds.filter(Boolean))];
+
+  if (wantedBudget.length) {
+    const found = await prisma.budgetItem.count({ where: { id: { in: wantedBudget } } });
+    if (found !== wantedBudget.length) throw new Error("INVALID_BUDGET_SHARE");
+  }
+  if (wantedTasks.length) {
+    const found = await prisma.task.count({
+      where: { id: { in: wantedTasks }, parentId: null },
+    });
+    if (found !== wantedTasks.length) throw new Error("INVALID_TASK_SHARE");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.budgetItemShare.deleteMany({
+      where: wantedBudget.length
+        ? { pinAccountId: args.pinAccountId, budgetItemId: { notIn: wantedBudget } }
+        : { pinAccountId: args.pinAccountId },
+    });
+    if (wantedBudget.length) {
+      await tx.budgetItemShare.createMany({
+        data: wantedBudget.map((budgetItemId) => ({
+          budgetItemId,
+          pinAccountId: args.pinAccountId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    await tx.taskShare.deleteMany({
+      where: wantedTasks.length
+        ? { pinAccountId: args.pinAccountId, taskId: { notIn: wantedTasks } }
+        : { pinAccountId: args.pinAccountId },
+    });
+    if (wantedTasks.length) {
+      await tx.taskShare.createMany({
+        data: wantedTasks.map((taskId) => ({
+          taskId,
+          pinAccountId: args.pinAccountId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  });
+
+  revalidatePath("/money");
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath("/accounts");
 }
 
 export async function createPinAccount(formData: FormData): Promise<void> {
@@ -465,7 +533,7 @@ export async function createPinAccount(formData: FormData): Promise<void> {
     if (!person) return;
   }
 
-  await prisma.pinAccount.create({
+  const created = await prisma.pinAccount.create({
     data: {
       name,
       pinHash: await hashPin(pin),
@@ -488,6 +556,12 @@ export async function createPinAccount(formData: FormData): Promise<void> {
     },
   });
 
+  await syncAccountShares({
+    pinAccountId: created.id,
+    sharedBudgetItemIds: flags.sharedBudgetItemIds,
+    sharedTaskIds: flags.sharedTaskIds,
+  });
+
   revalidatePath("/accounts");
 }
 
@@ -504,12 +578,13 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
   if (!existing || !name) return;
   if (pin && !/^\d{4,8}$/.test(pin)) return;
 
-  // Masters keep full privileges; only name / PIN can change.
+  // Masters keep full privileges; only name / PIN / linked person can change.
   if (existing.isMaster) {
     await prisma.pinAccount.update({
       where: { id },
       data: {
         name,
+        linkedPersonId: flags.linkedPersonId,
         ...(pin ? { pinHash: await hashPin(pin) } : {}),
       },
     });
@@ -543,6 +618,12 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
         ? JSON.stringify(flags.assigneeFilter)
         : null,
     },
+  });
+
+  await syncAccountShares({
+    pinAccountId: id,
+    sharedBudgetItemIds: flags.sharedBudgetItemIds,
+    sharedTaskIds: flags.sharedTaskIds,
   });
 
   revalidatePath("/accounts");

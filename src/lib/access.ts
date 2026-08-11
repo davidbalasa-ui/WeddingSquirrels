@@ -36,3 +36,17 @@ export function canManageAccounts(session: SessionAccount): boolean {
 export function parseCouplePersonId(raw: string): string | null {
   return raw === "david" || raw === "haley" ? raw : null;
 }
+
+/** If edit is on, force the matching see flag on. */
+export function normalizeAccountFlags<T extends {
+  canSeeBudget: boolean;
+  canEditBudget: boolean;
+  canSeeTimeline: boolean;
+  canEditTimeline: boolean;
+}>(flags: T): T {
+  return {
+    ...flags,
+    canSeeBudget: flags.canSeeBudget || flags.canEditBudget,
+    canSeeTimeline: flags.canSeeTimeline || flags.canEditTimeline,
+  };
+}
