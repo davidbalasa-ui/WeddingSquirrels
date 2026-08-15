@@ -63,11 +63,17 @@ export function MealBoard({
 
   const picked = guestList.filter((guest) => guest.optionId).length;
   const you = sessionName.trim().toLowerCase();
+  const [adding, setAdding] = useState(false);
 
   async function addOption() {
-    const result = await addMealOption();
-    if (!result.ok) return;
-    setOptionList((prev) => [...prev, { id: result.id, label: "" }]);
+    setAdding(true);
+    try {
+      const result = await addMealOption();
+      if (!result.ok) return;
+      setOptionList((prev) => [...prev, { id: result.id, label: "" }]);
+    } finally {
+      setAdding(false);
+    }
   }
 
   async function togglePublished() {
@@ -123,8 +129,13 @@ export function MealBoard({
             )}
           </div>
           <div className="border-t border-line px-3 py-2">
-            <button type="button" className="text-xs font-semibold text-[var(--accent)]" onClick={() => void addOption()}>
-              + Add option
+            <button
+              type="button"
+              disabled={adding}
+              className="text-xs font-semibold text-[var(--accent)] disabled:opacity-60"
+              onClick={() => void addOption()}
+            >
+              {adding ? "Adding…" : "+ Add option"}
             </button>
           </div>
         </section>
