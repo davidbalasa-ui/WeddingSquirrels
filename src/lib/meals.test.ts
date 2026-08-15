@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { canSeeDinnerTab, mealsEditable } from "./access";
+import { canSeeDinnerTab, mealsEditable, normalizeAccountFlags } from "./access";
 import { MEAL_SECTIONS, isMealGuestId, mealGuestCount, planMealWrites, shouldDeleteMealOptionOnClear } from "./meals";
 import type { SessionAccount } from "./types";
 
@@ -58,6 +58,29 @@ test("dinner tab is shared on accounts or always visible to menu editors", () =>
   assert.equal(canSeeDinnerTab(session({ canManageAccounts: true })), true);
   assert.equal(canSeeDinnerTab(session({ canSeeDinner: true })), true);
   assert.equal(canSeeDinnerTab(session({})), false);
+});
+
+test("account managers keep Dinner See when flags are normalized", () => {
+  const flags = normalizeAccountFlags({
+    canSeeBudget: false,
+    canEditBudget: false,
+    canSeeTimeline: false,
+    canEditTimeline: false,
+    canSeeDinner: false,
+    canManageAccounts: true,
+  });
+  assert.equal(flags.canSeeDinner, true);
+  assert.equal(
+    normalizeAccountFlags({
+      canSeeBudget: false,
+      canEditBudget: false,
+      canSeeTimeline: false,
+      canEditTimeline: false,
+      canSeeDinner: false,
+      canManageAccounts: false,
+    }).canSeeDinner,
+    false,
+  );
 });
 
 test("meal layout planner creates missing guests and no-ops when synced", () => {

@@ -43,6 +43,10 @@ export function ModulePermissionGrid({
     if (key === "canEditBudget" && value) next.canSeeBudget = true;
     if (key === "canEditTimeline" && value) next.canSeeTimeline = true;
 
+    // Account managers always run the dinner menu, so they keep the tab.
+    if (key === "canManageAccounts" && value) next.canSeeDinner = true;
+    if (key === "canSeeDinner" && !value && next.canManageAccounts) next.canSeeDinner = true;
+
     onChange(next);
   }
 

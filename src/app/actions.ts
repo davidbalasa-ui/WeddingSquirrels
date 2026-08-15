@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   assertCan,
   canManageAccounts,
+  canSeeDinnerTab,
   mealsEditable,
   moneyEditable,
   normalizeAccountFlags,
@@ -1351,6 +1352,7 @@ export async function saveMealChoice(guestId: string, optionId: string | null): 
   } catch {
     return { ok: false, reason: "forbidden" };
   }
+  if (!canSeeDinnerTab(session)) return { ok: false, reason: "forbidden" };
   const settings = await prisma.mealSettings.findUnique({ where: { id: 1 } });
   if (!settings?.published && !mealsEditable(session)) {
     return { ok: false, reason: "forbidden" };

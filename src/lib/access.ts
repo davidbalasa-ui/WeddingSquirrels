@@ -52,10 +52,13 @@ export function normalizeAccountFlags<T extends {
   canEditBudget: boolean;
   canSeeTimeline: boolean;
   canEditTimeline: boolean;
+  canSeeDinner: boolean;
+  canManageAccounts: boolean;
 }>(flags: T): T {
   return {
     ...flags,
     canSeeBudget: flags.canSeeBudget || flags.canEditBudget,
     canSeeTimeline: flags.canSeeTimeline || flags.canEditTimeline,
+    canSeeDinner: flags.canSeeDinner || flags.canManageAccounts,
   };
 }
