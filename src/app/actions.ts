@@ -1195,7 +1195,6 @@ export async function saveStayOccupant(slotId: string, occupant: string): Promis
     where: { id: slotId },
     data: { occupant: occupant.trim() },
   });
-  revalidatePath("/stay");
   return { ok: true, id: slotId };
 }
 
@@ -1234,7 +1233,6 @@ export async function saveStayBathNote(noteId: string, note: string): Promise<St
   const trimmed = note.trim();
   if (!trimmed) {
     await prisma.stayBathNote.delete({ where: { id: noteId } });
-    revalidatePath("/stay");
     return { ok: true, id: noteId };
   }
 
@@ -1242,7 +1240,6 @@ export async function saveStayBathNote(noteId: string, note: string): Promise<St
     where: { id: noteId },
     data: { note: trimmed },
   });
-  revalidatePath("/stay");
   return { ok: true, id: noteId };
 }
 
@@ -1258,7 +1255,6 @@ export async function deleteStayBathNote(noteId: string): Promise<StayWriteResul
   } catch {
     return { ok: false, reason: "not_found" };
   }
-  revalidatePath("/stay");
   return { ok: true, id: noteId };
 }
 
@@ -1307,7 +1303,6 @@ export async function saveMealOption(optionId: string, label: string): Promise<M
     }
     await prisma.mealGuest.updateMany({ where: { optionId }, data: { optionId: null } });
     await prisma.mealOption.delete({ where: { id: optionId } });
-    revalidateDinner();
     return { ok: true, id: optionId };
   }
 
@@ -1315,7 +1310,6 @@ export async function saveMealOption(optionId: string, label: string): Promise<M
     where: { id: optionId },
     data: { label: trimmed },
   });
-  revalidateDinner();
   return { ok: true, id: optionId };
 }
 
@@ -1328,7 +1322,6 @@ export async function deleteMealOption(optionId: string): Promise<MealWriteResul
   } catch {
     return { ok: false, reason: "not_found" };
   }
-  revalidateDinner();
   return { ok: true, id: optionId };
 }
 
@@ -1369,6 +1362,5 @@ export async function saveMealChoice(guestId: string, optionId: string | null): 
     where: { id: guestId },
     data: { optionId },
   });
-  revalidateDinner();
   return { ok: true, id: guestId };
 }
