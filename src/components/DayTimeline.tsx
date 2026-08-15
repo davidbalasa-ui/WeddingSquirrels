@@ -401,10 +401,10 @@ export function DayTimeline({
   return (
     <div className={editing ? "pb-24" : ""}>
       {canEdit ? (
-        <div className="mb-3 grid grid-cols-2 rounded-full border border-line bg-[var(--bg-elevated)] p-1 print-hide">
+        <div className="mb-2 grid grid-cols-2 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5 print-hide">
           <button
             type="button"
-            className={`rounded-full px-3 py-2.5 text-sm font-semibold ${
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
               mode === "review" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
             }`}
             onClick={() => void switchMode("review")}
@@ -413,7 +413,7 @@ export function DayTimeline({
           </button>
           <button
             type="button"
-            className={`rounded-full px-3 py-2.5 text-sm font-semibold ${
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
               mode === "edit" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
             }`}
             onClick={() => void switchMode("edit")}
@@ -423,13 +423,9 @@ export function DayTimeline({
         </div>
       ) : null}
 
-      <p className="mb-3 text-sm text-muted">
-        {!canEdit
-          ? "Day-of schedule"
-          : editing
-            ? "Tap a time or note. Same start and end can be reordered."
-            : "Read-only schedule. Switch to Edit to change a moment."}
-      </p>
+      {editing ? (
+        <p className="mb-2 text-xs text-muted">Tap a time or note. Same start and end can be reordered.</p>
+      ) : null}
 
       {banner ? (
         <p className="mb-3 rounded-xl border border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_8%,white)] px-3 py-2 text-sm text-[var(--danger)]">
@@ -438,12 +434,12 @@ export function DayTimeline({
       ) : null}
 
       {!hideChips ? (
-        <div className="sticky top-[4.75rem] z-10 -mx-1 mb-3 flex gap-2 overflow-x-auto bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-1 py-2 backdrop-blur-md print-hide">
+        <div className="sticky top-[4.75rem] z-10 -mx-1 mb-2 flex gap-1.5 overflow-x-auto bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-1 py-1.5 backdrop-blur-md print-hide">
           {DAY_OF_BUCKETS.filter((bucket) => counts[bucket.id] > 0).map((bucket) => (
             <button
               key={bucket.id}
               type="button"
-              className="shrink-0 rounded-full border border-line bg-[var(--bg-elevated)] px-3 py-2 text-xs font-semibold"
+              className="shrink-0 rounded-full border border-line bg-[var(--bg-elevated)] px-2.5 py-1 text-xs font-semibold"
               onClick={() => {
                 document
                   .getElementById(`day-bucket-${bucket.id}`)
@@ -529,41 +525,47 @@ export function DayTimeline({
 
 function ReviewSections({ timed, untimed }: { timed: Row[]; untimed: Row[] }) {
   return (
-    <>
+    <div className="flex flex-col gap-3">
       {DAY_OF_BUCKETS.filter((bucket) => bucket.id !== "untimed").map((bucket) => {
         const items = timed.filter((row) => bucketForTime(row.startAt) === bucket.id);
         if (items.length === 0) return null;
         return (
-          <section key={bucket.id} id={`day-bucket-${bucket.id}`} className="flex flex-col gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">{bucket.label}</p>
-            {items.map((row) => (
-              <ReviewCard key={row.id} row={row} />
-            ))}
+          <section key={bucket.id} id={`day-bucket-${bucket.id}`}>
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+              {bucket.label}
+            </p>
+            <div className="card divide-y divide-[var(--line)] overflow-hidden">
+              {items.map((row) => (
+                <ReviewRow key={row.id} row={row} />
+              ))}
+            </div>
           </section>
         );
       })}
       {untimed.length > 0 ? (
-        <details id="day-bucket-untimed" className="card p-4">
-          <summary className="cursor-pointer text-sm font-semibold">Untimed ({untimed.length})</summary>
-          <div className="mt-3 flex flex-col gap-3">
+        <details id="day-bucket-untimed" className="card overflow-hidden">
+          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">
+            Untimed ({untimed.length})
+          </summary>
+          <div className="divide-y divide-[var(--line)] border-t border-line">
             {untimed.map((row) => (
-              <ReviewCard key={row.id} row={row} />
+              <ReviewRow key={row.id} row={row} />
             ))}
           </div>
         </details>
       ) : null}
-    </>
+    </div>
   );
 }
 
-function ReviewCard({ row }: { row: Row }) {
+function ReviewRow({ row }: { row: Row }) {
   return (
-    <article id={`day-row-${row.id}`} className="card p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
+    <article id={`day-row-${row.id}`} className="flex items-start gap-2 px-3 py-1.5">
+      <p className="shrink-0 whitespace-nowrap text-[12px] font-semibold leading-5 text-[var(--accent)]">
         {row.startAt}
         {row.endAt ? ` – ${row.endAt}` : ""}
       </p>
-      <p className="mt-1 text-[15px] leading-snug">{row.notes}</p>
+      <p className="min-w-0 text-[14px] leading-5">{row.notes}</p>
     </article>
   );
 }
