@@ -195,10 +195,13 @@ export function parsedTimeFields(startAt: string, endAt: string | null) {
   };
 }
 
-export function peerKey(startAt: string): string {
-  const parsed = parseDayOfTime(startAt);
-  if (parsed.kind === "untimed") return "untimed";
-  return `${parsed.dayOffset}:${parsed.minutes}`;
+export function peerKey(startAt: string, endAt = ""): string | null {
+  const start = parseDayOfTime(startAt);
+  if (start.kind !== "timed") return null;
+  const end = parseDayOfTime(endAt);
+  if (endAt.trim() && end.kind !== "timed") return null;
+  const endPart = end.kind === "timed" ? `${end.dayOffset}:${end.minutes}` : "none";
+  return `${start.dayOffset}:${start.minutes}|${endPart}`;
 }
 
 export function sortTimelineBlocks<T extends { id: string; startAt: string; sortOrder: number }>(
@@ -212,7 +215,7 @@ export function sortTimelineBlocks<T extends { id: string; startAt: string; sort
   });
 }
 
-export function applyPeerOrder<T extends { id: string; startAt: string }>(
+export function applyPeerOrder<T extends { id: string; startAt: string; endAt?: string | null }>(
   blocks: T[],
   orderedPeerIds: string[],
 ): T[] | null {
@@ -220,10 +223,11 @@ export function applyPeerOrder<T extends { id: string; startAt: string }>(
   const byId = new Map(blocks.map((block) => [block.id, block]));
   const first = byId.get(orderedPeerIds[0]);
   if (!first) return null;
-  const key = peerKey(first.startAt);
+  const key = peerKey(first.startAt, first.endAt ?? "");
+  if (!key) return null;
   if (orderedPeerIds.some((id) => {
     const block = byId.get(id);
-    return !block || peerKey(block.startAt) !== key;
+    return !block || peerKey(block.startAt, block.endAt ?? "") !== key;
   })) {
     return null;
   }

@@ -30,122 +30,142 @@ function wrapMinute(minute: number) {
   return minute;
 }
 
-export function DayTimeStepper({
-  label,
-  value,
-  placeholder,
+function toClock(hour12: number, minute: number, pm: boolean) {
+  const hour24 = (hour12 % 12) + (pm ? 12 : 0);
+  return formatClock(hour24 * 60 + minute);
+}
+
+function rangeLabel(startAt: string, endAt: string, placeholder: string) {
+  const start = startAt.trim();
+  const end = endAt.trim();
+  if (!start && !end) return placeholder;
+  if (start && end) return `${start} – ${end}`;
+  return start || end;
+}
+
+export function DayTimeRange({
+  startAt,
+  endAt,
+  placeholder = "Set time",
   onCommit,
   onOpenChange,
 }: {
-  label: string;
-  value: string;
-  placeholder: string;
-  onCommit: (next: string) => void;
+  startAt: string;
+  endAt: string;
+  placeholder?: string;
+  onCommit: (next: { startAt?: string; endAt?: string }) => void;
   onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [hour12, setHour12] = useState(3);
-  const [minute, setMinute] = useState(0);
-  const [pm, setPm] = useState(true);
+  const startParts = partsFromValue(startAt);
+  const endParts = partsFromValue(endAt || startAt);
+  const [startHour, setStartHour] = useState(startParts.hour12);
+  const [startMinute, setStartMinute] = useState(startParts.minute);
+  const [startPm, setStartPm] = useState(startParts.pm);
+  const [endHour, setEndHour] = useState(endParts.hour12);
+  const [endMinute, setEndMinute] = useState(endParts.minute);
+  const [endPm, setEndPm] = useState(endParts.pm);
+  const [hasEnd, setHasEnd] = useState(Boolean(endAt.trim()));
 
   function setOpenSafe(next: boolean) {
     if (next) {
-      const parts = partsFromValue(value);
-      setHour12(parts.hour12);
-      setMinute(parts.minute);
-      setPm(parts.pm);
+      const start = partsFromValue(startAt);
+      const end = partsFromValue(endAt || startAt);
+      setStartHour(start.hour12);
+      setStartMinute(start.minute);
+      setStartPm(start.pm);
+      setEndHour(end.hour12);
+      setEndMinute(end.minute);
+      setEndPm(end.pm);
+      setHasEnd(Boolean(endAt.trim()));
     }
     setOpen(next);
     onOpenChange?.(next);
   }
 
-  function commitClock() {
-    const hour24 = (hour12 % 12) + (pm ? 12 : 0);
-    onCommit(formatClock(hour24 * 60 + minute));
+  function commit() {
+    onCommit({
+      startAt: toClock(startHour, startMinute, startPm),
+      endAt: hasEnd ? toClock(endHour, endMinute, endPm) : "",
+    });
     setOpenSafe(false);
   }
 
-  const display = value.trim() || placeholder;
-  const needsMeridiem = missingMeridiem(value);
+  const needsMeridiem = missingMeridiem(startAt) || missingMeridiem(endAt);
 
   return (
-    <div className="text-sm">
-      <p className="mb-1 text-xs text-muted">{label}</p>
+    <div className="min-w-0 flex-1">
       <button
         type="button"
         onClick={() => setOpenSafe(!open)}
-        className="flex min-h-12 w-full items-center justify-between rounded-xl border border-line px-3 py-2.5 text-left"
+        className="flex min-h-9 w-full items-center rounded-lg px-0 py-1 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]"
       >
-        <span className={value.trim() ? "" : "text-muted"}>{display}</span>
-        <span className="text-xs font-semibold text-[var(--accent)]">{open ? "Close" : "Set"}</span>
+        {rangeLabel(startAt, endAt, placeholder)}
       </button>
       {needsMeridiem && !open ? (
-        <p className="mt-1 text-xs font-semibold text-[var(--warn)]">Add AM/PM</p>
+        <p className="text-[11px] font-semibold text-[var(--warn)]">Add AM/PM</p>
       ) : null}
 
       {open ? (
-        <div className="mt-2 rounded-2xl border border-line bg-[var(--bg)] p-3">
-          <div className="grid grid-cols-3 gap-2">
-            <StepperColumn
-              label="Hour"
-              value={String(hour12)}
-              onDown={() => setHour12((h) => wrapHour(h - 1))}
-              onUp={() => setHour12((h) => wrapHour(h + 1))}
+        <div className="mt-1 rounded-xl border border-line bg-[var(--bg)] p-2">
+          <CompactClock
+            label="Start"
+            hour12={startHour}
+            minute={startMinute}
+            pm={startPm}
+            onHour={setStartHour}
+            onMinute={setStartMinute}
+            onPm={setStartPm}
+          />
+          {hasEnd ? (
+            <CompactClock
+              label="End"
+              hour12={endHour}
+              minute={endMinute}
+              pm={endPm}
+              onHour={setEndHour}
+              onMinute={setEndMinute}
+              onPm={setEndPm}
             />
-            <StepperColumn
-              label="Min"
-              value={String(minute).padStart(2, "0")}
-              onDown={() => setMinute((m) => wrapMinute(m - 1))}
-              onUp={() => setMinute((m) => wrapMinute(m + 1))}
-            />
-            <div className="flex flex-col gap-1">
-              <span className="text-center text-[11px] text-muted">AM/PM</span>
-              <button
-                type="button"
-                className={`min-h-11 rounded-xl text-sm font-semibold ${
-                  !pm ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "border border-line text-muted"
-                }`}
-                onClick={() => setPm(false)}
-              >
-                AM
-              </button>
-              <button
-                type="button"
-                className={`min-h-11 rounded-xl text-sm font-semibold ${
-                  pm ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "border border-line text-muted"
-                }`}
-                onClick={() => setPm(true)}
-              >
-                PM
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-2 flex flex-wrap gap-2">
+          ) : null}
+          <div className="mt-1 flex flex-wrap gap-1">
             {QUARTERS.map((q) => (
               <button
                 key={q}
                 type="button"
-                className="min-h-10 rounded-full border border-line px-3 text-xs font-semibold"
-                onClick={() => setMinute(q)}
+                className="min-h-8 rounded-full border border-line px-2 text-[11px] font-semibold"
+                onClick={() => {
+                  setStartMinute(q);
+                  if (hasEnd) setEndMinute(q);
+                }}
               >
                 :{String(q).padStart(2, "0")}
               </button>
             ))}
           </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-2 flex flex-wrap gap-1">
             <button
               type="button"
-              className="btn-secondary"
+              className="min-h-8 rounded-full border border-line px-2.5 text-[11px] font-semibold"
+              onClick={() => setHasEnd((value) => !value)}
+            >
+              {hasEnd ? "No end" : "Add end"}
+            </button>
+            <button
+              type="button"
+              className="min-h-8 rounded-full border border-line px-2.5 text-[11px] font-semibold"
               onClick={() => {
-                onCommit("TBD");
+                onCommit({ startAt: "TBD", endAt: "" });
                 setOpenSafe(false);
               }}
             >
               TBD
             </button>
-            <button type="button" className="btn-primary" onClick={commitClock}>
+            <button
+              type="button"
+              className="ml-auto min-h-8 rounded-full bg-[var(--accent)] px-3 text-[11px] font-semibold text-white"
+              onClick={commit}
+            >
               Done
             </button>
           </div>
@@ -155,27 +175,73 @@ export function DayTimeStepper({
   );
 }
 
-function StepperColumn({
+function CompactClock({
   label,
+  hour12,
+  minute,
+  pm,
+  onHour,
+  onMinute,
+  onPm,
+}: {
+  label: string;
+  hour12: number;
+  minute: number;
+  pm: boolean;
+  onHour: (value: number) => void;
+  onMinute: (value: number) => void;
+  onPm: (value: boolean) => void;
+}) {
+  return (
+    <div className="mb-1 flex items-center gap-1">
+      <span className="w-9 shrink-0 text-[11px] text-muted">{label}</span>
+      <TinyStep value={String(hour12)} onDown={() => onHour(wrapHour(hour12 - 1))} onUp={() => onHour(wrapHour(hour12 + 1))} />
+      <span className="text-muted">:</span>
+      <TinyStep
+        value={String(minute).padStart(2, "0")}
+        onDown={() => onMinute(wrapMinute(minute - 1))}
+        onUp={() => onMinute(wrapMinute(minute + 1))}
+      />
+      <button
+        type="button"
+        className={`min-h-8 rounded-md px-2 text-[11px] font-semibold ${
+          !pm ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
+        }`}
+        onClick={() => onPm(false)}
+      >
+        AM
+      </button>
+      <button
+        type="button"
+        className={`min-h-8 rounded-md px-2 text-[11px] font-semibold ${
+          pm ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
+        }`}
+        onClick={() => onPm(true)}
+      >
+        PM
+      </button>
+    </div>
+  );
+}
+
+function TinyStep({
   value,
   onDown,
   onUp,
 }: {
-  label: string;
   value: string;
   onDown: () => void;
   onUp: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-1">
-      <span className="text-[11px] text-muted">{label}</span>
-      <button type="button" className="min-h-11 w-full rounded-xl border border-line text-lg font-semibold" onClick={onUp}>
-        +
-      </button>
-      <p className="font-[family-name:var(--font-display)] text-2xl leading-none">{value}</p>
-      <button type="button" className="min-h-11 w-full rounded-xl border border-line text-lg font-semibold" onClick={onDown}>
+    <span className="inline-flex items-center rounded-md border border-line">
+      <button type="button" className="min-h-8 w-7 text-sm font-semibold" onClick={onDown}>
         −
       </button>
-    </div>
+      <span className="min-w-6 text-center text-sm font-semibold">{value}</span>
+      <button type="button" className="min-h-8 w-7 text-sm font-semibold" onClick={onUp}>
+        +
+      </button>
+    </span>
   );
 }

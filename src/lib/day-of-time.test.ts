@@ -235,14 +235,24 @@ test("sortTimelineBlocks keeps same-time order stable", () => {
   assert.deepEqual(sorted.map((row) => row.id), ["a", "b"]);
 });
 
-test("applyPeerOrder only permutes the same clock/untimed group", () => {
+test("peerKey requires the same start and end span", () => {
+  assert.equal(peerKey("3:30 PM", ""), peerKey("15:30", ""));
+  assert.equal(peerKey("3:30 PM", "4:00 PM"), peerKey("15:30", "16:00"));
+  assert.notEqual(peerKey("3:30 PM", "4:00 PM"), peerKey("3:30 PM", "4:15 PM"));
+  assert.notEqual(peerKey("3:30 PM", ""), peerKey("3:30 PM", "4:00 PM"));
+  assert.equal(peerKey("TBD", ""), null);
+  assert.equal(peerKey("3:30 PM", "afternoon"), null);
+});
+
+test("applyPeerOrder only permutes the same start and end span", () => {
   const blocks = [
-    { id: "u1", startAt: "TBD" },
-    { id: "u2", startAt: "afternoon" },
-    { id: "t1", startAt: "3:30 PM" },
+    { id: "a", startAt: "3:30 PM", endAt: "4:00 PM" },
+    { id: "b", startAt: "3:30 PM", endAt: "4:00 PM" },
+    { id: "c", startAt: "3:30 PM", endAt: "4:15 PM" },
+    { id: "d", startAt: "TBD", endAt: "" },
   ];
-  const next = applyPeerOrder(blocks, ["u2", "u1"]);
-  assert.deepEqual(next?.map((row) => row.id), ["u2", "u1", "t1"]);
-  assert.equal(applyPeerOrder(blocks, ["u1", "t1"]), null);
-  assert.equal(peerKey("3:30 PM"), peerKey("15:30"));
+  const next = applyPeerOrder(blocks, ["b", "a"]);
+  assert.deepEqual(next?.map((row) => row.id), ["b", "a", "c", "d"]);
+  assert.equal(applyPeerOrder(blocks, ["a", "c"]), null);
+  assert.equal(applyPeerOrder(blocks, ["d", "a"]), null);
 });
