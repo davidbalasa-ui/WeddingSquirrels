@@ -16,7 +16,13 @@ import {
   unlockWithPin,
 } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { prepareTimelineCreate, prepareTimelineSave } from "@/lib/day-of-time";
+import {
+  applyPeerOrder,
+  parsedTimeFields,
+  prepareTimelineCreate,
+  prepareTimelineSave,
+  sortTimelineBlocks,
+} from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
 import {
   canCompleteRequest,
@@ -905,7 +911,7 @@ export async function deleteRequest(requestId: string): Promise<void> {
 }
 
 export type TimelineWriteResult =
-  | { ok: true; id: string }
+  | { ok: true; id: string; order: string[] }
   | { ok: false; reason: "forbidden" | "not_found" | "empty_notes" | "invalid" | "noop" };
 
 async function requireTimelineEditor() {
@@ -916,6 +922,23 @@ async function requireTimelineEditor() {
   } catch {
     return null;
   }
+}
+
+async function resequenceTimeline(): Promise<string[]> {
+  const blocks = await prisma.timelineBlock.findMany();
+  const sorted = sortTimelineBlocks(blocks);
+  await prisma.$transaction(
+    sorted.map((block, index) =>
+      prisma.timelineBlock.update({
+        where: { id: block.id },
+        data: {
+          sortOrder: index,
+          ...parsedTimeFields(block.startAt, block.endAt),
+        },
+      }),
+    ),
+  );
+  return sorted.map((block) => block.id);
 }
 
 export async function saveTimelineBlock(input: {
@@ -951,10 +974,12 @@ export async function saveTimelineBlock(input: {
       startAt: prepared.startAt,
       endAt: prepared.endAt,
       notes: prepared.notes,
+      ...parsedTimeFields(prepared.startAt, prepared.endAt),
     },
   });
 
-  return { ok: true, id };
+  const order = await resequenceTimeline();
+  return { ok: true, id, order };
 }
 
 export async function createTimelineBlock(input: {
@@ -971,21 +996,19 @@ export async function createTimelineBlock(input: {
   });
   if (!prepared.ok) return { ok: false, reason: "invalid" };
 
-  const last = await prisma.timelineBlock.findFirst({
-    orderBy: { sortOrder: "desc" },
-  });
-
   const created = await prisma.timelineBlock.create({
     data: {
       startAt: prepared.startAt,
       endAt: prepared.endAt,
       notes: prepared.notes,
-      sortOrder: (last?.sortOrder ?? -1) + 1,
+      sortOrder: 9999,
+      ...parsedTimeFields(prepared.startAt, prepared.endAt),
     },
   });
 
+  const order = await resequenceTimeline();
   revalidatePath("/day");
-  return { ok: true, id: created.id };
+  return { ok: true, id: created.id, order };
 }
 
 export async function deleteTimelineBlock(blockId: string): Promise<TimelineWriteResult> {
@@ -997,29 +1020,29 @@ export async function deleteTimelineBlock(blockId: string): Promise<TimelineWrit
     return { ok: false, reason: "not_found" };
   }
 
+  const order = await resequenceTimeline();
   revalidatePath("/day");
-  return { ok: true, id: blockId };
+  return { ok: true, id: blockId, order };
 }
 
-export async function moveTimelineBlock(blockId: string, direction: "up" | "down"): Promise<void> {
-  if (!(await requireTimelineEditor())) return;
+export async function saveTimelinePeerOrder(orderedPeerIds: string[]): Promise<TimelineWriteResult> {
+  if (!(await requireTimelineEditor())) return { ok: false, reason: "forbidden" };
+  if (orderedPeerIds.length < 2) return { ok: false, reason: "invalid" };
 
-  const blocks = await prisma.timelineBlock.findMany({ orderBy: { sortOrder: "asc" } });
-  const index = blocks.findIndex((b) => b.id === blockId);
-  if (index < 0) return;
+  const blocks = sortTimelineBlocks(await prisma.timelineBlock.findMany());
+  const next = applyPeerOrder(blocks, orderedPeerIds);
+  if (!next) return { ok: false, reason: "invalid" };
 
-  const swapWith = direction === "up" ? index - 1 : index + 1;
-  if (swapWith < 0 || swapWith >= blocks.length) return;
+  await prisma.$transaction(
+    next.map((block, index) =>
+      prisma.timelineBlock.update({
+        where: { id: block.id },
+        data: { sortOrder: index },
+      }),
+    ),
+  );
 
-  const a = blocks[index];
-  const b = blocks[swapWith];
-
-  await prisma.$transaction([
-    prisma.timelineBlock.update({ where: { id: a.id }, data: { sortOrder: b.sortOrder } }),
-    prisma.timelineBlock.update({ where: { id: b.id }, data: { sortOrder: a.sortOrder } }),
-  ]);
-
-  revalidatePath("/day");
+  return { ok: true, id: orderedPeerIds[0], order: next.map((block) => block.id) };
 }
 
 export async function saveGuest(formData: FormData): Promise<void> {

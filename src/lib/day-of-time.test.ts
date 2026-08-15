@@ -2,12 +2,17 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   AFTER_MIDNIGHT_END_MINUTES,
+  applyPeerOrder,
+  bucketForTime,
   compareParsedTimes,
   endsBeforeStart,
   formatClock,
+  missingMeridiem,
   parseDayOfTime,
+  peerKey,
   prepareTimelineCreate,
   prepareTimelineSave,
+  sortTimelineBlocks,
 } from "./day-of-time";
 
 function timed(raw: string, minutes: number, dayOffset: 0 | 1, display: string) {
@@ -191,4 +196,53 @@ test("prepareTimelineCreate allows notes-only as TBD", () => {
     endAt: null,
     notes: "First look",
   });
+});
+
+test("bucketForTime cuts afternoon at noon and evening at 5 PM", () => {
+  assert.equal(bucketForTime("TBD"), "untimed");
+  assert.equal(bucketForTime("11:59 AM"), "morning");
+  assert.equal(bucketForTime("12:00 PM"), "afternoon");
+  assert.equal(bucketForTime("4:59 PM"), "afternoon");
+  assert.equal(bucketForTime("5:00 PM"), "evening");
+  assert.equal(bucketForTime("11:59 PM"), "evening");
+  assert.equal(bucketForTime("12:30 AM"), "after");
+  assert.equal(bucketForTime("4:59 AM"), "after");
+  assert.equal(bucketForTime("5:00 AM"), "morning");
+});
+
+test("missingMeridiem only flags ambiguous clock times", () => {
+  assert.equal(missingMeridiem("3:37"), true);
+  assert.equal(missingMeridiem("3:37 PM"), false);
+  assert.equal(missingMeridiem("15:30"), false);
+  assert.equal(missingMeridiem("TBD"), false);
+});
+
+test("sortTimelineBlocks puts untimed first and 12:30 AM last", () => {
+  const sorted = sortTimelineBlocks([
+    { id: "c", startAt: "12:30 AM", sortOrder: 0 },
+    { id: "a", startAt: "TBD", sortOrder: 2 },
+    { id: "b", startAt: "4:00 PM", sortOrder: 1 },
+    { id: "d", startAt: "2:00 PM", sortOrder: 3 },
+  ]);
+  assert.deepEqual(sorted.map((row) => row.id), ["a", "d", "b", "c"]);
+});
+
+test("sortTimelineBlocks keeps same-time order stable", () => {
+  const sorted = sortTimelineBlocks([
+    { id: "b", startAt: "3:30 PM", sortOrder: 2 },
+    { id: "a", startAt: "3:30 PM", sortOrder: 1 },
+  ]);
+  assert.deepEqual(sorted.map((row) => row.id), ["a", "b"]);
+});
+
+test("applyPeerOrder only permutes the same clock/untimed group", () => {
+  const blocks = [
+    { id: "u1", startAt: "TBD" },
+    { id: "u2", startAt: "afternoon" },
+    { id: "t1", startAt: "3:30 PM" },
+  ];
+  const next = applyPeerOrder(blocks, ["u2", "u1"]);
+  assert.deepEqual(next?.map((row) => row.id), ["u2", "u1", "t1"]);
+  assert.equal(applyPeerOrder(blocks, ["u1", "t1"]), null);
+  assert.equal(peerKey("3:30 PM"), peerKey("15:30"));
 });

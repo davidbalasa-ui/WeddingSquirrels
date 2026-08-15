@@ -2,6 +2,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { DayTimeline } from "@/components/DayTimeline";
 import { timelineEditable } from "@/lib/access";
 import { prisma } from "@/lib/db";
+import { sortTimelineBlocks } from "@/lib/day-of-time";
 import { requirePageSession } from "@/lib/session";
 
 export default async function DayPage({
@@ -14,7 +15,7 @@ export default async function DayPage({
   const params = await searchParams;
   const editParam = Array.isArray(params.edit) ? params.edit[0] : params.edit;
   const startInEdit = canEdit && editParam === "1";
-  const blocks = await prisma.timelineBlock.findMany({ orderBy: { sortOrder: "asc" } });
+  const blocks = sortTimelineBlocks(await prisma.timelineBlock.findMany());
 
   return (
     <>

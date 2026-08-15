@@ -160,6 +160,93 @@ export function prepareTimelineSave(
   return { ok: true, startAt, endAt, notes, revertedNotes };
 }
 
+export type DayOfBucket = "untimed" | "morning" | "afternoon" | "evening" | "after";
+
+export const DAY_OF_BUCKETS: { id: DayOfBucket; label: string }[] = [
+  { id: "untimed", label: "Untimed" },
+  { id: "morning", label: "Morning" },
+  { id: "afternoon", label: "Afternoon" },
+  { id: "evening", label: "Evening" },
+  { id: "after", label: "After midnight" },
+];
+
+export function bucketForTime(raw: string): DayOfBucket {
+  const parsed = parseDayOfTime(raw);
+  if (parsed.kind === "untimed") return "untimed";
+  if (parsed.dayOffset === 1) return "after";
+  if (parsed.minutes < 12 * 60) return "morning";
+  if (parsed.minutes < 17 * 60) return "afternoon";
+  return "evening";
+}
+
+export function missingMeridiem(raw: string): boolean {
+  const normalized = normalizeMeridiem(raw);
+  if (!/^\d{1,2}(?:[:.]\d{2})?$/.test(normalized)) return false;
+  return parseDayOfTime(raw).kind === "untimed";
+}
+
+export function parsedTimeFields(startAt: string, endAt: string | null) {
+  const start = parseDayOfTime(startAt);
+  const end = endAt ? parseDayOfTime(endAt) : null;
+  return {
+    startMinutes: start.kind === "timed" ? start.minutes : null,
+    endMinutes: end?.kind === "timed" ? end.minutes : null,
+    dayOffset: start.kind === "timed" ? start.dayOffset : 0,
+  };
+}
+
+export function peerKey(startAt: string): string {
+  const parsed = parseDayOfTime(startAt);
+  if (parsed.kind === "untimed") return "untimed";
+  return `${parsed.dayOffset}:${parsed.minutes}`;
+}
+
+export function sortTimelineBlocks<T extends { id: string; startAt: string; sortOrder: number }>(
+  blocks: T[],
+): T[] {
+  return [...blocks].sort((a, b) => {
+    const cmp = compareParsedTimes(parseDayOfTime(a.startAt), parseDayOfTime(b.startAt));
+    if (cmp !== 0) return cmp;
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+export function applyPeerOrder<T extends { id: string; startAt: string }>(
+  blocks: T[],
+  orderedPeerIds: string[],
+): T[] | null {
+  if (orderedPeerIds.length < 2) return null;
+  const byId = new Map(blocks.map((block) => [block.id, block]));
+  const first = byId.get(orderedPeerIds[0]);
+  if (!first) return null;
+  const key = peerKey(first.startAt);
+  if (orderedPeerIds.some((id) => {
+    const block = byId.get(id);
+    return !block || peerKey(block.startAt) !== key;
+  })) {
+    return null;
+  }
+
+  const peerSet = new Set(orderedPeerIds);
+  const next: T[] = [];
+  let inserted = false;
+  for (const block of blocks) {
+    if (!peerSet.has(block.id)) {
+      next.push(block);
+      continue;
+    }
+    if (!inserted) {
+      for (const id of orderedPeerIds) {
+        const peer = byId.get(id);
+        if (peer) next.push(peer);
+      }
+      inserted = true;
+    }
+  }
+  return next;
+}
+
 export function prepareTimelineCreate(draft: TimelineFieldDraft): TimelineCreatePrep {
   const notes = draft.notes.trim();
   const startAt = draft.startAt.trim();
