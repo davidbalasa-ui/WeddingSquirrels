@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { deletePinAccount } from "@/app/actions";
 import { ModulePermissionGrid } from "@/components/ModulePermissionGrid";
 import type {
@@ -198,6 +199,7 @@ export function AccountAccessPanel({
   const [pending, startTransition] = useTransition();
   const [deletePending, startDelete] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const personNameById = useMemo(
     () => new Map(people.map((p) => [p.id, p.name])),
@@ -230,6 +232,7 @@ export function AccountAccessPanel({
           setPin("");
           setOpen(false);
         }
+        router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Save failed");
       }
