@@ -68,7 +68,6 @@ export function ModulePermissionGrid({
               <td className="py-2.5 pr-2">
                 <input
                   type="checkbox"
-                  name={row.seeKey}
                   checked={flags[row.seeKey]}
                   onChange={(e) => setFlag(row.seeKey, e.target.checked)}
                   aria-label={`${row.label} see`}
@@ -78,7 +77,6 @@ export function ModulePermissionGrid({
                 {row.editKey ? (
                   <input
                     type="checkbox"
-                    name={row.editKey}
                     checked={flags[row.editKey]}
                     onChange={(e) => setFlag(row.editKey!, e.target.checked)}
                     aria-label={`${row.label} edit`}

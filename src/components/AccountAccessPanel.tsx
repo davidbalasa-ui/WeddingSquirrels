@@ -254,6 +254,11 @@ export function AccountAccessPanel({
   const body = (
     <form action={submit} className="mt-3 flex flex-col gap-4">
       {mode === "edit" && account ? <input type="hidden" name="id" value={account.id} /> : null}
+      {(Object.keys(isMaster ? FULL_FLAGS : flags) as (keyof AccountModuleFlags)[]).map((key) =>
+        (isMaster ? FULL_FLAGS : flags)[key] ? (
+          <input key={key} type="hidden" name={key} value="on" />
+        ) : null,
+      )}
 
       <section className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold">Identity</h3>

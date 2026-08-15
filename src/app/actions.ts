@@ -538,11 +538,12 @@ export async function createPinAccount(formData: FormData): Promise<void> {
   const pin = String(formData.get("pin") || "").trim();
   const flags = parseAccountFlags(formData);
 
-  if (!name || !/^\d{4,8}$/.test(pin)) return;
+  if (!name) throw new Error("Name is required");
+  if (!/^\d{4,8}$/.test(pin)) throw new Error("PIN must be 4–8 digits");
 
   if (flags.linkedPersonId) {
     const person = await prisma.person.findUnique({ where: { id: flags.linkedPersonId } });
-    if (!person) return;
+    if (!person) throw new Error("Linked person was not found");
   }
 
   const created = await prisma.pinAccount.create({
@@ -589,8 +590,9 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
   const flags = parseAccountFlags(formData);
 
   const existing = await prisma.pinAccount.findUnique({ where: { id } });
-  if (!existing || !name) return;
-  if (pin && !/^\d{4,8}$/.test(pin)) return;
+  if (!existing) throw new Error("Account not found");
+  if (!name) throw new Error("Name is required");
+  if (pin && !/^\d{4,8}$/.test(pin)) throw new Error("PIN must be 4–8 digits");
 
   // Masters keep full privileges; only name / PIN / linked person can change.
   if (existing.isMaster) {
@@ -609,7 +611,7 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
 
   if (flags.linkedPersonId) {
     const person = await prisma.person.findUnique({ where: { id: flags.linkedPersonId } });
-    if (!person) return;
+    if (!person) throw new Error("Linked person was not found");
   }
 
   await prisma.pinAccount.update({
