@@ -4,14 +4,19 @@ import {
   AFTER_MIDNIGHT_END_MINUTES,
   applyPeerOrder,
   bucketForTime,
+  clockPartsFromRaw,
   compareParsedTimes,
   endsBeforeStart,
   formatClock,
   missingMeridiem,
+  normalizeClockHour,
+  normalizeClockMinute,
   parseDayOfTime,
   peerKey,
   prepareTimelineCreate,
   prepareTimelineSave,
+  rawFromClockParts,
+  reviewNoteLines,
   sortTimelineBlocks,
 } from "./day-of-time";
 
@@ -255,4 +260,42 @@ test("applyPeerOrder only permutes the same start and end span", () => {
   assert.deepEqual(next?.map((row) => row.id), ["b", "a", "c", "d"]);
   assert.equal(applyPeerOrder(blocks, ["a", "c"]), null);
   assert.equal(applyPeerOrder(blocks, ["d", "a"]), null);
+});
+
+test("clock parts round-trip common Day-of times", () => {
+  assert.deepEqual(clockPartsFromRaw("9:30 AM"), { hour: "9", minute: "30", meridiem: "AM" });
+  assert.deepEqual(clockPartsFromRaw("10:30 AM"), { hour: "10", minute: "30", meridiem: "AM" });
+  assert.deepEqual(clockPartsFromRaw("12:00 PM"), { hour: "12", minute: "00", meridiem: "PM" });
+  assert.deepEqual(clockPartsFromRaw("12:30 AM"), { hour: "12", minute: "30", meridiem: "AM" });
+  assert.deepEqual(clockPartsFromRaw("3:37 PM"), { hour: "3", minute: "37", meridiem: "PM" });
+  assert.equal(rawFromClockParts({ hour: "9", minute: "30", meridiem: "AM" }), "9:30 AM");
+  assert.equal(rawFromClockParts({ hour: "12", minute: "00", meridiem: "PM" }), "12:00 PM");
+  assert.equal(rawFromClockParts({ hour: "12", minute: "30", meridiem: "AM" }), "12:30 AM");
+  assert.equal(rawFromClockParts({ hour: "", minute: "30", meridiem: "AM" }), "");
+  assert.equal(rawFromClockParts({ hour: "9", minute: "", meridiem: "AM" }), "9:00 AM");
+});
+
+test("clock parts recover a time that is missing AM/PM", () => {
+  assert.deepEqual(clockPartsFromRaw("3:30"), { hour: "3", minute: "30", meridiem: "AM" });
+  assert.equal(rawFromClockParts({ hour: "3", minute: "30", meridiem: "PM" }), "3:30 PM");
+});
+
+test("clock hour and minute normalize like an alarm", () => {
+  assert.equal(normalizeClockHour(""), "");
+  assert.equal(normalizeClockHour("9"), "9");
+  assert.equal(normalizeClockHour("0"), "12");
+  assert.equal(normalizeClockHour("13"), "12");
+  assert.equal(normalizeClockMinute(""), "00");
+  assert.equal(normalizeClockMinute("5"), "05");
+  assert.equal(normalizeClockMinute("60"), "59");
+});
+
+test("review notes split on semicolons into line items", () => {
+  assert.deepEqual(reviewNoteLines("Brunch"), ["Brunch"]);
+  assert.deepEqual(reviewNoteLines("Access begins; vendor arrivals + set up"), [
+    "Access begins",
+    "vendor arrivals + set up",
+  ]);
+  assert.deepEqual(reviewNoteLines("  one ; two ;  ; three  "), ["one", "two", "three"]);
+  assert.deepEqual(reviewNoteLines(""), []);
 });

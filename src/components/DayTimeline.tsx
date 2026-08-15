@@ -16,6 +16,7 @@ import {
   peerKey,
   prepareTimelineCreate,
   prepareTimelineSave,
+  reviewNoteLines,
   type DayOfBucket,
 } from "@/lib/day-of-time";
 
@@ -424,7 +425,9 @@ export function DayTimeline({
       ) : null}
 
       {editing ? (
-        <p className="mb-2 text-xs text-muted">Tap a time to type. Same start and end can be reordered.</p>
+        <p className="mb-2 text-xs text-muted">
+          Tap the hour or minutes. AM/PM toggles. Same start and end can be reordered.
+        </p>
       ) : null}
 
       {banner ? (
@@ -559,13 +562,24 @@ function ReviewSections({ timed, untimed }: { timed: Row[]; untimed: Row[] }) {
 }
 
 function ReviewRow({ row }: { row: Row }) {
+  const lines = reviewNoteLines(row.notes);
   return (
     <article id={`day-row-${row.id}`} className="flex items-start gap-2 px-3 py-1.5">
       <p className="shrink-0 whitespace-nowrap text-[12px] font-semibold leading-5 text-[var(--accent)]">
         {row.startAt}
         {row.endAt ? ` – ${row.endAt}` : ""}
       </p>
-      <p className="min-w-0 text-[14px] leading-5">{row.notes}</p>
+      {lines.length <= 1 ? (
+        <p className="min-w-0 text-[14px] leading-5">{lines[0] ?? ""}</p>
+      ) : (
+        <ul className="min-w-0 flex-1 list-none space-y-0.5 p-0">
+          {lines.map((line, index) => (
+            <li key={`${index}-${line}`} className="text-[14px] leading-5">
+              {line}
+            </li>
+          ))}
+        </ul>
+      )}
     </article>
   );
 }

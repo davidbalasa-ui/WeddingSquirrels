@@ -185,6 +185,82 @@ export function missingMeridiem(raw: string): boolean {
   return parseDayOfTime(raw).kind === "untimed";
 }
 
+export type ClockMeridiem = "AM" | "PM";
+
+export type ClockParts = {
+  hour: string;
+  minute: string;
+  meridiem: ClockMeridiem;
+};
+
+export function clockPartsFromRaw(raw: string): ClockParts {
+  const parsed = parseDayOfTime(raw);
+  if (parsed.kind === "timed") {
+    const hour24 = Math.floor(parsed.minutes / 60);
+    const minute = parsed.minutes % 60;
+    return {
+      hour: String(hour24 % 12 === 0 ? 12 : hour24 % 12),
+      minute: String(minute).padStart(2, "0"),
+      meridiem: hour24 >= 12 ? "PM" : "AM",
+    };
+  }
+
+  const match = raw.trim().match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?$/i);
+  if (!match) return { hour: "", minute: "", meridiem: "AM" };
+
+  let hour = Number(match[1]);
+  const minute = match[2] ?? "";
+  if (hour > 12 && hour <= 23) {
+    return {
+      hour: String(hour % 12 === 0 ? 12 : hour % 12),
+      minute: minute.padStart(2, "0"),
+      meridiem: hour >= 12 ? "PM" : "AM",
+    };
+  }
+  if (hour === 0) hour = 12;
+  if (hour < 1 || hour > 12) return { hour: "", minute: "", meridiem: "AM" };
+  const mer = match[3]?.toLowerCase().includes("p") ? "PM" : "AM";
+  return { hour: String(hour), minute, meridiem: mer };
+}
+
+export function rawFromClockParts(parts: ClockParts): string {
+  const hour = Number(parts.hour);
+  if (!parts.hour.trim() || !Number.isInteger(hour) || hour < 1 || hour > 12) return "";
+  let minute = parts.minute.trim() === "" ? 0 : Number(parts.minute);
+  if (!Number.isInteger(minute) || minute < 0) minute = 0;
+  if (minute > 59) minute = 59;
+  let hour24 = hour % 12;
+  if (parts.meridiem === "PM") hour24 += 12;
+  return formatClock(hour24 * 60 + minute);
+}
+
+export function sanitizeClockDigits(raw: string, maxLen: number): string {
+  return raw.replace(/\D/g, "").slice(0, maxLen);
+}
+
+export function normalizeClockHour(raw: string): string {
+  if (!raw.trim()) return "";
+  const n = Number(raw);
+  if (!Number.isInteger(n)) return "";
+  if (n <= 0 || n > 12) return "12";
+  return String(n);
+}
+
+export function normalizeClockMinute(raw: string): string {
+  if (!raw.trim()) return "00";
+  let n = Number(raw);
+  if (!Number.isInteger(n) || n < 0) n = 0;
+  if (n > 59) n = 59;
+  return String(n).padStart(2, "0");
+}
+
+export function reviewNoteLines(notes: string): string[] {
+  return notes
+    .split(";")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 export function parsedTimeFields(startAt: string, endAt: string | null) {
   const start = parseDayOfTime(startAt);
   const end = endAt ? parseDayOfTime(endAt) : null;
