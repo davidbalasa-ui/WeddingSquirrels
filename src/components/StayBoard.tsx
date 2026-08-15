@@ -144,22 +144,24 @@ function StaySection({
 }
 
 function StaySlotRow({ slot }: { slot: StaySlotView }) {
-  const [source, setSource] = useState(slot.occupant);
+  const [propOccupant, setPropOccupant] = useState(slot.occupant);
+  const [saved, setSaved] = useState(slot.occupant);
   const [value, setValue] = useState(slot.occupant);
-  if (slot.occupant !== source) {
-    setSource(slot.occupant);
+  if (slot.occupant !== propOccupant) {
+    setPropOccupant(slot.occupant);
+    setSaved(slot.occupant);
     setValue(slot.occupant);
   }
 
   async function commit() {
     const next = value.trim();
-    if (next === source.trim()) return;
+    if (next === saved.trim()) return;
     const result = await saveStayOccupant(slot.id, next);
     if (result.ok) {
-      setSource(next);
+      setSaved(next);
       setValue(next);
     } else {
-      setValue(source);
+      setValue(saved);
     }
   }
 
