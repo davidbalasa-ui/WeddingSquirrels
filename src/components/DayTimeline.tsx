@@ -7,7 +7,7 @@ import {
   saveTimelineBlock,
   saveTimelinePeerOrder,
 } from "@/app/actions";
-import { DayTimeStepper } from "@/components/DayTimeStepper";
+import { DayTimeRange } from "@/components/DayTimeStepper";
 import {
   DAY_OF_BUCKETS,
   applyPeerOrder,
@@ -64,7 +64,6 @@ function toRow(block: TimelineBlockView): Row {
 
 function statusLabel(status: RowStatus, error: string | null) {
   if (status === "saving") return "Saving…";
-  if (status === "saved") return "Saved";
   if (status === "error") return error || "Couldn’t save — tap to retry";
   return "";
 }
@@ -402,10 +401,10 @@ export function DayTimeline({
   return (
     <div className={editing ? "pb-24" : ""}>
       {canEdit ? (
-        <div className="mb-3 grid grid-cols-2 rounded-full border border-line bg-[var(--bg-elevated)] p-1 print-hide">
+        <div className="mb-2 grid grid-cols-2 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5 print-hide">
           <button
             type="button"
-            className={`rounded-full px-3 py-2.5 text-sm font-semibold ${
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
               mode === "review" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
             }`}
             onClick={() => void switchMode("review")}
@@ -414,7 +413,7 @@ export function DayTimeline({
           </button>
           <button
             type="button"
-            className={`rounded-full px-3 py-2.5 text-sm font-semibold ${
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
               mode === "edit" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
             }`}
             onClick={() => void switchMode("edit")}
@@ -424,13 +423,9 @@ export function DayTimeline({
         </div>
       ) : null}
 
-      <p className="mb-3 text-sm text-muted">
-        {!canEdit
-          ? "Day-of schedule"
-          : editing
-            ? "Set a time to the minute. The card moves when you tap Done."
-            : "Read-only schedule. Switch to Edit to change a moment."}
-      </p>
+      {editing ? (
+        <p className="mb-2 text-xs text-muted">Tap a time to type. Same start and end can be reordered.</p>
+      ) : null}
 
       {banner ? (
         <p className="mb-3 rounded-xl border border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_8%,white)] px-3 py-2 text-sm text-[var(--danger)]">
@@ -439,12 +434,12 @@ export function DayTimeline({
       ) : null}
 
       {!hideChips ? (
-        <div className="sticky top-[4.75rem] z-10 -mx-1 mb-3 flex gap-2 overflow-x-auto bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-1 py-2 backdrop-blur-md print-hide">
+        <div className="sticky top-[4.75rem] z-10 -mx-1 mb-2 flex gap-1.5 overflow-x-auto bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-1 py-1.5 backdrop-blur-md print-hide">
           {DAY_OF_BUCKETS.filter((bucket) => counts[bucket.id] > 0).map((bucket) => (
             <button
               key={bucket.id}
               type="button"
-              className="shrink-0 rounded-full border border-line bg-[var(--bg-elevated)] px-3 py-2 text-xs font-semibold"
+              className="shrink-0 rounded-full border border-line bg-[var(--bg-elevated)] px-2.5 py-1 text-xs font-semibold"
               onClick={() => {
                 document
                   .getElementById(`day-bucket-${bucket.id}`)
@@ -457,7 +452,7 @@ export function DayTimeline({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         {rows.length === 0 && !draft ? (
           <div className="card p-6 text-center text-sm text-muted">
             {editing ? "No moments yet — tap + to add one." : "No moments yet."}
@@ -485,44 +480,28 @@ export function DayTimeline({
         )}
 
         {editing && draft ? (
-          <article id="day-draft" className="card p-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
-              New moment
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <DayTimeStepper
-                label="Starts"
-                value={draft.startAt}
-                placeholder="3:37 PM"
-                onCommit={(startAt) => setDraft({ ...draft, startAt })}
-                onOpenChange={handleStepperOpenChange}
-              />
-              <DayTimeStepper
-                label="Ends (optional)"
-                value={draft.endAt}
-                placeholder="4:00 PM"
-                onCommit={(endAt) => setDraft({ ...draft, endAt })}
-                onOpenChange={handleStepperOpenChange}
-              />
-            </div>
-            <label className="mt-3 block text-sm">
-              <span className="mb-1 block text-xs text-muted">What happens</span>
-              <textarea
-                value={draft.notes}
-                rows={3}
-                placeholder="Describe this moment…"
-                autoFocus
-                onFocus={() => setNoteFocused(true)}
-                onBlur={() => setNoteFocused(false)}
-                onChange={(event) => setDraft({ ...draft, notes: event.target.value })}
-                className="w-full resize-y rounded-xl border border-line bg-transparent px-3 py-2.5 text-[15px] leading-snug outline-none focus:border-[var(--accent)]"
-              />
-            </label>
-            <div className="mt-3 flex gap-2">
-              <button type="button" className="btn-primary" onClick={() => void persistDraft(draft)}>
-                Add moment
+          <article id="day-draft" className="card px-3 py-2">
+            <DayTimeRange
+              startAt={draft.startAt}
+              endAt={draft.endAt}
+              placeholder="Set time"
+              onCommit={(next) => setDraft({ ...draft, ...next })}
+              onOpenChange={handleStepperOpenChange}
+            />
+            <input
+              value={draft.notes}
+              placeholder="What happens"
+              autoFocus
+              onFocus={() => setNoteFocused(true)}
+              onBlur={() => setNoteFocused(false)}
+              onChange={(event) => setDraft({ ...draft, notes: event.target.value })}
+              className="mt-1 w-full border-0 bg-transparent p-0 text-[15px] leading-snug outline-none"
+            />
+            <div className="mt-2 flex gap-2">
+              <button type="button" className="text-sm font-semibold text-[var(--accent)]" onClick={() => void persistDraft(draft)}>
+                Add
               </button>
-              <button type="button" className="btn-secondary" onClick={() => setDraft(null)}>
+              <button type="button" className="text-sm font-semibold text-muted" onClick={() => setDraft(null)}>
                 Discard
               </button>
             </div>
@@ -546,41 +525,47 @@ export function DayTimeline({
 
 function ReviewSections({ timed, untimed }: { timed: Row[]; untimed: Row[] }) {
   return (
-    <>
+    <div className="flex flex-col gap-3">
       {DAY_OF_BUCKETS.filter((bucket) => bucket.id !== "untimed").map((bucket) => {
         const items = timed.filter((row) => bucketForTime(row.startAt) === bucket.id);
         if (items.length === 0) return null;
         return (
-          <section key={bucket.id} id={`day-bucket-${bucket.id}`} className="flex flex-col gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">{bucket.label}</p>
-            {items.map((row) => (
-              <ReviewCard key={row.id} row={row} />
-            ))}
+          <section key={bucket.id} id={`day-bucket-${bucket.id}`}>
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+              {bucket.label}
+            </p>
+            <div className="card divide-y divide-[var(--line)] overflow-hidden">
+              {items.map((row) => (
+                <ReviewRow key={row.id} row={row} />
+              ))}
+            </div>
           </section>
         );
       })}
       {untimed.length > 0 ? (
-        <details id="day-bucket-untimed" className="card p-4">
-          <summary className="cursor-pointer text-sm font-semibold">Untimed ({untimed.length})</summary>
-          <div className="mt-3 flex flex-col gap-3">
+        <details id="day-bucket-untimed" className="card overflow-hidden">
+          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">
+            Untimed ({untimed.length})
+          </summary>
+          <div className="divide-y divide-[var(--line)] border-t border-line">
             {untimed.map((row) => (
-              <ReviewCard key={row.id} row={row} />
+              <ReviewRow key={row.id} row={row} />
             ))}
           </div>
         </details>
       ) : null}
-    </>
+    </div>
   );
 }
 
-function ReviewCard({ row }: { row: Row }) {
+function ReviewRow({ row }: { row: Row }) {
   return (
-    <article id={`day-row-${row.id}`} className="card p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
+    <article id={`day-row-${row.id}`} className="flex items-start gap-2 px-3 py-1.5">
+      <p className="shrink-0 whitespace-nowrap text-[12px] font-semibold leading-5 text-[var(--accent)]">
         {row.startAt}
         {row.endAt ? ` – ${row.endAt}` : ""}
       </p>
-      <p className="mt-1 text-[15px] leading-snug">{row.notes}</p>
+      <p className="min-w-0 text-[14px] leading-5">{row.notes}</p>
     </article>
   );
 }
@@ -618,10 +603,13 @@ function EditSections({
         const items = visible.filter((row) => bucketForTime(row.startAt) === bucket.id);
         if (items.length === 0) return null;
         return (
-          <section key={bucket.id} id={`day-bucket-${bucket.id}`} className="flex flex-col gap-3">
+          <section key={bucket.id} id={`day-bucket-${bucket.id}`} className="flex flex-col gap-2">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">{bucket.label}</p>
             {items.map((row) => {
-              const peers = items.filter((item) => peerKey(item.startAt) === peerKey(row.startAt)).map((item) => item.id);
+              const key = peerKey(row.startAt, row.endAt);
+              const peers = key
+                ? items.filter((item) => peerKey(item.startAt, item.endAt) === key).map((item) => item.id)
+                : [];
               return (
                 <EditCard
                   key={row.id}
@@ -681,70 +669,58 @@ function EditCard({
   const label = statusLabel(row.status, row.error);
 
   return (
-    <article id={`day-row-${row.id}`} data-day-row={row.id} className="card p-4">
-      <div className="mb-2 flex items-start gap-2">
-        <PeerHandle rowId={row.id} peerIds={peerIds} onReorder={onPeerReorder} />
-        <div className="grid min-w-0 flex-1 grid-cols-2 gap-3">
-          <DayTimeStepper
-            label="Starts"
-            value={row.startAt}
-            placeholder="3:37 PM"
-            onCommit={(startAt) => onCommitTimes(row.id, { startAt })}
-            onOpenChange={onStepperOpenChange}
-          />
-          <DayTimeStepper
-            label="Ends (optional)"
-            value={row.endAt}
-            placeholder="4:00 PM"
-            onCommit={(endAt) => onCommitTimes(row.id, { endAt })}
-            onOpenChange={onStepperOpenChange}
-          />
-        </div>
-      </div>
-      {endWarn ? (
-        <p className="mt-2 text-xs font-semibold text-[var(--warn)]">Ends before it starts</p>
-      ) : null}
-      <label className="mt-3 block text-sm">
-        <span className="mb-1 block text-xs text-muted">What happens</span>
-        <textarea
-          value={row.notes}
-          rows={3}
-          onChange={(event) => onPatchNotes(row.id, event.target.value)}
-          onFocus={(event) => {
-            onNoteFocusChange(true);
-            event.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
-          }}
-          onBlur={() => {
-            onNoteFocusChange(false);
-            onFlushNotes(row.id);
-          }}
-          className="w-full resize-y rounded-xl border border-line bg-transparent px-3 py-2.5 text-[15px] leading-snug outline-none focus:border-[var(--accent)]"
+    <article id={`day-row-${row.id}`} data-day-row={row.id} className="card px-3 py-2">
+      <div className="flex items-start gap-2">
+        <DayTimeRange
+          startAt={row.startAt}
+          endAt={row.endAt}
+          onCommit={(next) => onCommitTimes(row.id, next)}
+          onOpenChange={onStepperOpenChange}
         />
-      </label>
-
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          className="text-xs font-semibold text-muted"
-          onClick={row.status === "error" ? onRetry : undefined}
-        >
-          {label}
-        </button>
+        <PeerHandle rowId={row.id} peerIds={peerIds} onReorder={onPeerReorder} />
         {confirmDelete ? (
-          <div className="flex items-center gap-2">
-            <button type="button" className="text-sm font-semibold text-[var(--danger)]" onClick={onConfirmDelete}>
+          <div className="flex shrink-0 items-center gap-2 pt-1">
+            <button type="button" className="text-xs font-semibold text-[var(--danger)]" onClick={onConfirmDelete}>
               Remove?
             </button>
-            <button type="button" className="text-sm font-semibold text-muted" onClick={onCancelDelete}>
+            <button type="button" className="text-xs font-semibold text-muted" onClick={onCancelDelete}>
               Keep
             </button>
           </div>
         ) : (
-          <button type="button" className="text-sm font-semibold text-[var(--danger)]" onClick={onAskDelete}>
-            Remove
+          <button
+            type="button"
+            aria-label="Remove moment"
+            className="shrink-0 pt-1 text-xs font-semibold text-muted"
+            onClick={onAskDelete}
+          >
+            ×
           </button>
         )}
       </div>
+      {endWarn ? <p className="text-[11px] font-semibold text-[var(--warn)]">Ends before it starts</p> : null}
+      <input
+        value={row.notes}
+        onChange={(event) => onPatchNotes(row.id, event.target.value)}
+        onFocus={(event) => {
+          onNoteFocusChange(true);
+          event.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+        }}
+        onBlur={() => {
+          onNoteFocusChange(false);
+          onFlushNotes(row.id);
+        }}
+        className="mt-0.5 w-full border-0 bg-transparent p-0 text-[15px] leading-snug outline-none"
+      />
+      {label ? (
+        <button
+          type="button"
+          className="mt-0.5 text-[11px] font-semibold text-muted"
+          onClick={row.status === "error" ? onRetry : undefined}
+        >
+          {label}
+        </button>
+      ) : null}
     </article>
   );
 }
@@ -759,9 +735,7 @@ function PeerHandle({
   onReorder: (ids: string[], persist?: boolean) => void;
 }) {
   const index = peerIds.indexOf(rowId);
-  if (peerIds.length < 2 || index < 0) {
-    return <div className="w-8 shrink-0" />;
-  }
+  if (peerIds.length < 2 || index < 0) return null;
 
   function move(delta: number) {
     const from = peerIds.indexOf(rowId);
@@ -822,33 +796,17 @@ function PeerHandle({
   }
 
   return (
-    <div className="flex w-8 shrink-0 flex-col gap-1 pt-6 print-hide">
-      <button
-        type="button"
-        aria-label="Move earlier among same-time moments"
-        disabled={index === 0}
-        className="min-h-10 rounded-lg border border-line text-xs font-semibold text-muted disabled:opacity-30"
-        onClick={() => move(-1)}
-      >
-        ↑
-      </button>
-      <button
-        type="button"
-        aria-label="Drag to reorder same-time moments"
-        className="min-h-11 touch-none rounded-lg border border-line text-xs font-semibold text-muted"
-        onPointerDown={onPointerDown}
-      >
-        ≡
-      </button>
-      <button
-        type="button"
-        aria-label="Move later among same-time moments"
-        disabled={index === peerIds.length - 1}
-        className="min-h-10 rounded-lg border border-line text-xs font-semibold text-muted disabled:opacity-30"
-        onClick={() => move(1)}
-      >
-        ↓
-      </button>
-    </div>
+    <button
+      type="button"
+      aria-label="Drag to reorder matching start and end"
+      className="print-hide mt-0.5 min-h-8 w-8 shrink-0 touch-none rounded-md text-sm font-semibold text-muted"
+      onPointerDown={onPointerDown}
+      onClick={() => {
+        if (index < peerIds.length - 1) move(1);
+        else if (index > 0) move(-1);
+      }}
+    >
+      ≡
+    </button>
   );
 }
