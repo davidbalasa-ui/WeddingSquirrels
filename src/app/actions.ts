@@ -24,6 +24,7 @@ import {
   sortTimelineBlocks,
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
+import { isStaySectionId, isStaySlotId } from "@/lib/stay";
 import {
   canCompleteRequest,
   canDeclineRequest,
@@ -1171,4 +1172,91 @@ export async function deleteShoppingItem(itemId: string): Promise<void> {
 
   await prisma.shoppingItem.delete({ where: { id: itemId } });
   revalidatePath("/shop");
+}
+
+export type StayWriteResult =
+  | { ok: true; id: string }
+  | { ok: false; reason: "forbidden" | "not_found" | "invalid" };
+
+export async function saveStayOccupant(slotId: string, occupant: string): Promise<StayWriteResult> {
+  try {
+    await requireSession();
+  } catch {
+    return { ok: false, reason: "forbidden" };
+  }
+  if (!isStaySlotId(slotId)) return { ok: false, reason: "invalid" };
+
+  const existing = await prisma.staySlot.findUnique({ where: { id: slotId } });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  await prisma.staySlot.update({
+    where: { id: slotId },
+    data: { occupant: occupant.trim() },
+  });
+  revalidatePath("/stay");
+  return { ok: true, id: slotId };
+}
+
+export async function addStayBathNote(sectionId: string): Promise<StayWriteResult> {
+  try {
+    await requireSession();
+  } catch {
+    return { ok: false, reason: "forbidden" };
+  }
+  if (!isStaySectionId(sectionId)) return { ok: false, reason: "invalid" };
+
+  const last = await prisma.stayBathNote.findFirst({
+    where: { sectionId },
+    orderBy: { sortOrder: "desc" },
+  });
+  const created = await prisma.stayBathNote.create({
+    data: {
+      sectionId,
+      note: "",
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidatePath("/stay");
+  return { ok: true, id: created.id };
+}
+
+export async function saveStayBathNote(noteId: string, note: string): Promise<StayWriteResult> {
+  try {
+    await requireSession();
+  } catch {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  const existing = await prisma.stayBathNote.findUnique({ where: { id: noteId } });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  const trimmed = note.trim();
+  if (!trimmed) {
+    await prisma.stayBathNote.delete({ where: { id: noteId } });
+    revalidatePath("/stay");
+    return { ok: true, id: noteId };
+  }
+
+  await prisma.stayBathNote.update({
+    where: { id: noteId },
+    data: { note: trimmed },
+  });
+  revalidatePath("/stay");
+  return { ok: true, id: noteId };
+}
+
+export async function deleteStayBathNote(noteId: string): Promise<StayWriteResult> {
+  try {
+    await requireSession();
+  } catch {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  try {
+    await prisma.stayBathNote.delete({ where: { id: noteId } });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+  revalidatePath("/stay");
+  return { ok: true, id: noteId };
 }

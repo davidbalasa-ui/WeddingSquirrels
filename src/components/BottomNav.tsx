@@ -11,6 +11,7 @@ const items = [
   { href: "/shop", label: "Shop", need: "canSeeShop" as const },
   { href: "/requests", label: "Ask", need: "canSeeRequests" as const },
   { href: "/money", label: "Money", need: "canSeeBudget" as const },
+  { href: "/stay", label: "Stay" },
   { href: "/day", label: "Day-of", need: "canSeeTimeline" as const },
   { href: "/guests", label: "Guests", need: "canSeeGuests" as const },
   { href: "/accounts", label: "Accounts", need: "canManageAccounts" as const },
@@ -25,7 +26,10 @@ export function BottomNav({
 }) {
   const pathname = usePathname();
   const visible = items.filter(
-    (item) => session[item.need] || (item.need === "canManageAccounts" && session.isMaster),
+    (item) =>
+      !item.need ||
+      session[item.need] ||
+      (item.need === "canManageAccounts" && session.isMaster),
   );
 
   return (

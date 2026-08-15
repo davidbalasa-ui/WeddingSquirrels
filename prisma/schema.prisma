@@ -196,6 +196,29 @@ model ShoppingItem {
   @@index([taskId])
 }
 
+model StaySlot {
+  id         String   @id
+  sectionId  String
+  label      String
+  occupant   String   @default("")
+  optional   Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@index([sectionId, sortOrder])
+}
+
+model StayBathNote {
+  id        String   @id @default(cuid())
+  sectionId String
+  note      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sectionId, sortOrder])
+}
+
 model Request {
   id                 String     @id @default(cuid())
   title              String
