@@ -424,7 +424,7 @@ export function DayTimeline({
       ) : null}
 
       {editing ? (
-        <p className="mb-2 text-xs text-muted">Tap a time or note. Same start and end can be reordered.</p>
+        <p className="mb-2 text-xs text-muted">Tap a time to type. Same start and end can be reordered.</p>
       ) : null}
 
       {banner ? (
