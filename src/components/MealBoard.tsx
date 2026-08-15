@@ -207,30 +207,32 @@ function MealOptionRow({
   onRemoved: () => void;
   onSaved: (label: string) => void;
 }) {
-  const [source, setSource] = useState(option.label);
+  const [propLabel, setPropLabel] = useState(option.label);
+  const [saved, setSaved] = useState(option.label);
   const [value, setValue] = useState(option.label);
-  if (option.label !== source) {
-    setSource(option.label);
+  if (option.label !== propLabel) {
+    setPropLabel(option.label);
+    setSaved(option.label);
     setValue(option.label);
   }
 
   async function commit() {
     const next = value.trim();
-    if (next === source.trim()) return;
-    if (!next && source.trim()) {
-      setValue(source);
+    if (next === saved.trim()) return;
+    if (!next && saved.trim()) {
+      setValue(saved);
       return;
     }
     const result = await saveMealOption(option.id, next);
     if (!result.ok) {
-      setValue(source);
+      setValue(saved);
       return;
     }
     if (!next) {
       onRemoved();
       return;
     }
-    setSource(next);
+    setSaved(next);
     setValue(next);
     onSaved(next);
   }
@@ -280,10 +282,12 @@ function MealGuestRow({
   isYou: boolean;
   onPicked: (optionId: string | null) => void;
 }) {
-  const [source, setSource] = useState(guest.optionId);
+  const [propChoice, setPropChoice] = useState(guest.optionId);
+  const [saved, setSaved] = useState(guest.optionId);
   const [choice, setChoice] = useState(guest.optionId);
-  if (guest.optionId !== source) {
-    setSource(guest.optionId);
+  if (guest.optionId !== propChoice) {
+    setPropChoice(guest.optionId);
+    setSaved(guest.optionId);
     setChoice(guest.optionId);
   }
 
@@ -293,10 +297,10 @@ function MealGuestRow({
     onPicked(next);
     const result = await saveMealChoice(guest.id, next);
     if (!result.ok) {
-      setChoice(source);
-      onPicked(source);
+      setChoice(saved);
+      onPicked(saved);
     } else {
-      setSource(next);
+      setSaved(next);
     }
   }
 
