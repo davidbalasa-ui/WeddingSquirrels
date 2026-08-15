@@ -39,6 +39,7 @@ const PRESETS: Record<
       canEditTimeline: true,
       canSeeGuests: true,
       canSeeRequests: true,
+      canSeeDinner: true,
       canManageAccounts: true,
     },
   },
@@ -56,6 +57,7 @@ const PRESETS: Record<
       canEditTimeline: true,
       canSeeGuests: true,
       canSeeRequests: true,
+      canSeeDinner: true,
       canManageAccounts: false,
     },
   },
@@ -73,6 +75,7 @@ const PRESETS: Record<
       canEditTimeline: false,
       canSeeGuests: false,
       canSeeRequests: true,
+      canSeeDinner: false,
       canManageAccounts: false,
     },
   },
@@ -90,6 +93,7 @@ const PRESETS: Record<
       canEditTimeline: false,
       canSeeGuests: false,
       canSeeRequests: false,
+      canSeeDinner: false,
       canManageAccounts: false,
     },
   },
@@ -106,6 +110,7 @@ const DEFAULT_CREATE_FLAGS: AccountModuleFlags = {
   canEditTimeline: false,
   canSeeGuests: false,
   canSeeRequests: true,
+  canSeeDinner: false,
   canManageAccounts: false,
 };
 
@@ -123,6 +128,7 @@ function summaryLabel(
     account.canSeeBudget && (account.canEditBudget ? "Money (edit)" : "Money"),
     account.canSeeTimeline && (account.canEditTimeline ? "Day-of (edit)" : "Day-of"),
     account.canSeeGuests && "Guests",
+    account.canSeeDinner && "Dinner",
     account.canSeeRequests && "Requests",
     account.canManageAccounts && "Accounts",
   ].filter(Boolean);
@@ -146,6 +152,7 @@ function pickFlags(account: AccountModuleFlags): AccountModuleFlags {
     canEditTimeline: account.canEditTimeline,
     canSeeGuests: account.canSeeGuests,
     canSeeRequests: account.canSeeRequests,
+    canSeeDinner: account.canSeeDinner,
     canManageAccounts: account.canManageAccounts,
   };
 }

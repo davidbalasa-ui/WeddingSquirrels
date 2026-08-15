@@ -33,6 +33,7 @@ function toSession(account: {
   canSeeCalendar: boolean;
   canSeePeople: boolean;
   canSeeRequests: boolean;
+  canSeeDinner: boolean;
   canEditBudget: boolean;
   canEditTimeline: boolean;
   linkedPersonId: string | null;
@@ -62,6 +63,7 @@ function toSession(account: {
       canSeeCalendar: true,
       canSeePeople: true,
       canSeeRequests: true,
+      canSeeDinner: true,
       canEditBudget: true,
       canEditTimeline: true,
       linkedPersonId: account.linkedPersonId,
@@ -82,6 +84,7 @@ function toSession(account: {
     canSeeCalendar: account.canSeeCalendar,
     canSeePeople: account.canSeePeople,
     canSeeRequests: account.canSeeRequests,
+    canSeeDinner: account.canSeeDinner || account.canManageAccounts,
     canEditBudget: account.canEditBudget,
     canEditTimeline: account.canEditTimeline,
     linkedPersonId: account.linkedPersonId,

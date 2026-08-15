@@ -34,6 +34,7 @@ function toPanelAccount(
     canEditTimeline: boolean;
     canSeeGuests: boolean;
     canSeeRequests: boolean;
+    canSeeDinner: boolean;
     canManageAccounts: boolean;
     linkedPersonId: string | null;
     assigneeFilterJson: string | null;
@@ -55,6 +56,7 @@ function toPanelAccount(
     canEditTimeline: account.canEditTimeline,
     canSeeGuests: account.canSeeGuests,
     canSeeRequests: account.canSeeRequests,
+    canSeeDinner: account.canSeeDinner,
     canManageAccounts: account.canManageAccounts,
     linkedPersonId: account.linkedPersonId,
     assigneeFilter: parseAssigneeFilterJson(account.assigneeFilterJson),

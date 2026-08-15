@@ -9,7 +9,8 @@ export type AccessPerm =
   | "canSeeShop"
   | "canSeeCalendar"
   | "canSeePeople"
-  | "canSeeRequests";
+  | "canSeeRequests"
+  | "canSeeDinner";
 
 export function can(session: SessionAccount, perm: AccessPerm): boolean {
   if (session.isMaster) return true;
@@ -34,6 +35,10 @@ export function canManageAccounts(session: SessionAccount): boolean {
 
 export function mealsEditable(session: SessionAccount): boolean {
   return session.isMaster || session.canManageAccounts;
+}
+
+export function canSeeDinnerTab(session: SessionAccount): boolean {
+  return mealsEditable(session) || session.canSeeDinner;
 }
 
 /** Couple-only owner/payer ids used by Money. */

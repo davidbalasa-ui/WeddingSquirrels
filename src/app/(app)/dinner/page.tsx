@@ -6,7 +6,7 @@ import { ensureMealLayout } from "@/lib/meals";
 import { requirePageSession } from "@/lib/session";
 
 export default async function DinnerPage() {
-  const session = await requirePageSession();
+  const session = await requirePageSession({ need: "canSeeDinner" });
   await ensureMealLayout(prisma);
 
   const [settings, options, guests] = await Promise.all([

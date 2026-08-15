@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mealsEditable } from "./access";
+import { canSeeDinnerTab, mealsEditable } from "./access";
 import { MEAL_SECTIONS, isMealGuestId, mealGuestCount, planMealWrites, shouldDeleteMealOptionOnClear } from "./meals";
 import type { SessionAccount } from "./types";
 
@@ -18,6 +18,7 @@ function session(partial: Partial<SessionAccount>): SessionAccount {
     canSeeCalendar: true,
     canSeePeople: true,
     canSeeRequests: true,
+    canSeeDinner: false,
     canEditBudget: false,
     canEditTimeline: false,
     linkedPersonId: null,
@@ -50,6 +51,13 @@ test("only masters and account managers can edit the dinner menu", () => {
   assert.equal(mealsEditable(session({ isMaster: true })), true);
   assert.equal(mealsEditable(session({ canManageAccounts: true })), true);
   assert.equal(mealsEditable(session({})), false);
+});
+
+test("dinner tab is shared on accounts or always visible to menu editors", () => {
+  assert.equal(canSeeDinnerTab(session({ isMaster: true })), true);
+  assert.equal(canSeeDinnerTab(session({ canManageAccounts: true })), true);
+  assert.equal(canSeeDinnerTab(session({ canSeeDinner: true })), true);
+  assert.equal(canSeeDinnerTab(session({})), false);
 });
 
 test("meal layout planner creates missing guests and no-ops when synced", () => {

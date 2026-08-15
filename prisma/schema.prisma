@@ -164,6 +164,7 @@ model PinAccount {
   canSeeCalendar     Boolean           @default(true)
   canSeePeople       Boolean           @default(true)
   canSeeRequests     Boolean           @default(true)
+  canSeeDinner       Boolean           @default(false)
   canEditBudget      Boolean           @default(false)
   canEditTimeline    Boolean           @default(false)
   linkedPersonId     String?

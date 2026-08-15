@@ -11,6 +11,7 @@ export type SessionAccount = {
   canSeeCalendar: boolean;
   canSeePeople: boolean;
   canSeeRequests: boolean;
+  canSeeDinner: boolean;
   canEditBudget: boolean;
   canEditTimeline: boolean;
   linkedPersonId: string | null;
@@ -29,6 +30,7 @@ export type AccountModuleFlags = {
   canEditTimeline: boolean;
   canSeeGuests: boolean;
   canSeeRequests: boolean;
+  canSeeDinner: boolean;
   canManageAccounts: boolean;
 };
 

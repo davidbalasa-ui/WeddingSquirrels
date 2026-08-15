@@ -13,6 +13,7 @@ type NeedKey = keyof Pick<
   | "canSeeCalendar"
   | "canSeePeople"
   | "canSeeRequests"
+  | "canSeeDinner"
 >;
 
 export async function requirePageSession(opts?: { need?: NeedKey }) {

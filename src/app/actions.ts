@@ -454,6 +454,7 @@ function parseAccountFlags(formData: FormData) {
     canSeeCalendar: formData.get("canSeeCalendar") === "on",
     canSeePeople: formData.get("canSeePeople") === "on",
     canSeeRequests: formData.get("canSeeRequests") === "on",
+    canSeeDinner: formData.get("canSeeDinner") === "on",
     canEditBudget: formData.get("canEditBudget") === "on",
     canEditTimeline: formData.get("canEditTimeline") === "on",
     linkedPersonId: parseLinkedPersonId(String(formData.get("linkedPersonId") || "")),
@@ -557,6 +558,7 @@ export async function createPinAccount(formData: FormData): Promise<void> {
       canSeeCalendar: flags.canSeeCalendar,
       canSeePeople: flags.canSeePeople,
       canSeeRequests: flags.canSeeRequests,
+      canSeeDinner: flags.canSeeDinner,
       canEditBudget: flags.canEditBudget,
       canEditTimeline: flags.canEditTimeline,
       linkedPersonId: flags.linkedPersonId,
@@ -573,6 +575,7 @@ export async function createPinAccount(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/accounts");
+  revalidatePath("/", "layout");
 }
 
 export async function updatePinAccount(formData: FormData): Promise<void> {
@@ -599,6 +602,7 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
       },
     });
     revalidatePath("/accounts");
+    revalidatePath("/", "layout");
     return;
   }
 
@@ -621,6 +625,7 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
       canSeeCalendar: flags.canSeeCalendar,
       canSeePeople: flags.canSeePeople,
       canSeeRequests: flags.canSeeRequests,
+      canSeeDinner: flags.canSeeDinner,
       canEditBudget: flags.canEditBudget,
       canEditTimeline: flags.canEditTimeline,
       linkedPersonId: flags.linkedPersonId,
@@ -637,6 +642,7 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/accounts");
+  revalidatePath("/", "layout");
 }
 
 export async function deletePinAccount(accountId: string) {
@@ -648,6 +654,7 @@ export async function deletePinAccount(accountId: string) {
 
   await prisma.pinAccount.delete({ where: { id: accountId } });
   revalidatePath("/accounts");
+  revalidatePath("/", "layout");
 }
 
 export async function setBudgetItemShares(budgetItemId: string, pinAccountIds: string[]) {
