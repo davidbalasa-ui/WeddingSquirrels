@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { STAY_SECTIONS, isStaySectionId, isStaySlotId } from "./stay";
+import { STAY_SECTIONS, isStaySectionId, isStaySlotId, planStayWrites } from "./stay";
 
 test("stay layout has three sections and unique slot ids", () => {
   assert.equal(STAY_SECTIONS.length, 3);
@@ -28,4 +28,20 @@ test("bride side has four beds and groom side marks optional bunks and air mattr
     ["groom.bottom.2", "groom.top.2", "groom.air.1", "groom.air.2"],
   );
   assert.equal(groom?.slots.find((slot) => slot.id === "groom.air.1")?.group, "Queen air mattress");
+});
+
+test("stay layout planner creates missing beds and only fills empty couple defaults", () => {
+  const planned = planStayWrites([]);
+  assert.equal(planned.creates.length, 12);
+  assert.equal(planned.updates.length, 0);
+  assert.equal(planned.creates.find((row) => row.id === "couple.1")?.occupant, "Haley");
+  assert.equal(planned.creates.find((row) => row.id === "couple.2")?.occupant, "David");
+
+  const synced = planStayWrites(
+    planned.creates.map((row) =>
+      row.id === "couple.1" ? { ...row, occupant: "Aunt May" } : row,
+    ),
+  );
+  assert.equal(synced.creates.length, 0);
+  assert.equal(synced.updates.length, 0);
 });

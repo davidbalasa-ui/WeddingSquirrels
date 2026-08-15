@@ -63,38 +63,69 @@ export function isStaySlotId(value: string): boolean {
   return STAY_SECTIONS.some((section) => section.slots.some((slot) => slot.id === value));
 }
 
-export async function ensureStayLayout(client: PrismaClient) {
+export type StaySlotRow = {
+  id: string;
+  sectionId: string;
+  label: string;
+  occupant: string;
+  optional: boolean;
+  sortOrder: number;
+};
+
+export function planStayWrites(existing: StaySlotRow[]) {
+  const byId = new Map(existing.map((row) => [row.id, row]));
+  const creates: StaySlotRow[] = [];
+  const updates: StaySlotRow[] = [];
   let sort = 0;
   for (const section of STAY_SECTIONS) {
     for (const slot of section.slots) {
-      const existing = await client.staySlot.findUnique({ where: { id: slot.id } });
-      if (!existing) {
-        await client.staySlot.create({
-          data: {
-            id: slot.id,
-            sectionId: section.id,
-            label: slot.label,
-            occupant: slot.defaultOccupant ?? "",
-            optional: Boolean(slot.optional),
-            sortOrder: sort,
-          },
-        });
-      } else {
-        await client.staySlot.update({
-          where: { id: slot.id },
-          data: {
-            sectionId: section.id,
-            label: slot.label,
-            optional: Boolean(slot.optional),
-            sortOrder: sort,
-            occupant:
-              !existing.occupant.trim() && slot.defaultOccupant
-                ? slot.defaultOccupant
-                : existing.occupant,
-          },
-        });
+      const row = byId.get(slot.id);
+      const optional = Boolean(slot.optional);
+      const occupant = row
+        ? !row.occupant.trim() && slot.defaultOccupant
+          ? slot.defaultOccupant
+          : row.occupant
+        : (slot.defaultOccupant ?? "");
+      const next: StaySlotRow = {
+        id: slot.id,
+        sectionId: section.id,
+        label: slot.label,
+        occupant,
+        optional,
+        sortOrder: sort,
+      };
+      if (!row) creates.push(next);
+      else if (
+        row.sectionId !== next.sectionId ||
+        row.label !== next.label ||
+        row.optional !== next.optional ||
+        row.sortOrder !== next.sortOrder ||
+        row.occupant !== next.occupant
+      ) {
+        updates.push(next);
       }
       sort += 1;
     }
+  }
+  return { creates, updates };
+}
+
+export async function ensureStayLayout(client: PrismaClient) {
+  const existing = await client.staySlot.findMany();
+  const { creates, updates } = planStayWrites(existing);
+  if (creates.length) {
+    await client.staySlot.createMany({ data: creates });
+  }
+  for (const row of updates) {
+    await client.staySlot.update({
+      where: { id: row.id },
+      data: {
+        sectionId: row.sectionId,
+        label: row.label,
+        occupant: row.occupant,
+        optional: row.optional,
+        sortOrder: row.sortOrder,
+      },
+    });
   }
 }

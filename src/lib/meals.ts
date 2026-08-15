@@ -77,6 +77,41 @@ export function mealGuestCount(): number {
   return MEAL_GUEST_IDS.length;
 }
 
+export type MealGuestRow = {
+  id: string;
+  sectionId: string;
+  name: string;
+  sortOrder: number;
+};
+
+export function planMealWrites(existing: MealGuestRow[]) {
+  const byId = new Map(existing.map((row) => [row.id, row]));
+  const creates: MealGuestRow[] = [];
+  const updates: MealGuestRow[] = [];
+  let sort = 0;
+  for (const section of MEAL_SECTIONS) {
+    for (const guest of section.guests) {
+      const row = byId.get(guest.id);
+      const next: MealGuestRow = {
+        id: guest.id,
+        sectionId: section.id,
+        name: guest.name,
+        sortOrder: sort,
+      };
+      if (!row) creates.push(next);
+      else if (row.sectionId !== next.sectionId || row.name !== next.name || row.sortOrder !== next.sortOrder) {
+        updates.push(next);
+      }
+      sort += 1;
+    }
+  }
+  return { creates, updates };
+}
+
+export function shouldDeleteMealOptionOnClear(existingLabel: string, nextLabel: string) {
+  return !nextLabel.trim() && !existingLabel.trim();
+}
+
 export async function ensureMealLayout(client: PrismaClient) {
   await client.mealSettings.upsert({
     where: { id: 1 },
@@ -84,30 +119,21 @@ export async function ensureMealLayout(client: PrismaClient) {
     update: {},
   });
 
-  let sort = 0;
-  for (const section of MEAL_SECTIONS) {
-    for (const guest of section.guests) {
-      const existing = await client.mealGuest.findUnique({ where: { id: guest.id } });
-      if (!existing) {
-        await client.mealGuest.create({
-          data: {
-            id: guest.id,
-            sectionId: section.id,
-            name: guest.name,
-            sortOrder: sort,
-          },
-        });
-      } else {
-        await client.mealGuest.update({
-          where: { id: guest.id },
-          data: {
-            sectionId: section.id,
-            name: guest.name,
-            sortOrder: sort,
-          },
-        });
-      }
-      sort += 1;
-    }
+  const existing = await client.mealGuest.findMany({
+    select: { id: true, sectionId: true, name: true, sortOrder: true },
+  });
+  const { creates, updates } = planMealWrites(existing);
+  if (creates.length) {
+    await client.mealGuest.createMany({ data: creates });
+  }
+  for (const row of updates) {
+    await client.mealGuest.update({
+      where: { id: row.id },
+      data: {
+        sectionId: row.sectionId,
+        name: row.name,
+        sortOrder: row.sortOrder,
+      },
+    });
   }
 }

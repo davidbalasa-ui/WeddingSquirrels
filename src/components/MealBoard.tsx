@@ -56,6 +56,8 @@ export function MealBoard({
 
   const [publishedSource, setPublishedSource] = useState(published);
   const [isPublished, setIsPublished] = useState(published);
+  const [adding, setAdding] = useState(false);
+  const [focusOptionId, setFocusOptionId] = useState<string | null>(null);
   if (published !== publishedSource) {
     setPublishedSource(published);
     setIsPublished(published);
@@ -63,7 +65,6 @@ export function MealBoard({
 
   const picked = guestList.filter((guest) => guest.optionId).length;
   const you = sessionName.trim().toLowerCase();
-  const [adding, setAdding] = useState(false);
 
   async function addOption() {
     setAdding(true);
@@ -71,6 +72,7 @@ export function MealBoard({
       const result = await addMealOption();
       if (!result.ok) return;
       setOptionList((prev) => [...prev, { id: result.id, label: "" }]);
+      setFocusOptionId(result.id);
     } finally {
       setAdding(false);
     }
@@ -120,7 +122,13 @@ export function MealBoard({
                 <MealOptionRow
                   key={option.id}
                   option={option}
-                  onRemoved={() => setOptionList((prev) => prev.filter((item) => item.id !== option.id))}
+                  autoFocus={focusOptionId === option.id}
+                  onRemoved={() => {
+                    setOptionList((prev) => prev.filter((item) => item.id !== option.id));
+                    setGuestList((prev) =>
+                      prev.map((guest) => (guest.optionId === option.id ? { ...guest, optionId: null } : guest)),
+                    );
+                  }}
                   onSaved={(label) =>
                     setOptionList((prev) => prev.map((item) => (item.id === option.id ? { ...item, label } : item)))
                   }
@@ -190,10 +198,12 @@ export function MealBoard({
 
 function MealOptionRow({
   option,
+  autoFocus,
   onRemoved,
   onSaved,
 }: {
   option: MealOptionView;
+  autoFocus?: boolean;
   onRemoved: () => void;
   onSaved: (label: string) => void;
 }) {
@@ -207,8 +217,15 @@ function MealOptionRow({
   async function commit() {
     const next = value.trim();
     if (next === source.trim()) return;
+    if (!next && source.trim()) {
+      setValue(source);
+      return;
+    }
     const result = await saveMealOption(option.id, next);
-    if (!result.ok) return;
+    if (!result.ok) {
+      setValue(source);
+      return;
+    }
     if (!next) {
       onRemoved();
       return;
@@ -228,7 +245,7 @@ function MealOptionRow({
       <span className="text-muted">=</span>
       <input
         value={value}
-        autoFocus={!option.label}
+        autoFocus={autoFocus}
         placeholder="Dish name"
         enterKeyHint="done"
         onFocus={selectAll}

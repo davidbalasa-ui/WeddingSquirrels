@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { mealsEditable } from "./access";
-import { MEAL_SECTIONS, isMealGuestId, mealGuestCount } from "./meals";
+import { MEAL_SECTIONS, isMealGuestId, mealGuestCount, planMealWrites, shouldDeleteMealOptionOnClear } from "./meals";
 import type { SessionAccount } from "./types";
 
 function session(partial: Partial<SessionAccount>): SessionAccount {
@@ -50,4 +50,19 @@ test("only masters and account managers can edit the dinner menu", () => {
   assert.equal(mealsEditable(session({ isMaster: true })), true);
   assert.equal(mealsEditable(session({ canManageAccounts: true })), true);
   assert.equal(mealsEditable(session({})), false);
+});
+
+test("meal layout planner creates missing guests and no-ops when synced", () => {
+  const planned = planMealWrites([]);
+  assert.equal(planned.creates.length, 17);
+  assert.equal(planned.updates.length, 0);
+  const synced = planMealWrites(planned.creates);
+  assert.equal(synced.creates.length, 0);
+  assert.equal(synced.updates.length, 0);
+});
+
+test("clearing a named dinner dish does not delete it", () => {
+  assert.equal(shouldDeleteMealOptionOnClear("", ""), true);
+  assert.equal(shouldDeleteMealOptionOnClear("Steak", ""), false);
+  assert.equal(shouldDeleteMealOptionOnClear("Steak", "Salmon"), false);
 });

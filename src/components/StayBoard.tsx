@@ -71,15 +71,23 @@ function StaySection({
 }) {
   const [noteSource, setNoteSource] = useState(notes);
   const [bathNotes, setBathNotes] = useState(notes);
+  const [adding, setAdding] = useState(false);
+  const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
   if (notes !== noteSource) {
     setNoteSource(notes);
     setBathNotes(notes);
   }
 
   async function addNote() {
-    const result = await addStayBathNote(sectionId);
-    if (!result.ok) return;
-    setBathNotes((prev) => [...prev, { id: result.id, sectionId, note: "" }]);
+    setAdding(true);
+    try {
+      const result = await addStayBathNote(sectionId);
+      if (!result.ok) return;
+      setBathNotes((prev) => [...prev, { id: result.id, sectionId, note: "" }]);
+      setFocusNoteId(result.id);
+    } finally {
+      setAdding(false);
+    }
   }
 
   return (
@@ -107,8 +115,13 @@ function StaySection({
       <div className="border-t border-line px-3 py-2">
         <div className="mb-1 flex items-center justify-between">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Bathroom</p>
-          <button type="button" className="text-xs font-semibold text-[var(--accent)]" onClick={() => void addNote()}>
-            + Add note
+          <button
+            type="button"
+            disabled={adding}
+            className="text-xs font-semibold text-[var(--accent)] disabled:opacity-60"
+            onClick={() => void addNote()}
+          >
+            {adding ? "Adding…" : "+ Add note"}
           </button>
         </div>
         {bathNotes.length === 0 ? (
@@ -119,7 +132,7 @@ function StaySection({
               <BathNoteRow
                 key={note.id}
                 note={note}
-                autoFocus={!note.note}
+                autoFocus={focusNoteId === note.id}
                 onRemoved={() => setBathNotes((prev) => prev.filter((item) => item.id !== note.id))}
               />
             ))}
@@ -145,6 +158,8 @@ function StaySlotRow({ slot }: { slot: StaySlotView }) {
     if (result.ok) {
       setSource(next);
       setValue(next);
+    } else {
+      setValue(source);
     }
   }
 

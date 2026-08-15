@@ -25,7 +25,7 @@ import {
   sortTimelineBlocks,
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
-import { isMealGuestId } from "@/lib/meals";
+import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
 import { isStaySectionId, isStaySlotId } from "@/lib/stay";
 import {
   canCompleteRequest,
@@ -1218,7 +1218,6 @@ export async function addStayBathNote(sectionId: string): Promise<StayWriteResul
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });
-  revalidatePath("/stay");
   return { ok: true, id: created.id };
 }
 
@@ -1277,9 +1276,9 @@ async function requireMealEditor() {
   }
 }
 
-function revalidateDinner() {
+function revalidateDinner(opts?: { layout?: boolean }) {
   revalidatePath("/dinner");
-  revalidatePath("/", "layout");
+  if (opts?.layout) revalidatePath("/", "layout");
 }
 
 export async function addMealOption(): Promise<MealWriteResult> {
@@ -1292,7 +1291,6 @@ export async function addMealOption(): Promise<MealWriteResult> {
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });
-  revalidateDinner();
   return { ok: true, id: created.id };
 }
 
@@ -1304,6 +1302,9 @@ export async function saveMealOption(optionId: string, label: string): Promise<M
 
   const trimmed = label.trim();
   if (!trimmed) {
+    if (!shouldDeleteMealOptionOnClear(existing.label, trimmed)) {
+      return { ok: false, reason: "invalid" };
+    }
     await prisma.mealGuest.updateMany({ where: { optionId }, data: { optionId: null } });
     await prisma.mealOption.delete({ where: { id: optionId } });
     revalidateDinner();
@@ -1339,7 +1340,7 @@ export async function setMealPublished(published: boolean): Promise<MealWriteRes
     create: { id: 1, published },
     update: { published },
   });
-  revalidateDinner();
+  revalidateDinner({ layout: true });
   return { ok: true, id: "1" };
 }
 
