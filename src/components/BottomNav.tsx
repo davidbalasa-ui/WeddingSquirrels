@@ -12,6 +12,7 @@ const items = [
   { href: "/requests", label: "Ask", need: "canSeeRequests" as const },
   { href: "/money", label: "Money", need: "canSeeBudget" as const },
   { href: "/stay", label: "Stay" },
+  { href: "/dinner", label: "Dinner", show: "dinner" as const },
   { href: "/day", label: "Day-of", need: "canSeeTimeline" as const },
   { href: "/guests", label: "Guests", need: "canSeeGuests" as const },
   { href: "/accounts", label: "Accounts", need: "canManageAccounts" as const },
@@ -20,17 +21,18 @@ const items = [
 export function BottomNav({
   session,
   unreadRequests = 0,
+  dinnerVisible = false,
 }: {
   session: SessionAccount;
   unreadRequests?: number;
+  dinnerVisible?: boolean;
 }) {
   const pathname = usePathname();
-  const visible = items.filter(
-    (item) =>
-      !item.need ||
-      session[item.need] ||
-      (item.need === "canManageAccounts" && session.isMaster),
-  );
+  const visible = items.filter((item) => {
+    if ("show" in item && item.show === "dinner") return dinnerVisible;
+    if (!item.need) return true;
+    return Boolean(session[item.need]) || (item.need === "canManageAccounts" && session.isMaster);
+  });
 
   return (
     <nav className="nav-bar" aria-label="Main">

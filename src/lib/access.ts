@@ -32,6 +32,10 @@ export function canManageAccounts(session: SessionAccount): boolean {
   return session.isMaster || session.canManageAccounts;
 }
 
+export function mealsEditable(session: SessionAccount): boolean {
+  return session.isMaster || session.canManageAccounts;
+}
+
 /** Couple-only owner/payer ids used by Money. */
 export function parseCouplePersonId(raw: string): string | null {
   return raw === "david" || raw === "haley" ? raw : null;

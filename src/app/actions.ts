@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   assertCan,
   canManageAccounts,
+  mealsEditable,
   moneyEditable,
   normalizeAccountFlags,
   timelineEditable,
@@ -24,6 +25,7 @@ import {
   sortTimelineBlocks,
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
+import { isMealGuestId } from "@/lib/meals";
 import { isStaySectionId, isStaySlotId } from "@/lib/stay";
 import {
   canCompleteRequest,
@@ -1259,4 +1261,113 @@ export async function deleteStayBathNote(noteId: string): Promise<StayWriteResul
   }
   revalidatePath("/stay");
   return { ok: true, id: noteId };
+}
+
+export type MealWriteResult =
+  | { ok: true; id: string }
+  | { ok: false; reason: "forbidden" | "not_found" | "invalid" };
+
+async function requireMealEditor() {
+  try {
+    const session = await requireSession();
+    if (!mealsEditable(session)) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function revalidateDinner() {
+  revalidatePath("/dinner");
+  revalidatePath("/", "layout");
+}
+
+export async function addMealOption(): Promise<MealWriteResult> {
+  if (!(await requireMealEditor())) return { ok: false, reason: "forbidden" };
+
+  const last = await prisma.mealOption.findFirst({ orderBy: { sortOrder: "desc" } });
+  const created = await prisma.mealOption.create({
+    data: {
+      label: "",
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidateDinner();
+  return { ok: true, id: created.id };
+}
+
+export async function saveMealOption(optionId: string, label: string): Promise<MealWriteResult> {
+  if (!(await requireMealEditor())) return { ok: false, reason: "forbidden" };
+
+  const existing = await prisma.mealOption.findUnique({ where: { id: optionId } });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  const trimmed = label.trim();
+  if (!trimmed) {
+    await prisma.mealGuest.updateMany({ where: { optionId }, data: { optionId: null } });
+    await prisma.mealOption.delete({ where: { id: optionId } });
+    revalidateDinner();
+    return { ok: true, id: optionId };
+  }
+
+  await prisma.mealOption.update({
+    where: { id: optionId },
+    data: { label: trimmed },
+  });
+  revalidateDinner();
+  return { ok: true, id: optionId };
+}
+
+export async function deleteMealOption(optionId: string): Promise<MealWriteResult> {
+  if (!(await requireMealEditor())) return { ok: false, reason: "forbidden" };
+
+  try {
+    await prisma.mealGuest.updateMany({ where: { optionId }, data: { optionId: null } });
+    await prisma.mealOption.delete({ where: { id: optionId } });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+  revalidateDinner();
+  return { ok: true, id: optionId };
+}
+
+export async function setMealPublished(published: boolean): Promise<MealWriteResult> {
+  if (!(await requireMealEditor())) return { ok: false, reason: "forbidden" };
+
+  await prisma.mealSettings.upsert({
+    where: { id: 1 },
+    create: { id: 1, published },
+    update: { published },
+  });
+  revalidateDinner();
+  return { ok: true, id: "1" };
+}
+
+export async function saveMealChoice(guestId: string, optionId: string | null): Promise<MealWriteResult> {
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return { ok: false, reason: "forbidden" };
+  }
+  const settings = await prisma.mealSettings.findUnique({ where: { id: 1 } });
+  if (!settings?.published && !mealsEditable(session)) {
+    return { ok: false, reason: "forbidden" };
+  }
+  if (!isMealGuestId(guestId)) return { ok: false, reason: "invalid" };
+
+  const existing = await prisma.mealGuest.findUnique({ where: { id: guestId } });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  if (optionId) {
+    const option = await prisma.mealOption.findUnique({ where: { id: optionId } });
+    if (!option) return { ok: false, reason: "invalid" };
+  }
+
+  await prisma.mealGuest.update({
+    where: { id: guestId },
+    data: { optionId },
+  });
+  revalidateDinner();
+  return { ok: true, id: guestId };
 }
