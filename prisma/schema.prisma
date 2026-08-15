@@ -110,12 +110,15 @@ model TaskShare {
 }
 
 model TimelineBlock {
-  id        String  @id @default(cuid())
-  startAt   String
-  endAt     String?
-  notes     String
-  sortOrder Int     @default(0)
-  tasks     Task[]
+  id           String  @id @default(cuid())
+  startAt      String
+  endAt        String?
+  notes        String
+  sortOrder    Int     @default(0)
+  startMinutes Int?
+  endMinutes   Int?
+  dayOffset    Int     @default(0)
+  tasks        Task[]
 }
 
 model Guest {
