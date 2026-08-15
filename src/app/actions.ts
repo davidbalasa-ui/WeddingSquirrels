@@ -16,6 +16,7 @@ import {
   unlockWithPin,
 } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { prepareTimelineCreate, prepareTimelineSave } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
 import {
   canCompleteRequest,
@@ -903,65 +904,105 @@ export async function deleteRequest(requestId: string): Promise<void> {
   revalidateRequests();
 }
 
+export type TimelineWriteResult =
+  | { ok: true; id: string }
+  | { ok: false; reason: "forbidden" | "not_found" | "empty_notes" | "invalid" | "noop" };
+
 async function requireTimelineEditor() {
-  const session = await requireSession();
-  if (!timelineEditable(session)) throw new Error("FORBIDDEN");
-  return session;
+  try {
+    const session = await requireSession();
+    if (!timelineEditable(session)) return null;
+    return session;
+  } catch {
+    return null;
+  }
 }
 
-export async function saveTimelineBlock(formData: FormData): Promise<void> {
-  await requireTimelineEditor();
+export async function saveTimelineBlock(input: {
+  id: string;
+  startAt: string;
+  endAt: string;
+  notes: string;
+}): Promise<TimelineWriteResult> {
+  if (!(await requireTimelineEditor())) return { ok: false, reason: "forbidden" };
 
-  const id = String(formData.get("id") || "");
-  const startAt = String(formData.get("startAt") || "").trim();
-  const endAtRaw = String(formData.get("endAt") || "").trim();
-  const notes = String(formData.get("notes") || "").trim();
+  const id = input.id.trim();
+  if (!id) return { ok: false, reason: "invalid" };
 
-  if (!id || !startAt || !notes) return;
+  const existing = await prisma.timelineBlock.findUnique({ where: { id } });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  const prepared = prepareTimelineSave(
+    { startAt: input.startAt, endAt: input.endAt, notes: input.notes },
+    {
+      startAt: existing.startAt,
+      endAt: existing.endAt ?? "",
+      notes: existing.notes,
+    },
+  );
+
+  if (!prepared.ok) {
+    return { ok: false, reason: prepared.reason === "empty_notes" ? "empty_notes" : "noop" };
+  }
 
   await prisma.timelineBlock.update({
     where: { id },
     data: {
-      startAt,
-      endAt: endAtRaw || null,
-      notes,
+      startAt: prepared.startAt,
+      endAt: prepared.endAt,
+      notes: prepared.notes,
     },
   });
 
-  revalidatePath("/day");
+  return { ok: true, id };
 }
 
-export async function createTimelineBlock(formData: FormData): Promise<void> {
-  await requireTimelineEditor();
+export async function createTimelineBlock(input: {
+  startAt: string;
+  endAt: string;
+  notes: string;
+}): Promise<TimelineWriteResult> {
+  if (!(await requireTimelineEditor())) return { ok: false, reason: "forbidden" };
 
-  const startAt = String(formData.get("startAt") || "").trim() || "TBD";
-  const endAtRaw = String(formData.get("endAt") || "").trim();
-  const notes = String(formData.get("notes") || "").trim() || "New moment";
+  const prepared = prepareTimelineCreate({
+    startAt: input.startAt,
+    endAt: input.endAt,
+    notes: input.notes,
+  });
+  if (!prepared.ok) return { ok: false, reason: "invalid" };
 
   const last = await prisma.timelineBlock.findFirst({
     orderBy: { sortOrder: "desc" },
   });
 
-  await prisma.timelineBlock.create({
+  const created = await prisma.timelineBlock.create({
     data: {
-      startAt,
-      endAt: endAtRaw || null,
-      notes,
+      startAt: prepared.startAt,
+      endAt: prepared.endAt,
+      notes: prepared.notes,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });
 
   revalidatePath("/day");
+  return { ok: true, id: created.id };
 }
 
-export async function deleteTimelineBlock(blockId: string): Promise<void> {
-  await requireTimelineEditor();
-  await prisma.timelineBlock.delete({ where: { id: blockId } });
+export async function deleteTimelineBlock(blockId: string): Promise<TimelineWriteResult> {
+  if (!(await requireTimelineEditor())) return { ok: false, reason: "forbidden" };
+
+  try {
+    await prisma.timelineBlock.delete({ where: { id: blockId } });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+
   revalidatePath("/day");
+  return { ok: true, id: blockId };
 }
 
 export async function moveTimelineBlock(blockId: string, direction: "up" | "down"): Promise<void> {
-  await requireTimelineEditor();
+  if (!(await requireTimelineEditor())) return;
 
   const blocks = await prisma.timelineBlock.findMany({ orderBy: { sortOrder: "asc" } });
   const index = blocks.findIndex((b) => b.id === blockId);
