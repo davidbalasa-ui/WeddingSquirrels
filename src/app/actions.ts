@@ -1091,6 +1091,99 @@ export async function saveGuest(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/guests");
+  revalidatePath("/guests/print");
+}
+
+export type GuestGiftWriteResult =
+  | { ok: true; id: string }
+  | { ok: false; reason: "forbidden" | "not_found" | "invalid" };
+
+async function requireGuestViewer() {
+  try {
+    const session = await requireSession();
+    if (!session.canSeeGuests) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function revalidateGuests() {
+  revalidatePath("/guests");
+  revalidatePath("/guests/print");
+}
+
+export async function addGuestGift(guestId: string): Promise<GuestGiftWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  if (!guestId) return { ok: false, reason: "invalid" };
+
+  const guest = await prisma.guest.findUnique({ where: { id: guestId }, select: { id: true } });
+  if (!guest) return { ok: false, reason: "not_found" };
+
+  const last = await prisma.guestGift.findFirst({
+    where: { guestId },
+    orderBy: { sortOrder: "desc" },
+  });
+  const created = await prisma.guestGift.create({
+    data: {
+      guestId,
+      description: "",
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidateGuests();
+  return { ok: true, id: created.id };
+}
+
+export async function saveGuestGift(giftId: string, description: string): Promise<GuestGiftWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+
+  const existing = await prisma.guestGift.findUnique({ where: { id: giftId } });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  const trimmed = description.trim();
+  if (!trimmed) {
+    await prisma.guestGift.delete({ where: { id: giftId } });
+    revalidateGuests();
+    return { ok: true, id: giftId };
+  }
+
+  await prisma.guestGift.update({
+    where: { id: giftId },
+    data: { description: trimmed },
+  });
+  revalidateGuests();
+  return { ok: true, id: giftId };
+}
+
+export async function setGuestGiftThanked(
+  giftId: string,
+  thanked: boolean,
+): Promise<GuestGiftWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+
+  try {
+    await prisma.guestGift.update({
+      where: { id: giftId },
+      data: { thanked },
+    });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+  revalidateGuests();
+  return { ok: true, id: giftId };
+}
+
+export async function deleteGuestGift(giftId: string): Promise<GuestGiftWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+
+  try {
+    await prisma.guestGift.delete({ where: { id: giftId } });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+  revalidateGuests();
+  return { ok: true, id: giftId };
 }
 
 function parseShoppingOwnerId(raw: string): string | null {
