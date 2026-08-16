@@ -122,7 +122,7 @@ model TimelineBlock {
 }
 
 model Guest {
-  id                 String  @id @default(cuid())
+  id                 String      @id @default(cuid())
   nameLine1          String
   nameLine2          String?
   street             String?
@@ -133,7 +133,24 @@ model Guest {
   person1TableSpot   String?
   person2TableNumber Int?
   person2TableSpot   String?
-  sortOrder          Int     @default(0)
+  rsvpStatus         String      @default("pending")
+  invitedCount       Int         @default(0)
+  acceptedCount      Int         @default(0)
+  sortOrder          Int         @default(0)
+  gifts              GuestGift[]
+}
+
+model GuestGift {
+  id          String   @id @default(cuid())
+  guestId     String
+  guest       Guest    @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  description String   @default("")
+  thanked     Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([guestId, sortOrder])
 }
 
 model CalendarEvent {

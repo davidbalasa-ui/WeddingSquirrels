@@ -30,6 +30,7 @@ import {
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
+import { applyRsvpChange } from "@/lib/guest-gifts";
 import { isStaySectionId, isStaySlotId } from "@/lib/stay";
 import {
   canCompleteRequest,
@@ -1095,6 +1096,138 @@ export async function saveGuest(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/guests");
+  revalidatePath("/guests/print");
+}
+
+export type GuestRsvpWriteResult =
+  | { ok: true; id: string }
+  | { ok: false; reason: "forbidden" | "not_found" | "invalid" };
+
+export type GuestGiftWriteResult =
+  | { ok: true; id: string }
+  | { ok: false; reason: "forbidden" | "not_found" | "invalid" };
+
+export async function saveGuestRsvp(input: {
+  guestId: string;
+  rsvpStatus?: string;
+  invitedCount?: number;
+  acceptedCount?: number;
+}): Promise<GuestRsvpWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  if (!input.guestId) return { ok: false, reason: "invalid" };
+
+  const existing = await prisma.guest.findUnique({
+    where: { id: input.guestId },
+    select: {
+      id: true,
+      nameLine2: true,
+      rsvpStatus: true,
+      invitedCount: true,
+      acceptedCount: true,
+    },
+  });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  const next = applyRsvpChange(existing, {
+    rsvpStatus: input.rsvpStatus,
+    invitedCount: input.invitedCount,
+    acceptedCount: input.acceptedCount,
+  });
+
+  await prisma.guest.update({
+    where: { id: existing.id },
+    data: next,
+  });
+  revalidateGuests();
+  return { ok: true, id: existing.id };
+}
+
+async function requireGuestViewer() {
+  try {
+    const session = await requireSession();
+    if (!session.canSeeGuests) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function revalidateGuests() {
+  revalidatePath("/guests");
+  revalidatePath("/guests/print");
+}
+
+export async function addGuestGift(guestId: string): Promise<GuestGiftWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  if (!guestId) return { ok: false, reason: "invalid" };
+
+  const guest = await prisma.guest.findUnique({ where: { id: guestId }, select: { id: true } });
+  if (!guest) return { ok: false, reason: "not_found" };
+
+  const last = await prisma.guestGift.findFirst({
+    where: { guestId },
+    orderBy: { sortOrder: "desc" },
+  });
+  const created = await prisma.guestGift.create({
+    data: {
+      guestId,
+      description: "",
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidateGuests();
+  return { ok: true, id: created.id };
+}
+
+export async function saveGuestGift(giftId: string, description: string): Promise<GuestGiftWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+
+  const existing = await prisma.guestGift.findUnique({ where: { id: giftId } });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  const trimmed = description.trim();
+  if (!trimmed) {
+    await prisma.guestGift.delete({ where: { id: giftId } });
+    revalidateGuests();
+    return { ok: true, id: giftId };
+  }
+
+  await prisma.guestGift.update({
+    where: { id: giftId },
+    data: { description: trimmed },
+  });
+  revalidateGuests();
+  return { ok: true, id: giftId };
+}
+
+export async function setGuestGiftThanked(
+  giftId: string,
+  thanked: boolean,
+): Promise<GuestGiftWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+
+  try {
+    await prisma.guestGift.update({
+      where: { id: giftId },
+      data: { thanked },
+    });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+  revalidateGuests();
+  return { ok: true, id: giftId };
+}
+
+export async function deleteGuestGift(giftId: string): Promise<GuestGiftWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+
+  try {
+    await prisma.guestGift.delete({ where: { id: giftId } });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+  revalidateGuests();
+  return { ok: true, id: giftId };
 }
 
 function parseShoppingOwnerId(raw: string): string | null {

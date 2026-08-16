@@ -265,12 +265,24 @@ a {
   }
 
   .print-section,
-  .money-print-table tr {
+  .money-print-table tr,
+  .gift-print-table tr {
     break-inside: avoid;
   }
 
   .money-print-table th,
-  .money-print-table td {
+  .money-print-table td,
+  .gift-print-table th,
+  .gift-print-table td {
     font-size: 11pt;
+  }
+
+  .gift-print-table td:first-child {
+    width: 58%;
+    padding-right: 16pt;
+  }
+
+  .gift-print-table td:last-child {
+    width: 42%;
   }
 }
