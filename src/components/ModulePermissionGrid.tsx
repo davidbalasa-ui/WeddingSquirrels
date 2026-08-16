@@ -17,6 +17,7 @@ const MODULE_ROWS: ModuleRow[] = [
   { key: "money", label: "Money", seeKey: "canSeeBudget", editKey: "canEditBudget" },
   { key: "dayof", label: "Day-of", seeKey: "canSeeTimeline", editKey: "canEditTimeline" },
   { key: "guests", label: "Guests", seeKey: "canSeeGuests" },
+  { key: "stay", label: "Stay", seeKey: "canSeeStay" },
   { key: "dinner", label: "Dinner", seeKey: "canSeeDinner" },
   { key: "requests", label: "Requests", seeKey: "canSeeRequests" },
   { key: "accounts", label: "Manage accounts", seeKey: "canManageAccounts" },

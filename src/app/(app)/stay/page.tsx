@@ -5,7 +5,7 @@ import { requirePageSession } from "@/lib/session";
 import { ensureStayLayout } from "@/lib/stay";
 
 export default async function StayPage() {
-  const session = await requirePageSession();
+  const session = await requirePageSession({ need: "canSeeStay" });
   await ensureStayLayout(prisma);
 
   const [slots, notes] = await Promise.all([
