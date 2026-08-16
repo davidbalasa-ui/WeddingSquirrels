@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
 import { GuestCard } from "@/components/GuestCard";
+import { GuestRsvpReport } from "@/components/GuestRsvpReport";
 import { prisma } from "@/lib/db";
+import { summarizeGuestRsvp } from "@/lib/guest-gifts";
 import { requirePageSession } from "@/lib/session";
 
 export default async function GuestsPage() {
@@ -11,6 +13,7 @@ export default async function GuestsPage() {
     include: { gifts: { orderBy: { sortOrder: "asc" } } },
   });
   const giftCount = guests.reduce((sum, guest) => sum + guest.gifts.length, 0);
+  const report = summarizeGuestRsvp(guests);
 
   return (
     <>
@@ -19,6 +22,7 @@ export default async function GuestsPage() {
         title="Guests"
         subtitle={`${guests.length} households · ${giftCount} gifts`}
       />
+      <GuestRsvpReport report={report} />
       <div className="mb-3 flex justify-end print-hide">
         <Link href="/guests/print" className="btn-secondary px-4 py-2 text-sm">
           Print gift list
@@ -40,6 +44,9 @@ export default async function GuestsPage() {
               person1TableSpot: guest.person1TableSpot,
               person2TableNumber: guest.person2TableNumber,
               person2TableSpot: guest.person2TableSpot,
+              rsvpStatus: guest.rsvpStatus,
+              invitedCount: guest.invitedCount,
+              acceptedCount: guest.acceptedCount,
               gifts: guest.gifts.map((gift) => ({
                 id: gift.id,
                 description: gift.description,

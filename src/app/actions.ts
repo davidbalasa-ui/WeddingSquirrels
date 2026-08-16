@@ -29,6 +29,7 @@ import {
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
+import { applyRsvpChange } from "@/lib/guest-gifts";
 import { isStaySectionId, isStaySlotId } from "@/lib/stay";
 import {
   canCompleteRequest,
@@ -1094,9 +1095,48 @@ export async function saveGuest(formData: FormData): Promise<void> {
   revalidatePath("/guests/print");
 }
 
+export type GuestRsvpWriteResult =
+  | { ok: true; id: string }
+  | { ok: false; reason: "forbidden" | "not_found" | "invalid" };
+
 export type GuestGiftWriteResult =
   | { ok: true; id: string }
   | { ok: false; reason: "forbidden" | "not_found" | "invalid" };
+
+export async function saveGuestRsvp(input: {
+  guestId: string;
+  rsvpStatus?: string;
+  invitedCount?: number;
+  acceptedCount?: number;
+}): Promise<GuestRsvpWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  if (!input.guestId) return { ok: false, reason: "invalid" };
+
+  const existing = await prisma.guest.findUnique({
+    where: { id: input.guestId },
+    select: {
+      id: true,
+      nameLine2: true,
+      rsvpStatus: true,
+      invitedCount: true,
+      acceptedCount: true,
+    },
+  });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  const next = applyRsvpChange(existing, {
+    rsvpStatus: input.rsvpStatus,
+    invitedCount: input.invitedCount,
+    acceptedCount: input.acceptedCount,
+  });
+
+  await prisma.guest.update({
+    where: { id: existing.id },
+    data: next,
+  });
+  revalidateGuests();
+  return { ok: true, id: existing.id };
+}
 
 async function requireGuestViewer() {
   try {

@@ -133,6 +133,9 @@ model Guest {
   person1TableSpot   String?
   person2TableNumber Int?
   person2TableSpot   String?
+  rsvpStatus         String      @default("pending")
+  invitedCount       Int         @default(0)
+  acceptedCount      Int         @default(0)
   sortOrder          Int         @default(0)
   gifts              GuestGift[]
 }
