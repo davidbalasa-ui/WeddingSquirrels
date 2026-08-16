@@ -120,7 +120,12 @@ export default async function PeoplePage({
       </div>
 
       <div className="mb-3">
-        <AddTaskButton people={people} />
+        <AddTaskButton
+          people={people}
+          selectedIds={
+            who === "both" ? ["david", "haley"] : personId ? [personId] : undefined
+          }
+        />
       </div>
 
       <div className="flex flex-col gap-3">

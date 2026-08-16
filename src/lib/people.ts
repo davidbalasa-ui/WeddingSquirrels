@@ -58,6 +58,29 @@ export async function resolveAssigneeIds(
   return ids;
 }
 
+/** Owners to pre-check on Add task. Prefer the People filter, else the only visible person, else David+Haley. */
+export function defaultAssigneeIds(
+  people: { id: string }[],
+  preferredIds?: string[] | null,
+): string[] {
+  const available = new Set(people.map((person) => person.id));
+  if (preferredIds?.length) {
+    const picked = preferredIds.filter((id) => available.has(id));
+    if (picked.length) return picked;
+  }
+  if (people.length === 1) return [people[0]!.id];
+  return ["david", "haley"].filter((id) => available.has(id));
+}
+
+export function assigneeDisplayNames(
+  assignees: { person?: { name: string } | null }[],
+): string {
+  return assignees
+    .map((row) => row.person?.name)
+    .filter((name): name is string => Boolean(name))
+    .join(" · ");
+}
+
 export async function setTaskAssignees(taskId: string, personIds: string[]) {
   await prisma.taskAssignee.deleteMany({ where: { taskId } });
   for (const personId of personIds) {

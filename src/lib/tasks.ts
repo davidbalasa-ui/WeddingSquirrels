@@ -21,6 +21,48 @@ export type TaskWorkspace = Prisma.TaskGetPayload<{
   };
 }>;
 
+type TaskAccessShape = {
+  id: string;
+  parentId?: string | null;
+  assignees: { personId: string }[];
+  children?: { assignees: { personId: string }[] }[];
+};
+
+/** True when a filtered PIN can see/edit this task via owners (not shares). */
+export function taskMatchesAssigneeFilter(
+  task: Pick<TaskAccessShape, "assignees" | "children">,
+  filter: string[] | null | undefined,
+): boolean {
+  if (!filter?.length) return true;
+  if (task.assignees.some((row) => filter.includes(row.personId))) return true;
+  return (task.children ?? []).some((child) =>
+    child.assignees.some((row) => filter.includes(row.personId)),
+  );
+}
+
+export async function sessionCanMutateTask(
+  session: SessionAccount,
+  task: TaskAccessShape,
+): Promise<boolean> {
+  if (!session.canSeeTasks) return false;
+  if (session.isMaster || !session.assigneeFilter?.length) return true;
+  const rootId = task.parentId || task.id;
+  const shared = await prisma.taskShare.findFirst({
+    where: { taskId: rootId, pinAccountId: session.id },
+    select: { taskId: true },
+  });
+  if (shared) return true;
+  if (taskMatchesAssigneeFilter(task, session.assigneeFilter)) return true;
+  if (task.parentId) {
+    const parent = await prisma.task.findUnique({
+      where: { id: task.parentId },
+      include: { assignees: true },
+    });
+    if (parent && taskMatchesAssigneeFilter(parent, session.assigneeFilter)) return true;
+  }
+  return false;
+}
+
 export function taskVisibilityWhere(session: SessionAccount): Prisma.TaskWhereInput {
   if (!session.canSeeTasks) {
     return { id: "__none__" };
@@ -133,20 +175,7 @@ export async function getTaskWorkspace(session: SessionAccount, id: string) {
     return getTaskWorkspace(session, task.parentId);
   }
 
-  if (!session.canSeeTasks) return null;
-  if (session.assigneeFilter?.length) {
-    const shared = await prisma.taskShare.findFirst({
-      where: { taskId: task.id, pinAccountId: session.id },
-      select: { taskId: true },
-    });
-    const ok =
-      Boolean(shared) ||
-      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
-      task.children.some((c) =>
-        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
-      );
-    if (!ok) return null;
-  }
+  if (!(await sessionCanMutateTask(session, task))) return null;
 
   return task;
 }
@@ -180,14 +209,30 @@ function rankTasks(tasks: TaskWithAssignees[]) {
   });
 }
 
-export function dueLabel(dueDate: Date | null | undefined, status: string) {
-  if (!dueDate || status === "done") return null;
+function asDate(value: Date | string | null | undefined): Date | null {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export function dueDateInputValue(value: Date | string | null | undefined): string {
+  const d = asDate(value);
+  if (!d) return "";
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function dueLabel(dueDate: Date | string | null | undefined, status: string) {
+  const parsed = asDate(dueDate);
+  if (!parsed || status === "done") return null;
   const today = startOfDay(new Date());
-  const d = startOfDay(dueDate);
+  const d = startOfDay(parsed);
   const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
   if (diff < 0) return `Overdue · ${Math.abs(diff)}d`;
   if (diff === 0) return "Due today";
   if (diff === 1) return "Due tomorrow";
   if (diff <= 7) return `Due in ${diff}d`;
-  return dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }

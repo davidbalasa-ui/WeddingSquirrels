@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
+import { assigneeDisplayNames } from "@/lib/people";
 import { dueLabel } from "@/lib/tasks";
 import type { TaskWithAssignees } from "@/lib/tasks";
 
 export function TaskCard({ task }: { task: TaskWithAssignees }) {
   const label = dueLabel(task.dueDate, task.status);
-  const people = task.assignees.map((a) => a.person.name).join(" · ");
+  const people = assigneeDisplayNames(task.assignees);
   const done = task.status === "done";
   const escalated = Boolean(task.escalatedAt);
   const childTotal = task.children?.length ?? 0;

@@ -1,14 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { createTaskPackage } from "@/app/actions";
+import { useActionState, useState } from "react";
+import { createTaskPackage, type TaskFormState } from "@/app/actions";
 import { AssigneeFields } from "@/components/AssigneeFields";
 import { StarIcon } from "@/components/StarIcon";
+import { defaultAssigneeIds } from "@/lib/people";
 
 type PersonOption = { id: string; name: string };
 
-export function AddTaskButton({ people }: { people: PersonOption[] }) {
+const initial: TaskFormState = {};
+
+export function AddTaskButton({
+  people,
+  selectedIds,
+}: {
+  people: PersonOption[];
+  selectedIds?: string[];
+}) {
   const [open, setOpen] = useState(false);
+  const [state, formAction, pending] = useActionState(createTaskPackage, initial);
 
   if (!open) {
     return (
@@ -39,7 +49,7 @@ export function AddTaskButton({ people }: { people: PersonOption[] }) {
         </button>
       </div>
 
-      <form action={createTaskPackage} className="flex flex-col gap-3">
+      <form action={formAction} className="flex flex-col gap-3">
         <label className="block text-sm">
           <span className="mb-1 block text-xs text-muted">Title</span>
           <input
@@ -78,12 +88,14 @@ export function AddTaskButton({ people }: { people: PersonOption[] }) {
 
         <AssigneeFields
           people={people}
-          selectedIds={["david", "haley"].filter((id) => people.some((p) => p.id === id))}
+          selectedIds={defaultAssigneeIds(people, selectedIds)}
           allowNew
         />
 
-        <button type="submit" className="btn-primary">
-          Create task
+        {state.error ? <p className="text-sm text-[var(--danger)]">{state.error}</p> : null}
+
+        <button type="submit" className="btn-primary" disabled={pending}>
+          {pending ? "Creating…" : "Create task"}
         </button>
       </form>
     </article>

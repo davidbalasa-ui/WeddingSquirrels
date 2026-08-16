@@ -1,11 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
-import { saveStepNotes, saveTaskWorkspace, toggleTaskDone } from "@/app/actions";
+import { useActionState, useTransition } from "react";
+import { saveStepNotes, saveTaskWorkspace, toggleTaskDone, type TaskFormState } from "@/app/actions";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
 import { AssigneeFields } from "@/components/AssigneeFields";
+import { assigneeDisplayNames } from "@/lib/people";
 import type { TaskWorkspace } from "@/lib/tasks";
-import { dueLabel } from "@/lib/tasks";
+import { dueDateInputValue, dueLabel } from "@/lib/tasks";
 
 type PersonOption = { id: string; name: string };
 
@@ -19,11 +20,10 @@ export function TaskWorkspaceForm({
   canManageOwners: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  const [saveState, saveAction, saving] = useActionState(saveTaskWorkspace, {} as TaskFormState);
   const label = dueLabel(task.dueDate, task.status);
-  const dueDateValue = task.dueDate
-    ? `${task.dueDate.getFullYear()}-${String(task.dueDate.getMonth() + 1).padStart(2, "0")}-${String(task.dueDate.getDate()).padStart(2, "0")}`
-    : "";
-  const ownerNames = task.assignees.map((a) => a.person.name).join(" · ");
+  const dueDateValue = dueDateInputValue(task.dueDate);
+  const ownerNames = assigneeDisplayNames(task.assignees);
   const childTotal = task.children.length;
   const childDone = task.children.filter((c) => c.status === "done").length;
   const selectedIds = task.assignees.map((a) => a.personId);
@@ -64,7 +64,7 @@ export function TaskWorkspaceForm({
         </div>
       </section>
 
-      <form action={saveTaskWorkspace} className="card flex flex-col gap-4 p-4">
+      <form action={saveAction} className="card flex flex-col gap-4 p-4">
         <input type="hidden" name="id" value={task.id} />
 
         <label className="block">
@@ -143,8 +143,12 @@ export function TaskWorkspaceForm({
           <span className="text-sm font-semibold">Mark this decision completed</span>
         </label>
 
-        <button type="submit" className="btn-primary">
-          Save decision
+        {saveState.error ? (
+          <p className="text-sm text-[var(--danger)]">{saveState.error}</p>
+        ) : null}
+
+        <button type="submit" className="btn-primary" disabled={saving}>
+          {saving ? "Saving…" : "Save decision"}
         </button>
       </form>
 

@@ -13,6 +13,7 @@ import {
 } from "@/lib/access";
 import {
   clearSession,
+  getSession,
   hashPin,
   requireSession,
   unlockWithPin,
@@ -26,6 +27,7 @@ import {
   sortTimelineBlocks,
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
+import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
 import { isStaySectionId, isStaySlotId } from "@/lib/stay";
 import {
@@ -38,6 +40,7 @@ import {
 } from "@/lib/requests";
 
 export type UnlockState = { error?: string };
+export type TaskFormState = { error?: string };
 
 export async function unlockAction(
   _prev: UnlockState,
@@ -60,23 +63,15 @@ export async function lockAction() {
 }
 
 export async function toggleTaskDone(taskId: string) {
-  const session = await requireSession();
-  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+  const session = await getSession();
+  if (!session?.canSeeTasks) return;
 
   const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: { assignees: true, children: { include: { assignees: true } } },
   });
-  if (!task) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok =
-      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
-      task.children.some((c) =>
-        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
-      );
-    if (!ok) throw new Error("FORBIDDEN");
-  }
+  if (!task) return;
+  if (!(await sessionCanMutateTask(session, task))) return;
 
   const done = task.status === "done";
   await prisma.task.update({
@@ -93,23 +88,15 @@ export async function toggleTaskDone(taskId: string) {
 }
 
 export async function toggleTaskEscalation(taskId: string) {
-  const session = await requireSession();
-  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+  const session = await getSession();
+  if (!session?.canSeeTasks) return;
 
   const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: { assignees: true, children: { include: { assignees: true } } },
   });
-  if (!task || task.parentId) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok =
-      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
-      task.children.some((c) =>
-        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
-      );
-    if (!ok) throw new Error("FORBIDDEN");
-  }
+  if (!task || task.parentId) return;
+  if (!(await sessionCanMutateTask(session, task))) return;
 
   const escalated = Boolean(task.escalatedAt);
   await prisma.task.update({
@@ -124,9 +111,15 @@ export async function toggleTaskEscalation(taskId: string) {
   revalidatePath(`/work/${taskId}`);
 }
 
-export async function saveTaskWorkspace(formData: FormData): Promise<void> {
-  const session = await requireSession();
-  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+export async function saveTaskWorkspace(
+  _prev: TaskFormState,
+  formData: FormData,
+): Promise<TaskFormState> {
+  const session = await getSession();
+  if (!session) redirect("/");
+  if (!session.canSeeTasks) {
+    return { error: "This PIN can't edit tasks." };
+  }
 
   const id = String(formData.get("id") || "");
   const planNotes = String(formData.get("planNotes") || "");
@@ -142,15 +135,11 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
     where: { id },
     include: { assignees: true, children: { include: { assignees: true } } },
   });
-  if (!task || task.parentId) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok =
-      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
-      task.children.some((c) =>
-        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
-      );
-    if (!ok) throw new Error("FORBIDDEN");
+  if (!task || task.parentId) {
+    return { error: "That task is gone." };
+  }
+  if (!(await sessionCanMutateTask(session, task))) {
+    return { error: "You can only save tasks assigned to you." };
   }
 
   const amountNeeded =
@@ -161,26 +150,31 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
   // Only masters (or unscoped accounts) can reassign / add new people
   const canManageOwners = session.isMaster || !session.assigneeFilter?.length;
 
-  await prisma.task.update({
-    where: { id },
-    data: {
-      planNotes,
-      summary: summary || task.summary,
-      dueDate: parseDueDate(dueDateRaw),
-      amountNeeded: Number.isFinite(amountNeeded as number) ? amountNeeded : null,
-      amountSpent: Number.isFinite(amountSpent) ? amountSpent : 0,
-      status: markDone ? "done" : task.status === "done" ? "todo" : task.status,
-      completedAt: markDone ? new Date() : null,
-    },
-  });
-
-  if (canManageOwners) {
-    const people = await resolveAssigneeIds(assigneeIds, newPerson || null, {
-      fallback: task.assignees.map((a) => a.personId),
+  try {
+    await prisma.task.update({
+      where: { id },
+      data: {
+        planNotes,
+        summary: summary || task.summary,
+        dueDate: parseDueDate(dueDateRaw),
+        amountNeeded: Number.isFinite(amountNeeded as number) ? amountNeeded : null,
+        amountSpent: Number.isFinite(amountSpent) ? amountSpent : 0,
+        status: markDone ? "done" : task.status === "done" ? "todo" : task.status,
+        completedAt: markDone ? new Date() : null,
+      },
     });
-    if (people.length > 0) {
-      await setTaskAssignees(id, people);
+
+    if (canManageOwners) {
+      const people = await resolveAssigneeIds(assigneeIds, newPerson || null, {
+        fallback: task.assignees.map((a) => a.personId),
+      });
+      if (people.length > 0) {
+        await setTaskAssignees(id, people);
+      }
     }
+  } catch (err) {
+    console.error(err);
+    return { error: "Couldn't save that task. Try again." };
   }
 
   revalidatePath("/today");
@@ -191,9 +185,15 @@ export async function saveTaskWorkspace(formData: FormData): Promise<void> {
   redirect("/today");
 }
 
-export async function createTaskPackage(formData: FormData): Promise<void> {
-  const session = await requireSession();
-  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+export async function createTaskPackage(
+  _prev: TaskFormState,
+  formData: FormData,
+): Promise<TaskFormState> {
+  const session = await getSession();
+  if (!session) redirect("/");
+  if (!session.canSeeTasks) {
+    return { error: "This PIN can't add tasks." };
+  }
 
   const title = String(formData.get("title") || "").trim();
   const summary = String(formData.get("summary") || "").trim();
@@ -202,48 +202,60 @@ export async function createTaskPackage(formData: FormData): Promise<void> {
   const assigneeIds = formData.getAll("assignees").map(String).filter(Boolean);
   const newPerson = String(formData.get("newPerson") || "").trim();
 
-  if (!title) return;
+  if (!title) return { error: "Add a title." };
 
   const canManageOwners = session.isMaster || !session.assigneeFilter?.length;
-  const people = await resolveAssigneeIds(
-    assigneeIds,
-    canManageOwners ? newPerson || null : null,
-    {
-      restrictTo: session.assigneeFilter,
-      fallback: session.assigneeFilter?.length ? session.assigneeFilter : ["david", "haley"],
-    },
-  );
+  let taskId: string;
+  try {
+    const people = await resolveAssigneeIds(
+      assigneeIds,
+      canManageOwners ? newPerson || null : null,
+      {
+        restrictTo: session.assigneeFilter,
+        fallback: session.assigneeFilter?.length ? session.assigneeFilter : ["david", "haley"],
+      },
+    );
 
-  const last = await prisma.task.findFirst({
-    where: { parentId: null },
-    orderBy: { sortOrder: "desc" },
-  });
+    const last = await prisma.task.findFirst({
+      where: { parentId: null },
+      orderBy: { sortOrder: "desc" },
+    });
 
-  const task = await prisma.task.create({
-    data: {
-      title,
-      summary:
-        summary ||
-        "Open this card to write the decision, money needed, money spent, and mark it done when finished.",
-      planNotes,
-      dueDate: parseDueDate(dueDateRaw),
-      status: "todo",
-      sortOrder: (last?.sortOrder ?? -1) + 1,
-      amountSpent: 0,
-    },
-  });
+    const task = await prisma.task.create({
+      data: {
+        title,
+        summary:
+          summary ||
+          "Open this card to write the decision, money needed, money spent, and mark it done when finished.",
+        planNotes,
+        dueDate: parseDueDate(dueDateRaw),
+        status: "todo",
+        sortOrder: (last?.sortOrder ?? -1) + 1,
+        amountSpent: 0,
+      },
+    });
 
-  await setTaskAssignees(task.id, people);
+    await setTaskAssignees(task.id, people);
+    const assigned = await prisma.taskAssignee.count({ where: { taskId: task.id } });
+    if (people.length > 0 && assigned === 0) {
+      await prisma.task.delete({ where: { id: task.id } });
+      return { error: "Couldn't assign that owner. Try again." };
+    }
+    taskId = task.id;
+  } catch (err) {
+    console.error(err);
+    return { error: "Couldn't create that task. Try again." };
+  }
 
   revalidatePath("/today");
   revalidatePath("/people");
   revalidatePath("/calendar");
-  redirect(`/work/${task.id}`);
+  redirect(`/work/${taskId}`);
 }
 
 export async function saveStepNotes(formData: FormData): Promise<void> {
-  const session = await requireSession();
-  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+  const session = await getSession();
+  if (!session?.canSeeTasks) return;
 
   const id = String(formData.get("id") || "");
   const planNotes = String(formData.get("planNotes") || "");
@@ -252,12 +264,8 @@ export async function saveStepNotes(formData: FormData): Promise<void> {
     where: { id },
     include: { assignees: true },
   });
-  if (!step) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok = step.assignees.some((a) => session.assigneeFilter!.includes(a.personId));
-    if (!ok && !session.isMaster) throw new Error("FORBIDDEN");
-  }
+  if (!step) return;
+  if (!(await sessionCanMutateTask(session, step))) return;
 
   await prisma.task.update({
     where: { id },
@@ -692,23 +700,15 @@ export async function setBudgetItemShares(budgetItemId: string, pinAccountIds: s
 }
 
 export async function setTaskShares(taskId: string, pinAccountIds: string[]) {
-  const session = await requireSession();
-  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+  const session = await getSession();
+  if (!session?.canSeeTasks) return;
 
   const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: { assignees: true, children: { include: { assignees: true } } },
   });
-  if (!task || task.parentId) throw new Error("NOT_FOUND");
-
-  if (session.assigneeFilter?.length) {
-    const ok =
-      task.assignees.some((a) => session.assigneeFilter!.includes(a.personId)) ||
-      task.children.some((c) =>
-        c.assignees.some((a) => session.assigneeFilter!.includes(a.personId)),
-      );
-    if (!ok) throw new Error("FORBIDDEN");
-  }
+  if (!task || task.parentId) return;
+  if (!(await sessionCanMutateTask(session, task))) return;
 
   const uniqueIds = [...new Set(pinAccountIds.filter(Boolean))];
   if (uniqueIds.length) {
