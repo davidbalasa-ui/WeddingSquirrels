@@ -34,6 +34,7 @@ function toPanelAccount(
     canEditTimeline: boolean;
     canSeeGuests: boolean;
     canSeeRequests: boolean;
+    canSeeStay: boolean;
     canSeeDinner: boolean;
     canManageAccounts: boolean;
     linkedPersonId: string | null;
@@ -56,6 +57,7 @@ function toPanelAccount(
     canEditTimeline: account.canEditTimeline,
     canSeeGuests: account.canSeeGuests,
     canSeeRequests: account.canSeeRequests,
+    canSeeStay: account.canSeeStay,
     canSeeDinner: account.canSeeDinner,
     canManageAccounts: account.canManageAccounts,
     linkedPersonId: account.linkedPersonId,

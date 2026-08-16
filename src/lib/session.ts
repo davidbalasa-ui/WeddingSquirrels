@@ -13,6 +13,7 @@ type NeedKey = keyof Pick<
   | "canSeeCalendar"
   | "canSeePeople"
   | "canSeeRequests"
+  | "canSeeStay"
   | "canSeeDinner"
 >;
 

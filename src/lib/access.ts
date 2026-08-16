@@ -10,6 +10,7 @@ export type AccessPerm =
   | "canSeeCalendar"
   | "canSeePeople"
   | "canSeeRequests"
+  | "canSeeStay"
   | "canSeeDinner";
 
 export function can(session: SessionAccount, perm: AccessPerm): boolean {
@@ -35,6 +36,10 @@ export function canManageAccounts(session: SessionAccount): boolean {
 
 export function mealsEditable(session: SessionAccount): boolean {
   return session.isMaster || session.canManageAccounts;
+}
+
+export function canSeeStayTab(session: SessionAccount): boolean {
+  return can(session, "canSeeStay");
 }
 
 export function canSeeDinnerTab(session: SessionAccount): boolean {

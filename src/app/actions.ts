@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   assertCan,
+  can,
   canManageAccounts,
   canSeeDinnerTab,
   mealsEditable,
@@ -464,6 +465,7 @@ function parseAccountFlags(formData: FormData) {
     canSeeCalendar: formData.get("canSeeCalendar") === "on",
     canSeePeople: formData.get("canSeePeople") === "on",
     canSeeRequests: formData.get("canSeeRequests") === "on",
+    canSeeStay: formData.get("canSeeStay") === "on",
     canSeeDinner: formData.get("canSeeDinner") === "on",
     canEditBudget: formData.get("canEditBudget") === "on",
     canEditTimeline: formData.get("canEditTimeline") === "on",
@@ -569,6 +571,7 @@ export async function createPinAccount(formData: FormData): Promise<void> {
       canSeeCalendar: flags.canSeeCalendar,
       canSeePeople: flags.canSeePeople,
       canSeeRequests: flags.canSeeRequests,
+      canSeeStay: flags.canSeeStay,
       canSeeDinner: flags.canSeeDinner,
       canEditBudget: flags.canEditBudget,
       canEditTimeline: flags.canEditTimeline,
@@ -637,6 +640,7 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
       canSeeCalendar: flags.canSeeCalendar,
       canSeePeople: flags.canSeePeople,
       canSeeRequests: flags.canSeeRequests,
+      canSeeStay: flags.canSeeStay,
       canSeeDinner: flags.canSeeDinner,
       canEditBudget: flags.canEditBudget,
       canEditTimeline: flags.canEditTimeline,
@@ -1323,12 +1327,18 @@ export type StayWriteResult =
   | { ok: true; id: string }
   | { ok: false; reason: "forbidden" | "not_found" | "invalid" };
 
-export async function saveStayOccupant(slotId: string, occupant: string): Promise<StayWriteResult> {
+async function requireStayViewer() {
   try {
-    await requireSession();
+    const session = await requireSession();
+    if (!can(session, "canSeeStay")) return null;
+    return session;
   } catch {
-    return { ok: false, reason: "forbidden" };
+    return null;
   }
+}
+
+export async function saveStayOccupant(slotId: string, occupant: string): Promise<StayWriteResult> {
+  if (!(await requireStayViewer())) return { ok: false, reason: "forbidden" };
   if (!isStaySlotId(slotId)) return { ok: false, reason: "invalid" };
 
   const existing = await prisma.staySlot.findUnique({ where: { id: slotId } });
@@ -1342,11 +1352,7 @@ export async function saveStayOccupant(slotId: string, occupant: string): Promis
 }
 
 export async function addStayBathNote(sectionId: string): Promise<StayWriteResult> {
-  try {
-    await requireSession();
-  } catch {
-    return { ok: false, reason: "forbidden" };
-  }
+  if (!(await requireStayViewer())) return { ok: false, reason: "forbidden" };
   if (!isStaySectionId(sectionId)) return { ok: false, reason: "invalid" };
 
   const last = await prisma.stayBathNote.findFirst({
@@ -1364,11 +1370,7 @@ export async function addStayBathNote(sectionId: string): Promise<StayWriteResul
 }
 
 export async function saveStayBathNote(noteId: string, note: string): Promise<StayWriteResult> {
-  try {
-    await requireSession();
-  } catch {
-    return { ok: false, reason: "forbidden" };
-  }
+  if (!(await requireStayViewer())) return { ok: false, reason: "forbidden" };
 
   const existing = await prisma.stayBathNote.findUnique({ where: { id: noteId } });
   if (!existing) return { ok: false, reason: "not_found" };
@@ -1387,11 +1389,7 @@ export async function saveStayBathNote(noteId: string, note: string): Promise<St
 }
 
 export async function deleteStayBathNote(noteId: string): Promise<StayWriteResult> {
-  try {
-    await requireSession();
-  } catch {
-    return { ok: false, reason: "forbidden" };
-  }
+  if (!(await requireStayViewer())) return { ok: false, reason: "forbidden" };
 
   try {
     await prisma.stayBathNote.delete({ where: { id: noteId } });
