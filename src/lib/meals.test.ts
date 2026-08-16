@@ -18,6 +18,7 @@ function session(partial: Partial<SessionAccount>): SessionAccount {
     canSeeCalendar: true,
     canSeePeople: true,
     canSeeRequests: true,
+    canSeeStay: false,
     canSeeDinner: false,
     canEditBudget: false,
     canEditTimeline: false,

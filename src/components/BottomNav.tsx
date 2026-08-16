@@ -11,7 +11,7 @@ const items = [
   { href: "/shop", label: "Shop", need: "canSeeShop" as const },
   { href: "/requests", label: "Ask", need: "canSeeRequests" as const },
   { href: "/money", label: "Money", need: "canSeeBudget" as const },
-  { href: "/stay", label: "Stay" },
+  { href: "/stay", label: "Stay", need: "canSeeStay" as const },
   { href: "/dinner", label: "Dinner", need: "canSeeDinner" as const },
   { href: "/day", label: "Day-of", need: "canSeeTimeline" as const },
   { href: "/guests", label: "Guests", need: "canSeeGuests" as const },

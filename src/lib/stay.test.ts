@@ -1,6 +1,32 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { STAY_SECTIONS, isStaySectionId, isStaySlotId, planStayWrites } from "./stay";
+import { canSeeStayTab } from "./access";
+import type { SessionAccount } from "./types";
+
+function session(partial: Partial<SessionAccount>): SessionAccount {
+  return {
+    id: "acct",
+    name: "Guest",
+    isMaster: false,
+    canSeeTasks: true,
+    canSeeBudget: false,
+    canSeeGuests: false,
+    canSeeTimeline: false,
+    canManageAccounts: false,
+    canSeeShop: true,
+    canSeeCalendar: true,
+    canSeePeople: true,
+    canSeeRequests: true,
+    canSeeStay: false,
+    canSeeDinner: false,
+    canEditBudget: false,
+    canEditTimeline: false,
+    linkedPersonId: null,
+    assigneeFilter: null,
+    ...partial,
+  };
+}
 
 test("stay layout has three sections and unique slot ids", () => {
   assert.equal(STAY_SECTIONS.length, 3);
@@ -28,6 +54,13 @@ test("bride side has four beds and groom side marks optional bunks and air mattr
     ["groom.bottom.2", "groom.top.2", "groom.air.1", "groom.air.2"],
   );
   assert.equal(groom?.slots.find((slot) => slot.id === "groom.air.1")?.group, "Queen air mattress");
+});
+
+test("Stay is off for new helper accounts and on when See is shared", () => {
+  assert.equal(canSeeStayTab(session({})), false);
+  assert.equal(canSeeStayTab(session({ canSeeStay: true })), true);
+  assert.equal(canSeeStayTab(session({ isMaster: true })), true);
+  assert.equal(canSeeStayTab(session({ canManageAccounts: true })), false);
 });
 
 test("stay layout planner creates missing beds and only fills empty couple defaults", () => {
