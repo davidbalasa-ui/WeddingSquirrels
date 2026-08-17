@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addGuestGift,
@@ -33,14 +33,12 @@ function toEditablePeople(people: GuestPersonRecord[]): EditablePerson[] {
 
 export function GuestEditCard({ guest }: { guest: GuestRecord }) {
   const router = useRouter();
-  const [guestSource, setGuestSource] = useState(guest);
   const [people, setPeople] = useState<EditablePerson[]>(() => toEditablePeople(guest.people));
   const [saving, startSave] = useTransition();
   const [banner, setBanner] = useState<string | null>(null);
-  if (guest !== guestSource) {
-    setGuestSource(guest);
+  useEffect(() => {
     setPeople(toEditablePeople(guest.people));
-  }
+  }, [guest]);
   const address = [guest.street, [guest.city, guest.state].filter(Boolean).join(", "), guest.zip]
     .filter(Boolean)
     .join(" · ");
@@ -301,14 +299,12 @@ function GuestGifts({
   guestId: string;
   gifts: GuestGiftRecord[];
 }) {
-  const [giftSource, setGiftSource] = useState(gifts);
   const [rows, setRows] = useState(gifts);
   const [adding, setAdding] = useState(false);
   const [focusGiftId, setFocusGiftId] = useState<string | null>(null);
-  if (gifts !== giftSource) {
-    setGiftSource(gifts);
+  useEffect(() => {
     setRows(gifts);
-  }
+  }, [gifts]);
 
   async function addGift() {
     setAdding(true);

@@ -39,7 +39,10 @@ import {
   canDeleteRequest,
   canEditRequest,
   canReopenRequest,
+  canReplyToRequest,
   canViewRequest,
+  readMarkersForParticipant,
+  unreadMarkersForAuthor,
 } from "@/lib/requests";
 
 export type UnlockState = { error?: string };
@@ -743,7 +746,6 @@ export async function setTaskShares(taskId: string, pinAccountIds: string[]) {
 
 function revalidateRequests() {
   revalidatePath("/requests");
-  revalidatePath("/", "layout");
 }
 
 export async function createRequest(formData: FormData): Promise<void> {
@@ -782,9 +784,20 @@ export async function createRequest(formData: FormData): Promise<void> {
       senderAccountId: session.id,
       recipientAccountId,
       taskId,
+      senderReadAt: new Date(),
+      messages: note
+        ? {
+            create: {
+              authorAccountId: session.id,
+              body: note,
+              sortOrder: 0,
+            },
+          }
+        : undefined,
     },
   });
 
+  revalidatePath("/", "layout");
   revalidateRequests();
 }
 
@@ -794,7 +807,8 @@ export async function saveRequest(formData: FormData): Promise<void> {
 
   const id = String(formData.get("id") || "").trim();
   const title = String(formData.get("title") || "").trim();
-  const note = String(formData.get("note") || "").trim();
+  const noteRaw = formData.get("note");
+  const note = noteRaw == null ? undefined : String(noteRaw).trim();
   const taskIdRaw = String(formData.get("taskId") || "").trim();
 
   if (!id || !title) return;
@@ -818,7 +832,7 @@ export async function saveRequest(formData: FormData): Promise<void> {
     where: { id },
     data: {
       title,
-      note: note || null,
+      ...(note !== undefined ? { note: note || null } : {}),
       taskId,
     },
   });
@@ -832,14 +846,54 @@ export async function markRequestRead(requestId: string): Promise<void> {
 
   const row = await prisma.request.findUnique({ where: { id: requestId } });
   if (!row || !canViewRequest(session, row)) throw new Error("FORBIDDEN");
-  if (row.recipientAccountId !== session.id) throw new Error("FORBIDDEN");
-  if (row.readAt) return;
+
+  const markers = readMarkersForParticipant(session, row);
+  if (!markers.readAt && !markers.senderReadAt) throw new Error("FORBIDDEN");
 
   await prisma.request.update({
     where: { id: requestId },
-    data: { readAt: new Date() },
+    data: markers,
   });
 
+  revalidatePath("/", "layout");
+  revalidateRequests();
+}
+
+export async function addRequestMessage(requestId: string, body: string): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeRequests");
+
+  const trimmed = body.trim();
+  if (!trimmed) return;
+
+  const row = await prisma.request.findUnique({
+    where: { id: requestId },
+    include: { messages: { orderBy: { sortOrder: "desc" }, take: 1 } },
+  });
+  if (!row || !canViewRequest(session, row) || !canReplyToRequest(session, row)) {
+    throw new Error("FORBIDDEN");
+  }
+
+  const nextSort = (row.messages[0]?.sortOrder ?? -1) + 1;
+  await prisma.$transaction([
+    prisma.requestMessage.create({
+      data: {
+        requestId,
+        authorAccountId: session.id,
+        body: trimmed,
+        sortOrder: nextSort,
+      },
+    }),
+    prisma.request.update({
+      where: { id: requestId },
+      data: {
+        note: row.note ?? trimmed,
+        ...unreadMarkersForAuthor(session.id, row),
+      },
+    }),
+  ]);
+
+  revalidatePath("/", "layout");
   revalidateRequests();
 }
 
@@ -910,6 +964,7 @@ export async function reopenRequest(requestId: string): Promise<void> {
       declinedAt: null,
       declineNote: null,
       readAt: null,
+      senderReadAt: new Date(),
     },
   });
 
