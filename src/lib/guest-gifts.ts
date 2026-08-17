@@ -1,6 +1,13 @@
+export type GuestPersonFields = {
+  name: string;
+  tableNumber?: number | null;
+  tableSpot?: string | null;
+};
+
 export type GuestNameFields = {
   nameLine1: string;
   nameLine2: string | null;
+  people?: GuestPersonFields[];
 };
 
 export type GuestAddressFields = {
@@ -23,6 +30,7 @@ export type GuestRsvpFields = {
   rsvpStatus: string;
   invitedCount: number;
   acceptedCount: number;
+  people?: GuestPersonFields[];
 };
 
 export function isRsvpStatus(value: string): value is RsvpStatus {
@@ -41,16 +49,27 @@ export function parseGuestCount(raw: string): number | null {
   return n;
 }
 
-export function inferredInvitedCount(nameLine2: string | null): number {
-  return nameLine2?.trim() ? 2 : 1;
+export function namedPeopleCount(guest: Pick<GuestNameFields, "nameLine1" | "nameLine2" | "people">): number {
+  const named = guestNameLines(guest);
+  return named.length;
 }
 
-export function effectiveInvitedCount(guest: Pick<GuestRsvpFields, "nameLine2" | "invitedCount">): number {
+export function inferredInvitedCount(
+  guest: Pick<GuestNameFields, "nameLine2" | "people"> & { nameLine1?: string },
+): number {
+  if (guest.people?.length) return guest.people.length;
+  if (guest.nameLine2?.trim()) return 2;
+  return guest.nameLine1?.trim() ? 1 : 1;
+}
+
+export function effectiveInvitedCount(
+  guest: Pick<GuestRsvpFields, "nameLine2" | "invitedCount" | "people"> & { nameLine1?: string },
+): number {
   if (guest.invitedCount > 0) return guest.invitedCount;
-  return inferredInvitedCount(guest.nameLine2);
+  return inferredInvitedCount(guest);
 }
 
-export function effectiveAcceptedCount(guest: GuestRsvpFields): number {
+export function effectiveAcceptedCount(guest: GuestRsvpFields & { nameLine1?: string }): number {
   const status = parseRsvpStatus(guest.rsvpStatus);
   if (status === "not_attending") return 0;
   const invited = effectiveInvitedCount(guest);
@@ -58,13 +77,13 @@ export function effectiveAcceptedCount(guest: GuestRsvpFields): number {
 }
 
 export function applyRsvpChange(
-  guest: GuestRsvpFields,
+  guest: GuestRsvpFields & { nameLine1?: string },
   patch: Partial<Pick<GuestRsvpFields, "rsvpStatus" | "invitedCount" | "acceptedCount">>,
 ): { rsvpStatus: RsvpStatus; invitedCount: number; acceptedCount: number } {
   const rsvpStatus = parseRsvpStatus(patch.rsvpStatus ?? guest.rsvpStatus);
   let invitedCount =
     patch.invitedCount !== undefined ? Math.max(0, patch.invitedCount) : effectiveInvitedCount(guest);
-  if (invitedCount === 0) invitedCount = inferredInvitedCount(guest.nameLine2);
+  if (invitedCount === 0) invitedCount = inferredInvitedCount(guest);
 
   let acceptedCount =
     patch.acceptedCount !== undefined ? Math.max(0, patch.acceptedCount) : guest.acceptedCount;
@@ -110,10 +129,19 @@ export function summarizeGuestRsvp(guests: GuestRsvpFields[]): GuestRsvpReport {
 }
 
 export function guestNameLines(guest: GuestNameFields): string[] {
+  const fromPeople = (guest.people ?? [])
+    .map((person) => person.name.trim())
+    .filter(Boolean);
+  if (fromPeople.length > 0) return fromPeople;
+
   const lines = [guest.nameLine1.trim()];
   const second = guest.nameLine2?.trim();
   if (second) lines.push(second);
   return lines.filter(Boolean);
+}
+
+export function guestAddressLine(guest: GuestAddressFields): string {
+  return guestAddressLines(guest).join(" · ");
 }
 
 export function guestAddressLines(guest: GuestAddressFields): string[] {
@@ -131,8 +159,117 @@ export function guestAddressLines(guest: GuestAddressFields): string[] {
   return lines;
 }
 
+export function guestSeatingSummary(guest: {
+  people: Array<GuestPersonFields & { name: string }>;
+}): string {
+  const parts = guest.people
+    .map((person) => {
+      if (person.tableNumber == null) return null;
+      const spot = person.tableSpot?.trim();
+      return `${person.name.trim()}: T${person.tableNumber}${spot ? ` · ${spot}` : ""}`;
+    })
+    .filter(Boolean);
+  return parts.join(" · ");
+}
+
+export function rsvpStatusLabel(status: string): string {
+  const parsed = parseRsvpStatus(status);
+  if (parsed === "attending") return "Attending";
+  if (parsed === "not_attending") return "Not attending";
+  return "No reply";
+}
+
 export function giftDescriptions(gifts: GuestGiftFields[]): string[] {
   return gifts.map((gift) => gift.description.trim()).filter(Boolean);
+}
+
+export type TableSeatingRow = {
+  personId: string;
+  name: string;
+  tableNumber: number | null;
+  tableSpot: string | null;
+  householdId: string;
+};
+
+export type TableSeatingGroup = {
+  tableNumber: number | null;
+  label: string;
+  rows: TableSeatingRow[];
+};
+
+export function compareTableSpot(left: string | null, right: string | null): number {
+  const spotOrder = (spot: string | null): [number, string] => {
+    const trimmed = spot?.trim() ?? "";
+    if (!trimmed) return [Number.MAX_SAFE_INTEGER, ""];
+    const parsed = Number.parseInt(trimmed, 10);
+    if (Number.isFinite(parsed) && String(parsed) === trimmed) return [parsed, ""];
+    return [Number.MAX_SAFE_INTEGER, trimmed.toLowerCase()];
+  };
+  const [leftNum, leftText] = spotOrder(left);
+  const [rightNum, rightText] = spotOrder(right);
+  if (leftNum !== rightNum) return leftNum - rightNum;
+  return leftText.localeCompare(rightText);
+}
+
+export function groupGuestsByTable(
+  guests: Array<{
+    id: string;
+    people: Array<GuestPersonFields & { id: string; name: string }>;
+  }>,
+): TableSeatingGroup[] {
+  const rows: TableSeatingRow[] = [];
+  for (const guest of guests) {
+    for (const person of guest.people) {
+      const name = person.name.trim();
+      if (!name) continue;
+      rows.push({
+        personId: person.id,
+        name,
+        tableNumber: person.tableNumber ?? null,
+        tableSpot: person.tableSpot ?? null,
+        householdId: guest.id,
+      });
+    }
+  }
+
+  const byTable = new Map<number | "unassigned", TableSeatingRow[]>();
+  for (const row of rows) {
+    const key = row.tableNumber ?? "unassigned";
+    const bucket = byTable.get(key);
+    if (bucket) bucket.push(row);
+    else byTable.set(key, [row]);
+  }
+
+  const groups: TableSeatingGroup[] = [];
+  const tableNumbers = [...byTable.keys()]
+    .filter((key): key is number => key !== "unassigned")
+    .sort((left, right) => left - right);
+
+  for (const tableNumber of tableNumbers) {
+    const tableRows = byTable.get(tableNumber) ?? [];
+    tableRows.sort((left, right) => {
+      const spotCmp = compareTableSpot(left.tableSpot, right.tableSpot);
+      if (spotCmp !== 0) return spotCmp;
+      return left.name.localeCompare(right.name);
+    });
+    groups.push({
+      tableNumber,
+      label: `Table ${tableNumber}`,
+      rows: tableRows,
+    });
+  }
+
+  const unassigned = byTable.get("unassigned");
+  if (unassigned?.length) {
+    unassigned.sort((left, right) => left.name.localeCompare(right.name));
+    groups.push({
+      tableNumber: null,
+      label: "No table",
+      rows: unassigned,
+    });
+  }
+
+  return groups;
 }
 
 export type GiftPrintRow = {
@@ -157,4 +294,24 @@ export function giftPrintRows(
     addressLines: guestAddressLines(guest),
     gifts: giftDescriptions(guest.gifts),
   }));
+}
+
+export function syncLegacyGuestNames(people: GuestPersonFields[]): {
+  nameLine1: string;
+  nameLine2: string | null;
+  person1TableNumber: number | null;
+  person1TableSpot: string | null;
+  person2TableNumber: number | null;
+  person2TableSpot: string | null;
+} {
+  const first = people[0];
+  const second = people[1];
+  return {
+    nameLine1: first?.name.trim() ?? "",
+    nameLine2: second?.name.trim() || null,
+    person1TableNumber: first?.tableNumber ?? null,
+    person1TableSpot: first?.tableSpot?.trim() || null,
+    person2TableNumber: second?.tableNumber ?? null,
+    person2TableSpot: second?.tableSpot?.trim() || null,
+  };
 }

@@ -2,19 +2,29 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   applyRsvpChange,
+  compareTableSpot,
   giftDescriptions,
   giftPrintRows,
+  groupGuestsByTable,
   guestAddressLines,
   guestNameLines,
   summarizeGuestRsvp,
 } from "./guest-gifts";
 
-test("guest names stack person 2 on its own line", () => {
+test("guest names stack each person on its own line", () => {
   assert.deepEqual(guestNameLines({ nameLine1: "Jane Smith", nameLine2: "John Smith" }), [
     "Jane Smith",
     "John Smith",
   ]);
   assert.deepEqual(guestNameLines({ nameLine1: "Aunt May", nameLine2: "  " }), ["Aunt May"]);
+  assert.deepEqual(
+    guestNameLines({
+      nameLine1: "Legacy",
+      nameLine2: null,
+      people: [{ name: "Jane" }, { name: "John" }, { name: "Timmy" }],
+    }),
+    ["Jane", "John", "Timmy"],
+  );
 });
 
 test("guest address uses mailing lines", () => {
@@ -59,7 +69,7 @@ test("print rows keep names, address, and gifts in two columns", () => {
   assert.deepEqual(rows[0]?.gifts, ["Mixer", "Card"]);
 });
 
-test("inferred invited count is 2 when a second name is present", () => {
+test("inferred invited count follows named people", () => {
   const couple = applyRsvpChange(
     { nameLine2: "John", rsvpStatus: "pending", invitedCount: 0, acceptedCount: 0 },
     {},
@@ -72,6 +82,17 @@ test("inferred invited count is 2 when a second name is present", () => {
     ).invitedCount,
     1,
   );
+  const family = applyRsvpChange(
+    {
+      nameLine2: null,
+      rsvpStatus: "pending",
+      invitedCount: 0,
+      acceptedCount: 0,
+      people: [{ name: "Jane" }, { name: "John" }, { name: "Timmy" }],
+    },
+    {},
+  );
+  assert.equal(family.invitedCount, 3);
 });
 
 test("marking attending fills accepted from invited when none were accepted", () => {
@@ -113,5 +134,47 @@ test("RSVP report totals people and household replies", () => {
   assert.equal(report.invited, 6);
   assert.equal(report.accepted, 2);
   assert.equal(report.awaiting, 4);
+});
+
+test("table spot order prefers numeric seats", () => {
+  assert.ok(compareTableSpot("3", "10") < 0);
+  assert.ok(compareTableSpot("head", "3") > 0);
+  assert.ok(compareTableSpot(null, "2") > 0);
+});
+
+test("groupGuestsByTable sorts tables and seats", () => {
+  const groups = groupGuestsByTable([
+    {
+      id: "h1",
+      people: [
+        { id: "p1", name: "Jane", tableNumber: 5, tableSpot: "4" },
+        { id: "p2", name: "John", tableNumber: 5, tableSpot: "3" },
+      ],
+    },
+    {
+      id: "h2",
+      people: [
+        { id: "p3", name: "Alex", tableNumber: 2, tableSpot: "1" },
+        { id: "p4", name: "Sam", tableNumber: null, tableSpot: null },
+      ],
+    },
+    {
+      id: "h3",
+      people: [{ id: "p5", name: "Pat", tableNumber: 10, tableSpot: "head" }],
+    },
+  ]);
+
+  assert.deepEqual(
+    groups.map((group) => group.label),
+    ["Table 2", "Table 5", "Table 10", "No table"],
+  );
+  assert.deepEqual(
+    groups[1]?.rows.map((row) => row.name),
+    ["John", "Jane"],
+  );
+  assert.deepEqual(
+    groups[3]?.rows.map((row) => row.name),
+    ["Sam"],
+  );
 });
 
