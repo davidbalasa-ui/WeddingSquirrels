@@ -183,6 +183,95 @@ export function giftDescriptions(gifts: GuestGiftFields[]): string[] {
   return gifts.map((gift) => gift.description.trim()).filter(Boolean);
 }
 
+export type TableSeatingRow = {
+  personId: string;
+  name: string;
+  tableNumber: number | null;
+  tableSpot: string | null;
+  householdId: string;
+};
+
+export type TableSeatingGroup = {
+  tableNumber: number | null;
+  label: string;
+  rows: TableSeatingRow[];
+};
+
+export function compareTableSpot(left: string | null, right: string | null): number {
+  const spotOrder = (spot: string | null): [number, string] => {
+    const trimmed = spot?.trim() ?? "";
+    if (!trimmed) return [Number.MAX_SAFE_INTEGER, ""];
+    const parsed = Number.parseInt(trimmed, 10);
+    if (Number.isFinite(parsed) && String(parsed) === trimmed) return [parsed, ""];
+    return [Number.MAX_SAFE_INTEGER, trimmed.toLowerCase()];
+  };
+  const [leftNum, leftText] = spotOrder(left);
+  const [rightNum, rightText] = spotOrder(right);
+  if (leftNum !== rightNum) return leftNum - rightNum;
+  return leftText.localeCompare(rightText);
+}
+
+export function groupGuestsByTable(
+  guests: Array<{
+    id: string;
+    people: Array<GuestPersonFields & { id: string; name: string }>;
+  }>,
+): TableSeatingGroup[] {
+  const rows: TableSeatingRow[] = [];
+  for (const guest of guests) {
+    for (const person of guest.people) {
+      const name = person.name.trim();
+      if (!name) continue;
+      rows.push({
+        personId: person.id,
+        name,
+        tableNumber: person.tableNumber ?? null,
+        tableSpot: person.tableSpot ?? null,
+        householdId: guest.id,
+      });
+    }
+  }
+
+  const byTable = new Map<number | "unassigned", TableSeatingRow[]>();
+  for (const row of rows) {
+    const key = row.tableNumber ?? "unassigned";
+    const bucket = byTable.get(key);
+    if (bucket) bucket.push(row);
+    else byTable.set(key, [row]);
+  }
+
+  const groups: TableSeatingGroup[] = [];
+  const tableNumbers = [...byTable.keys()]
+    .filter((key): key is number => key !== "unassigned")
+    .sort((left, right) => left - right);
+
+  for (const tableNumber of tableNumbers) {
+    const tableRows = byTable.get(tableNumber) ?? [];
+    tableRows.sort((left, right) => {
+      const spotCmp = compareTableSpot(left.tableSpot, right.tableSpot);
+      if (spotCmp !== 0) return spotCmp;
+      return left.name.localeCompare(right.name);
+    });
+    groups.push({
+      tableNumber,
+      label: `Table ${tableNumber}`,
+      rows: tableRows,
+    });
+  }
+
+  const unassigned = byTable.get("unassigned");
+  if (unassigned?.length) {
+    unassigned.sort((left, right) => left.name.localeCompare(right.name));
+    groups.push({
+      tableNumber: null,
+      label: "No table",
+      rows: unassigned,
+    });
+  }
+
+  return groups;
+}
+
 export type GiftPrintRow = {
   id: string;
   nameLines: string[];

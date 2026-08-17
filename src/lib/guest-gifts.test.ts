@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   applyRsvpChange,
+  compareTableSpot,
   giftDescriptions,
   giftPrintRows,
+  groupGuestsByTable,
   guestAddressLines,
   guestNameLines,
   summarizeGuestRsvp,
@@ -132,5 +134,47 @@ test("RSVP report totals people and household replies", () => {
   assert.equal(report.invited, 6);
   assert.equal(report.accepted, 2);
   assert.equal(report.awaiting, 4);
+});
+
+test("table spot order prefers numeric seats", () => {
+  assert.ok(compareTableSpot("3", "10") < 0);
+  assert.ok(compareTableSpot("head", "3") > 0);
+  assert.ok(compareTableSpot(null, "2") > 0);
+});
+
+test("groupGuestsByTable sorts tables and seats", () => {
+  const groups = groupGuestsByTable([
+    {
+      id: "h1",
+      people: [
+        { id: "p1", name: "Jane", tableNumber: 5, tableSpot: "4" },
+        { id: "p2", name: "John", tableNumber: 5, tableSpot: "3" },
+      ],
+    },
+    {
+      id: "h2",
+      people: [
+        { id: "p3", name: "Alex", tableNumber: 2, tableSpot: "1" },
+        { id: "p4", name: "Sam", tableNumber: null, tableSpot: null },
+      ],
+    },
+    {
+      id: "h3",
+      people: [{ id: "p5", name: "Pat", tableNumber: 10, tableSpot: "head" }],
+    },
+  ]);
+
+  assert.deepEqual(
+    groups.map((group) => group.label),
+    ["Table 2", "Table 5", "Table 10", "No table"],
+  );
+  assert.deepEqual(
+    groups[1]?.rows.map((row) => row.name),
+    ["John", "Jane"],
+  );
+  assert.deepEqual(
+    groups[3]?.rows.map((row) => row.name),
+    ["Sam"],
+  );
 });
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   effectiveAcceptedCount,
   effectiveInvitedCount,
+  groupGuestsByTable,
   guestAddressLine,
   guestNameLines,
   guestSeatingSummary,
@@ -14,7 +15,7 @@ import {
 import type { GuestRecord } from "@/lib/guests";
 import { GuestEditCard } from "@/components/GuestEditCard";
 
-type Mode = "view" | "edit";
+type Mode = "view" | "table" | "edit";
 
 export function GuestList({
   guests,
@@ -31,17 +32,30 @@ export function GuestList({
   return (
     <div className={editing ? "pb-4" : ""}>
       <div className="mb-3 flex items-center justify-between gap-3 print-hide">
-        {canEdit ? (
-          <div className="grid flex-1 grid-cols-2 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5">
-            <button
-              type="button"
-              className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
-                mode === "view" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
-              }`}
-              onClick={() => setMode("view")}
-            >
-              View
-            </button>
+        <div
+          className={`grid flex-1 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5 ${
+            canEdit ? "grid-cols-3" : "grid-cols-2"
+          }`}
+        >
+          <button
+            type="button"
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
+              mode === "view" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
+            }`}
+            onClick={() => setMode("view")}
+          >
+            View
+          </button>
+          <button
+            type="button"
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
+              mode === "table" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
+            }`}
+            onClick={() => setMode("table")}
+          >
+            By table
+          </button>
+          {canEdit ? (
             <button
               type="button"
               className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
@@ -51,8 +65,8 @@ export function GuestList({
             >
               Edit
             </button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
         <Link href="/guests/print" className="btn-secondary shrink-0 px-4 py-2 text-sm">
           Print gift list
         </Link>
@@ -62,6 +76,8 @@ export function GuestList({
         <p className="mb-2 text-xs text-muted">
           Add family members, update seating, and track gifts. Tap + Add person for kids or extra guests.
         </p>
+      ) : mode === "table" ? (
+        <p className="mb-2 text-xs text-muted">Everyone listed by table number and seat order.</p>
       ) : null}
 
       {guests.length === 0 ? (
@@ -75,6 +91,8 @@ export function GuestList({
             <GuestEditCard key={guest.id} guest={guest} />
           ))}
         </div>
+      ) : mode === "table" ? (
+        <GuestTableView guests={guests} />
       ) : (
         <div className="card divide-y divide-[var(--line)] overflow-hidden">
           {guests.map((guest) => (
@@ -82,6 +100,40 @@ export function GuestList({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function GuestTableView({ guests }: { guests: GuestRecord[] }) {
+  const groups = groupGuestsByTable(guests);
+
+  if (groups.length === 0) {
+    return (
+      <div className="card p-6 text-center text-sm text-muted">No guests with seating yet.</div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {groups.map((group) => (
+        <section key={group.label}>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+            {group.label}
+          </p>
+          <div className="card divide-y divide-[var(--line)] overflow-hidden">
+            {group.rows.map((row) => (
+              <article key={row.personId} className="flex items-start gap-2 px-3 py-1.5">
+                <p className="min-w-0 flex-1 text-[14px] font-semibold leading-5">{row.name}</p>
+                {row.tableSpot ? (
+                  <p className="shrink-0 whitespace-nowrap text-[12px] font-semibold leading-5 text-[var(--accent)]">
+                    Seat {row.tableSpot}
+                  </p>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
