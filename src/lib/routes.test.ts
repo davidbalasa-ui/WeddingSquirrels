@@ -43,7 +43,7 @@ test("canSeeRoute honors dinner and accounts rules", () => {
     true,
   );
   assert.equal(
-    canSeeRoute(session({ canSeeDinner: true }), { href: "/dinner", need: "canSeeDinner" }),
+    canSeeRoute(session({ canSeeDinner: true }), { href: "/rehearsal", need: "canSeeDinner" }),
     true,
   );
 });

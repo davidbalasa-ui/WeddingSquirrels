@@ -89,7 +89,7 @@ function toSession(account: {
     canSeePeople: account.canSeePeople,
     canSeeRequests: account.canSeeRequests,
     canSeeStay: account.canSeeStay,
-    canSeeDinner: account.canSeeDinner || account.canManageAccounts,
+    canSeeDinner: account.canSeeDinner || account.canEditDinner || account.canManageAccounts,
     canEditBudget: account.canEditBudget,
     canEditTimeline: account.canEditTimeline,
     canEditDinner: account.canEditDinner || account.canManageAccounts,

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { canSeeDinnerTab } from "@/lib/access";
 import { getSession } from "@/lib/auth";
 import { firstAllowedRoute } from "@/lib/routes";
 import type { SessionAccount } from "@/lib/types";
@@ -24,7 +25,9 @@ export async function requirePageSession(opts?: { need?: NeedKey }) {
 
   if (opts?.need) {
     if (session.isMaster) return session;
-    if (!session[opts.need]) {
+    const allowed =
+      opts.need === "canSeeDinner" ? canSeeDinnerTab(session) : Boolean(session[opts.need]);
+    if (!allowed) {
       redirect(firstAllowedRoute(session) ?? "/no-access");
     }
   }

@@ -8,10 +8,12 @@ import {
   compareParsedTimes,
   endsBeforeStart,
   formatClock,
+  isTimelineSchedule,
   missingMeridiem,
   normalizeClockHour,
   normalizeClockMinute,
   parseDayOfTime,
+  parseTimelineSchedule,
   peerKey,
   prepareTimelineCreate,
   prepareTimelineSave,
@@ -74,6 +76,15 @@ const PARSE_CASES: Array<{
   { raw: "13:00 PM", expected: untimed("13:00 PM") },
   { raw: "3:60 PM", expected: untimed("3:60 PM") },
 ];
+
+test("parseTimelineSchedule defaults to wedding", () => {
+  assert.equal(parseTimelineSchedule(undefined), "wedding");
+  assert.equal(parseTimelineSchedule("wedding"), "wedding");
+  assert.equal(parseTimelineSchedule("rehearsal"), "rehearsal");
+  assert.equal(parseTimelineSchedule("other"), "wedding");
+  assert.equal(isTimelineSchedule("rehearsal"), true);
+  assert.equal(isTimelineSchedule("day"), false);
+});
 
 test("AFTER_MIDNIGHT_END_MINUTES is 5:00 AM", () => {
   assert.equal(AFTER_MIDNIGHT_END_MINUTES, 300);

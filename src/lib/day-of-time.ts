@@ -1,6 +1,16 @@
 /** 5:00 AM is morning (day 0). 12:00–4:59 AM is after midnight (day 1). */
 export const AFTER_MIDNIGHT_END_MINUTES = 5 * 60;
 
+export type TimelineSchedule = "wedding" | "rehearsal";
+
+export function isTimelineSchedule(value: string): value is TimelineSchedule {
+  return value === "wedding" || value === "rehearsal";
+}
+
+export function parseTimelineSchedule(value: string | null | undefined): TimelineSchedule {
+  return value === "rehearsal" ? "rehearsal" : "wedding";
+}
+
 export type ParsedDayOfTime =
   | { kind: "untimed"; raw: string }
   | {
