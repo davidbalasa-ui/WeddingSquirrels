@@ -112,6 +112,28 @@ export function shouldDeleteMealOptionOnClear(existingLabel: string, nextLabel: 
   return !nextLabel.trim() && !existingLabel.trim();
 }
 
+export type MealCourseView = {
+  id: string;
+  label: string;
+  options: Array<{ id: string; label: string }>;
+};
+
+export type MealChoiceMap = Record<string, string | null>;
+
+export function labeledCourseOptions(course: MealCourseView) {
+  return course.options.filter((option) => option.label.trim());
+}
+
+export function guestFinishedPicking(courses: MealCourseView[], choices: MealChoiceMap) {
+  const needed = courses.filter((course) => labeledCourseOptions(course).length > 0);
+  if (needed.length === 0) return false;
+  return needed.every((course) => Boolean(choices[course.id]));
+}
+
+export function countFinishedGuests(courses: MealCourseView[], guests: Array<{ choices: MealChoiceMap }>) {
+  return guests.filter((guest) => guestFinishedPicking(courses, guest.choices)).length;
+}
+
 export async function ensureMealLayout(client: PrismaClient) {
   await client.mealSettings.upsert({
     where: { id: 1 },
@@ -134,6 +156,41 @@ export async function ensureMealLayout(client: PrismaClient) {
         name: row.name,
         sortOrder: row.sortOrder,
       },
+    });
+  }
+
+  const orphanOptions = await client.mealOption.findMany({
+    where: { courseId: null },
+    orderBy: { sortOrder: "asc" },
+  });
+  if (orphanOptions.length) {
+    let course = await client.mealCourse.findFirst({ orderBy: { sortOrder: "asc" } });
+    if (!course) {
+      course = await client.mealCourse.create({
+        data: { label: "Dinner", sortOrder: 0 },
+      });
+    }
+    await client.mealOption.updateMany({
+      where: { id: { in: orphanOptions.map((option) => option.id) } },
+      data: { courseId: course.id },
+    });
+  }
+
+  const leftoverPicks = await client.mealGuest.findMany({
+    where: { optionId: { not: null } },
+    select: { id: true, optionId: true },
+  });
+  for (const guest of leftoverPicks) {
+    if (!guest.optionId) continue;
+    const option = await client.mealOption.findUnique({
+      where: { id: guest.optionId },
+      select: { id: true, courseId: true },
+    });
+    if (!option?.courseId) continue;
+    await client.mealChoice.upsert({
+      where: { guestId_courseId: { guestId: guest.id, courseId: option.courseId } },
+      create: { guestId: guest.id, courseId: option.courseId, optionId: option.id },
+      update: {},
     });
   }
 }

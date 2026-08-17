@@ -5,7 +5,7 @@ import type { AccountModuleFlags } from "@/lib/types";
 type ModuleRow = {
   key: string;
   label: string;
-  seeKey: keyof AccountModuleFlags;
+  seeKey?: keyof AccountModuleFlags;
   editKey?: keyof AccountModuleFlags;
 };
 
@@ -18,7 +18,8 @@ const MODULE_ROWS: ModuleRow[] = [
   { key: "dayof", label: "Day-of", seeKey: "canSeeTimeline", editKey: "canEditTimeline" },
   { key: "guests", label: "Guests", seeKey: "canSeeGuests" },
   { key: "stay", label: "Stay", seeKey: "canSeeStay" },
-  { key: "dinner", label: "Rehearsal", seeKey: "canSeeDinner", editKey: "canEditDinner" },
+  { key: "rehearsal", label: "Rehearsal", seeKey: "canSeeDinner", editKey: "canEditRehearsal" },
+  { key: "dinner", label: "Dinner", editKey: "canEditDinner" },
   { key: "requests", label: "Requests", seeKey: "canSeeRequests" },
   { key: "accounts", label: "Manage accounts", seeKey: "canManageAccounts" },
 ];
@@ -39,14 +40,18 @@ export function ModulePermissionGrid({
     // Edit flags auto-clear when corresponding See is off.
     if (key === "canSeeBudget" && !value) next.canEditBudget = false;
     if (key === "canSeeTimeline" && !value) next.canEditTimeline = false;
-    if (key === "canSeeDinner" && !value) next.canEditDinner = false;
+    if (key === "canSeeDinner" && !value) {
+      next.canEditDinner = false;
+      next.canEditRehearsal = false;
+    }
 
     // Edit without See → force See.
     if (key === "canEditBudget" && value) next.canSeeBudget = true;
     if (key === "canEditTimeline" && value) next.canSeeTimeline = true;
     if (key === "canEditDinner" && value) next.canSeeDinner = true;
+    if (key === "canEditRehearsal" && value) next.canSeeDinner = true;
 
-    // Account managers always run the rehearsal page, so they keep the tab and edit access.
+    // Account managers always run the dinner menu, so they keep the tab and dinner edit.
     if (key === "canManageAccounts" && value) {
       next.canSeeDinner = true;
       next.canEditDinner = true;
@@ -72,13 +77,17 @@ export function ModulePermissionGrid({
             <tr key={row.key} className="border-t border-line/70">
               <td className="py-2.5 pr-2">{row.label}</td>
               <td className="py-2.5 pr-2">
-                <input
-                  type="checkbox"
-                  name={row.seeKey}
-                  checked={flags[row.seeKey]}
-                  onChange={(e) => setFlag(row.seeKey, e.target.checked)}
-                  aria-label={`${row.label} see`}
-                />
+                {row.seeKey ? (
+                  <input
+                    type="checkbox"
+                    name={row.seeKey}
+                    checked={flags[row.seeKey]}
+                    onChange={(e) => setFlag(row.seeKey!, e.target.checked)}
+                    aria-label={`${row.label} see`}
+                  />
+                ) : (
+                  <span className="text-xs text-muted">—</span>
+                )}
               </td>
               <td className="py-2.5">
                 {row.editKey ? (
@@ -99,7 +108,12 @@ export function ModulePermissionGrid({
       </table>
       {locked ? (
         <p className="mt-2 text-xs text-muted">Master accounts always have full access.</p>
-      ) : null}
+      ) : (
+        <p className="mt-2 text-xs text-muted">
+          Dinner lives on the Rehearsal tab. Rehearsal Edit is the Thursday schedule; Dinner Edit is
+          the menu.
+        </p>
+      )}
     </fieldset>
   );
 }
