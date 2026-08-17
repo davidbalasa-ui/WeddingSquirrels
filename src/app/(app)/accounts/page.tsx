@@ -36,6 +36,7 @@ function toPanelAccount(
     canSeeRequests: boolean;
     canSeeStay: boolean;
     canSeeDinner: boolean;
+    canEditDinner: boolean;
     canManageAccounts: boolean;
     linkedPersonId: string | null;
     assigneeFilterJson: string | null;
@@ -59,6 +60,7 @@ function toPanelAccount(
     canSeeRequests: account.canSeeRequests,
     canSeeStay: account.canSeeStay,
     canSeeDinner: account.canSeeDinner,
+    canEditDinner: account.canEditDinner,
     canManageAccounts: account.canManageAccounts,
     linkedPersonId: account.linkedPersonId,
     assigneeFilter: parseAssigneeFilterJson(account.assigneeFilterJson),

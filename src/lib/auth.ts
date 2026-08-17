@@ -37,6 +37,7 @@ function toSession(account: {
   canSeeDinner: boolean;
   canEditBudget: boolean;
   canEditTimeline: boolean;
+  canEditDinner: boolean;
   linkedPersonId: string | null;
   assigneeFilterJson: string | null;
 }): SessionAccount {
@@ -68,6 +69,7 @@ function toSession(account: {
       canSeeDinner: true,
       canEditBudget: true,
       canEditTimeline: true,
+      canEditDinner: true,
       linkedPersonId: account.linkedPersonId,
       assigneeFilter: null,
     };
@@ -90,6 +92,7 @@ function toSession(account: {
     canSeeDinner: account.canSeeDinner || account.canManageAccounts,
     canEditBudget: account.canEditBudget,
     canEditTimeline: account.canEditTimeline,
+    canEditDinner: account.canEditDinner || account.canManageAccounts,
     linkedPersonId: account.linkedPersonId,
     assigneeFilter,
   };

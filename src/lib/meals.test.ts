@@ -22,6 +22,7 @@ function session(partial: Partial<SessionAccount>): SessionAccount {
     canSeeDinner: false,
     canEditBudget: false,
     canEditTimeline: false,
+    canEditDinner: false,
     linkedPersonId: null,
     assigneeFilter: null,
     ...partial,
@@ -48,9 +49,10 @@ test("rehearsal dinner has the listed people in six groups", () => {
   assert.equal(isMealGuestId("david"), false);
 });
 
-test("only masters and account managers can edit the dinner menu", () => {
+test("only masters, account managers, and dinner editors can edit the dinner menu", () => {
   assert.equal(mealsEditable(session({ isMaster: true })), true);
   assert.equal(mealsEditable(session({ canManageAccounts: true })), true);
+  assert.equal(mealsEditable(session({ canEditDinner: true })), true);
   assert.equal(mealsEditable(session({})), false);
 });
 
@@ -68,9 +70,11 @@ test("account managers keep Dinner See when flags are normalized", () => {
     canSeeTimeline: false,
     canEditTimeline: false,
     canSeeDinner: false,
+    canEditDinner: false,
     canManageAccounts: true,
   });
   assert.equal(flags.canSeeDinner, true);
+  assert.equal(flags.canEditDinner, true);
   assert.equal(
     normalizeAccountFlags({
       canSeeBudget: false,
@@ -78,6 +82,7 @@ test("account managers keep Dinner See when flags are normalized", () => {
       canSeeTimeline: false,
       canEditTimeline: false,
       canSeeDinner: false,
+      canEditDinner: false,
       canManageAccounts: false,
     }).canSeeDinner,
     false,

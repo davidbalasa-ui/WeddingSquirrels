@@ -10,6 +10,7 @@
     "test": "tsx --test src/lib/*.test.ts",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed-guest-seating": "tsx scripts/seed-guest-seating.ts",
     "db:org-cards": "tsx scripts/ensure-org-cards.ts",
     "db:calendar": "tsx scripts/ensure-calendar-events.ts",
     "db:masters": "tsx scripts/ensure-masters.ts",
