@@ -14,6 +14,10 @@ export default async function RequestsPage() {
         senderAccount: { select: { id: true, name: true } },
         recipientAccount: { select: { id: true, name: true } },
         task: { select: { id: true, title: true } },
+        messages: {
+          orderBy: { sortOrder: "asc" },
+          include: { authorAccount: { select: { id: true, name: true } } },
+        },
       },
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     }),
@@ -33,7 +37,7 @@ export default async function RequestsPage() {
       <AppHeader
         session={session}
         title="Ask"
-        subtitle="Send asks, mark them done, and keep the loop closed"
+        subtitle="Send asks, reply back and forth, and mark them done"
       />
       <RequestsBoard
         session={session}
@@ -52,9 +56,17 @@ export default async function RequestsPage() {
           taskTitle: row.task?.title ?? null,
           declineNote: row.declineNote,
           readAt: row.readAt?.toISOString() ?? null,
+          senderReadAt: row.senderReadAt?.toISOString() ?? null,
           createdAt: row.createdAt.toISOString(),
           completedAt: row.completedAt?.toISOString() ?? null,
           declinedAt: row.declinedAt?.toISOString() ?? null,
+          messages: row.messages.map((message) => ({
+            id: message.id,
+            body: message.body,
+            authorAccountId: message.authorAccountId,
+            authorName: message.authorAccount.name,
+            createdAt: message.createdAt.toISOString(),
+          })),
         }))}
       />
     </>

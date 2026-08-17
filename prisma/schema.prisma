@@ -205,6 +205,7 @@ model PinAccount {
   taskShares         TaskShare[]
   requestsSent       Request[]         @relation("RequestsSent")
   requestsReceived   Request[]         @relation("RequestsReceived")
+  requestMessages    RequestMessage[]
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 }
@@ -277,24 +278,39 @@ model MealGuest {
 }
 
 model Request {
-  id                 String     @id @default(cuid())
+  id                 String           @id @default(cuid())
   title              String
   note               String?
-  status             String     @default("open")
+  status             String           @default("open")
   senderAccountId    String
-  senderAccount      PinAccount @relation("RequestsSent", fields: [senderAccountId], references: [id], onDelete: Cascade)
+  senderAccount      PinAccount       @relation("RequestsSent", fields: [senderAccountId], references: [id], onDelete: Cascade)
   recipientAccountId String
-  recipientAccount   PinAccount @relation("RequestsReceived", fields: [recipientAccountId], references: [id], onDelete: Cascade)
+  recipientAccount   PinAccount       @relation("RequestsReceived", fields: [recipientAccountId], references: [id], onDelete: Cascade)
   taskId             String?
-  task               Task?      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  task               Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
   readAt             DateTime?
+  senderReadAt       DateTime?
   completedAt        DateTime?
   declinedAt         DateTime?
   declineNote        String?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  messages           RequestMessage[]
 
   @@index([recipientAccountId, status, readAt])
-  @@index([senderAccountId, status])
+  @@index([senderAccountId, status, senderReadAt])
   @@index([taskId])
+}
+
+model RequestMessage {
+  id              String     @id @default(cuid())
+  requestId       String
+  request         Request    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorAccountId String
+  authorAccount   PinAccount @relation(fields: [authorAccountId], references: [id], onDelete: Cascade)
+  body            String
+  sortOrder       Int        @default(0)
+  createdAt       DateTime   @default(now())
+
+  @@index([requestId, sortOrder])
 }
