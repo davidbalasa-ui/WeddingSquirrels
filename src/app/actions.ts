@@ -30,7 +30,7 @@ import {
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
-import { applyRsvpChange } from "@/lib/guest-gifts";
+import { applyRsvpChange, effectiveInvitedCount, syncLegacyGuestNames } from "@/lib/guest-gifts";
 import { isStaySectionId, isStaySlotId } from "@/lib/stay";
 import {
   canCompleteRequest,
@@ -1063,6 +1063,93 @@ export async function saveTimelinePeerOrder(orderedPeerIds: string[]): Promise<T
   return { ok: true, id: orderedPeerIds[0], order: next.map((block) => block.id) };
 }
 
+export async function saveGuestPeople(input: {
+  guestId: string;
+  people: Array<{
+    id?: string;
+    name: string;
+    tableNumber?: number | null;
+    tableSpot?: string | null;
+  }>;
+}): Promise<{ ok: true; id: string } | { ok: false; reason: "forbidden" | "not_found" | "invalid" }> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  if (!input.guestId) return { ok: false, reason: "invalid" };
+
+  const people = input.people
+    .map((person) => ({
+      id: person.id,
+      name: person.name.trim(),
+      tableNumber: person.tableNumber ?? null,
+      tableSpot: person.tableSpot?.trim() || null,
+    }))
+    .filter((person) => person.name);
+  if (people.length === 0) return { ok: false, reason: "invalid" };
+
+  const guest = await prisma.guest.findUnique({
+    where: { id: input.guestId },
+    include: {
+      people: {
+        select: { id: true, name: true },
+        orderBy: { sortOrder: "asc" },
+      },
+    },
+  });
+  if (!guest) return { ok: false, reason: "not_found" };
+
+  const keepIds = new Set(people.map((person) => person.id).filter(Boolean) as string[]);
+  const removeIds = guest.people.map((person) => person.id).filter((id) => !keepIds.has(id));
+  const legacy = syncLegacyGuestNames(people);
+  const previousInvited = effectiveInvitedCount({
+    nameLine1: guest.nameLine1,
+    nameLine2: guest.nameLine2,
+    invitedCount: guest.invitedCount,
+    people: guest.people,
+  });
+  const nextInvited = people.length;
+  const invitedCount =
+    guest.invitedCount === 0 || guest.invitedCount === previousInvited
+      ? nextInvited
+      : Math.max(guest.invitedCount, nextInvited);
+  const acceptedCount = Math.min(guest.acceptedCount, invitedCount);
+
+  await prisma.$transaction([
+    ...removeIds.map((id) => prisma.guestPerson.delete({ where: { id } })),
+    ...people.map((person, index) => {
+      if (person.id) {
+        return prisma.guestPerson.update({
+          where: { id: person.id },
+          data: {
+            name: person.name,
+            tableNumber: person.tableNumber,
+            tableSpot: person.tableSpot,
+            sortOrder: index,
+          },
+        });
+      }
+      return prisma.guestPerson.create({
+        data: {
+          guestId: input.guestId,
+          name: person.name,
+          tableNumber: person.tableNumber,
+          tableSpot: person.tableSpot,
+          sortOrder: index,
+        },
+      });
+    }),
+    prisma.guest.update({
+      where: { id: input.guestId },
+      data: {
+        ...legacy,
+        invitedCount,
+        acceptedCount,
+      },
+    }),
+  ]);
+
+  revalidateGuests();
+  return { ok: true, id: input.guestId };
+}
+
 export async function saveGuest(formData: FormData): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeGuests) throw new Error("FORBIDDEN");
@@ -1120,19 +1207,31 @@ export async function saveGuestRsvp(input: {
     where: { id: input.guestId },
     select: {
       id: true,
+      nameLine1: true,
       nameLine2: true,
       rsvpStatus: true,
       invitedCount: true,
       acceptedCount: true,
+      people: { select: { name: true }, orderBy: { sortOrder: "asc" } },
     },
   });
   if (!existing) return { ok: false, reason: "not_found" };
 
-  const next = applyRsvpChange(existing, {
-    rsvpStatus: input.rsvpStatus,
-    invitedCount: input.invitedCount,
-    acceptedCount: input.acceptedCount,
-  });
+  const next = applyRsvpChange(
+    {
+      nameLine1: existing.nameLine1,
+      nameLine2: existing.nameLine2,
+      rsvpStatus: existing.rsvpStatus,
+      invitedCount: existing.invitedCount,
+      acceptedCount: existing.acceptedCount,
+      people: existing.people,
+    },
+    {
+      rsvpStatus: input.rsvpStatus,
+      invitedCount: input.invitedCount,
+      acceptedCount: input.acceptedCount,
+    },
+  );
 
   await prisma.guest.update({
     where: { id: existing.id },

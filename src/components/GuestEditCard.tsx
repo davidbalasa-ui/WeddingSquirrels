@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   addGuestGift,
   deleteGuestGift,
-  saveGuest,
+  saveGuestPeople,
   saveGuestGift,
   saveGuestRsvp,
   setGuestGiftThanked,
 } from "@/app/actions";
+import type { GuestGiftRecord, GuestPersonRecord, GuestRecord } from "@/lib/guests";
 import {
   effectiveAcceptedCount,
   effectiveInvitedCount,
@@ -18,100 +19,122 @@ import {
   type RsvpStatus,
 } from "@/lib/guest-gifts";
 
-export type GuestGiftRecord = {
-  id: string;
-  description: string;
-  thanked: boolean;
-};
-
-export type GuestRecord = {
-  id: string;
-  nameLine1: string;
-  nameLine2: string | null;
-  street: string | null;
-  city: string | null;
-  state: string | null;
-  zip: string | null;
-  person1TableNumber: number | null;
-  person1TableSpot: string | null;
-  person2TableNumber: number | null;
-  person2TableSpot: string | null;
-  rsvpStatus: string;
-  invitedCount: number;
-  acceptedCount: number;
-  gifts: GuestGiftRecord[];
-};
-
-function tableSummary(guest: GuestRecord) {
-  const parts: string[] = [];
-  if (guest.person1TableNumber != null) {
-    parts.push(
-      `${guest.nameLine1}: Table ${guest.person1TableNumber}${guest.person1TableSpot ? ` · ${guest.person1TableSpot}` : ""}`,
-    );
-  }
-  if (guest.nameLine2 && guest.person2TableNumber != null) {
-    parts.push(
-      `${guest.nameLine2}: Table ${guest.person2TableNumber}${guest.person2TableSpot ? ` · ${guest.person2TableSpot}` : ""}`,
-    );
-  }
-  return parts.join(" · ");
-}
-
 const RSVP_OPTIONS: { id: RsvpStatus; label: string }[] = [
   { id: "pending", label: "No reply" },
   { id: "attending", label: "Attending" },
   { id: "not_attending", label: "Not attending" },
 ];
 
-export function GuestCard({ guest }: { guest: GuestRecord }) {
-  const [open, setOpen] = useState(false);
+type EditablePerson = GuestPersonRecord & { clientKey: string };
+
+function toEditablePeople(people: GuestPersonRecord[]): EditablePerson[] {
+  return people.map((person) => ({ ...person, clientKey: person.id }));
+}
+
+export function GuestEditCard({ guest }: { guest: GuestRecord }) {
+  const router = useRouter();
+  const [guestSource, setGuestSource] = useState(guest);
+  const [people, setPeople] = useState<EditablePerson[]>(() => toEditablePeople(guest.people));
+  const [saving, startSave] = useTransition();
+  const [banner, setBanner] = useState<string | null>(null);
+  if (guest !== guestSource) {
+    setGuestSource(guest);
+    setPeople(toEditablePeople(guest.people));
+  }
   const address = [guest.street, [guest.city, guest.state].filter(Boolean).join(", "), guest.zip]
     .filter(Boolean)
     .join(" · ");
-  const seating = tableSummary(guest);
+
+  function addPerson() {
+    setPeople((prev) => [
+      ...prev,
+      {
+        id: "",
+        clientKey: `new-${Date.now()}-${prev.length}`,
+        name: "",
+        tableNumber: null,
+        tableSpot: null,
+      },
+    ]);
+  }
+
+  function removePerson(clientKey: string) {
+    setPeople((prev) => (prev.length <= 1 ? prev : prev.filter((person) => person.clientKey !== clientKey)));
+  }
+
+  function updatePerson(clientKey: string, patch: Partial<EditablePerson>) {
+    setPeople((prev) =>
+      prev.map((person) => (person.clientKey === clientKey ? { ...person, ...patch } : person)),
+    );
+  }
+
+  function savePeople() {
+    const payload = people
+      .map((person) => ({
+        id: person.id || undefined,
+        name: person.name.trim(),
+        tableNumber: person.tableNumber,
+        tableSpot: person.tableSpot,
+      }))
+      .filter((person) => person.name);
+    if (payload.length === 0) {
+      setBanner("At least one name is required.");
+      return;
+    }
+
+    setBanner(null);
+    startSave(async () => {
+      const result = await saveGuestPeople({ guestId: guest.id, people: payload });
+      if (!result.ok) {
+        setBanner("Couldn’t save guests — try again.");
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   return (
     <article className="card overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-start justify-between gap-3 p-4 text-left min-h-[56px]"
-        aria-expanded={open}
-      >
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">
-            {guest.nameLine1}
-            {guest.nameLine2 ? ` · ${guest.nameLine2}` : ""}
-          </p>
-          {address ? <p className="mt-1 text-sm text-muted">{address}</p> : null}
-          {seating ? (
-            <p className="mt-1 text-xs font-semibold text-[var(--accent)]">{seating}</p>
-          ) : null}
-        </div>
-        <span className="mt-0.5 shrink-0 text-lg text-muted" aria-hidden>
-          {open ? "−" : "+"}
-        </span>
-      </button>
+      <div className="p-4">
+        <p className="font-semibold">{people.map((person) => person.name.trim()).filter(Boolean).join(" · ") || "Guest"}</p>
+        {address ? <p className="mt-1 text-sm text-muted">{address}</p> : null}
+      </div>
 
       <GuestRsvpControls
-        key={`${guest.id}-${guest.rsvpStatus}-${guest.invitedCount}-${guest.acceptedCount}`}
+        key={`${guest.id}-${guest.rsvpStatus}-${guest.invitedCount}-${guest.acceptedCount}-${people.length}`}
         guest={guest}
+        people={people}
       />
 
-      {open ? (
-        <form action={saveGuest} className="flex flex-col gap-3 border-t border-line p-4">
-          <input type="hidden" name="id" value={guest.id} />
+      <div className="flex flex-col gap-3 border-t border-line p-4">
+        {banner ? (
+          <p className="rounded-xl border border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_8%,white)] px-3 py-2 text-sm text-[var(--danger)]">
+            {banner}
+          </p>
+        ) : null}
 
-          <fieldset className="flex flex-col gap-3">
-            <legend className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-              Person 1
-            </legend>
+        {people.map((person, index) => (
+          <fieldset key={person.clientKey} className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <legend className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+                {index === 0 ? "Person 1" : `Person ${index + 1}`}
+              </legend>
+              {people.length > 1 ? (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-muted hover:text-[var(--danger)]"
+                  onClick={() => removePerson(person.clientKey)}
+                >
+                  Remove
+                </button>
+              ) : null}
+            </div>
             <label className="block text-sm">
               <span className="mb-1 block text-xs text-muted">Name</span>
               <input
-                name="nameLine1"
-                required
-                defaultValue={guest.nameLine1}
+                required={index === 0}
+                value={person.name}
+                onChange={(event) => updatePerson(person.clientKey, { name: event.target.value })}
                 className="field-input"
               />
             </label>
@@ -119,72 +142,66 @@ export function GuestCard({ guest }: { guest: GuestRecord }) {
               <label className="block text-sm">
                 <span className="mb-1 block text-xs text-muted">Table #</span>
                 <input
-                  name="person1TableNumber"
                   inputMode="numeric"
-                  defaultValue={guest.person1TableNumber ?? ""}
+                  value={person.tableNumber ?? ""}
                   placeholder="—"
+                  onChange={(event) => {
+                    const raw = event.target.value.trim();
+                    updatePerson(person.clientKey, {
+                      tableNumber: raw ? Number.parseInt(raw, 10) || null : null,
+                    });
+                  }}
                   className="field-input"
                 />
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block text-xs text-muted">Seat / spot</span>
                 <input
-                  name="person1TableSpot"
-                  defaultValue={guest.person1TableSpot ?? ""}
+                  value={person.tableSpot ?? ""}
                   placeholder="e.g. 3 or head"
+                  onChange={(event) =>
+                    updatePerson(person.clientKey, { tableSpot: event.target.value || null })
+                  }
                   className="field-input"
                 />
               </label>
             </div>
           </fieldset>
+        ))}
 
-          <fieldset className="flex flex-col gap-3">
-            <legend className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-              Person 2 (optional)
-            </legend>
-            <label className="block text-sm">
-              <span className="mb-1 block text-xs text-muted">Name</span>
-              <input name="nameLine2" defaultValue={guest.nameLine2 ?? ""} className="field-input" />
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block text-sm">
-                <span className="mb-1 block text-xs text-muted">Table #</span>
-                <input
-                  name="person2TableNumber"
-                  inputMode="numeric"
-                  defaultValue={guest.person2TableNumber ?? ""}
-                  placeholder="—"
-                  className="field-input"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="mb-1 block text-xs text-muted">Seat / spot</span>
-                <input
-                  name="person2TableSpot"
-                  defaultValue={guest.person2TableSpot ?? ""}
-                  placeholder="e.g. 4"
-                  className="field-input"
-                />
-              </label>
-            </div>
-          </fieldset>
+        <button type="button" className="text-sm font-semibold text-[var(--accent)]" onClick={addPerson}>
+          + Add person
+        </button>
 
-          <button type="submit" className="btn-primary">
-            Save guest
-          </button>
-        </form>
-      ) : null}
+        <button type="button" disabled={saving} className="btn-primary" onClick={savePeople}>
+          {saving ? "Saving…" : "Save guests"}
+        </button>
+      </div>
 
       <GuestGifts guestId={guest.id} gifts={guest.gifts} />
     </article>
   );
 }
 
-function GuestRsvpControls({ guest }: { guest: GuestRecord }) {
+function GuestRsvpControls({
+  guest,
+  people,
+}: {
+  guest: GuestRecord;
+  people: GuestPersonRecord[];
+}) {
   const router = useRouter();
+  const rsvpGuest = {
+    nameLine1: people[0]?.name ?? "",
+    nameLine2: people[1]?.name ?? null,
+    rsvpStatus: guest.rsvpStatus,
+    invitedCount: guest.invitedCount,
+    acceptedCount: guest.acceptedCount,
+    people,
+  };
   const [rsvp, setRsvp] = useState<RsvpStatus>(parseRsvpStatus(guest.rsvpStatus));
-  const [invited, setInvited] = useState(String(effectiveInvitedCount(guest)));
-  const [accepted, setAccepted] = useState(String(effectiveAcceptedCount(guest)));
+  const [invited, setInvited] = useState(String(effectiveInvitedCount(rsvpGuest)));
+  const [accepted, setAccepted] = useState(String(effectiveAcceptedCount(rsvpGuest)));
   const [pending, startTransition] = useTransition();
 
   function persist(patch: { rsvpStatus?: RsvpStatus; invitedCount?: number; acceptedCount?: number }) {
@@ -197,20 +214,20 @@ function GuestRsvpControls({ guest }: { guest: GuestRecord }) {
   function commitInvited() {
     const next = parseGuestCount(invited);
     if (next == null) {
-      setInvited(String(effectiveInvitedCount(guest)));
+      setInvited(String(effectiveInvitedCount(rsvpGuest)));
       return;
     }
-    if (next === effectiveInvitedCount(guest)) return;
+    if (next === effectiveInvitedCount(rsvpGuest)) return;
     persist({ invitedCount: next });
   }
 
   function commitAccepted() {
     const next = parseGuestCount(accepted);
     if (next == null) {
-      setAccepted(String(effectiveAcceptedCount(guest)));
+      setAccepted(String(effectiveAcceptedCount(rsvpGuest)));
       return;
     }
-    if (next === effectiveAcceptedCount(guest)) return;
+    if (next === effectiveAcceptedCount(rsvpGuest)) return;
     persist({ acceptedCount: next });
   }
 

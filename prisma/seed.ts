@@ -330,15 +330,23 @@ async function main() {
   let gSort = 0;
   for (const row of guestRows.slice(1)) {
     if (typeof row[0] !== "string" || !row[0].trim()) continue;
+    const nameLine1 = String(row[0]).trim();
+    const nameLine2 = row[1] != null ? String(row[1]).trim() : null;
     await prisma.guest.create({
       data: {
-        nameLine1: String(row[0]).trim(),
-        nameLine2: row[1] != null ? String(row[1]).trim() : null,
+        nameLine1,
+        nameLine2: nameLine2 || null,
         street: row[2] != null ? String(row[2]).trim() : null,
         city: row[3] != null ? String(row[3]).trim() : null,
         state: row[4] != null ? String(row[4]).trim() : null,
         zip: row[5] != null ? String(row[5]).replace(/\.0$/, "") : null,
         sortOrder: gSort++,
+        people: {
+          create: [
+            { name: nameLine1, sortOrder: 0 },
+            ...(nameLine2 ? [{ name: nameLine2, sortOrder: 1 }] : []),
+          ],
+        },
       },
     });
   }

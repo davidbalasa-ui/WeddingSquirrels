@@ -1,6 +1,13 @@
+export type GuestPersonFields = {
+  name: string;
+  tableNumber?: number | null;
+  tableSpot?: string | null;
+};
+
 export type GuestNameFields = {
   nameLine1: string;
   nameLine2: string | null;
+  people?: GuestPersonFields[];
 };
 
 export type GuestAddressFields = {
@@ -23,6 +30,7 @@ export type GuestRsvpFields = {
   rsvpStatus: string;
   invitedCount: number;
   acceptedCount: number;
+  people?: GuestPersonFields[];
 };
 
 export function isRsvpStatus(value: string): value is RsvpStatus {
@@ -41,16 +49,27 @@ export function parseGuestCount(raw: string): number | null {
   return n;
 }
 
-export function inferredInvitedCount(nameLine2: string | null): number {
-  return nameLine2?.trim() ? 2 : 1;
+export function namedPeopleCount(guest: Pick<GuestNameFields, "nameLine1" | "nameLine2" | "people">): number {
+  const named = guestNameLines(guest);
+  return named.length;
 }
 
-export function effectiveInvitedCount(guest: Pick<GuestRsvpFields, "nameLine2" | "invitedCount">): number {
+export function inferredInvitedCount(
+  guest: Pick<GuestNameFields, "nameLine2" | "people"> & { nameLine1?: string },
+): number {
+  if (guest.people?.length) return guest.people.length;
+  if (guest.nameLine2?.trim()) return 2;
+  return guest.nameLine1?.trim() ? 1 : 1;
+}
+
+export function effectiveInvitedCount(
+  guest: Pick<GuestRsvpFields, "nameLine2" | "invitedCount" | "people"> & { nameLine1?: string },
+): number {
   if (guest.invitedCount > 0) return guest.invitedCount;
-  return inferredInvitedCount(guest.nameLine2);
+  return inferredInvitedCount(guest);
 }
 
-export function effectiveAcceptedCount(guest: GuestRsvpFields): number {
+export function effectiveAcceptedCount(guest: GuestRsvpFields & { nameLine1?: string }): number {
   const status = parseRsvpStatus(guest.rsvpStatus);
   if (status === "not_attending") return 0;
   const invited = effectiveInvitedCount(guest);
@@ -58,13 +77,13 @@ export function effectiveAcceptedCount(guest: GuestRsvpFields): number {
 }
 
 export function applyRsvpChange(
-  guest: GuestRsvpFields,
+  guest: GuestRsvpFields & { nameLine1?: string },
   patch: Partial<Pick<GuestRsvpFields, "rsvpStatus" | "invitedCount" | "acceptedCount">>,
 ): { rsvpStatus: RsvpStatus; invitedCount: number; acceptedCount: number } {
   const rsvpStatus = parseRsvpStatus(patch.rsvpStatus ?? guest.rsvpStatus);
   let invitedCount =
     patch.invitedCount !== undefined ? Math.max(0, patch.invitedCount) : effectiveInvitedCount(guest);
-  if (invitedCount === 0) invitedCount = inferredInvitedCount(guest.nameLine2);
+  if (invitedCount === 0) invitedCount = inferredInvitedCount(guest);
 
   let acceptedCount =
     patch.acceptedCount !== undefined ? Math.max(0, patch.acceptedCount) : guest.acceptedCount;
@@ -110,10 +129,19 @@ export function summarizeGuestRsvp(guests: GuestRsvpFields[]): GuestRsvpReport {
 }
 
 export function guestNameLines(guest: GuestNameFields): string[] {
+  const fromPeople = (guest.people ?? [])
+    .map((person) => person.name.trim())
+    .filter(Boolean);
+  if (fromPeople.length > 0) return fromPeople;
+
   const lines = [guest.nameLine1.trim()];
   const second = guest.nameLine2?.trim();
   if (second) lines.push(second);
   return lines.filter(Boolean);
+}
+
+export function guestAddressLine(guest: GuestAddressFields): string {
+  return guestAddressLines(guest).join(" · ");
 }
 
 export function guestAddressLines(guest: GuestAddressFields): string[] {
@@ -129,6 +157,26 @@ export function guestAddressLines(guest: GuestAddressFields): string[] {
   if (locality) lines.push(locality);
 
   return lines;
+}
+
+export function guestSeatingSummary(guest: {
+  people: Array<GuestPersonFields & { name: string }>;
+}): string {
+  const parts = guest.people
+    .map((person) => {
+      if (person.tableNumber == null) return null;
+      const spot = person.tableSpot?.trim();
+      return `${person.name.trim()}: T${person.tableNumber}${spot ? ` · ${spot}` : ""}`;
+    })
+    .filter(Boolean);
+  return parts.join(" · ");
+}
+
+export function rsvpStatusLabel(status: string): string {
+  const parsed = parseRsvpStatus(status);
+  if (parsed === "attending") return "Attending";
+  if (parsed === "not_attending") return "Not attending";
+  return "No reply";
 }
 
 export function giftDescriptions(gifts: GuestGiftFields[]): string[] {
@@ -157,4 +205,24 @@ export function giftPrintRows(
     addressLines: guestAddressLines(guest),
     gifts: giftDescriptions(guest.gifts),
   }));
+}
+
+export function syncLegacyGuestNames(people: GuestPersonFields[]): {
+  nameLine1: string;
+  nameLine2: string | null;
+  person1TableNumber: number | null;
+  person1TableSpot: string | null;
+  person2TableNumber: number | null;
+  person2TableSpot: string | null;
+} {
+  const first = people[0];
+  const second = people[1];
+  return {
+    nameLine1: first?.name.trim() ?? "",
+    nameLine2: second?.name.trim() || null,
+    person1TableNumber: first?.tableNumber ?? null,
+    person1TableSpot: first?.tableSpot?.trim() || null,
+    person2TableNumber: second?.tableNumber ?? null,
+    person2TableSpot: second?.tableSpot?.trim() || null,
+  };
 }
