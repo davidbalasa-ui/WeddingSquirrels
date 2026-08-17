@@ -15,7 +15,9 @@ export default async function DayPage({
   const params = await searchParams;
   const editParam = Array.isArray(params.edit) ? params.edit[0] : params.edit;
   const startInEdit = canEdit && editParam === "1";
-  const blocks = sortTimelineBlocks(await prisma.timelineBlock.findMany());
+  const blocks = sortTimelineBlocks(
+    await prisma.timelineBlock.findMany({ where: { schedule: "wedding" } }),
+  );
 
   return (
     <>

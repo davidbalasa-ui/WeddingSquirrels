@@ -18,7 +18,7 @@ const MODULE_ROWS: ModuleRow[] = [
   { key: "dayof", label: "Day-of", seeKey: "canSeeTimeline", editKey: "canEditTimeline" },
   { key: "guests", label: "Guests", seeKey: "canSeeGuests" },
   { key: "stay", label: "Stay", seeKey: "canSeeStay" },
-  { key: "dinner", label: "Dinner", seeKey: "canSeeDinner", editKey: "canEditDinner" },
+  { key: "dinner", label: "Rehearsal", seeKey: "canSeeDinner", editKey: "canEditDinner" },
   { key: "requests", label: "Requests", seeKey: "canSeeRequests" },
   { key: "accounts", label: "Manage accounts", seeKey: "canManageAccounts" },
 ];
@@ -46,7 +46,7 @@ export function ModulePermissionGrid({
     if (key === "canEditTimeline" && value) next.canSeeTimeline = true;
     if (key === "canEditDinner" && value) next.canSeeDinner = true;
 
-    // Account managers always run the dinner menu, so they keep the tab and edit access.
+    // Account managers always run the rehearsal page, so they keep the tab and edit access.
     if (key === "canManageAccounts" && value) {
       next.canSeeDinner = true;
       next.canEditDinner = true;

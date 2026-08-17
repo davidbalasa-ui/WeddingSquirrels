@@ -17,7 +17,9 @@ import {
   prepareTimelineCreate,
   prepareTimelineSave,
   reviewNoteLines,
+  sortTimelineBlocks,
   type DayOfBucket,
+  type TimelineSchedule,
 } from "@/lib/day-of-time";
 
 export type TimelineBlockView = {
@@ -25,6 +27,7 @@ export type TimelineBlockView = {
   startAt: string;
   endAt: string | null;
   notes: string;
+  sortOrder?: number;
 };
 
 type Mode = "review" | "edit";
@@ -35,6 +38,7 @@ type Row = {
   startAt: string;
   endAt: string;
   notes: string;
+  sortOrder: number;
   lastSaved: { startAt: string; endAt: string; notes: string };
   status: RowStatus;
   error: string | null;
@@ -57,6 +61,7 @@ function toRow(block: TimelineBlockView): Row {
     id: block.id,
     ...lastSaved,
     lastSaved,
+    sortOrder: block.sortOrder ?? 0,
     status: "saved",
     error: null,
     localRev: 0,
@@ -93,10 +98,16 @@ export function DayTimeline({
   blocks,
   canEdit,
   startInEdit = false,
+  schedule = "wedding",
+  idPrefix = "day",
+  fixedAdd = true,
 }: {
   blocks: TimelineBlockView[];
   canEdit: boolean;
   startInEdit?: boolean;
+  schedule?: TimelineSchedule;
+  idPrefix?: string;
+  fixedAdd?: boolean;
 }) {
   const [mode, setMode] = useState<Mode>(canEdit && startInEdit ? "edit" : "review");
   const [rows, setRows] = useState<Row[]>(() => blocks.map(toRow));
@@ -173,11 +184,17 @@ export function DayTimeline({
   function scrollIfMoved(id: string, before: Row[], after: Row[]) {
     const from = before.findIndex((row) => row.id === id);
     const to = after.findIndex((row) => row.id === id);
-    if (from !== to) {
-      requestAnimationFrame(() => {
-        document.getElementById(`day-row-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (from === to) return;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const el = document.getElementById(`${idPrefix}-row-${id}`);
+        if (!el) return;
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+        if (!el.contains(document.activeElement)) {
+          el.focus({ preventScroll: true });
+        }
       });
-    }
+    });
   }
 
   async function persistRow(row: Row, opts: { reorder: boolean }) {
@@ -271,6 +288,7 @@ export function DayTimeline({
       startAt: prepared.startAt,
       endAt: prepared.endAt ?? "",
       notes: prepared.notes,
+      schedule,
     });
     draftSavingRef.current = false;
 
@@ -330,7 +348,12 @@ export function DayTimeline({
       error: null,
       localRev: current.localRev + 1,
     };
-    setRows((prev) => prev.map((item) => (item.id === id ? nextRow : item)));
+    setRows((prev) => {
+      const patched = prev.map((item) => (item.id === id ? nextRow : item));
+      const next = sortTimelineBlocks(patched);
+      scrollIfMoved(id, prev, next);
+      return next;
+    });
     void persistRow(nextRow, { reorder: true });
   }
 
@@ -356,7 +379,7 @@ export function DayTimeline({
 
   function startDraft() {
     if (draft) {
-      document.getElementById("day-draft")?.scrollIntoView({ block: "center", behavior: "smooth" });
+      document.getElementById(`${idPrefix}-draft`)?.scrollIntoView({ block: "center", behavior: "smooth" });
       return;
     }
     setDraft({ startAt: "", endAt: "", notes: "" });
@@ -400,7 +423,7 @@ export function DayTimeline({
   for (const row of rows) counts[bucketForTime(row.startAt)] += 1;
 
   return (
-    <div className={editing ? "pb-24" : ""}>
+    <div className={editing && fixedAdd ? "pb-24" : ""}>
       {canEdit ? (
         <div className="mb-2 grid grid-cols-2 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5 print-hide">
           <button
@@ -426,7 +449,7 @@ export function DayTimeline({
 
       {editing ? (
         <p className="mb-2 text-xs text-muted">
-          Tap the hour or minutes. AM/PM toggles. Same start and end can be reordered.
+          Tap the hour or minutes. AM/PM opens a picker — tap AM or PM to confirm. Click outside to cancel.
         </p>
       ) : null}
 
@@ -445,7 +468,7 @@ export function DayTimeline({
               className="shrink-0 rounded-full border border-line bg-[var(--bg-elevated)] px-2.5 py-1 text-xs font-semibold"
               onClick={() => {
                 document
-                  .getElementById(`day-bucket-${bucket.id}`)
+                  .getElementById(`${idPrefix}-bucket-${bucket.id}`)
                   ?.scrollIntoView({ block: "start", behavior: "smooth" });
               }}
             >
@@ -465,6 +488,7 @@ export function DayTimeline({
 
         {editing ? (
           <EditSections
+            idPrefix={idPrefix}
             visible={visible}
             confirmDeleteId={confirmDeleteId}
             onCommitTimes={commitTimes}
@@ -479,11 +503,11 @@ export function DayTimeline({
             onPeerReorder={(ids, persist) => void persistPeerOrder(ids, persist)}
           />
         ) : (
-          <ReviewSections timed={timed} untimed={untimed} />
+          <ReviewSections idPrefix={idPrefix} timed={timed} untimed={untimed} />
         )}
 
         {editing && draft ? (
-          <article id="day-draft" className="card px-3 py-2">
+          <article id={`${idPrefix}-draft`} className="card px-3 py-2">
             <DayTimeRange
               startAt={draft.startAt}
               endAt={draft.endAt}
@@ -516,8 +540,12 @@ export function DayTimeline({
         <button
           type="button"
           onClick={startDraft}
-          className="print-hide fixed left-1/2 z-[35] w-[min(560px,calc(100%-16px))] -translate-x-1/2 rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow)]"
-          style={{ bottom: "calc(12px + 76px)" }}
+          className={
+            fixedAdd
+              ? "print-hide fixed left-1/2 z-[35] w-[min(560px,calc(100%-16px))] -translate-x-1/2 rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow)]"
+              : "print-hide mt-1 rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow)]"
+          }
+          style={fixedAdd ? { bottom: "calc(12px + 76px)" } : undefined}
         >
           + Add moment
         </button>
@@ -526,33 +554,41 @@ export function DayTimeline({
   );
 }
 
-function ReviewSections({ timed, untimed }: { timed: Row[]; untimed: Row[] }) {
+function ReviewSections({
+  idPrefix,
+  timed,
+  untimed,
+}: {
+  idPrefix: string;
+  timed: Row[];
+  untimed: Row[];
+}) {
   return (
     <div className="flex flex-col gap-3">
       {DAY_OF_BUCKETS.filter((bucket) => bucket.id !== "untimed").map((bucket) => {
         const items = timed.filter((row) => bucketForTime(row.startAt) === bucket.id);
         if (items.length === 0) return null;
         return (
-          <section key={bucket.id} id={`day-bucket-${bucket.id}`}>
+          <section key={bucket.id} id={`${idPrefix}-bucket-${bucket.id}`}>
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
               {bucket.label}
             </p>
             <div className="card divide-y divide-[var(--line)] overflow-hidden">
               {items.map((row) => (
-                <ReviewRow key={row.id} row={row} />
+                <ReviewRow key={row.id} idPrefix={idPrefix} row={row} />
               ))}
             </div>
           </section>
         );
       })}
       {untimed.length > 0 ? (
-        <details id="day-bucket-untimed" className="card overflow-hidden">
+        <details id={`${idPrefix}-bucket-untimed`} className="card overflow-hidden">
           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">
             Untimed ({untimed.length})
           </summary>
           <div className="divide-y divide-[var(--line)] border-t border-line">
             {untimed.map((row) => (
-              <ReviewRow key={row.id} row={row} />
+              <ReviewRow key={row.id} idPrefix={idPrefix} row={row} />
             ))}
           </div>
         </details>
@@ -561,10 +597,10 @@ function ReviewSections({ timed, untimed }: { timed: Row[]; untimed: Row[] }) {
   );
 }
 
-function ReviewRow({ row }: { row: Row }) {
+function ReviewRow({ idPrefix, row }: { idPrefix: string; row: Row }) {
   const lines = reviewNoteLines(row.notes);
   return (
-    <article id={`day-row-${row.id}`} className="flex items-start gap-2 px-3 py-1.5">
+    <article id={`${idPrefix}-row-${row.id}`} className="flex items-start gap-2 px-3 py-1.5">
       <p className="shrink-0 whitespace-nowrap text-[12px] font-semibold leading-5 text-[var(--accent)]">
         {row.startAt}
         {row.endAt ? ` – ${row.endAt}` : ""}
@@ -585,6 +621,7 @@ function ReviewRow({ row }: { row: Row }) {
 }
 
 function EditSections({
+  idPrefix,
   visible,
   confirmDeleteId,
   onCommitTimes,
@@ -598,6 +635,7 @@ function EditSections({
   onNoteFocusChange,
   onPeerReorder,
 }: {
+  idPrefix: string;
   visible: Row[];
   confirmDeleteId: string | null;
   onCommitTimes: (id: string, patch: Partial<Pick<Row, "startAt" | "endAt">>) => void;
@@ -617,7 +655,7 @@ function EditSections({
         const items = visible.filter((row) => bucketForTime(row.startAt) === bucket.id);
         if (items.length === 0) return null;
         return (
-          <section key={bucket.id} id={`day-bucket-${bucket.id}`} className="flex flex-col gap-2">
+          <section key={bucket.id} id={`${idPrefix}-bucket-${bucket.id}`} className="flex flex-col gap-2">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">{bucket.label}</p>
             {items.map((row) => {
               const key = peerKey(row.startAt, row.endAt);
@@ -627,6 +665,7 @@ function EditSections({
               return (
                 <EditCard
                   key={row.id}
+                  idPrefix={idPrefix}
                   row={row}
                   peerIds={peers}
                   confirmDelete={confirmDeleteId === row.id}
@@ -651,6 +690,7 @@ function EditSections({
 }
 
 function EditCard({
+  idPrefix,
   row,
   peerIds,
   confirmDelete,
@@ -665,6 +705,7 @@ function EditCard({
   onNoteFocusChange,
   onPeerReorder,
 }: {
+  idPrefix: string;
   row: Row;
   peerIds: string[];
   confirmDelete: boolean;
@@ -683,7 +724,12 @@ function EditCard({
   const label = statusLabel(row.status, row.error);
 
   return (
-    <article id={`day-row-${row.id}`} data-day-row={row.id} className="card px-3 py-2">
+    <article
+      id={`${idPrefix}-row-${row.id}`}
+      data-day-row={row.id}
+      tabIndex={-1}
+      className="card px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+    >
       <div className="flex items-start gap-2">
         <DayTimeRange
           startAt={row.startAt}
@@ -691,7 +737,7 @@ function EditCard({
           onCommit={(next) => onCommitTimes(row.id, next)}
           onOpenChange={onStepperOpenChange}
         />
-        <PeerHandle rowId={row.id} peerIds={peerIds} onReorder={onPeerReorder} />
+        <PeerHandle idPrefix={idPrefix} rowId={row.id} peerIds={peerIds} onReorder={onPeerReorder} />
         {confirmDelete ? (
           <div className="flex shrink-0 items-center gap-2 pt-1">
             <button type="button" className="text-xs font-semibold text-[var(--danger)]" onClick={onConfirmDelete}>
@@ -740,10 +786,12 @@ function EditCard({
 }
 
 function PeerHandle({
+  idPrefix,
   rowId,
   peerIds,
   onReorder,
 }: {
+  idPrefix: string;
   rowId: string;
   peerIds: string[];
   onReorder: (ids: string[], persist?: boolean) => void;
@@ -770,7 +818,7 @@ function PeerHandle({
 
     function yToIndex(clientY: number) {
       const mids = current.map((id) => {
-        const el = document.getElementById(`day-row-${id}`);
+        const el = document.getElementById(`${idPrefix}-row-${id}`);
         if (!el) return Number.POSITIVE_INFINITY;
         const rect = el.getBoundingClientRect();
         return rect.top + rect.height / 2;

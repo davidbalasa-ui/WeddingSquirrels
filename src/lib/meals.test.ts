@@ -60,6 +60,7 @@ test("dinner tab is shared on accounts or always visible to menu editors", () =>
   assert.equal(canSeeDinnerTab(session({ isMaster: true })), true);
   assert.equal(canSeeDinnerTab(session({ canManageAccounts: true })), true);
   assert.equal(canSeeDinnerTab(session({ canSeeDinner: true })), true);
+  assert.equal(canSeeDinnerTab(session({ canEditDinner: true })), true);
   assert.equal(canSeeDinnerTab(session({})), false);
 });
 

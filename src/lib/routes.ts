@@ -15,7 +15,7 @@ export const APP_ROUTES: AppRoute[] = [
   { href: "/requests", need: "canSeeRequests" },
   { href: "/money", need: "canSeeBudget" },
   { href: "/stay", need: "canSeeStay" },
-  { href: "/dinner", need: "canSeeDinner" },
+  { href: "/rehearsal", need: "canSeeDinner" },
   { href: "/day", need: "canSeeTimeline" },
   { href: "/guests", need: "canSeeGuests" },
   { href: "/accounts", need: "canManageAccounts" },

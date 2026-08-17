@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { canManageAccounts, canSeeDinnerTab } from "@/lib/access";
 import type { SessionAccount } from "@/lib/types";
 
 const items = [
@@ -12,7 +13,7 @@ const items = [
   { href: "/requests", label: "Ask", need: "canSeeRequests" as const },
   { href: "/money", label: "Money", need: "canSeeBudget" as const },
   { href: "/stay", label: "Stay", need: "canSeeStay" as const },
-  { href: "/dinner", label: "Dinner", need: "canSeeDinner" as const },
+  { href: "/rehearsal", label: "Rehearsal", need: "canSeeDinner" as const },
   { href: "/day", label: "Day-of", need: "canSeeTimeline" as const },
   { href: "/guests", label: "Guests", need: "canSeeGuests" as const },
   { href: "/accounts", label: "Accounts", need: "canManageAccounts" as const },
@@ -26,12 +27,12 @@ export function BottomNav({
   unreadRequests?: number;
 }) {
   const pathname = usePathname();
-  const visible = items.filter(
-    (item) =>
-      !item.need ||
-      session[item.need] ||
-      (item.need === "canManageAccounts" && session.isMaster),
-  );
+  const visible = items.filter((item) => {
+    if (!item.need) return true;
+    if (item.need === "canManageAccounts") return canManageAccounts(session);
+    if (item.need === "canSeeDinner") return canSeeDinnerTab(session);
+    return Boolean(session[item.need]);
+  });
 
   return (
     <nav className="nav-bar" aria-label="Main">

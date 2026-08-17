@@ -140,7 +140,7 @@ function summaryLabel(
     account.canSeeTimeline && (account.canEditTimeline ? "Day-of (edit)" : "Day-of"),
     account.canSeeGuests && "Guests",
     account.canSeeStay && "Stay",
-    account.canSeeDinner && (account.canEditDinner ? "Dinner (edit)" : "Dinner"),
+    account.canSeeDinner && (account.canEditDinner ? "Rehearsal (edit)" : "Rehearsal"),
     account.canSeeRequests && "Requests",
     account.canManageAccounts && "Accounts",
   ].filter(Boolean);

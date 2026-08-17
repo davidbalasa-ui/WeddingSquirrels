@@ -118,7 +118,11 @@ model TimelineBlock {
   startMinutes Int?
   endMinutes   Int?
   dayOffset    Int     @default(0)
+  /** "wedding" (Day-of) or "rehearsal" */
+  schedule     String  @default("wedding")
   tasks        Task[]
+
+  @@index([schedule, sortOrder])
 }
 
 model Guest {

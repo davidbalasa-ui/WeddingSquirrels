@@ -322,6 +322,7 @@ async function main() {
         endAt: fmt(row[1]),
         notes: notes.trim(),
         sortOrder: tSort++,
+        schedule: "wedding",
       },
     });
   }

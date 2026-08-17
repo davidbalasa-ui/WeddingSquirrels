@@ -22,10 +22,12 @@ import {
 import { prisma } from "@/lib/db";
 import {
   applyPeerOrder,
+  parseTimelineSchedule,
   parsedTimeFields,
   prepareTimelineCreate,
   prepareTimelineSave,
   sortTimelineBlocks,
+  type TimelineSchedule,
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
 import { sessionCanMutateTask } from "@/lib/tasks";
@@ -991,18 +993,23 @@ export type TimelineWriteResult =
   | { ok: true; id: string; order: string[] }
   | { ok: false; reason: "forbidden" | "not_found" | "empty_notes" | "invalid" | "noop" };
 
-async function requireTimelineEditor() {
+async function requireScheduleEditor(schedule: TimelineSchedule) {
   try {
     const session = await requireSession();
-    if (!timelineEditable(session)) return null;
+    const allowed = schedule === "rehearsal" ? mealsEditable(session) : timelineEditable(session);
+    if (!allowed) return null;
     return session;
   } catch {
     return null;
   }
 }
 
-async function resequenceTimeline(): Promise<string[]> {
-  const blocks = await prisma.timelineBlock.findMany();
+function revalidateSchedule(schedule: TimelineSchedule) {
+  revalidatePath(schedule === "rehearsal" ? "/rehearsal" : "/day");
+}
+
+async function resequenceTimeline(schedule: TimelineSchedule): Promise<string[]> {
+  const blocks = await prisma.timelineBlock.findMany({ where: { schedule } });
   const sorted = sortTimelineBlocks(blocks);
   await prisma.$transaction(
     sorted.map((block, index) =>
@@ -1024,13 +1031,13 @@ export async function saveTimelineBlock(input: {
   endAt: string;
   notes: string;
 }): Promise<TimelineWriteResult> {
-  if (!(await requireTimelineEditor())) return { ok: false, reason: "forbidden" };
-
   const id = input.id.trim();
   if (!id) return { ok: false, reason: "invalid" };
 
   const existing = await prisma.timelineBlock.findUnique({ where: { id } });
   if (!existing) return { ok: false, reason: "not_found" };
+  const schedule = parseTimelineSchedule(existing.schedule);
+  if (!(await requireScheduleEditor(schedule))) return { ok: false, reason: "forbidden" };
 
   const prepared = prepareTimelineSave(
     { startAt: input.startAt, endAt: input.endAt, notes: input.notes },
@@ -1055,7 +1062,7 @@ export async function saveTimelineBlock(input: {
     },
   });
 
-  const order = await resequenceTimeline();
+  const order = await resequenceTimeline(schedule);
   return { ok: true, id, order };
 }
 
@@ -1063,8 +1070,10 @@ export async function createTimelineBlock(input: {
   startAt: string;
   endAt: string;
   notes: string;
+  schedule?: TimelineSchedule;
 }): Promise<TimelineWriteResult> {
-  if (!(await requireTimelineEditor())) return { ok: false, reason: "forbidden" };
+  const schedule = parseTimelineSchedule(input.schedule);
+  if (!(await requireScheduleEditor(schedule))) return { ok: false, reason: "forbidden" };
 
   const prepared = prepareTimelineCreate({
     startAt: input.startAt,
@@ -1079,17 +1088,21 @@ export async function createTimelineBlock(input: {
       endAt: prepared.endAt,
       notes: prepared.notes,
       sortOrder: 9999,
+      schedule,
       ...parsedTimeFields(prepared.startAt, prepared.endAt),
     },
   });
 
-  const order = await resequenceTimeline();
-  revalidatePath("/day");
+  const order = await resequenceTimeline(schedule);
+  revalidateSchedule(schedule);
   return { ok: true, id: created.id, order };
 }
 
 export async function deleteTimelineBlock(blockId: string): Promise<TimelineWriteResult> {
-  if (!(await requireTimelineEditor())) return { ok: false, reason: "forbidden" };
+  const existing = await prisma.timelineBlock.findUnique({ where: { id: blockId } });
+  if (!existing) return { ok: false, reason: "not_found" };
+  const schedule = parseTimelineSchedule(existing.schedule);
+  if (!(await requireScheduleEditor(schedule))) return { ok: false, reason: "forbidden" };
 
   try {
     await prisma.timelineBlock.delete({ where: { id: blockId } });
@@ -1097,16 +1110,20 @@ export async function deleteTimelineBlock(blockId: string): Promise<TimelineWrit
     return { ok: false, reason: "not_found" };
   }
 
-  const order = await resequenceTimeline();
-  revalidatePath("/day");
+  const order = await resequenceTimeline(schedule);
+  revalidateSchedule(schedule);
   return { ok: true, id: blockId, order };
 }
 
 export async function saveTimelinePeerOrder(orderedPeerIds: string[]): Promise<TimelineWriteResult> {
-  if (!(await requireTimelineEditor())) return { ok: false, reason: "forbidden" };
   if (orderedPeerIds.length < 2) return { ok: false, reason: "invalid" };
 
-  const blocks = sortTimelineBlocks(await prisma.timelineBlock.findMany());
+  const first = await prisma.timelineBlock.findUnique({ where: { id: orderedPeerIds[0] } });
+  if (!first) return { ok: false, reason: "not_found" };
+  const schedule = parseTimelineSchedule(first.schedule);
+  if (!(await requireScheduleEditor(schedule))) return { ok: false, reason: "forbidden" };
+
+  const blocks = sortTimelineBlocks(await prisma.timelineBlock.findMany({ where: { schedule } }));
   const next = applyPeerOrder(blocks, orderedPeerIds);
   if (!next) return { ok: false, reason: "invalid" };
 
@@ -1572,6 +1589,7 @@ async function requireMealEditor() {
 }
 
 function revalidateDinner(opts?: { layout?: boolean }) {
+  revalidatePath("/rehearsal");
   revalidatePath("/dinner");
   if (opts?.layout) revalidatePath("/", "layout");
 }
