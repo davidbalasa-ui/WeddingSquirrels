@@ -473,6 +473,7 @@ function parseAccountFlags(formData: FormData) {
     canSeeDinner: formData.get("canSeeDinner") === "on",
     canEditBudget: formData.get("canEditBudget") === "on",
     canEditTimeline: formData.get("canEditTimeline") === "on",
+    canEditDinner: formData.get("canEditDinner") === "on",
     linkedPersonId: parseLinkedPersonId(String(formData.get("linkedPersonId") || "")),
     assigneeFilter: formData.getAll("assigneeFilter").map(String).filter(Boolean),
     sharedBudgetItemIds: formData.getAll("sharedBudgetItemIds").map(String).filter(Boolean),
@@ -579,6 +580,7 @@ export async function createPinAccount(formData: FormData): Promise<void> {
       canSeeDinner: flags.canSeeDinner,
       canEditBudget: flags.canEditBudget,
       canEditTimeline: flags.canEditTimeline,
+      canEditDinner: flags.canEditDinner,
       linkedPersonId: flags.linkedPersonId,
       assigneeFilterJson: flags.assigneeFilter.length
         ? JSON.stringify(flags.assigneeFilter)
@@ -648,6 +650,7 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
       canSeeDinner: flags.canSeeDinner,
       canEditBudget: flags.canEditBudget,
       canEditTimeline: flags.canEditTimeline,
+      canEditDinner: flags.canEditDinner,
       linkedPersonId: flags.linkedPersonId,
       assigneeFilterJson: flags.assigneeFilter.length
         ? JSON.stringify(flags.assigneeFilter)

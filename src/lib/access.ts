@@ -35,7 +35,7 @@ export function canManageAccounts(session: SessionAccount): boolean {
 }
 
 export function mealsEditable(session: SessionAccount): boolean {
-  return session.isMaster || session.canManageAccounts;
+  return session.isMaster || session.canManageAccounts || session.canEditDinner;
 }
 
 export function canSeeStayTab(session: SessionAccount): boolean {
@@ -58,12 +58,14 @@ export function normalizeAccountFlags<T extends {
   canSeeTimeline: boolean;
   canEditTimeline: boolean;
   canSeeDinner: boolean;
+  canEditDinner: boolean;
   canManageAccounts: boolean;
 }>(flags: T): T {
   return {
     ...flags,
     canSeeBudget: flags.canSeeBudget || flags.canEditBudget,
     canSeeTimeline: flags.canSeeTimeline || flags.canEditTimeline,
-    canSeeDinner: flags.canSeeDinner || flags.canManageAccounts,
+    canSeeDinner: flags.canSeeDinner || flags.canEditDinner || flags.canManageAccounts,
+    canEditDinner: flags.canEditDinner || flags.canManageAccounts,
   };
 }

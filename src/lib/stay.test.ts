@@ -22,6 +22,7 @@ function session(partial: Partial<SessionAccount>): SessionAccount {
     canSeeDinner: false,
     canEditBudget: false,
     canEditTimeline: false,
+    canEditDinner: false,
     linkedPersonId: null,
     assigneeFilter: null,
     ...partial,

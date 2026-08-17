@@ -18,7 +18,7 @@ const MODULE_ROWS: ModuleRow[] = [
   { key: "dayof", label: "Day-of", seeKey: "canSeeTimeline", editKey: "canEditTimeline" },
   { key: "guests", label: "Guests", seeKey: "canSeeGuests" },
   { key: "stay", label: "Stay", seeKey: "canSeeStay" },
-  { key: "dinner", label: "Dinner", seeKey: "canSeeDinner" },
+  { key: "dinner", label: "Dinner", seeKey: "canSeeDinner", editKey: "canEditDinner" },
   { key: "requests", label: "Requests", seeKey: "canSeeRequests" },
   { key: "accounts", label: "Manage accounts", seeKey: "canManageAccounts" },
 ];
@@ -39,13 +39,18 @@ export function ModulePermissionGrid({
     // Edit flags auto-clear when corresponding See is off.
     if (key === "canSeeBudget" && !value) next.canEditBudget = false;
     if (key === "canSeeTimeline" && !value) next.canEditTimeline = false;
+    if (key === "canSeeDinner" && !value) next.canEditDinner = false;
 
     // Edit without See → force See.
     if (key === "canEditBudget" && value) next.canSeeBudget = true;
     if (key === "canEditTimeline" && value) next.canSeeTimeline = true;
+    if (key === "canEditDinner" && value) next.canSeeDinner = true;
 
-    // Account managers always run the dinner menu, so they keep the tab.
-    if (key === "canManageAccounts" && value) next.canSeeDinner = true;
+    // Account managers always run the dinner menu, so they keep the tab and edit access.
+    if (key === "canManageAccounts" && value) {
+      next.canSeeDinner = true;
+      next.canEditDinner = true;
+    }
     if (key === "canSeeDinner" && !value && next.canManageAccounts) next.canSeeDinner = true;
 
     onChange(next);
