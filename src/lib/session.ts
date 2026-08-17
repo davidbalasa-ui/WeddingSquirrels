@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { firstAllowedRoute } from "@/lib/routes";
 import type { SessionAccount } from "@/lib/types";
 
 type NeedKey = keyof Pick<
@@ -23,7 +24,9 @@ export async function requirePageSession(opts?: { need?: NeedKey }) {
 
   if (opts?.need) {
     if (session.isMaster) return session;
-    if (!session[opts.need]) redirect("/today");
+    if (!session[opts.need]) {
+      redirect(firstAllowedRoute(session) ?? "/no-access");
+    }
   }
 
   return session;

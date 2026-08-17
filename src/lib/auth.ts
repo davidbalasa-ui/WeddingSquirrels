@@ -142,7 +142,9 @@ export async function requireSession() {
 }
 
 export async function unlockWithPin(pin: string) {
-  const accounts = await prisma.pinAccount.findMany();
+  const accounts = await prisma.pinAccount.findMany({
+    orderBy: { createdAt: "desc" },
+  });
   for (const account of accounts) {
     if (await verifyPin(pin, account.pinHash)) {
       await createSession(account.id);

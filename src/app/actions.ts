@@ -31,6 +31,7 @@ import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
 import { applyRsvpChange, effectiveInvitedCount, syncLegacyGuestNames } from "@/lib/guest-gifts";
+import { firstAllowedRoute } from "@/lib/routes";
 import { isStaySectionId, isStaySlotId } from "@/lib/stay";
 import {
   canCompleteRequest,
@@ -56,7 +57,7 @@ export async function unlockAction(
   if (!account) {
     return { error: "Incorrect PIN" };
   }
-  redirect("/today");
+  redirect(firstAllowedRoute(account) ?? "/no-access");
 }
 
 export async function lockAction() {
