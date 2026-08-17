@@ -201,6 +201,7 @@ model PinAccount {
   canSeeStay         Boolean           @default(true)
   canSeeDinner       Boolean           @default(false)
   canEditDinner      Boolean           @default(false)
+  canEditRehearsal   Boolean           @default(false)
   canEditBudget      Boolean           @default(false)
   canEditTimeline    Boolean           @default(false)
   linkedPersonId     String?
@@ -263,23 +264,52 @@ model MealSettings {
   updatedAt DateTime @updatedAt
 }
 
-model MealOption {
-  id        String   @id @default(cuid())
+model MealCourse {
+  id        String       @id @default(cuid())
   label     String
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  sortOrder Int          @default(0)
+  options   MealOption[]
+  choices   MealChoice[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model MealOption {
+  id        String       @id @default(cuid())
+  courseId  String?
+  course    MealCourse?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  label     String
+  sortOrder Int          @default(0)
+  choices   MealChoice[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([courseId, sortOrder])
 }
 
 model MealGuest {
-  id        String   @id
+  id        String       @id
   sectionId String
   name      String
   optionId  String?
-  sortOrder Int      @default(0)
-  updatedAt DateTime @updatedAt
+  sortOrder Int          @default(0)
+  choices   MealChoice[]
+  updatedAt DateTime     @updatedAt
 
   @@index([sectionId, sortOrder])
+}
+
+model MealChoice {
+  guestId  String
+  guest    MealGuest  @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  courseId String
+  course   MealCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  optionId String
+  option   MealOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@id([guestId, courseId])
+  @@index([courseId])
+  @@index([optionId])
 }
 
 model Request {

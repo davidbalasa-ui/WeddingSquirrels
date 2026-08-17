@@ -43,6 +43,7 @@ const PRESETS: Record<
       canSeeStay: true,
       canSeeDinner: true,
       canEditDinner: true,
+      canEditRehearsal: true,
       canManageAccounts: true,
     },
   },
@@ -63,6 +64,7 @@ const PRESETS: Record<
       canSeeStay: true,
       canSeeDinner: true,
       canEditDinner: true,
+      canEditRehearsal: true,
       canManageAccounts: false,
     },
   },
@@ -83,6 +85,7 @@ const PRESETS: Record<
       canSeeStay: false,
       canSeeDinner: false,
       canEditDinner: false,
+      canEditRehearsal: false,
       canManageAccounts: false,
     },
   },
@@ -103,6 +106,7 @@ const PRESETS: Record<
       canSeeStay: false,
       canSeeDinner: false,
       canEditDinner: false,
+      canEditRehearsal: false,
       canManageAccounts: false,
     },
   },
@@ -122,6 +126,7 @@ const DEFAULT_CREATE_FLAGS: AccountModuleFlags = {
   canSeeStay: false,
   canSeeDinner: false,
   canEditDinner: false,
+  canEditRehearsal: false,
   canManageAccounts: false,
 };
 
@@ -140,7 +145,10 @@ function summaryLabel(
     account.canSeeTimeline && (account.canEditTimeline ? "Day-of (edit)" : "Day-of"),
     account.canSeeGuests && "Guests",
     account.canSeeStay && "Stay",
-    account.canSeeDinner && (account.canEditDinner ? "Rehearsal (edit)" : "Rehearsal"),
+    account.canSeeDinner &&
+      (account.canEditRehearsal || account.canEditDinner
+        ? `Rehearsal${account.canEditRehearsal ? " schedule" : ""}${account.canEditDinner ? " dinner" : ""}`
+        : "Rehearsal"),
     account.canSeeRequests && "Requests",
     account.canManageAccounts && "Accounts",
   ].filter(Boolean);
@@ -167,6 +175,7 @@ function pickFlags(account: AccountModuleFlags): AccountModuleFlags {
     canSeeStay: account.canSeeStay,
     canSeeDinner: account.canSeeDinner,
     canEditDinner: account.canEditDinner,
+    canEditRehearsal: account.canEditRehearsal,
     canManageAccounts: account.canManageAccounts,
   };
 }

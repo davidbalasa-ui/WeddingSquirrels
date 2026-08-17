@@ -10,6 +10,7 @@ import {
   mealsEditable,
   moneyEditable,
   normalizeAccountFlags,
+  rehearsalScheduleEditable,
   timelineEditable,
 } from "@/lib/access";
 import {
@@ -476,6 +477,7 @@ function parseAccountFlags(formData: FormData) {
     canEditBudget: formData.get("canEditBudget") === "on",
     canEditTimeline: formData.get("canEditTimeline") === "on",
     canEditDinner: formData.get("canEditDinner") === "on",
+    canEditRehearsal: formData.get("canEditRehearsal") === "on",
     linkedPersonId: parseLinkedPersonId(String(formData.get("linkedPersonId") || "")),
     assigneeFilter: formData.getAll("assigneeFilter").map(String).filter(Boolean),
     sharedBudgetItemIds: formData.getAll("sharedBudgetItemIds").map(String).filter(Boolean),
@@ -583,6 +585,7 @@ export async function createPinAccount(formData: FormData): Promise<void> {
       canEditBudget: flags.canEditBudget,
       canEditTimeline: flags.canEditTimeline,
       canEditDinner: flags.canEditDinner,
+      canEditRehearsal: flags.canEditRehearsal,
       linkedPersonId: flags.linkedPersonId,
       assigneeFilterJson: flags.assigneeFilter.length
         ? JSON.stringify(flags.assigneeFilter)
@@ -653,6 +656,7 @@ export async function updatePinAccount(formData: FormData): Promise<void> {
       canEditBudget: flags.canEditBudget,
       canEditTimeline: flags.canEditTimeline,
       canEditDinner: flags.canEditDinner,
+      canEditRehearsal: flags.canEditRehearsal,
       linkedPersonId: flags.linkedPersonId,
       assigneeFilterJson: flags.assigneeFilter.length
         ? JSON.stringify(flags.assigneeFilter)
@@ -996,7 +1000,7 @@ export type TimelineWriteResult =
 async function requireScheduleEditor(schedule: TimelineSchedule) {
   try {
     const session = await requireSession();
-    const allowed = schedule === "rehearsal" ? mealsEditable(session) : timelineEditable(session);
+    const allowed = schedule === "rehearsal" ? rehearsalScheduleEditable(session) : timelineEditable(session);
     if (!allowed) return null;
     return session;
   } catch {
@@ -1594,17 +1598,76 @@ function revalidateDinner(opts?: { layout?: boolean }) {
   if (opts?.layout) revalidatePath("/", "layout");
 }
 
-export async function addMealOption(): Promise<MealWriteResult> {
+export async function addMealOption(courseId?: string): Promise<MealWriteResult> {
   if (!(await requireMealEditor())) return { ok: false, reason: "forbidden" };
 
-  const last = await prisma.mealOption.findFirst({ orderBy: { sortOrder: "desc" } });
+  let resolvedCourseId = courseId?.trim() || "";
+  if (resolvedCourseId) {
+    const course = await prisma.mealCourse.findUnique({ where: { id: resolvedCourseId } });
+    if (!course) return { ok: false, reason: "not_found" };
+  } else {
+    const fallback =
+      (await prisma.mealCourse.findFirst({ orderBy: { sortOrder: "asc" } })) ??
+      (await prisma.mealCourse.create({ data: { label: "Dinner", sortOrder: 0 } }));
+    resolvedCourseId = fallback.id;
+  }
+
+  const last = await prisma.mealOption.findFirst({
+    where: { courseId: resolvedCourseId },
+    orderBy: { sortOrder: "desc" },
+  });
   const created = await prisma.mealOption.create({
+    data: {
+      label: "",
+      courseId: resolvedCourseId,
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+  return { ok: true, id: created.id };
+}
+
+export async function addMealCourse(): Promise<MealWriteResult> {
+  if (!(await requireMealEditor())) return { ok: false, reason: "forbidden" };
+
+  const last = await prisma.mealCourse.findFirst({ orderBy: { sortOrder: "desc" } });
+  const created = await prisma.mealCourse.create({
     data: {
       label: "",
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });
   return { ok: true, id: created.id };
+}
+
+export async function saveMealCourse(courseId: string, label: string): Promise<MealWriteResult> {
+  if (!(await requireMealEditor())) return { ok: false, reason: "forbidden" };
+
+  const existing = await prisma.mealCourse.findUnique({ where: { id: courseId } });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  const trimmed = label.trim();
+  if (!trimmed) {
+    if (existing.label.trim()) return { ok: false, reason: "invalid" };
+    await prisma.mealCourse.delete({ where: { id: courseId } });
+    return { ok: true, id: courseId };
+  }
+
+  await prisma.mealCourse.update({
+    where: { id: courseId },
+    data: { label: trimmed },
+  });
+  return { ok: true, id: courseId };
+}
+
+export async function deleteMealCourse(courseId: string): Promise<MealWriteResult> {
+  if (!(await requireMealEditor())) return { ok: false, reason: "forbidden" };
+
+  try {
+    await prisma.mealCourse.delete({ where: { id: courseId } });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+  return { ok: true, id: courseId };
 }
 
 export async function saveMealOption(optionId: string, label: string): Promise<MealWriteResult> {
@@ -1618,6 +1681,7 @@ export async function saveMealOption(optionId: string, label: string): Promise<M
     if (!shouldDeleteMealOptionOnClear(existing.label, trimmed)) {
       return { ok: false, reason: "invalid" };
     }
+    await prisma.mealChoice.deleteMany({ where: { optionId } });
     await prisma.mealGuest.updateMany({ where: { optionId }, data: { optionId: null } });
     await prisma.mealOption.delete({ where: { id: optionId } });
     return { ok: true, id: optionId };
@@ -1634,6 +1698,7 @@ export async function deleteMealOption(optionId: string): Promise<MealWriteResul
   if (!(await requireMealEditor())) return { ok: false, reason: "forbidden" };
 
   try {
+    await prisma.mealChoice.deleteMany({ where: { optionId } });
     await prisma.mealGuest.updateMany({ where: { optionId }, data: { optionId: null } });
     await prisma.mealOption.delete({ where: { id: optionId } });
   } catch {
@@ -1654,7 +1719,11 @@ export async function setMealPublished(published: boolean): Promise<MealWriteRes
   return { ok: true, id: "1" };
 }
 
-export async function saveMealChoice(guestId: string, optionId: string | null): Promise<MealWriteResult> {
+export async function saveMealChoice(
+  guestId: string,
+  optionId: string | null,
+  courseId?: string,
+): Promise<MealWriteResult> {
   let session;
   try {
     session = await requireSession();
@@ -1671,14 +1740,21 @@ export async function saveMealChoice(guestId: string, optionId: string | null): 
   const existing = await prisma.mealGuest.findUnique({ where: { id: guestId } });
   if (!existing) return { ok: false, reason: "not_found" };
 
-  if (optionId) {
-    const option = await prisma.mealOption.findUnique({ where: { id: optionId } });
-    if (!option) return { ok: false, reason: "invalid" };
+  if (!optionId) {
+    if (courseId) {
+      await prisma.mealChoice.deleteMany({ where: { guestId, courseId } });
+    }
+    return { ok: true, id: guestId };
   }
 
-  await prisma.mealGuest.update({
-    where: { id: guestId },
-    data: { optionId },
+  const option = await prisma.mealOption.findUnique({ where: { id: optionId } });
+  if (!option?.courseId) return { ok: false, reason: "invalid" };
+  if (courseId && option.courseId !== courseId) return { ok: false, reason: "invalid" };
+
+  await prisma.mealChoice.upsert({
+    where: { guestId_courseId: { guestId, courseId: option.courseId } },
+    create: { guestId, courseId: option.courseId, optionId: option.id },
+    update: { optionId: option.id },
   });
   return { ok: true, id: guestId };
 }

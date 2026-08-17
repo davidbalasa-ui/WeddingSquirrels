@@ -38,12 +38,16 @@ export function mealsEditable(session: SessionAccount): boolean {
   return session.isMaster || session.canManageAccounts || session.canEditDinner;
 }
 
+export function rehearsalScheduleEditable(session: SessionAccount): boolean {
+  return session.isMaster || session.canEditRehearsal;
+}
+
 export function canSeeStayTab(session: SessionAccount): boolean {
   return can(session, "canSeeStay");
 }
 
 export function canSeeDinnerTab(session: SessionAccount): boolean {
-  return mealsEditable(session) || session.canSeeDinner;
+  return mealsEditable(session) || rehearsalScheduleEditable(session) || session.canSeeDinner;
 }
 
 /** Couple-only owner/payer ids used by Money. */
@@ -59,13 +63,19 @@ export function normalizeAccountFlags<T extends {
   canEditTimeline: boolean;
   canSeeDinner: boolean;
   canEditDinner: boolean;
+  canEditRehearsal: boolean;
   canManageAccounts: boolean;
 }>(flags: T): T {
   return {
     ...flags,
     canSeeBudget: flags.canSeeBudget || flags.canEditBudget,
     canSeeTimeline: flags.canSeeTimeline || flags.canEditTimeline,
-    canSeeDinner: flags.canSeeDinner || flags.canEditDinner || flags.canManageAccounts,
+    canSeeDinner:
+      flags.canSeeDinner ||
+      flags.canEditDinner ||
+      flags.canEditRehearsal ||
+      flags.canManageAccounts,
     canEditDinner: flags.canEditDinner || flags.canManageAccounts,
+    canEditRehearsal: flags.canEditRehearsal,
   };
 }

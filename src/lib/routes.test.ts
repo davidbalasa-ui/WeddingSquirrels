@@ -22,6 +22,7 @@ function session(overrides: Partial<SessionAccount> = {}): SessionAccount {
     canEditBudget: false,
     canEditTimeline: false,
     canEditDinner: false,
+    canEditRehearsal: false,
     linkedPersonId: null,
     assigneeFilter: null,
     ...overrides,

@@ -16,6 +16,7 @@ export type SessionAccount = {
   canEditBudget: boolean;
   canEditTimeline: boolean;
   canEditDinner: boolean;
+  canEditRehearsal: boolean;
   linkedPersonId: string | null;
   /** null/empty means all tasks (including for non-masters). */
   assigneeFilter: string[] | null;
@@ -35,6 +36,7 @@ export type AccountModuleFlags = {
   canSeeStay: boolean;
   canSeeDinner: boolean;
   canEditDinner: boolean;
+  canEditRehearsal: boolean;
   canManageAccounts: boolean;
 };
 

@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { canSeeDinnerTab, mealsEditable, normalizeAccountFlags } from "./access";
-import { MEAL_SECTIONS, isMealGuestId, mealGuestCount, planMealWrites, shouldDeleteMealOptionOnClear } from "./meals";
+import { canSeeDinnerTab, mealsEditable, normalizeAccountFlags, rehearsalScheduleEditable } from "./access";
+import {
+  MEAL_SECTIONS,
+  countFinishedGuests,
+  guestFinishedPicking,
+  isMealGuestId,
+  mealGuestCount,
+  planMealWrites,
+  shouldDeleteMealOptionOnClear,
+} from "./meals";
 import type { SessionAccount } from "./types";
 
 function session(partial: Partial<SessionAccount>): SessionAccount {
@@ -23,6 +31,7 @@ function session(partial: Partial<SessionAccount>): SessionAccount {
     canEditBudget: false,
     canEditTimeline: false,
     canEditDinner: false,
+    canEditRehearsal: false,
     linkedPersonId: null,
     assigneeFilter: null,
     ...partial,
@@ -72,6 +81,7 @@ test("account managers keep Dinner See when flags are normalized", () => {
     canEditTimeline: false,
     canSeeDinner: false,
     canEditDinner: false,
+    canEditRehearsal: false,
     canManageAccounts: true,
   });
   assert.equal(flags.canSeeDinner, true);
@@ -84,6 +94,7 @@ test("account managers keep Dinner See when flags are normalized", () => {
       canEditTimeline: false,
       canSeeDinner: false,
       canEditDinner: false,
+      canEditRehearsal: false,
       canManageAccounts: false,
     }).canSeeDinner,
     false,
@@ -97,6 +108,37 @@ test("meal layout planner creates missing guests and no-ops when synced", () => 
   const synced = planMealWrites(planned.creates);
   assert.equal(synced.creates.length, 0);
   assert.equal(synced.updates.length, 0);
+});
+
+test("schedule editors do not get dinner-menu edit, and dinner editors do not get schedule edit", () => {
+  assert.equal(rehearsalScheduleEditable(session({ canEditRehearsal: true })), true);
+  assert.equal(rehearsalScheduleEditable(session({ canEditDinner: true })), false);
+  assert.equal(mealsEditable(session({ canEditRehearsal: true })), false);
+  assert.equal(canSeeDinnerTab(session({ canEditRehearsal: true })), true);
+});
+
+test("guests finish picking when every labeled course has a choice", () => {
+  const courses = [
+    {
+      id: "entree",
+      label: "Entree",
+      options: [
+        { id: "steak", label: "Steak" },
+        { id: "fish", label: "Fish" },
+      ],
+    },
+    { id: "drink", label: "Drink", options: [{ id: "water", label: "Water" }] },
+    { id: "empty", label: "Empty", options: [{ id: "blank", label: "" }] },
+  ];
+  assert.equal(guestFinishedPicking(courses, { entree: "steak" }), false);
+  assert.equal(guestFinishedPicking(courses, { entree: "steak", drink: "water" }), true);
+  assert.equal(
+    countFinishedGuests(courses, [
+      { choices: { entree: "steak", drink: "water" } },
+      { choices: { entree: "fish" } },
+    ]),
+    1,
+  );
 });
 
 test("clearing a named dinner dish does not delete it", () => {
