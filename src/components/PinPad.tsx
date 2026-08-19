@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, startTransition } from "react";
+import { useActionState, useRef, useState, startTransition } from "react";
 import { unlockAction, type UnlockState } from "@/app/actions";
 
 const initial: UnlockState = {};
@@ -9,10 +9,11 @@ export function PinPad() {
   const [pin, setPin] = useState("");
   const [state, formAction, pending] = useActionState(unlockAction, initial);
   const formRef = useRef<HTMLFormElement>(null);
-
-  useEffect(() => {
-    if (state.error) setPin("");
-  }, [state.error]);
+  const [lastError, setLastError] = useState<string | undefined>(undefined);
+  if (state.error && state.error !== lastError) {
+    setLastError(state.error);
+    setPin("");
+  }
 
   function submit(value: string) {
     const fd = new FormData();

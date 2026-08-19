@@ -1,4 +1,5 @@
 import { AppHeader } from "@/components/AppHeader";
+import { DayTabs } from "@/components/DayTabs";
 import { DayTimeline } from "@/components/DayTimeline";
 import { timelineEditable } from "@/lib/access";
 import { prisma } from "@/lib/db";
@@ -22,6 +23,7 @@ export default async function DayPage({
   return (
     <>
       <AppHeader session={session} title="Day-of" subtitle="October 16, 2026" />
+      <DayTabs />
       <DayTimeline blocks={blocks} canEdit={canEdit} startInEdit={startInEdit} />
     </>
   );

@@ -14,6 +14,9 @@
     "db:org-cards": "tsx scripts/ensure-org-cards.ts",
     "db:calendar": "tsx scripts/ensure-calendar-events.ts",
     "db:masters": "tsx scripts/ensure-masters.ts",
+    "db:known-people": "tsx scripts/ensure-known-people.ts",
+    "db:day-of": "tsx scripts/ensure-day-of.ts",
+    "icons": "node scripts/generate-icons.mjs",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "postinstall": "prisma generate"
   },

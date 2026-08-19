@@ -24,6 +24,7 @@ model Person {
   budgetsPaid   BudgetItem[]   @relation("BudgetPayer")
   shoppingItems ShoppingItem[]
   pinAccounts   PinAccount[]
+  dayAssignments DayAssignmentAssignee[]
 }
 
 model Task {
@@ -120,6 +121,8 @@ model TimelineBlock {
   dayOffset    Int     @default(0)
   /** "wedding" (Day-of) or "rehearsal" */
   schedule     String  @default("wedding")
+  /** Stable id from seed scripts so re-running a seed updates in place */
+  seedKey      String? @unique
   tasks        Task[]
 
   @@index([schedule, sortOrder])
@@ -348,4 +351,40 @@ model RequestMessage {
   createdAt       DateTime   @default(now())
 
   @@index([requestId, sortOrder])
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  /// "data:image/jpeg;base64,..." downscaled to ~400px on the client
+  photoData String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model DayAssignment {
+  id        String   @id @default(cuid())
+  title     String
+  notes     String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  assignees DayAssignmentAssignee[]
+
+  @@index([sortOrder])
+}
+
+model DayAssignmentAssignee {
+  assignmentId String
+  personId     String
+  assignment   DayAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  person       Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([assignmentId, personId])
+  @@index([personId])
 }

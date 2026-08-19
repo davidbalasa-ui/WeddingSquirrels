@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   addRequestMessage,
   completeRequest,
@@ -86,37 +86,26 @@ export function RequestsBoard({
   const [tab, setTab] = useState<Tab>("needs");
   const [openId, setOpenId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const recipients = accounts.filter((a) => a.id !== session.id);
 
   const grouped = useMemo(() => {
-    const toPerm = (row: RequestView) => ({
-      id: row.id,
-      status: row.status,
-      senderAccountId: row.senderAccountId,
-      recipientAccountId: row.recipientAccountId,
-      readAt: row.readAt ? new Date(row.readAt) : null,
-      senderReadAt: row.senderReadAt ? new Date(row.senderReadAt) : null,
-    });
-
+    // Sections are role-based, not read-based: asks sent TO me are "Needs you",
+    // asks I SENT are "Waiting". Marking an ask read on expand therefore never
+    // moves it between tabs or re-sorts it out of place.
     const needs = requests.filter(
-      (row) => row.status === "open" && isRequestUnread(session, toPerm(row)),
+      (row) => row.status === "open" && row.recipientAccountId === session.id,
     );
-    const needsIds = new Set(needs.map((row) => row.id));
     const waiting = requests.filter(
-      (row) =>
-        row.status === "open" &&
-        !needsIds.has(row.id) &&
-        (row.senderAccountId === session.id || row.recipientAccountId === session.id),
+      (row) => row.status === "open" && row.senderAccountId === session.id,
     );
     const closed = requests.filter((row) => row.status === "done" || row.status === "declined");
 
     if (session.isMaster) {
+      const seen = new Set([...needs, ...waiting, ...closed].map((row) => row.id));
       for (const row of requests) {
-        if (row.status === "open" && !needsIds.has(row.id) && !waiting.some((item) => item.id === row.id)) {
-          needs.push(row);
-        }
+        if (row.status === "open" && !seen.has(row.id)) needs.push(row);
       }
     }
 
@@ -302,36 +291,53 @@ function RequestCard({
 
   return (
     <article className="card p-4">
-      <button
-        type="button"
-        className="flex w-full items-start justify-between gap-3 text-left"
-        onClick={() => onToggle(!open)}
-      >
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold">{row.title}</h3>
-            {unread ? (
-              <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
-                New
-              </span>
-            ) : null}
-            {row.status !== "open" ? (
-              <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
-                {row.status}
-              </span>
-            ) : null}
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
+          onClick={() => onToggle(!open)}
+        >
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-semibold">{row.title}</h3>
+              {unread ? (
+                <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
+                  New
+                </span>
+              ) : null}
+              {row.status !== "open" ? (
+                <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+                  {row.status}
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              {row.senderAccountId === session.id
+                ? `To ${row.recipientName}`
+                : `From ${row.senderName}`}
+              {" · "}
+              {formatWhen(row.createdAt)}
+              {row.messages.length > 0 ? ` · ${row.messages.length} messages` : ""}
+            </p>
           </div>
-          <p className="mt-1 text-xs text-muted">
-            {row.senderAccountId === session.id
-              ? `To ${row.recipientName}`
-              : `From ${row.senderName}`}
-            {" · "}
-            {formatWhen(row.createdAt)}
-            {row.messages.length > 0 ? ` · ${row.messages.length} messages` : ""}
-          </p>
-        </div>
-        <span className="step-check shrink-0 text-sm text-muted">{open ? "−" : "+"}</span>
-      </button>
+          <span className="step-check shrink-0 text-sm text-muted">{open ? "−" : "+"}</span>
+        </button>
+        {perms.reopen ? (
+          <button
+            type="button"
+            className="shrink-0 rounded-full border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)]"
+            disabled={pending}
+            onClick={() => {
+              startTransition(async () => {
+                await reopenRequest(row.id);
+                onToggle(false);
+              });
+            }}
+          >
+            Reopen
+          </button>
+        ) : null}
+      </div>
 
       {open ? (
         <div className="mt-3 flex flex-col gap-3 border-t border-line pt-3">
@@ -419,20 +425,6 @@ function RequestCard({
                 }
               >
                 Done
-              </button>
-            ) : null}
-            {perms.reopen ? (
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={pending}
-                onClick={() =>
-                  startTransition(async () => {
-                    await reopenRequest(row.id);
-                  })
-                }
-              >
-                Reopen
               </button>
             ) : null}
             {perms.delete ? (

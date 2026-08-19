@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { AddTaskButton } from "@/components/AddTaskButton";
 import { AppHeader } from "@/components/AppHeader";
+import { DownloadOfflineButton } from "@/components/DownloadOfflineButton";
 import { ShowDoneToggle } from "@/components/ShowDoneToggle";
 import { TaskCard } from "@/components/TaskCard";
 import { prisma } from "@/lib/db";
@@ -41,11 +42,14 @@ export default async function TodayPage({
         }
       />
 
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted">Tap a card to decide, note, budget, and finish</p>
-        <Suspense>
-          <ShowDoneToggle />
-        </Suspense>
+        <div className="flex items-center gap-2">
+          <DownloadOfflineButton />
+          <Suspense>
+            <ShowDoneToggle />
+          </Suspense>
+        </div>
       </div>
 
       {orgCards.length > 0 ? (

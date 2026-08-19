@@ -1758,3 +1758,163 @@ export async function saveMealChoice(
   });
   return { ok: true, id: guestId };
 }
+
+/* ---------------------------------- Day-of contacts ---------------------------------- */
+
+const CONTACT_PHOTO_RE = /^data:image\/(?:jpeg|jpg|png|webp);base64,[a-z0-9+/=]+$/i;
+const MAX_CONTACT_PHOTO_CHARS = 500_000;
+
+/** Day-of contacts are viewable with timeline access and editable like the timeline. */
+async function requireDayDataEditor() {
+  try {
+    const session = await requireSession();
+    if (!session.canSeeTimeline || !timelineEditable(session)) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function parseContactPhoto(raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+  if (!CONTACT_PHOTO_RE.test(value) || value.length > MAX_CONTACT_PHOTO_CHARS) {
+    throw new Error("INVALID_PHOTO");
+  }
+  return value;
+}
+
+function revalidateDayData() {
+  revalidatePath("/day");
+  revalidatePath("/day/contacts");
+  revalidatePath("/day/assignments");
+}
+
+export async function createContact(formData: FormData): Promise<void> {
+  if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");
+
+  const name = String(formData.get("name") || "").trim();
+  const phone = String(formData.get("phone") || "").trim();
+  const email = String(formData.get("email") || "").trim();
+  const photoData = parseContactPhoto(String(formData.get("photoData") || ""));
+  if (!name) return;
+
+  const last = await prisma.contact.findFirst({ orderBy: { sortOrder: "desc" } });
+  await prisma.contact.create({
+    data: {
+      name,
+      phone: phone || null,
+      email: email || null,
+      photoData,
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+
+  revalidateDayData();
+}
+
+export async function saveContact(formData: FormData): Promise<void> {
+  if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");
+
+  const id = String(formData.get("id") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  const phone = String(formData.get("phone") || "").trim();
+  const email = String(formData.get("email") || "").trim();
+  const photoData = parseContactPhoto(String(formData.get("photoData") || ""));
+  const clearPhoto = formData.get("clearPhoto") === "on";
+  if (!id || !name) return;
+
+  const existing = await prisma.contact.findUnique({ where: { id } });
+  if (!existing) return;
+
+  await prisma.contact.update({
+    where: { id },
+    data: {
+      name,
+      phone: phone || null,
+      email: email || null,
+      photoData: clearPhoto ? null : photoData ?? existing.photoData,
+    },
+  });
+
+  revalidateDayData();
+}
+
+export async function deleteContact(contactId: string): Promise<void> {
+  if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");
+
+  try {
+    await prisma.contact.delete({ where: { id: contactId } });
+  } catch {
+    return;
+  }
+  revalidateDayData();
+}
+
+/* ------------------------------ Day-of task assignments ------------------------------ */
+
+export async function createDayAssignment(formData: FormData): Promise<void> {
+  if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");
+
+  const title = String(formData.get("title") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
+  const personIds = formData.getAll("personIds").map(String).filter(Boolean);
+  const newPerson = String(formData.get("newPerson") || "").trim();
+
+  if (!title) return;
+
+  const people = await resolveAssigneeIds(personIds, newPerson || null, { fallback: [] });
+
+  const last = await prisma.dayAssignment.findFirst({ orderBy: { sortOrder: "desc" } });
+  await prisma.dayAssignment.create({
+    data: {
+      title,
+      notes: notes || null,
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+      assignees: { create: people.map((personId) => ({ personId })) },
+    },
+  });
+
+  revalidateDayData();
+}
+
+export async function saveDayAssignment(formData: FormData): Promise<void> {
+  if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");
+
+  const id = String(formData.get("id") || "").trim();
+  const title = String(formData.get("title") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
+  const personIds = formData.getAll("personIds").map(String).filter(Boolean);
+  const newPerson = String(formData.get("newPerson") || "").trim();
+
+  if (!id || !title) return;
+
+  const existing = await prisma.dayAssignment.findUnique({ where: { id } });
+  if (!existing) return;
+
+  const people = await resolveAssigneeIds(personIds, newPerson || null, { fallback: [] });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.dayAssignment.update({
+      where: { id },
+      data: { title, notes: notes || null },
+    });
+    await tx.dayAssignmentAssignee.deleteMany({ where: { assignmentId: id } });
+    for (const personId of people) {
+      await tx.dayAssignmentAssignee.create({ data: { assignmentId: id, personId } });
+    }
+  });
+
+  revalidateDayData();
+}
+
+export async function deleteDayAssignment(assignmentId: string): Promise<void> {
+  if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");
+
+  try {
+    await prisma.dayAssignment.delete({ where: { id: assignmentId } });
+  } catch {
+    return;
+  }
+  revalidateDayData();
+}

@@ -56,7 +56,11 @@ export function canDeclineRequest(session: SessionAccount, row: RequestRow) {
 
 export function canReopenRequest(session: SessionAccount, row: RequestRow) {
   if (row.status !== "done" && row.status !== "declined") return false;
-  return session.isMaster || row.senderAccountId === session.id;
+  return (
+    session.isMaster ||
+    row.senderAccountId === session.id ||
+    row.recipientAccountId === session.id
+  );
 }
 
 export function canEditRequest(session: SessionAccount, row: RequestRow) {

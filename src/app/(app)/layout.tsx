@@ -1,4 +1,5 @@
 import { BottomNav } from "@/components/BottomNav";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { prisma } from "@/lib/db";
 import { unreadRequestsWhere } from "@/lib/requests";
 import { requirePageSession } from "@/lib/session";
@@ -15,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app-shell">
+      <OfflineBanner />
       {children}
       <BottomNav session={session} unreadRequests={unreadRequests} />
     </div>
