@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { createContact, deleteContact, saveContact } from "@/app/actions";
 import { fileToResizedDataUrl } from "@/lib/resize-image";
@@ -28,6 +29,7 @@ export function ContactsPanel({
   contacts: ContactView[];
   canEdit: boolean;
 }) {
+  const router = useRouter();
   const [editing, setEditing] = useState<ContactView | "new" | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -43,10 +45,10 @@ export function ContactsPanel({
         </button>
       ) : null}
 
-      {editing ? (
+      {editing === "new" ? (
         <ContactForm
-          contact={editing === "new" ? null : editing}
-          key={editing === "new" ? "new" : editing.id}
+          key="new"
+          contact={null}
           onDone={() => setEditing(null)}
           onCancel={() => setEditing(null)}
         />
@@ -58,62 +60,72 @@ export function ContactsPanel({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {contacts.map((contact) => (
-            <article key={contact.id} className="card flex items-center gap-3 p-4">
-              {contact.photoData ? (
-                <img
-                  src={contact.photoData}
-                  alt={contact.name}
-                  className="h-14 w-14 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] font-[family-name:var(--font-display)] text-lg text-[var(--accent)]">
-                  {initials(contact.name)}
-                </span>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold leading-snug">{contact.name}</p>
-                {contact.phone ? (
-                  <p className="mt-0.5 text-sm text-muted">
-                    <a href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`} className="hover:underline">
-                      {contact.phone}
-                    </a>
-                  </p>
-                ) : null}
-                {contact.email ? (
-                  <p className="mt-0.5 text-sm text-muted">
-                    <a href={`mailto:${contact.email}`} className="hover:underline">
-                      {contact.email}
-                    </a>
-                  </p>
-                ) : null}
-              </div>
-              {canEdit ? (
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  <button
-                    type="button"
-                    className="text-sm font-semibold text-[var(--accent)]"
-                    onClick={() => setEditing(contact)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="text-sm font-semibold text-[var(--danger)]"
-                    disabled={pending}
-                    onClick={() => {
-                      if (!window.confirm(`Delete ${contact.name}?`)) return;
-                      startTransition(async () => {
-                        await deleteContact(contact.id);
-                      });
-                    }}
-                  >
-                    Delete
-                  </button>
+          {contacts.map((contact) =>
+            editing !== "new" && editing?.id === contact.id ? (
+              <ContactForm
+                key={contact.id}
+                contact={contact}
+                onDone={() => setEditing(null)}
+                onCancel={() => setEditing(null)}
+              />
+            ) : (
+              <article key={contact.id} className="card flex items-center gap-3 p-4">
+                {contact.photoData ? (
+                  <img
+                    src={contact.photoData}
+                    alt={contact.name}
+                    className="h-14 w-14 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] font-[family-name:var(--font-display)] text-lg text-[var(--accent)]">
+                    {initials(contact.name)}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold leading-snug">{contact.name}</p>
+                  {contact.phone ? (
+                    <p className="mt-0.5 text-sm text-muted">
+                      <a href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`} className="hover:underline">
+                        {contact.phone}
+                      </a>
+                    </p>
+                  ) : null}
+                  {contact.email ? (
+                    <p className="mt-0.5 text-sm text-muted">
+                      <a href={`mailto:${contact.email}`} className="hover:underline">
+                        {contact.email}
+                      </a>
+                    </p>
+                  ) : null}
                 </div>
-              ) : null}
-            </article>
-          ))}
+                {canEdit ? (
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-[var(--accent)]"
+                      onClick={() => setEditing(contact)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-[var(--danger)]"
+                      disabled={pending}
+                      onClick={() => {
+                        if (!window.confirm(`Delete ${contact.name}?`)) return;
+                        startTransition(async () => {
+                          await deleteContact(contact.id);
+                          router.refresh();
+                        });
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+            ),
+          )}
         </div>
       )}
     </div>
@@ -129,6 +141,7 @@ function ContactForm({
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const router = useRouter();
   const [photoData, setPhotoData] = useState<string | null>(contact?.photoData ?? null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -162,6 +175,7 @@ function ContactForm({
             await createContact(formData);
           }
           onDone();
+          router.refresh();
         });
       }}
     >
