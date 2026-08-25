@@ -1,11 +1,8 @@
 import { AppHeader } from "@/components/AppHeader";
-import {
-  AccountAccessPanel,
-  type AccountPanelAccount,
-} from "@/components/AccountAccessPanel";
-import { createPinAccount, updatePinAccount } from "@/app/actions";
+import { AccountsManager } from "@/components/AccountsManager";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/session";
+import type { AccountPanelAccount } from "@/lib/types";
 
 function parseAssigneeFilterJson(raw: string | null): string[] {
   if (!raw) return [];
@@ -93,53 +90,26 @@ export default async function AccountsPage() {
     }),
   ]);
 
-  const sharesEnabled = true;
-  const budgetShareOptions = budgetItems.map((item) => ({
-    id: item.id,
-    label: item.name,
-  }));
-  const taskShareOptions = tasks.map((task) => ({
-    id: task.id,
-    label: task.title,
-  }));
-
+  const budgetShareOptions = budgetItems.map((item) => ({ id: item.id, label: item.name }));
+  const taskShareOptions = tasks.map((task) => ({ id: task.id, label: task.title }));
   const peopleOptions = people.map((p) => ({ id: p.id, name: p.name }));
 
   return (
     <>
-      <AppHeader
-        session={session}
-        title="Accounts"
-        subtitle="PINs, linked people, modules, task filters, and shared items"
-      />
+      <AppHeader session={session} title="Accounts" subtitle="PINs, roles, and access" />
 
-      <AccountAccessPanel
-        mode="create"
+      <AccountsManager
+        accounts={accounts.map((account) =>
+          toPanelAccount({
+            ...account,
+            budgetItemShares: account.budgetShares,
+            taskShares: account.taskShares,
+          }),
+        )}
         people={peopleOptions}
-        action={createPinAccount}
-        sharesEnabled={sharesEnabled}
         budgetShareOptions={budgetShareOptions}
         taskShareOptions={taskShareOptions}
       />
-
-      <div className="flex flex-col gap-3">
-        {accounts.map((account) => (
-          <AccountAccessPanel
-            key={account.id}
-            mode="edit"
-            people={peopleOptions}
-            account={toPanelAccount({
-              ...account,
-              budgetItemShares: account.budgetShares,
-              taskShares: account.taskShares,
-            })}
-            action={updatePinAccount}
-            sharesEnabled={sharesEnabled}
-            budgetShareOptions={budgetShareOptions}
-            taskShareOptions={taskShareOptions}
-          />
-        ))}
-      </div>
     </>
   );
 }

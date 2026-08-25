@@ -1,28 +1,14 @@
 "use client";
 
+import { toggleAccountFlag } from "@/lib/account-flags";
+import {
+  GROUP_LABELS,
+  GROUP_ORDER,
+  permissionModules,
+  type ModuleDef,
+  type ModuleGroup,
+} from "@/lib/modules";
 import type { AccountModuleFlags } from "@/lib/types";
-
-type ModuleRow = {
-  key: string;
-  label: string;
-  seeKey?: keyof AccountModuleFlags;
-  editKey?: keyof AccountModuleFlags;
-};
-
-const MODULE_ROWS: ModuleRow[] = [
-  { key: "tasks", label: "Tasks", seeKey: "canSeeTasks" },
-  { key: "people", label: "People", seeKey: "canSeePeople" },
-  { key: "calendar", label: "Calendar", seeKey: "canSeeCalendar" },
-  { key: "shop", label: "Shop", seeKey: "canSeeShop" },
-  { key: "money", label: "Money", seeKey: "canSeeBudget", editKey: "canEditBudget" },
-  { key: "dayof", label: "Day-of", seeKey: "canSeeTimeline", editKey: "canEditTimeline" },
-  { key: "guests", label: "Guests", seeKey: "canSeeGuests" },
-  { key: "stay", label: "Stay", seeKey: "canSeeStay" },
-  { key: "rehearsal", label: "Rehearsal", seeKey: "canSeeDinner", editKey: "canEditRehearsal" },
-  { key: "dinner", label: "Dinner", editKey: "canEditDinner" },
-  { key: "requests", label: "Requests", seeKey: "canSeeRequests" },
-  { key: "accounts", label: "Manage accounts", seeKey: "canManageAccounts" },
-];
 
 export function ModulePermissionGrid({
   flags,
@@ -35,87 +21,81 @@ export function ModulePermissionGrid({
 }) {
   function setFlag(key: keyof AccountModuleFlags, value: boolean) {
     if (locked) return;
-    const next = { ...flags, [key]: value };
-
-    // Edit flags auto-clear when corresponding See is off.
-    if (key === "canSeeBudget" && !value) next.canEditBudget = false;
-    if (key === "canSeeTimeline" && !value) next.canEditTimeline = false;
-    if (key === "canSeeDinner" && !value) {
-      next.canEditDinner = false;
-      next.canEditRehearsal = false;
-    }
-
-    // Edit without See → force See.
-    if (key === "canEditBudget" && value) next.canSeeBudget = true;
-    if (key === "canEditTimeline" && value) next.canSeeTimeline = true;
-    if (key === "canEditDinner" && value) next.canSeeDinner = true;
-    if (key === "canEditRehearsal" && value) next.canSeeDinner = true;
-
-    // Account managers always run the dinner menu, so they keep the tab and dinner edit.
-    if (key === "canManageAccounts" && value) {
-      next.canSeeDinner = true;
-      next.canEditDinner = true;
-    }
-    if (key === "canSeeDinner" && !value && next.canManageAccounts) next.canSeeDinner = true;
-
-    onChange(next);
+    onChange(toggleAccountFlag(flags, key, value));
   }
 
   return (
-    <fieldset disabled={locked} className="overflow-x-auto">
-      <legend className="mb-2 text-sm font-semibold">Modules</legend>
-      <table className="w-full min-w-[280px] border-collapse text-sm">
-        <thead>
-          <tr className="text-left text-xs uppercase tracking-wide text-muted">
-            <th className="pb-2 pr-2 font-semibold">Module</th>
-            <th className="pb-2 pr-2 font-semibold">See</th>
-            <th className="pb-2 font-semibold">Edit</th>
-          </tr>
-        </thead>
-        <tbody>
-          {MODULE_ROWS.map((row) => (
-            <tr key={row.key} className="border-t border-line/70">
-              <td className="py-2.5 pr-2">{row.label}</td>
-              <td className="py-2.5 pr-2">
-                {row.seeKey ? (
-                  <input
-                    type="checkbox"
-                    name={row.seeKey}
-                    checked={flags[row.seeKey]}
-                    onChange={(e) => setFlag(row.seeKey!, e.target.checked)}
-                    aria-label={`${row.label} see`}
-                  />
-                ) : (
-                  <span className="text-xs text-muted">—</span>
-                )}
-              </td>
-              <td className="py-2.5">
-                {row.editKey ? (
-                  <input
-                    type="checkbox"
-                    name={row.editKey}
-                    checked={flags[row.editKey]}
-                    onChange={(e) => setFlag(row.editKey!, e.target.checked)}
-                    aria-label={`${row.label} edit`}
-                  />
-                ) : (
-                  <span className="text-xs text-muted">—</span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <fieldset disabled={locked} className="flex flex-col gap-4">
+      <legend className="mb-1 text-sm font-semibold">Access</legend>
+      {GROUP_ORDER.map((group: ModuleGroup) => {
+        const rows = permissionModules(group);
+        if (rows.length === 0) return null;
+        return (
+          <div key={group}>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+              {GROUP_LABELS[group]}
+            </p>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              {rows.map((module) => (
+                <ModuleToggle
+                  key={module.key}
+                  module={module}
+                  flags={flags}
+                  onToggle={setFlag}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
       {locked ? (
-        <p className="mt-2 text-xs text-muted">Master accounts always have full access.</p>
+        <p className="text-xs text-muted">Master accounts always have full access.</p>
       ) : (
-        <p className="mt-2 text-xs text-muted">
-          Dinner lives on the Rehearsal tab. Rehearsal Edit is the Thursday schedule; Dinner Edit is
-          the menu.
+        <p className="text-xs text-muted">
+          Rehearsal Edit is the Thursday schedule; Dinner Edit is the menu (lives on the
+          Rehearsal tab).
         </p>
       )}
     </fieldset>
   );
 }
 
-export { MODULE_ROWS };
+function ModuleToggle({
+  module,
+  flags,
+  onToggle,
+}: {
+  module: ModuleDef;
+  flags: AccountModuleFlags;
+  onToggle: (key: keyof AccountModuleFlags, value: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-line px-3 py-2 text-sm">
+      <span className="font-medium">{module.label}</span>
+      <div className="flex items-center gap-3">
+        {module.see ? (
+          <label className="flex items-center gap-1.5 text-xs text-muted">
+            <input
+              type="checkbox"
+              checked={flags[module.see]}
+              onChange={(e) => onToggle(module.see!, e.target.checked)}
+              aria-label={`${module.label} see`}
+            />
+            See
+          </label>
+        ) : null}
+        {module.edit ? (
+          <label className="flex items-center gap-1.5 text-xs text-muted">
+            <input
+              type="checkbox"
+              checked={flags[module.edit]}
+              onChange={(e) => onToggle(module.edit!, e.target.checked)}
+              aria-label={`${module.label} edit`}
+            />
+            Edit
+          </label>
+        ) : null}
+      </div>
+    </div>
+  );
+}

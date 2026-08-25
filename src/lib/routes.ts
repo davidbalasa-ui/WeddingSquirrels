@@ -1,4 +1,5 @@
 import { canManageAccounts, canSeeDinnerTab } from "@/lib/access";
+import { MODULES } from "@/lib/modules";
 import type { SessionAccount } from "@/lib/types";
 
 export type AppRoute = {
@@ -6,20 +7,16 @@ export type AppRoute = {
   need: keyof SessionAccount | "canManageAccounts" | "canSeeDinner";
 };
 
-/** Main app tabs in bottom-nav order. */
-export const APP_ROUTES: AppRoute[] = [
-  { href: "/today", need: "canSeeTasks" },
-  { href: "/people", need: "canSeePeople" },
-  { href: "/calendar", need: "canSeeCalendar" },
-  { href: "/shop", need: "canSeeShop" },
-  { href: "/requests", need: "canSeeRequests" },
-  { href: "/money", need: "canSeeBudget" },
-  { href: "/stay", need: "canSeeStay" },
-  { href: "/rehearsal", need: "canSeeDinner" },
-  { href: "/day", need: "canSeeTimeline" },
-  { href: "/guests", need: "canSeeGuests" },
-  { href: "/accounts", need: "canManageAccounts" },
-];
+/** Main app tabs in bottom-nav order (derived from the module registry). */
+export const APP_ROUTES: AppRoute[] = MODULES.filter((m) => m.href).map((m) => ({
+  href: m.href!,
+  need:
+    m.key === "accounts"
+      ? "canManageAccounts"
+      : m.key === "rehearsal"
+        ? "canSeeDinner"
+        : (m.see ?? "canSeeTasks"),
+}));
 
 export function canSeeRoute(session: SessionAccount, route: AppRoute): boolean {
   if (session.isMaster) return true;

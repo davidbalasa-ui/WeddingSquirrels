@@ -58,3 +58,13 @@ export type ShareOption = {
   id: string;
   label: string;
 };
+
+export type AccountPanelAccount = AccountModuleFlags & {
+  id: string;
+  name: string;
+  isMaster: boolean;
+  linkedPersonId: string | null;
+  assigneeFilter: string[];
+  sharedBudgetItemIds?: string[];
+  sharedTaskIds?: string[];
+};

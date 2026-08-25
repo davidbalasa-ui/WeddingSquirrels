@@ -2,22 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { canManageAccounts, canSeeDinnerTab } from "@/lib/access";
+import { useState } from "react";
+import { ModuleIcon } from "@/components/ModuleIcon";
+import { MoreSheet } from "@/components/MoreSheet";
+import { moreGroups, primaryModules } from "@/lib/modules";
 import type { SessionAccount } from "@/lib/types";
-
-const items = [
-  { href: "/today", label: "Today", need: "canSeeTasks" as const },
-  { href: "/people", label: "People", need: "canSeePeople" as const },
-  { href: "/calendar", label: "Cal", need: "canSeeCalendar" as const },
-  { href: "/shop", label: "Shop", need: "canSeeShop" as const },
-  { href: "/requests", label: "Ask", need: "canSeeRequests" as const },
-  { href: "/money", label: "Money", need: "canSeeBudget" as const },
-  { href: "/stay", label: "Stay", need: "canSeeStay" as const },
-  { href: "/rehearsal", label: "Rehearsal", need: "canSeeDinner" as const },
-  { href: "/day", label: "Day-of", need: "canSeeTimeline" as const },
-  { href: "/guests", label: "Guests", need: "canSeeGuests" as const },
-  { href: "/accounts", label: "Accounts", need: "canManageAccounts" as const },
-];
 
 export function BottomNav({
   session,
@@ -27,38 +16,57 @@ export function BottomNav({
   unreadRequests?: number;
 }) {
   const pathname = usePathname();
-  const visible = items.filter((item) => {
-    if (!item.need) return true;
-    if (item.need === "canManageAccounts") return canManageAccounts(session);
-    if (item.need === "canSeeDinner") return canSeeDinnerTab(session);
-    return Boolean(session[item.need]);
-  });
+  const [moreOpen, setMoreOpen] = useState(false);
+  const primaries = primaryModules(session);
+  const more = moreGroups(session);
+  const activeMore = more.some((group) =>
+    group.items.some((item) => pathname.startsWith(item.href!)),
+  );
 
   return (
-    <nav className="nav-bar" aria-label="Main">
-      {visible.map((item) => {
-        const showBadge = item.href === "/requests" && unreadRequests > 0;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
+    <>
+      <nav className="nav-bar" aria-label="Main">
+        {primaries.map((item) => {
+          const active = pathname.startsWith(item.href!);
+          const showBadge = item.badge === "unread" && unreadRequests > 0;
+          return (
+            <Link
+              key={item.key}
+              href={item.href!}
+              className="nav-link"
+              data-active={active}
+              aria-current={active ? "page" : undefined}
+            >
+              <ModuleIcon name={item.icon} className="nav-icon" />
+              <span className="relative inline-flex items-center gap-1">
+                {item.label}
+                {showBadge ? (
+                  <span
+                    className="inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-bold leading-4 text-white"
+                    aria-label={`${unreadRequests} unread requests`}
+                  >
+                    {unreadRequests > 9 ? "9+" : unreadRequests}
+                  </span>
+                ) : null}
+              </span>
+            </Link>
+          );
+        })}
+        {more.length > 0 ? (
+          <button
+            type="button"
             className="nav-link"
-            data-active={pathname.startsWith(item.href)}
+            data-active={activeMore}
+            onClick={() => setMoreOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={moreOpen}
           >
-            <span className="relative inline-flex items-center gap-1">
-              {item.label}
-              {showBadge ? (
-                <span
-                  className="inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-bold leading-4 text-white"
-                  aria-label={`${unreadRequests} unread requests`}
-                >
-                  {unreadRequests > 9 ? "9+" : unreadRequests}
-                </span>
-              ) : null}
-            </span>
-          </Link>
-        );
-      })}
-    </nav>
+            <ModuleIcon name="more" className="nav-icon" />
+            <span>More</span>
+          </button>
+        ) : null}
+      </nav>
+      {moreOpen ? <MoreSheet session={session} onClose={() => setMoreOpen(false)} /> : null}
+    </>
   );
 }
