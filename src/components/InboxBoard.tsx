@@ -179,7 +179,7 @@ export function InboxBoard({
   const whoButtons = whoChips.filter((chip) => chip.id !== "all");
 
   return (
-    <div className="flex flex-col gap-2 pb-4">
+    <div className="flex flex-col pb-4">
       <InboxAddBar
         session={session}
         accounts={accounts}
@@ -243,7 +243,7 @@ export function InboxBoard({
       {session.canSeeRequests ? (
         <Section title={`Needs you${filtered.needsYou.length ? ` · ${filtered.needsYou.length}` : ""}`}>
           {filtered.needsYou.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-muted">You&apos;re caught up — nothing waiting on you.</p>
+            <p className="py-2 text-sm text-muted">You&apos;re caught up — nothing waiting on you.</p>
           ) : (
             filtered.needsYou.map((item) => (
               <InboxRow
@@ -281,7 +281,7 @@ export function InboxBoard({
       {!vendorOnly ? (
         <Section title="Open">
           {filtered.open.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-muted">Nothing open — add something above.</p>
+            <p className="py-2 text-sm text-muted">Nothing open — add something above.</p>
           ) : (
             <>
               {openPackages.length > 0 ? (
@@ -391,13 +391,13 @@ export function InboxBoard({
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-line">
+    <section>
       {title ? (
-        <div className="border-b border-line bg-[color-mix(in_srgb,var(--surface)_80%,transparent)] px-3 py-1.5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{title}</p>
-        </div>
+        <p className="pt-3 pb-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+          {title}
+        </p>
       ) : null}
-      <div className="divide-y divide-[var(--line)]">{children}</div>
+      <div className="divide-y divide-[var(--line)] border-t border-line">{children}</div>
     </section>
   );
 }
@@ -511,7 +511,7 @@ function DragHandle({
     <button
       type="button"
       aria-label="Drag to reorder"
-      className="mt-0.5 shrink-0 touch-none px-1 text-sm text-muted active:text-ink"
+      className="mt-0.5 shrink-0 touch-none px-0.5 text-sm text-muted active:text-ink"
       onPointerDown={onPointerDown}
     >
       ≡

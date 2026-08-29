@@ -39,7 +39,7 @@ export function InboxAddBar({
 
   if (!open) {
     return (
-      <div className="sticky top-[var(--header-offset,0px)] z-10 -mx-1 mb-1 bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] py-1 backdrop-blur-sm">
+      <div className="sticky top-[var(--header-offset,0px)] z-10 -mx-1 bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] py-1 backdrop-blur-sm">
         <button
           type="button"
           className="btn-primary min-h-[44px] w-full"
@@ -52,7 +52,7 @@ export function InboxAddBar({
   }
 
   return (
-    <section className="sticky top-0 z-10 mb-1 overflow-hidden rounded-lg border border-line">
+    <section className="sticky top-0 z-10 overflow-hidden border border-line">
       {kinds.length > 1 ? (
         <div className="flex border-b border-line">
           {kinds.map((k) => (

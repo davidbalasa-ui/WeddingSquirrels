@@ -3,8 +3,10 @@ import { test } from "node:test";
 import {
   buildWhoChips,
   canSeeHome,
+  detailFromTaskPackage,
   filterInboxSections,
   groupInboxItems,
+  inboxDateLine,
   nextCoupleOwnerIds,
   nextShoppingOwnerId,
   type InboxItem,
@@ -213,4 +215,22 @@ test("needs-me filter includes assigneeFilter tasks", () => {
     accounts: [],
   });
   assert.equal(filtered.open.length, 1);
+});
+
+test("detailFromTaskPackage lists remaining work as plain text, never a steps count", () => {
+  const detail = detailFromTaskPackage({
+    summary: "Decide look",
+    children: [
+      { title: "Book stylist", status: "todo", sortOrder: 1 },
+      { title: "Done already", status: "done", sortOrder: 0 },
+      { title: "Choose style", status: "todo", sortOrder: 2 },
+    ],
+  });
+  assert.equal(detail, "Book stylist · Choose style · Decide look");
+  assert.equal(detailFromTaskPackage({ children: [{ title: "X", status: "done", sortOrder: 0 }] }), null);
+});
+
+test("inboxDateLine is empty when done or missing", () => {
+  assert.equal(inboxDateLine(null, false), null);
+  assert.equal(inboxDateLine(new Date("2026-01-01"), true), null);
 });

@@ -18,7 +18,7 @@ import {
   toggleTaskDone,
 } from "@/app/actions";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
-import { canManageOwners, nextCoupleOwnerIds, type InboxItem } from "@/lib/inbox";
+import { canManageOwners, inboxDateLine, nextCoupleOwnerIds, type InboxItem } from "@/lib/inbox";
 import {
   canCompleteRequest,
   canDeclineRequest,
@@ -28,7 +28,6 @@ import {
   canReplyToRequest,
   isRequestUnread,
 } from "@/lib/requests";
-import { dueLabel } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 import type { TaskOption } from "@/lib/inbox";
 
@@ -43,27 +42,9 @@ function formatTime(iso: string) {
   });
 }
 
-function metaParts(item: InboxItem) {
-  const parts: string[] = [];
-  if (item.dueDate) {
-    parts.push(dueLabel(item.dueDate, item.done ? "done" : "todo") ?? "");
-  }
-  if (item.meta?.childTotal) {
-    parts.push(`${item.meta.childDone}/${item.meta.childTotal} steps`);
-  }
-  if (item.meta?.quantity) {
-    parts.push(item.meta.quantity);
-  }
-  if (item.escalated) {
-    parts.push("Priority");
-  }
-  return parts.filter(Boolean);
-}
-
 export function InboxRow({
   item,
   session,
-  tasks,
   expanded,
   onToggleExpand,
   onAskSomeone,
@@ -174,32 +155,22 @@ export function InboxRow({
     : null;
 
   const unread = askPerm ? isRequestUnread(session, askPerm) : false;
-  const meta = metaParts(item);
-  const kindLabel =
-    item.kind === "ask"
-      ? "Ask"
-      : item.kind === "task"
-        ? "Decision"
-        : item.kind === "org_step"
-          ? "Step"
-          : "Buy";
+  const dateLine = inboxDateLine(item.dueDate, item.done);
+  const ownerTappable = item.kind === "buy" || canCycleOwners || Boolean(item.href);
 
   return (
-    <article
-      className={`relative flex items-start gap-1.5 px-2 py-1.5 ${
-        item.done ? "opacity-60" : ""
-      } ${item.escalated ? "border-l-2 border-l-[var(--warn)] pl-1.5" : ""}`}
-    >
+    <article className={`flex items-start gap-1.5 py-2 ${item.done ? "opacity-60" : ""}`}>
       {dragHandle}
 
       <button
         type="button"
         aria-label={item.done ? "Mark not done" : item.kind === "buy" ? "Mark purchased" : "Mark done"}
         disabled={pending}
-        className="step-check mt-0.5 shrink-0"
+        className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-line text-[11px] leading-none"
         style={{
           background: item.done || item.declined ? "var(--accent)" : "transparent",
-          color: item.done || item.declined ? "white" : "var(--muted)",
+          color: item.done || item.declined ? "white" : "transparent",
+          borderColor: item.done || item.declined ? "var(--accent)" : undefined,
         }}
         onClick={handleCheckbox}
       >
@@ -207,40 +178,11 @@ export function InboxRow({
       </button>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-1">
+        <div className="flex items-baseline gap-2">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] leading-tight text-muted">
-              {unread ? <span className="font-semibold text-[var(--accent)]">New · </span> : null}
-              {item.declined ? <span className="font-semibold text-[var(--danger)]">Declined · </span> : null}
-              <span className="font-semibold uppercase tracking-wide">{kindLabel}</span>
-              {(item.kind === "task" || item.kind === "org_step" || item.kind === "buy") && (
-                <>
-                  {" · "}
-                  <button
-                    type="button"
-                    className="font-semibold text-muted underline decoration-dotted underline-offset-2 disabled:no-underline"
-                    disabled={pending || (item.kind !== "buy" && !canCycleOwners && !item.href)}
-                    onClick={cycleOwner}
-                  >
-                    {item.ownerLabel}
-                  </button>
-                </>
-              )}
-              {item.kind === "ask" ? (
-                <span className="font-semibold"> · {item.ownerLabel}</span>
-              ) : null}
-              {meta.length > 0 ? <span> · {meta.join(" · ")}</span> : null}
-            </p>
-
-            {item.kind === "ask" ? (
-              <button type="button" className="w-full text-left" onClick={onToggleExpand}>
-                <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
-                  {item.title}
-                </p>
-              </button>
-            ) : editingTitle ? (
+            {editingTitle ? (
               <input
-                className="field-input mt-0.5 text-[15px] font-semibold"
+                className="field-input text-[15px] font-semibold"
                 value={titleDraft}
                 autoFocus
                 onChange={(e) => setTitleDraft(e.target.value)}
@@ -253,15 +195,20 @@ export function InboxRow({
                   }
                 }}
               />
+            ) : item.kind === "ask" ? (
+              <button type="button" className="w-full text-left" onClick={onToggleExpand}>
+                <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
+                  {item.title}
+                </p>
+              </button>
+            ) : item.kind === "task" && item.href ? (
+              <Link href={item.href} className="block">
+                <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
+                  {item.title}
+                </p>
+              </Link>
             ) : (
-              <button
-                type="button"
-                className="mt-0.5 w-full text-left"
-                onClick={() => {
-                  if (item.kind === "ask") onToggleExpand();
-                  else setEditingTitle(true);
-                }}
-              >
+              <button type="button" className="w-full text-left" onClick={() => setEditingTitle(true)}>
                 <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
                   {item.title}
                 </p>
@@ -269,89 +216,120 @@ export function InboxRow({
             )}
           </div>
 
-          {item.kind === "task" && item.href ? (
-            <Link
-              href={item.href}
-              className="shrink-0 px-1 py-0.5 text-lg text-muted hover:text-[var(--accent)]"
-              aria-label="Open workspace"
-            >
-              ›
-            </Link>
-          ) : null}
-
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              className="px-1 py-0.5 text-sm text-muted"
-              aria-label="Row menu"
-              onClick={() => setMenuOpen((v) => !v)}
-            >
-              ⋯
-            </button>
-            {menuOpen ? (
-              <div className="absolute right-0 top-full z-20 mt-0.5 min-w-[10rem] rounded-lg border border-line bg-[var(--bg-elevated)] py-1 shadow-lg">
-                {item.kind === "task" && item.href ? (
-                  <Link
-                    href={item.href}
-                    className="block px-3 py-2 text-sm font-semibold hover:bg-[var(--surface)]"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Open workspace
-                  </Link>
-                ) : null}
-                {onAskSomeone ? (
-                  <button
-                    type="button"
-                    className="block w-full px-3 py-2 text-left text-sm font-semibold hover:bg-[var(--surface)]"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onAskSomeone();
-                    }}
-                  >
-                    Ask someone
-                  </button>
-                ) : null}
-                {item.kind === "task" && session.canSeeTasks ? (
-                  <div className="px-2 py-1">
-                    <EscalatePriorityButton
-                      taskId={item.sourceId}
-                      escalated={Boolean(item.escalated)}
-                      compact
-                    />
-                  </div>
-                ) : null}
-                {item.kind === "buy" ? (
-                  <button
-                    type="button"
-                    className="block w-full px-3 py-2 text-left text-sm font-semibold text-[var(--danger)] hover:bg-[var(--surface)]"
-                    onClick={() =>
-                      startTransition(async () => {
-                        await deleteShoppingItem(item.sourceId);
-                        setMenuOpen(false);
-                      })
-                    }
-                  >
-                    Delete
-                  </button>
-                ) : null}
-                {item.kind === "ask" && askPerms?.delete ? (
-                  <button
-                    type="button"
-                    className="block w-full px-3 py-2 text-left text-sm font-semibold text-[var(--danger)] hover:bg-[var(--surface)]"
-                    onClick={() =>
-                      startTransition(async () => {
-                        await deleteRequest(item.sourceId);
-                        setMenuOpen(false);
-                      })
-                    }
-                  >
-                    Delete
-                  </button>
-                ) : null}
-              </div>
+          <div className="flex shrink-0 items-baseline gap-1">
+            {unread ? <span className="text-[11px] font-semibold text-[var(--accent)]">New</span> : null}
+            {item.declined ? (
+              <span className="text-[11px] font-semibold text-[var(--danger)]">Declined</span>
             ) : null}
+            {ownerTappable ? (
+              <button
+                type="button"
+                className="text-[13px] text-muted"
+                disabled={pending}
+                onClick={cycleOwner}
+              >
+                {item.ownerLabel}
+              </button>
+            ) : (
+              <span className="text-[13px] text-muted">{item.ownerLabel}</span>
+            )}
+            <div className="relative">
+              <button
+                type="button"
+                className="px-0.5 text-sm text-muted"
+                aria-label="Row menu"
+                onClick={() => setMenuOpen((v) => !v)}
+              >
+                ⋯
+              </button>
+              {menuOpen ? (
+                <div className="absolute right-0 top-full z-20 mt-0.5 min-w-[10rem] border border-line bg-[var(--bg-elevated)] py-1 shadow-lg">
+                  {item.kind !== "ask" ? (
+                    <button
+                      type="button"
+                      className="block w-full px-3 py-2 text-left text-sm font-semibold hover:bg-[var(--surface)]"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setEditingTitle(true);
+                      }}
+                    >
+                      Rename
+                    </button>
+                  ) : null}
+                  {item.kind === "task" && item.href ? (
+                    <Link
+                      href={item.href}
+                      className="block px-3 py-2 text-sm font-semibold hover:bg-[var(--surface)]"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Open workspace
+                    </Link>
+                  ) : null}
+                  {onAskSomeone ? (
+                    <button
+                      type="button"
+                      className="block w-full px-3 py-2 text-left text-sm font-semibold hover:bg-[var(--surface)]"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onAskSomeone();
+                      }}
+                    >
+                      Ask someone
+                    </button>
+                  ) : null}
+                  {item.kind === "task" && session.canSeeTasks ? (
+                    <div className="px-2 py-1">
+                      <EscalatePriorityButton
+                        taskId={item.sourceId}
+                        escalated={Boolean(item.escalated)}
+                        compact
+                      />
+                    </div>
+                  ) : null}
+                  {item.kind === "buy" ? (
+                    <button
+                      type="button"
+                      className="block w-full px-3 py-2 text-left text-sm font-semibold text-[var(--danger)] hover:bg-[var(--surface)]"
+                      onClick={() =>
+                        startTransition(async () => {
+                          await deleteShoppingItem(item.sourceId);
+                          setMenuOpen(false);
+                        })
+                      }
+                    >
+                      Delete
+                    </button>
+                  ) : null}
+                  {item.kind === "ask" && askPerms?.delete ? (
+                    <button
+                      type="button"
+                      className="block w-full px-3 py-2 text-left text-sm font-semibold text-[var(--danger)] hover:bg-[var(--surface)]"
+                      onClick={() =>
+                        startTransition(async () => {
+                          await deleteRequest(item.sourceId);
+                          setMenuOpen(false);
+                        })
+                      }
+                    >
+                      Delete
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
+
+        {item.detail ? <p className="mt-0.5 text-sm leading-snug text-muted">{item.detail}</p> : null}
+        {dateLine ? (
+          <p
+            className={`mt-0.5 text-xs ${
+              dateLine.includes("overdue") ? "font-semibold text-[var(--danger)]" : "text-muted"
+            }`}
+          >
+            {dateLine}
+          </p>
+        ) : null}
 
         {item.kind === "ask" && expanded && item.askData ? (
           <div className="mt-2 border-t border-line pt-2">
@@ -420,7 +398,7 @@ export function InboxRow({
         ) : null}
 
         {undoId === item.sourceId ? (
-          <div className="mt-1.5 flex items-center gap-2 text-sm text-muted">
+          <div className="mt-1 flex items-center gap-2 text-sm text-muted">
             <span>Marked done.</span>
             <button
               type="button"
@@ -453,12 +431,12 @@ function AskThread({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       {messages.map((message) => {
         const mine = message.authorAccountId === sessionId;
         return (
           <div key={message.id} className="text-sm leading-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+            <p className="text-[11px] font-semibold text-muted">
               {mine ? "You" : message.authorName} · {formatTime(message.createdAt)}
             </p>
             <p className="whitespace-pre-wrap">{message.body}</p>

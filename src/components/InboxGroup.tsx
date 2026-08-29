@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { toggleTaskDone } from "@/app/actions";
 import type { InboxOrgGroup } from "@/lib/inbox";
-import { dueLabel } from "@/lib/tasks";
+import { inboxDateLine } from "@/lib/inbox";
 
 export function InboxGroupHeader({
   group,
@@ -15,19 +15,20 @@ export function InboxGroupHeader({
   onToggleCollapse: () => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const label = dueLabel(group.dueDate, group.parentDone ? "done" : "todo");
+  const dateLine = inboxDateLine(group.dueDate, group.parentDone);
 
   return (
-    <div className="flex items-center gap-2 border-b border-line bg-[color-mix(in_srgb,var(--accent-soft)_40%,transparent)] px-2 py-1.5">
+    <div className="flex items-center gap-2 py-1.5">
       {group.parentTaskId ? (
         <button
           type="button"
           aria-label={group.parentDone ? "Mark card not done" : "Mark card done"}
           disabled={pending}
-          className="step-check shrink-0"
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-line text-[11px] leading-none"
           style={{
             background: group.parentDone ? "var(--accent)" : "transparent",
-            color: group.parentDone ? "white" : "var(--muted)",
+            color: group.parentDone ? "white" : "transparent",
+            borderColor: group.parentDone ? "var(--accent)" : undefined,
           }}
           onClick={() => startTransition(() => toggleTaskDone(group.parentTaskId))}
         >
@@ -36,10 +37,12 @@ export function InboxGroupHeader({
       ) : null}
       <button type="button" className="min-w-0 flex-1 text-left" onClick={onToggleCollapse}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
-          {group.groupLabel} · {group.childDone}/{group.childTotal}
-          {label ? ` · ${label}` : ""}
+          {group.groupLabel}
+          {dateLine ? ` · ${dateLine}` : ""}
         </p>
-        <p className="text-sm font-semibold leading-snug">{group.title}</p>
+        {group.title !== group.groupLabel ? (
+          <p className="text-sm font-semibold leading-snug">{group.title}</p>
+        ) : null}
       </button>
       <button
         type="button"

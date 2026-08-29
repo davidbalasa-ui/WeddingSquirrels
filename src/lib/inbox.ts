@@ -49,14 +49,14 @@ export type InboxItem = {
   linkedTaskId?: string | null;
   linkedTaskTitle?: string | null;
   href?: string;
+  /** Plain-text next action / note shown under the title. Never a steps counter. */
+  detail?: string | null;
   askData?: InboxAskData;
   meta?: {
     messageCount?: number;
     quantity?: string | null;
     note?: string | null;
     status?: string;
-    childDone?: number;
-    childTotal?: number;
   };
 };
 
@@ -135,6 +135,44 @@ function ownerLabelFromPersonIds(ids: string[], names: Map<string, string>): str
 function shopOwnerLabel(ownerId: string | null, names: Map<string, string>): string {
   if (!ownerId) return "Both";
   return names.get(ownerId) ?? ownerId;
+}
+
+function joinPlain(parts: Array<string | null | undefined>): string | null {
+  const cleaned = parts.map((part) => part?.trim() ?? "").filter(Boolean);
+  const unique: string[] = [];
+  for (const part of cleaned) {
+    if (!unique.includes(part)) unique.push(part);
+  }
+  return unique.length ? unique.join(" · ") : null;
+}
+
+export function detailFromTaskPackage(task: {
+  summary?: string | null;
+  planNotes?: string | null;
+  helpText?: string | null;
+  children?: { title: string; status: string; sortOrder: number }[];
+}): string | null {
+  const remaining = [...(task.children ?? [])]
+    .filter((child) => child.status !== "done")
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((child) => child.title.trim())
+    .filter(Boolean);
+  return joinPlain([...remaining, task.summary, task.planNotes, task.helpText]);
+}
+
+export function inboxDateLine(
+  dueDate: Date | string | null | undefined,
+  done: boolean,
+): string | null {
+  if (!dueDate || done) return null;
+  const parsed = dueDate instanceof Date ? dueDate : new Date(dueDate);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const date = parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const rel = dueLabel(parsed, "todo");
+  if (rel?.startsWith("Overdue")) return `${date} · overdue`;
+  if (rel === "Due today") return `${date} · today`;
+  if (rel === "Due tomorrow") return `${date} · tomorrow`;
+  return date;
 }
 
 function openPackageRank(item: InboxItem): number {
@@ -248,7 +286,13 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
       meta: {
         messageCount: row.messages.length,
         status: row.status,
+        note: row.note,
       },
+      detail: joinPlain([
+        row.note,
+        row.messages.length ? row.messages[row.messages.length - 1]?.body : null,
+        row.task?.title ? `Related: ${row.task.title}` : null,
+      ]),
       askData: {
         senderAccountId: row.senderAccountId,
         recipientAccountId: row.recipientAccountId,
@@ -287,8 +331,6 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
 
   for (const task of packages) {
     const ownerIds = task.assignees.map((a) => a.personId);
-    const childTotal = task.children?.length ?? 0;
-    const childDone = task.children?.filter((c) => c.status === "done").length ?? 0;
     items.push({
       id: `task:${task.id}`,
       kind: "task",
@@ -301,7 +343,7 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
       sortOrder: task.sortOrder,
       escalated: Boolean(task.escalatedAt),
       href: `/work/${task.id}`,
-      meta: { childDone, childTotal },
+      detail: detailFromTaskPackage(task),
     });
   }
 
@@ -328,6 +370,7 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
         groupKey: orgKey,
         groupLabel,
         sortOrder: step.sortOrder,
+        detail: joinPlain([step.summary, step.helpText, step.planNotes]),
         meta: { status: step.status },
       });
     }
@@ -345,6 +388,11 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
       sortOrder: item.sortOrder,
       linkedTaskId: item.taskId,
       linkedTaskTitle: item.task?.title ?? null,
+      detail: joinPlain([
+        item.quantity,
+        item.note,
+        item.task?.title ? `For ${item.task.title}` : null,
+      ]),
       meta: {
         quantity: item.quantity,
         note: item.note,
