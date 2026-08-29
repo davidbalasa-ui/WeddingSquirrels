@@ -43,6 +43,23 @@ function formatTime(iso: string) {
   });
 }
 
+function metaParts(item: InboxItem) {
+  const parts: string[] = [];
+  if (item.dueDate) {
+    parts.push(dueLabel(item.dueDate, item.done ? "done" : "todo") ?? "");
+  }
+  if (item.meta?.childTotal) {
+    parts.push(`${item.meta.childDone}/${item.meta.childTotal} steps`);
+  }
+  if (item.meta?.quantity) {
+    parts.push(item.meta.quantity);
+  }
+  if (item.escalated) {
+    parts.push("Priority");
+  }
+  return parts.filter(Boolean);
+}
+
 export function InboxRow({
   item,
   session,
@@ -78,7 +95,6 @@ export function InboxRow({
     };
   }, []);
 
-  const due = item.dueDate ? dueLabel(item.dueDate, item.done ? "done" : "todo") : null;
   const canCycleOwners =
     (item.kind === "task" || item.kind === "org_step") &&
     canManageOwners(session) &&
@@ -123,6 +139,18 @@ export function InboxRow({
     });
   }
 
+  function cycleOwner() {
+    if (item.kind === "buy") {
+      startTransition(() => cycleShoppingOwner(item.sourceId));
+      return;
+    }
+    if (!canCycleOwners) {
+      if (item.href) window.location.href = item.href;
+      return;
+    }
+    startTransition(() => cycleTaskOwners(item.sourceId));
+  }
+
   const askPerm = item.askData
     ? {
         id: item.sourceId,
@@ -146,12 +174,21 @@ export function InboxRow({
     : null;
 
   const unread = askPerm ? isRequestUnread(session, askPerm) : false;
+  const meta = metaParts(item);
+  const kindLabel =
+    item.kind === "ask"
+      ? "Ask"
+      : item.kind === "task"
+        ? "Decision"
+        : item.kind === "org_step"
+          ? "Step"
+          : "Buy";
 
   return (
     <article
-      className={`relative flex items-start gap-2 rounded-xl border border-line bg-[var(--bg-elevated)] px-2 py-2 ${
-        item.done ? "opacity-65" : ""
-      } ${item.escalated ? "ring-1 ring-[var(--warn)]" : ""}`}
+      className={`relative flex items-start gap-1.5 px-2 py-1.5 ${
+        item.done ? "opacity-60" : ""
+      } ${item.escalated ? "border-l-2 border-l-[var(--warn)] pl-1.5" : ""}`}
     >
       {dragHandle}
 
@@ -170,32 +207,40 @@ export function InboxRow({
       </button>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-1">
           <div className="min-w-0 flex-1">
+            <p className="text-[11px] leading-tight text-muted">
+              {unread ? <span className="font-semibold text-[var(--accent)]">New · </span> : null}
+              {item.declined ? <span className="font-semibold text-[var(--danger)]">Declined · </span> : null}
+              <span className="font-semibold uppercase tracking-wide">{kindLabel}</span>
+              {(item.kind === "task" || item.kind === "org_step" || item.kind === "buy") && (
+                <>
+                  {" · "}
+                  <button
+                    type="button"
+                    className="font-semibold text-muted underline decoration-dotted underline-offset-2 disabled:no-underline"
+                    disabled={pending || (item.kind !== "buy" && !canCycleOwners && !item.href)}
+                    onClick={cycleOwner}
+                  >
+                    {item.ownerLabel}
+                  </button>
+                </>
+              )}
+              {item.kind === "ask" ? (
+                <span className="font-semibold"> · {item.ownerLabel}</span>
+              ) : null}
+              {meta.length > 0 ? <span> · {meta.join(" · ")}</span> : null}
+            </p>
+
             {item.kind === "ask" ? (
               <button type="button" className="w-full text-left" onClick={onToggleExpand}>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {unread ? (
-                    <span className="rounded-full bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[var(--accent)]">
-                      New
-                    </span>
-                  ) : null}
-                  {item.declined ? (
-                    <span className="rounded-full border border-line px-1.5 py-0.5 text-[10px] font-bold uppercase text-muted">
-                      Declined
-                    </span>
-                  ) : null}
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                    Ask · {item.ownerLabel}
-                  </span>
-                </div>
                 <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
                   {item.title}
                 </p>
               </button>
             ) : editingTitle ? (
               <input
-                className="field-input text-[15px] font-semibold"
+                className="field-input mt-0.5 text-[15px] font-semibold"
                 value={titleDraft}
                 autoFocus
                 onChange={(e) => setTitleDraft(e.target.value)}
@@ -209,70 +254,25 @@ export function InboxRow({
                 }}
               />
             ) : (
-              <div className="w-full text-left">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                  {item.kind === "task"
-                    ? `Decision · ${item.ownerLabel}`
-                    : item.kind === "org_step"
-                      ? item.ownerLabel
-                      : `Buy · ${item.ownerLabel}`}
-                  {item.meta?.quantity ? ` · ${item.meta.quantity}` : ""}
+              <button
+                type="button"
+                className="mt-0.5 w-full text-left"
+                onClick={() => {
+                  if (item.kind === "ask") onToggleExpand();
+                  else setEditingTitle(true);
+                }}
+              >
+                <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
+                  {item.title}
                 </p>
-                {editingTitle ? (
-                  <input
-                    className="field-input text-[15px] font-semibold"
-                    value={titleDraft}
-                    autoFocus
-                    onChange={(e) => setTitleDraft(e.target.value)}
-                    onBlur={saveTitle}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveTitle();
-                      if (e.key === "Escape") {
-                        setTitleDraft(item.title);
-                        setEditingTitle(false);
-                      }
-                    }}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    className="text-left"
-                    onClick={() => {
-                      if (item.kind === "ask") onToggleExpand();
-                      else setEditingTitle(true);
-                    }}
-                  >
-                    <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
-                      {item.title}
-                    </p>
-                  </button>
-                )}
-              </div>
+              </button>
             )}
-
-            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-              {due ? (
-                <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 font-semibold text-[var(--accent)]">
-                  {due}
-                </span>
-              ) : null}
-              {item.meta?.childTotal ? (
-                <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 font-semibold text-[var(--accent)]">
-                  {item.meta.childDone}/{item.meta.childTotal} steps
-                </span>
-              ) : null}
-              {item.escalated ? (
-                <span className="rounded-full bg-[var(--warn-soft)] px-2 py-0.5 font-semibold text-[var(--warn)]">
-                  Priority
-                </span>
-              ) : null}
-            </div>
           </div>
 
           {item.kind === "task" && item.href ? (
             <Link
               href={item.href}
-              className="shrink-0 rounded-lg px-2 py-1 text-lg text-muted hover:text-[var(--accent)]"
+              className="shrink-0 px-1 py-0.5 text-lg text-muted hover:text-[var(--accent)]"
               aria-label="Open workspace"
             >
               ›
@@ -282,14 +282,14 @@ export function InboxRow({
           <div className="relative shrink-0">
             <button
               type="button"
-              className="rounded-lg px-2 py-1 text-sm text-muted"
+              className="px-1 py-0.5 text-sm text-muted"
               aria-label="Row menu"
               onClick={() => setMenuOpen((v) => !v)}
             >
               ⋯
             </button>
             {menuOpen ? (
-              <div className="absolute right-0 top-full z-20 mt-1 min-w-[10rem] rounded-xl border border-line bg-[var(--bg-elevated)] py-1 shadow-lg">
+              <div className="absolute right-0 top-full z-20 mt-0.5 min-w-[10rem] rounded-lg border border-line bg-[var(--bg-elevated)] py-1 shadow-lg">
                 {item.kind === "task" && item.href ? (
                   <Link
                     href={item.href}
@@ -311,7 +311,7 @@ export function InboxRow({
                     Ask someone
                   </button>
                 ) : null}
-                {(item.kind === "task") && session.canSeeTasks ? (
+                {item.kind === "task" && session.canSeeTasks ? (
                   <div className="px-2 py-1">
                     <EscalatePriorityButton
                       taskId={item.sourceId}
@@ -353,29 +353,8 @@ export function InboxRow({
           </div>
         </div>
 
-        {(item.kind === "task" || item.kind === "org_step" || item.kind === "buy") && (
-          <button
-            type="button"
-            className="mt-1.5 rounded-full border border-line px-2.5 py-1 text-xs font-semibold text-muted"
-            disabled={pending || (item.kind !== "buy" && !canCycleOwners)}
-            onClick={() => {
-              if (item.kind === "buy") {
-                startTransition(() => cycleShoppingOwner(item.sourceId));
-                return;
-              }
-              if (!canCycleOwners) {
-                if (item.href) window.location.href = item.href;
-                return;
-              }
-              startTransition(() => cycleTaskOwners(item.sourceId));
-            }}
-          >
-            {item.ownerLabel}
-          </button>
-        )}
-
         {item.kind === "ask" && expanded && item.askData ? (
-          <div className="mt-3 border-t border-line pt-3">
+          <div className="mt-2 border-t border-line pt-2">
             <AskThread messages={item.askData.messages} sessionId={session.id} />
 
             {item.linkedTaskId && item.linkedTaskTitle && session.canSeeTasks ? (
@@ -393,7 +372,7 @@ export function InboxRow({
 
             {askPerms?.reply ? (
               <form
-                className="mt-3 flex flex-col gap-2"
+                className="mt-2 flex flex-col gap-2"
                 onSubmit={(event) => {
                   event.preventDefault();
                   const body = reply.trim();
@@ -418,7 +397,7 @@ export function InboxRow({
             ) : null}
 
             {askPerms?.decline ? (
-              <form action={declineRequest} className="mt-3 flex flex-col gap-2">
+              <form action={declineRequest} className="mt-2 flex flex-col gap-2">
                 <input type="hidden" name="id" value={item.sourceId} />
                 <input name="declineNote" placeholder="Decline note (optional)" className="field-input text-sm" />
                 <button type="submit" className="btn-secondary self-start min-h-[44px]">
@@ -441,7 +420,7 @@ export function InboxRow({
         ) : null}
 
         {undoId === item.sourceId ? (
-          <div className="mt-2 flex items-center gap-2 rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-sm">
+          <div className="mt-1.5 flex items-center gap-2 text-sm text-muted">
             <span>Marked done.</span>
             <button
               type="button"
@@ -478,15 +457,8 @@ function AskThread({
       {messages.map((message) => {
         const mine = message.authorAccountId === sessionId;
         return (
-          <div
-            key={message.id}
-            className={`max-w-[92%] rounded-2xl px-3 py-2 text-sm leading-5 ${
-              mine
-                ? "ml-auto bg-[var(--accent-soft)] text-ink"
-                : "mr-auto border border-line bg-[var(--bg)]"
-            }`}
-          >
-            <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+          <div key={message.id} className="text-sm leading-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
               {mine ? "You" : message.authorName} · {formatTime(message.createdAt)}
             </p>
             <p className="whitespace-pre-wrap">{message.body}</p>

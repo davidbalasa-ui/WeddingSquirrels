@@ -1,7 +1,15 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { createRequestFromItem, markRequestRead, reorderInboxItems } from "@/app/actions";
 import { InboxAddBar } from "@/components/InboxAddBar";
 import { InboxGroupHeader } from "@/components/InboxGroup";
@@ -10,6 +18,7 @@ import {
   filterInboxSections,
   type AccountOption,
   type InboxFilter,
+  type InboxItem,
   type InboxSections,
   type PersonOption,
   type TaskOption,
@@ -27,6 +36,16 @@ const FILTER_CHIPS: { key: InboxFilter | "all"; label: string; param?: string }[
 
 function collapseKey(groupKey: string) {
   return `inbox-collapse:${groupKey}`;
+}
+
+function orderItems(items: InboxItem[], order: string[] | null) {
+  if (!order) return items;
+  const byId = new Map(items.map((item) => [item.sourceId, item]));
+  const ordered = order.map((id) => byId.get(id)).filter((item): item is InboxItem => Boolean(item));
+  for (const item of items) {
+    if (!order.includes(item.sourceId)) ordered.push(item);
+  }
+  return ordered;
 }
 
 export function InboxBoard({
@@ -75,8 +94,26 @@ export function InboxBoard({
 
   const [expandedAskId, setExpandedAskId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-  const [dragSourceId, setDragSourceId] = useState<string | null>(null);
   const [askComposePrefill, setAskComposePrefill] = useState<{ kind: "task" | "buy"; id: string } | null>(null);
+  const [taskOrder, setTaskOrder] = useState<string[] | null>(null);
+  const [buyOrder, setBuyOrder] = useState<string[] | null>(null);
+
+  const openTaskIds = useMemo(
+    () => filtered.open.filter((item) => item.kind === "task").map((item) => item.sourceId).join(","),
+    [filtered.open],
+  );
+  const openBuyIds = useMemo(
+    () => filtered.open.filter((item) => item.kind === "buy").map((item) => item.sourceId).join(","),
+    [filtered.open],
+  );
+
+  useEffect(() => {
+    setTaskOrder(null);
+  }, [openTaskIds]);
+
+  useEffect(() => {
+    setBuyOrder(null);
+  }, [openBuyIds]);
 
   useEffect(() => {
     const next: Record<string, boolean> = {};
@@ -119,28 +156,30 @@ export function InboxBoard({
     }
   }
 
-  function onDropReorder(
-    kind: "task" | "buy",
-    targetSourceId: string,
-    draggedSourceId: string,
-    items: { sourceId: string }[],
-  ) {
-    if (draggedSourceId === targetSourceId) return;
-    const ids = items.map((i) => i.sourceId);
-    const from = ids.indexOf(draggedSourceId);
-    const to = ids.indexOf(targetSourceId);
-    if (from < 0 || to < 0) return;
-    const reordered = [...ids];
-    const [moved] = reordered.splice(from, 1);
-    reordered.splice(to, 0, moved!);
-    startTransition(() => reorderInboxItems(kind, reordered));
+  function persistReorder(kind: "task" | "buy", orderedIds: string[]) {
+    startTransition(() => reorderInboxItems(kind, orderedIds));
   }
 
-  const openPackages = filtered.open.filter((i) => i.kind === "task");
-  const openBuy = filtered.open.filter((i) => i.kind === "buy");
+  const openPackages = orderItems(
+    filtered.open.filter((item) => item.kind === "task"),
+    taskOrder,
+  );
+  const openBuy = orderItems(
+    filtered.open.filter((item) => item.kind === "buy"),
+    buyOrder,
+  );
+
+  const filterButtons = FILTER_CHIPS.filter((chip) => {
+    if (vendorOnly && (chip.key === "tasks" || chip.key === "buy")) return false;
+    if (!session.canSeeRequests && (chip.key === "needs-me" || chip.key === "waiting" || chip.key === "asks"))
+      return false;
+    return true;
+  });
+
+  const whoButtons = whoChips.filter((chip) => chip.id !== "all");
 
   return (
-    <div className="flex flex-col gap-3 pb-4">
+    <div className="flex flex-col gap-2 pb-4">
       <InboxAddBar
         session={session}
         accounts={accounts}
@@ -151,85 +190,60 @@ export function InboxBoard({
         }
       />
 
-      <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
-        {FILTER_CHIPS.filter((chip) => {
-          if (vendorOnly && (chip.key === "tasks" || chip.key === "buy")) return false;
-          if (!session.canSeeRequests && (chip.key === "needs-me" || chip.key === "waiting" || chip.key === "asks"))
-            return false;
-          return true;
-        }).map((chip) => {
-          const active = chip.key === "all" ? !filter : filter === chip.key;
-          return (
-            <button
-              key={chip.key}
-              type="button"
-              className="filter-pill shrink-0 rounded-full border px-3 py-2 text-sm font-semibold"
-              data-active={active}
-              style={
-                active
-                  ? {
-                      borderColor: "var(--accent)",
-                      background: "var(--accent-soft)",
-                      color: "var(--accent)",
-                    }
-                  : undefined
-              }
-              onClick={() =>
-                pushParams({ filter: chip.key === "all" ? null : chip.param ?? null })
-              }
-            >
-              {chip.label}
-            </button>
-          );
-        })}
-        {whoChips
-          .filter((w) => w.id !== "all")
-          .map((chip) => {
+      <div className="border-b border-line">
+        <div className="-mx-1 flex gap-0 overflow-x-auto">
+          {filterButtons.map((chip) => {
+            const active = chip.key === "all" ? !filter : filter === chip.key;
+            return (
+              <button
+                key={chip.key}
+                type="button"
+                className={`shrink-0 border-b-2 px-2.5 py-2 text-sm font-semibold ${
+                  active
+                    ? "border-[var(--accent)] text-[var(--accent)]"
+                    : "border-transparent text-muted"
+                }`}
+                onClick={() => pushParams({ filter: chip.key === "all" ? null : chip.param ?? null })}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
+          {whoButtons.map((chip) => {
             const active = who === chip.id;
             return (
               <button
                 key={chip.id}
                 type="button"
-                className="filter-pill shrink-0 rounded-full border px-3 py-2 text-sm font-semibold"
-                data-active={active}
-                style={
+                className={`shrink-0 border-b-2 px-2.5 py-2 text-sm font-semibold ${
                   active
-                    ? {
-                        borderColor: "var(--accent)",
-                        background: "var(--accent-soft)",
-                        color: "var(--accent)",
-                      }
-                    : undefined
-                }
+                    ? "border-[var(--accent)] text-[var(--accent)]"
+                    : "border-transparent text-muted"
+                }`}
                 onClick={() => pushParams({ who: chip.id === "all" ? null : chip.id })}
               >
                 {chip.label}
               </button>
             );
           })}
-        <button
-          type="button"
-          className="filter-pill shrink-0 rounded-full border px-3 py-2 text-sm font-semibold"
-          data-active={showDone}
-          style={
-            showDone
-              ? {
-                  borderColor: "var(--accent)",
-                  background: "var(--accent-soft)",
-                  color: "var(--accent)",
-                }
-              : undefined
-          }
-          onClick={() => pushParams({ done: showDone ? null : "1" })}
-        >
-          Done
-        </button>
+          <button
+            type="button"
+            className={`shrink-0 border-b-2 px-2.5 py-2 text-sm font-semibold ${
+              showDone
+                ? "border-[var(--accent)] text-[var(--accent)]"
+                : "border-transparent text-muted"
+            }`}
+            onClick={() => pushParams({ done: showDone ? null : "1" })}
+          >
+            Done
+          </button>
+        </div>
       </div>
 
       {session.canSeeRequests ? (
         <Section title={`Needs you${filtered.needsYou.length ? ` · ${filtered.needsYou.length}` : ""}`}>
           {filtered.needsYou.length === 0 ? (
-            <p className="px-1 text-sm text-muted">You&apos;re caught up — nothing waiting on you.</p>
+            <p className="px-3 py-2 text-sm text-muted">You&apos;re caught up — nothing waiting on you.</p>
           ) : (
             filtered.needsYou.map((item) => (
               <InboxRow
@@ -267,59 +281,55 @@ export function InboxBoard({
       {!vendorOnly ? (
         <Section title="Open">
           {filtered.open.length === 0 ? (
-            <p className="px-1 text-sm text-muted">Nothing open — add something above.</p>
+            <p className="px-3 py-2 text-sm text-muted">Nothing open — add something above.</p>
           ) : (
             <>
-              {openPackages.map((item) => (
-                <DraggableRow
-                  key={item.id}
-                  item={item}
-                  kind="task"
-                  dragSourceId={dragSourceId}
-                  setDragSourceId={setDragSourceId}
-                  onDrop={(targetSourceId, draggedSourceId) =>
-                    onDropReorder("task", targetSourceId, draggedSourceId, openPackages)
-                  }
-                >
-                  <InboxRow
-                    item={item}
-                    session={session}
-                    tasks={tasks}
-                    expanded={false}
-                    onToggleExpand={() => {}}
-                    onAskSomeone={
-                      session.canSeeRequests
-                        ? () => setAskComposePrefill({ kind: "task", id: item.sourceId })
-                        : undefined
-                    }
-                  />
-                </DraggableRow>
-              ))}
-              {openBuy.map((item) => (
-                <DraggableRow
-                  key={item.id}
-                  item={item}
-                  kind="buy"
-                  dragSourceId={dragSourceId}
-                  setDragSourceId={setDragSourceId}
-                  onDrop={(targetSourceId, draggedSourceId) =>
-                    onDropReorder("buy", targetSourceId, draggedSourceId, openBuy)
-                  }
-                >
-                  <InboxRow
-                    item={item}
-                    session={session}
-                    tasks={tasks}
-                    expanded={false}
-                    onToggleExpand={() => {}}
-                    onAskSomeone={
-                      session.canSeeRequests
-                        ? () => setAskComposePrefill({ kind: "buy", id: item.sourceId })
-                        : undefined
-                    }
-                  />
-                </DraggableRow>
-              ))}
+              {openPackages.length > 0 ? (
+                <OpenReorderList
+                  listId="inbox-open-tasks"
+                  items={openPackages}
+                  onPersist={(ids) => persistReorder("task", ids)}
+                  onOrderChange={setTaskOrder}
+                  renderRow={(item, dragHandle) => (
+                    <InboxRow
+                      item={item}
+                      session={session}
+                      tasks={tasks}
+                      expanded={false}
+                      onToggleExpand={() => {}}
+                      dragHandle={dragHandle}
+                      onAskSomeone={
+                        session.canSeeRequests
+                          ? () => setAskComposePrefill({ kind: "task", id: item.sourceId })
+                          : undefined
+                      }
+                    />
+                  )}
+                />
+              ) : null}
+              {openBuy.length > 0 ? (
+                <OpenReorderList
+                  listId="inbox-open-buy"
+                  items={openBuy}
+                  onPersist={(ids) => persistReorder("buy", ids)}
+                  onOrderChange={setBuyOrder}
+                  renderRow={(item, dragHandle) => (
+                    <InboxRow
+                      item={item}
+                      session={session}
+                      tasks={tasks}
+                      expanded={false}
+                      onToggleExpand={() => {}}
+                      dragHandle={dragHandle}
+                      onAskSomeone={
+                        session.canSeeRequests
+                          ? () => setAskComposePrefill({ kind: "buy", id: item.sourceId })
+                          : undefined
+                      }
+                    />
+                  )}
+                />
+              ) : null}
             </>
           )}
         </Section>
@@ -379,53 +389,133 @@ export function InboxBoard({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-2">
+    <section className="overflow-hidden rounded-lg border border-line">
       {title ? (
-        <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted">{title}</p>
+        <div className="border-b border-line bg-[color-mix(in_srgb,var(--surface)_80%,transparent)] px-3 py-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{title}</p>
+        </div>
       ) : null}
-      {children}
+      <div className="divide-y divide-[var(--line)]">{children}</div>
     </section>
   );
 }
 
-function DraggableRow({
-  item,
-  dragSourceId,
-  setDragSourceId,
-  onDrop,
-  children,
+function OpenReorderList({
+  listId,
+  items,
+  onPersist,
+  onOrderChange,
+  renderRow,
 }: {
-  item: { sourceId: string };
-  kind: "task" | "buy";
-  dragSourceId: string | null;
-  setDragSourceId: (id: string | null) => void;
-  onDrop: (targetSourceId: string, draggedSourceId: string) => void;
-  children: React.ReactNode;
+  listId: string;
+  items: InboxItem[];
+  onPersist: (ids: string[]) => void;
+  onOrderChange: (ids: string[] | null) => void;
+  renderRow: (item: InboxItem, dragHandle: ReactNode) => ReactNode;
 }) {
+  const peerIds = items.map((item) => item.sourceId);
+  const reorderable = peerIds.length > 1;
+
+  function handleReorder(nextIds: string[], persist = false) {
+    onOrderChange(nextIds);
+    if (persist) onPersist(nextIds);
+  }
+
   return (
-    <div
-      draggable
-      onDragStart={() => setDragSourceId(item.sourceId)}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault();
-        if (dragSourceId) onDrop(item.sourceId, dragSourceId);
-        setDragSourceId(null);
-      }}
-      className="flex items-stretch gap-1"
+    <>
+      {items.map((item) => (
+        <div key={item.id} id={`${listId}-row-${item.sourceId}`}>
+          {renderRow(
+            item,
+            reorderable ? (
+              <DragHandle
+                listId={listId}
+                rowId={item.sourceId}
+                peerIds={peerIds}
+                onReorder={handleReorder}
+              />
+            ) : null,
+          )}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function DragHandle({
+  listId,
+  rowId,
+  peerIds,
+  onReorder,
+}: {
+  listId: string;
+  rowId: string;
+  peerIds: string[];
+  onReorder: (ids: string[], persist?: boolean) => void;
+}) {
+  const index = peerIds.indexOf(rowId);
+  if (index < 0) return null;
+
+  function onPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    const handle = event.currentTarget;
+    handle.setPointerCapture(event.pointerId);
+    const startY = event.clientY;
+    let current = [...peerIds];
+    let lastIndex = current.indexOf(rowId);
+
+    function yToIndex(clientY: number) {
+      const mids = current.map((id) => {
+        const el = document.getElementById(`${listId}-row-${id}`);
+        if (!el) return Number.POSITIVE_INFINITY;
+        const rect = el.getBoundingClientRect();
+        return rect.top + rect.height / 2;
+      });
+      let best = lastIndex;
+      let bestDist = Number.POSITIVE_INFINITY;
+      mids.forEach((mid, i) => {
+        const dist = Math.abs(mid - clientY);
+        if (dist < bestDist) {
+          best = i;
+          bestDist = dist;
+        }
+      });
+      return best;
+    }
+
+    function onMove(moveEvent: PointerEvent) {
+      if (Math.abs(moveEvent.clientY - startY) < 8) return;
+      const nextIndex = yToIndex(moveEvent.clientY);
+      if (nextIndex === lastIndex) return;
+      lastIndex = nextIndex;
+      const next = current.filter((id) => id !== rowId);
+      next.splice(nextIndex, 0, rowId);
+      current = next;
+      onReorder(next, false);
+    }
+
+    function onUp() {
+      handle.releasePointerCapture(event.pointerId);
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onUp);
+      onReorder(current, true);
+    }
+
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label="Drag to reorder"
+      className="mt-0.5 shrink-0 touch-none px-1 text-sm text-muted active:text-ink"
+      onPointerDown={onPointerDown}
     >
-      <button
-        type="button"
-        className="mt-3 shrink-0 cursor-grab px-1 text-muted active:cursor-grabbing"
-        aria-label="Drag to reorder"
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        ⠿
-      </button>
-      <div className="min-w-0 flex-1">{children}</div>
-    </div>
+      ≡
+    </button>
   );
 }
 

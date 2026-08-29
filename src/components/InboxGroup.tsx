@@ -18,16 +18,7 @@ export function InboxGroupHeader({
   const label = dueLabel(group.dueDate, group.parentDone ? "done" : "todo");
 
   return (
-    <div
-      className="flex items-center gap-2 rounded-xl border px-3 py-2.5"
-      style={{
-        borderColor: group.groupKey === "week_before" ? "#c4b28a" : "#9bb7ae",
-        background:
-          group.groupKey === "week_before"
-            ? "linear-gradient(135deg, #f7f1e4 0%, #fffdf8 70%)"
-            : "linear-gradient(135deg, #e7f0ec 0%, #fffdf8 70%)",
-      }}
-    >
+    <div className="flex items-center gap-2 border-b border-line bg-[color-mix(in_srgb,var(--accent-soft)_40%,transparent)] px-2 py-1.5">
       {group.parentTaskId ? (
         <button
           type="button"
@@ -43,20 +34,16 @@ export function InboxGroupHeader({
           {group.parentDone ? "✓" : ""}
         </button>
       ) : null}
-      <button
-        type="button"
-        className="min-w-0 flex-1 text-left"
-        onClick={onToggleCollapse}
-      >
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
+      <button type="button" className="min-w-0 flex-1 text-left" onClick={onToggleCollapse}>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
           {group.groupLabel} · {group.childDone}/{group.childTotal}
+          {label ? ` · ${label}` : ""}
         </p>
         <p className="text-sm font-semibold leading-snug">{group.title}</p>
-        {label ? <p className="mt-0.5 text-xs text-muted">{label}</p> : null}
       </button>
       <button
         type="button"
-        className="shrink-0 px-2 text-sm text-muted"
+        className="shrink-0 px-1 text-sm text-muted"
         onClick={onToggleCollapse}
         aria-expanded={!collapsed}
       >
