@@ -6,7 +6,7 @@ import { listOrgCards, listTasks } from "@/lib/tasks";
 import { dueLabel } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 
-export type InboxKind = "ask" | "task" | "org_step" | "buy";
+export type InboxKind = "ask" | "task" | "task_step" | "org_step" | "buy";
 
 export type InboxAskMessage = {
   id: string;
@@ -49,7 +49,9 @@ export type InboxItem = {
   linkedTaskId?: string | null;
   linkedTaskTitle?: string | null;
   href?: string;
-  /** Plain-text next action / note shown under the title. Never a steps counter. */
+  parentId?: string | null;
+  parentTitle?: string | null;
+  /** Optional one-line note. Never a concatenated steps dump. */
   detail?: string | null;
   askData?: InboxAskData;
   meta?: {
@@ -72,10 +74,18 @@ export type InboxOrgGroup = {
   escalated: boolean;
 };
 
+export type InboxPackageGroup = {
+  package: InboxItem;
+  steps: InboxItem[];
+  hasChildren: boolean;
+};
+
 export type InboxSections = {
   needsYou: InboxItem[];
   waiting: InboxItem[];
   open: InboxItem[];
+  openGroups: InboxPackageGroup[];
+  openBuy: InboxItem[];
   orgGroups: { group: InboxOrgGroup; steps: InboxItem[] }[];
   done: InboxItem[];
 };
@@ -158,6 +168,24 @@ export function detailFromTaskPackage(task: {
     .map((child) => child.title.trim())
     .filter(Boolean);
   return joinPlain([...remaining, task.summary, task.planNotes, task.helpText]);
+}
+
+export function ownerWhoPreset(ids: string[]): "david" | "haley" | "both" | "other" {
+  const set = new Set(ids);
+  if (set.size === 1 && set.has("david")) return "david";
+  if (set.size === 1 && set.has("haley")) return "haley";
+  if (set.size === 2 && set.has("david") && set.has("haley")) return "both";
+  return "other";
+}
+
+export function ownerIdsForPreset(
+  preset: "david" | "haley" | "both" | "other",
+  otherIds: string[],
+): string[] {
+  if (preset === "david") return ["david"];
+  if (preset === "haley") return ["haley"];
+  if (preset === "both") return ["david", "haley"];
+  return [...new Set(otherIds.filter(Boolean))];
 }
 
 export function inboxDateLine(
@@ -329,8 +357,28 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
     }
   }
 
+  const packageChildren =
+    packages.length > 0
+      ? await prisma.task.findMany({
+          where: { parentId: { in: packages.map((p) => p.id) } },
+          include: { assignees: { include: { person: true } } },
+          orderBy: { sortOrder: "asc" },
+        })
+      : [];
+  const childrenByParent = new Map<string, typeof packageChildren>();
+  for (const child of packageChildren) {
+    if (!child.parentId) continue;
+    const list = childrenByParent.get(child.parentId) ?? [];
+    list.push(child);
+    childrenByParent.set(child.parentId, list);
+  }
+
   for (const task of packages) {
     const ownerIds = task.assignees.map((a) => a.personId);
+    const ownerLabel =
+      assigneeDisplayNames(task.assignees) || ownerLabelFromPersonIds(ownerIds, personNames);
+    const summary =
+      task.summary && !task.summary.startsWith("Open this card") ? task.summary.trim() : null;
     items.push({
       id: `task:${task.id}`,
       kind: "task",
@@ -338,13 +386,35 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
       title: task.title,
       done: task.status === "done",
       ownerPersonIds: ownerIds,
-      ownerLabel: assigneeDisplayNames(task.assignees) || ownerLabelFromPersonIds(ownerIds, personNames),
+      ownerLabel,
       dueDate: task.dueDate,
       sortOrder: task.sortOrder,
       escalated: Boolean(task.escalatedAt),
       href: `/work/${task.id}`,
-      detail: detailFromTaskPackage(task),
+      detail: summary,
     });
+
+    for (const step of childrenByParent.get(task.id) ?? []) {
+      const stepOwnerIds = step.assignees.map((a) => a.personId);
+      const useIds = stepOwnerIds.length ? stepOwnerIds : ownerIds;
+      items.push({
+        id: `task_step:${step.id}`,
+        kind: "task_step",
+        sourceId: step.id,
+        title: step.title,
+        done: step.status === "done",
+        ownerPersonIds: useIds,
+        ownerLabel: stepOwnerIds.length
+          ? assigneeDisplayNames(step.assignees) || ownerLabelFromPersonIds(stepOwnerIds, personNames)
+          : ownerLabel,
+        dueDate: step.dueDate,
+        sortOrder: step.sortOrder,
+        parentId: task.id,
+        parentTitle: task.title,
+        href: `/work/${task.id}`,
+        detail: joinPlain([step.summary, step.helpText, step.planNotes]),
+      });
+    }
   }
 
   if (orgCards.length > 0) {
@@ -406,9 +476,11 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
 export function groupInboxItems(items: InboxItem[], session: SessionAccount): InboxSections {
   const needsYou: InboxItem[] = [];
   const waiting: InboxItem[] = [];
-  const open: InboxItem[] = [];
+  const packages: InboxItem[] = [];
+  const openBuy: InboxItem[] = [];
   const done: InboxItem[] = [];
   const orgStepsByKey = new Map<"week_before" | "day_before", InboxItem[]>();
+  const stepsByParent = new Map<string, InboxItem[]>();
 
   for (const item of items) {
     if (item.kind === "ask") {
@@ -433,12 +505,26 @@ export function groupInboxItems(items: InboxItem[], session: SessionAccount): In
       continue;
     }
 
+    if (item.kind === "task_step") {
+      const parentId = item.parentId;
+      if (!parentId) continue;
+      const list = stepsByParent.get(parentId) ?? [];
+      list.push(item);
+      stepsByParent.set(parentId, list);
+      continue;
+    }
+
+    if (item.kind === "task") {
+      packages.push(item);
+      continue;
+    }
+
     if (item.done) {
       done.push(item);
       continue;
     }
 
-    open.push(item);
+    if (item.kind === "buy") openBuy.push(item);
   }
 
   const orgGroups: InboxSections["orgGroups"] = [];
@@ -466,10 +552,28 @@ export function groupInboxItems(items: InboxItem[], session: SessionAccount): In
   needsYou.sort((a, b) => (b.unread ? 1 : 0) - (a.unread ? 1 : 0) || b.sortOrder - a.sortOrder);
   waiting.sort((a, b) => b.sortOrder - a.sortOrder);
 
+  const openGroups: InboxPackageGroup[] = [];
+  const leftoverPackages: InboxItem[] = [];
+  for (const pkg of sortOpenItems(packages.filter((p) => p.kind === "task"))) {
+    const steps = (stepsByParent.get(pkg.sourceId) ?? []).sort((a, b) => a.sortOrder - b.sortOrder);
+    const incomplete = steps.filter((s) => !s.done);
+    const hasChildren = steps.length > 0;
+    if (pkg.done && incomplete.length === 0) {
+      done.push(pkg);
+      continue;
+    }
+    openGroups.push({ package: pkg, steps, hasChildren });
+    leftoverPackages.push(pkg);
+  }
+
+  const sortedBuy = sortOpenItems(openBuy);
+
   return {
     needsYou,
     waiting,
-    open: sortOpenItems(open),
+    open: [...leftoverPackages, ...sortedBuy],
+    openGroups,
+    openBuy: sortedBuy,
     orgGroups,
     done,
   };
@@ -512,7 +616,7 @@ function matchesNeedsMeFilter(item: InboxItem, session: SessionAccount): boolean
       ? [session.linkedPersonId]
       : null;
   if (!personIds?.length) return false;
-  if (item.kind === "task" || item.kind === "org_step") {
+  if (item.kind === "task" || item.kind === "task_step" || item.kind === "org_step") {
     return item.ownerPersonIds.some((id) => personIds.includes(id));
   }
   if (item.kind === "buy") {
@@ -531,7 +635,8 @@ function itemPassesFilter(
   if (filter === "needs-me" && !matchesNeedsMeFilter(item, session)) return false;
   if (filter === "waiting" && !item.waitingOnThem) return false;
   if (filter === "asks" && item.kind !== "ask") return false;
-  if (filter === "tasks" && item.kind !== "task" && item.kind !== "org_step") return false;
+  if (filter === "tasks" && item.kind !== "task" && item.kind !== "task_step" && item.kind !== "org_step")
+    return false;
   if (filter === "buy" && item.kind !== "buy") return false;
 
   if (who !== "all") {
@@ -539,7 +644,7 @@ function itemPassesFilter(
       // no-op
     } else if (item.kind === "ask" && !askMatchesWho(item, who, accounts)) {
       return false;
-    } else if (item.kind === "task" || item.kind === "org_step") {
+    } else if (item.kind === "task" || item.kind === "task_step" || item.kind === "org_step") {
       if (!taskMatchesWho(item, who)) return false;
     } else if (item.kind === "buy" && !buyMatchesWho(item, who)) {
       return false;
@@ -562,14 +667,27 @@ export function filterInboxSections(
   const { filter, who, showDone, session, accounts } = opts;
   const pass = (item: InboxItem) => itemPassesFilter(item, filter, who, session, accounts);
 
+  const openGroups = (sections.openGroups ?? [])
+    .map((og) => ({
+      ...og,
+      steps: og.steps.filter((step) => (showDone || !step.done) && pass(step)),
+    }))
+    .filter((og) => {
+      if (og.steps.length > 0) return true;
+      if (og.hasChildren) return false;
+      return pass(og.package);
+    });
+
   return {
     needsYou: sections.needsYou.filter(pass),
     waiting: sections.waiting.filter(pass),
     open: sections.open.filter(pass),
+    openGroups,
+    openBuy: (sections.openBuy ?? sections.open.filter((i) => i.kind === "buy")).filter(pass),
     orgGroups: sections.orgGroups
       .map((og) => ({
         ...og,
-        steps: og.steps.filter(pass),
+        steps: og.steps.filter((step) => (showDone || !step.done) && pass(step)),
       }))
       .filter((og) => og.steps.length > 0),
     done: showDone ? sections.done.filter(pass) : [],

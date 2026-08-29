@@ -1536,6 +1536,77 @@ export async function renameTask(taskId: string, title: string): Promise<void> {
   revalidatePath(`/work/${task.parentId || task.id}`);
 }
 
+export async function updateInboxTask(
+  taskId: string,
+  input: { title: string; dueDate?: string | null; ownerIds?: string[] },
+): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const trimmed = input.title.trim();
+  if (!trimmed) return;
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { assignees: true, children: { include: { assignees: true } } },
+  });
+  if (!task || !(await sessionCanMutateTask(session, task))) throw new Error("FORBIDDEN");
+
+  const data: { title: string; dueDate?: Date | null } = { title: trimmed };
+  if (input.dueDate !== undefined) {
+    data.dueDate = input.dueDate ? parseDueDate(input.dueDate) : null;
+  }
+  await prisma.task.update({ where: { id: taskId }, data });
+
+  if (input.ownerIds && canManageOwners(session)) {
+    const people = await resolveAssigneeIds(input.ownerIds, null, {
+      restrictTo: session.assigneeFilter,
+    });
+    if (people.length) await setTaskAssignees(taskId, people);
+  }
+
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath("/home");
+  revalidatePath(`/work/${task.parentId || task.id}`);
+}
+
+export async function createInboxChild(parentId: string, title: string): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const trimmed = title.trim();
+  if (!trimmed) return;
+
+  const parent = await prisma.task.findUnique({
+    where: { id: parentId },
+    include: { assignees: true, children: { include: { assignees: true } } },
+  });
+  if (!parent || parent.parentId || parent.orgKey) throw new Error("INVALID");
+  if (!(await sessionCanMutateTask(session, parent))) throw new Error("FORBIDDEN");
+
+  const last = await prisma.task.findFirst({
+    where: { parentId },
+    orderBy: { sortOrder: "desc" },
+  });
+  const child = await prisma.task.create({
+    data: {
+      title: trimmed,
+      parentId,
+      status: "todo",
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+      amountSpent: 0,
+    },
+  });
+  const parentOwners = parent.assignees.map((a) => a.personId);
+  if (parentOwners.length) await setTaskAssignees(child.id, parentOwners);
+
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath("/home");
+  revalidatePath(`/work/${parentId}`);
+}
+
 export async function createTaskFromInbox(
   title: string,
   dueDateRaw?: string,
@@ -1619,6 +1690,15 @@ export async function renameShoppingItem(itemId: string, name: string): Promise<
   if (!trimmed) return;
 
   await prisma.shoppingItem.update({ where: { id: itemId }, data: { name: trimmed } });
+  revalidatePath("/shop");
+  revalidatePath("/home");
+}
+
+export async function setShoppingOwner(itemId: string, ownerId: string | null): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeShop");
+  const next = ownerId === "david" || ownerId === "haley" ? ownerId : null;
+  await prisma.shoppingItem.update({ where: { id: itemId }, data: { ownerId: next } });
   revalidatePath("/shop");
   revalidatePath("/home");
 }

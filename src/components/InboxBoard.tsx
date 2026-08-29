@@ -1,24 +1,16 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-} from "react";
-import { createRequestFromItem, markRequestRead, reorderInboxItems } from "@/app/actions";
+import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { markRequestRead } from "@/app/actions";
 import { InboxAddBar } from "@/components/InboxAddBar";
 import { InboxGroupHeader } from "@/components/InboxGroup";
+import { InboxNoteRow, InboxPackageHeader } from "@/components/InboxNoteRow";
 import { InboxRow } from "@/components/InboxRow";
 import {
   filterInboxSections,
   type AccountOption,
   type InboxFilter,
-  type InboxItem,
   type InboxSections,
   type PersonOption,
   type TaskOption,
@@ -36,16 +28,6 @@ const FILTER_CHIPS: { key: InboxFilter | "all"; label: string; param?: string }[
 
 function collapseKey(groupKey: string) {
   return `inbox-collapse:${groupKey}`;
-}
-
-function orderItems(items: InboxItem[], order: string[] | null) {
-  if (!order) return items;
-  const byId = new Map(items.map((item) => [item.sourceId, item]));
-  const ordered = order.map((id) => byId.get(id)).filter((item): item is InboxItem => Boolean(item));
-  for (const item of items) {
-    if (!order.includes(item.sourceId)) ordered.push(item);
-  }
-  return ordered;
 }
 
 export function InboxBoard({
@@ -94,27 +76,6 @@ export function InboxBoard({
 
   const [expandedAskId, setExpandedAskId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-  const [askComposePrefill, setAskComposePrefill] = useState<{ kind: "task" | "buy"; id: string } | null>(null);
-  const [taskOrder, setTaskOrder] = useState<string[] | null>(null);
-  const [buyOrder, setBuyOrder] = useState<string[] | null>(null);
-
-  const openTaskIds = useMemo(
-    () => filtered.open.filter((item) => item.kind === "task").map((item) => item.sourceId).join(","),
-    [filtered.open],
-  );
-  const openBuyIds = useMemo(
-    () => filtered.open.filter((item) => item.kind === "buy").map((item) => item.sourceId).join(","),
-    [filtered.open],
-  );
-
-  useEffect(() => {
-    setTaskOrder(null);
-  }, [openTaskIds]);
-
-  useEffect(() => {
-    setBuyOrder(null);
-  }, [openBuyIds]);
-
   useEffect(() => {
     const next: Record<string, boolean> = {};
     for (const og of sections.orgGroups) {
@@ -156,18 +117,8 @@ export function InboxBoard({
     }
   }
 
-  function persistReorder(kind: "task" | "buy", orderedIds: string[]) {
-    startTransition(() => reorderInboxItems(kind, orderedIds));
-  }
-
-  const openPackages = orderItems(
-    filtered.open.filter((item) => item.kind === "task"),
-    taskOrder,
-  );
-  const openBuy = orderItems(
-    filtered.open.filter((item) => item.kind === "buy"),
-    buyOrder,
-  );
+  const openGroups = filtered.openGroups ?? [];
+  const openBuy = filtered.openBuy ?? filtered.open.filter((item) => item.kind === "buy");
 
   const filterButtons = FILTER_CHIPS.filter((chip) => {
     if (vendorOnly && (chip.key === "tasks" || chip.key === "buy")) return false;
@@ -280,56 +231,27 @@ export function InboxBoard({
 
       {!vendorOnly ? (
         <Section title="Open">
-          {filtered.open.length === 0 ? (
+          {openGroups.length === 0 && openBuy.length === 0 ? (
             <p className="py-2 text-sm text-muted">Nothing open — add something above.</p>
           ) : (
             <>
-              {openPackages.length > 0 ? (
-                <OpenReorderList
-                  listId="inbox-open-tasks"
-                  items={openPackages}
-                  onPersist={(ids) => persistReorder("task", ids)}
-                  onOrderChange={setTaskOrder}
-                  renderRow={(item, dragHandle) => (
-                    <InboxRow
-                      item={item}
-                      session={session}
-                      tasks={tasks}
-                      expanded={false}
-                      onToggleExpand={() => {}}
-                      dragHandle={dragHandle}
-                      onAskSomeone={
-                        session.canSeeRequests
-                          ? () => setAskComposePrefill({ kind: "task", id: item.sourceId })
-                          : undefined
-                      }
-                    />
-                  )}
-                />
-              ) : null}
-              {openBuy.length > 0 ? (
-                <OpenReorderList
-                  listId="inbox-open-buy"
-                  items={openBuy}
-                  onPersist={(ids) => persistReorder("buy", ids)}
-                  onOrderChange={setBuyOrder}
-                  renderRow={(item, dragHandle) => (
-                    <InboxRow
-                      item={item}
-                      session={session}
-                      tasks={tasks}
-                      expanded={false}
-                      onToggleExpand={() => {}}
-                      dragHandle={dragHandle}
-                      onAskSomeone={
-                        session.canSeeRequests
-                          ? () => setAskComposePrefill({ kind: "buy", id: item.sourceId })
-                          : undefined
-                      }
-                    />
-                  )}
-                />
-              ) : null}
+              {openGroups.map((og) =>
+                og.hasChildren ? (
+                  <div key={og.package.id} className="divide-y divide-[var(--line)]">
+                    <InboxPackageHeader item={og.package} session={session} people={people} />
+                    {og.steps.map((step) => (
+                      <div key={step.id} className="pl-3">
+                        <InboxNoteRow item={step} session={session} people={people} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <InboxNoteRow key={og.package.id} item={og.package} session={session} people={people} />
+                ),
+              )}
+              {openBuy.map((item) => (
+                <InboxNoteRow key={item.id} item={item} session={session} people={people} />
+              ))}
             </>
           )}
         </Section>
@@ -345,14 +267,7 @@ export function InboxBoard({
               />
               {!collapsedGroups[og.group.groupKey]
                 ? og.steps.map((item) => (
-                    <InboxRow
-                      key={item.id}
-                      item={item}
-                      session={session}
-                      tasks={tasks}
-                      expanded={false}
-                      onToggleExpand={() => {}}
-                    />
+                    <InboxNoteRow key={item.id} item={item} session={session} people={people} />
                   ))
                 : null}
             </Section>
@@ -376,15 +291,6 @@ export function InboxBoard({
           ))}
         </Section>
       ) : null}
-
-      {askComposePrefill ? (
-        <AskFromRowModal
-          session={session}
-          accounts={accounts}
-          prefill={askComposePrefill}
-          onClose={() => setAskComposePrefill(null)}
-        />
-      ) : null}
     </div>
   );
 }
@@ -399,181 +305,5 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       ) : null}
       <div className="divide-y divide-[var(--line)] border-t border-line">{children}</div>
     </section>
-  );
-}
-
-function OpenReorderList({
-  listId,
-  items,
-  onPersist,
-  onOrderChange,
-  renderRow,
-}: {
-  listId: string;
-  items: InboxItem[];
-  onPersist: (ids: string[]) => void;
-  onOrderChange: (ids: string[] | null) => void;
-  renderRow: (item: InboxItem, dragHandle: ReactNode) => ReactNode;
-}) {
-  const peerIds = items.map((item) => item.sourceId);
-  const reorderable = peerIds.length > 1;
-
-  function handleReorder(nextIds: string[], persist = false) {
-    onOrderChange(nextIds);
-    if (persist) onPersist(nextIds);
-  }
-
-  return (
-    <>
-      {items.map((item) => (
-        <div key={item.id} id={`${listId}-row-${item.sourceId}`}>
-          {renderRow(
-            item,
-            reorderable ? (
-              <DragHandle
-                listId={listId}
-                rowId={item.sourceId}
-                peerIds={peerIds}
-                onReorder={handleReorder}
-              />
-            ) : null,
-          )}
-        </div>
-      ))}
-    </>
-  );
-}
-
-function DragHandle({
-  listId,
-  rowId,
-  peerIds,
-  onReorder,
-}: {
-  listId: string;
-  rowId: string;
-  peerIds: string[];
-  onReorder: (ids: string[], persist?: boolean) => void;
-}) {
-  const index = peerIds.indexOf(rowId);
-  if (index < 0) return null;
-
-  function onPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    const handle = event.currentTarget;
-    handle.setPointerCapture(event.pointerId);
-    const startY = event.clientY;
-    let current = [...peerIds];
-    let lastIndex = current.indexOf(rowId);
-
-    function yToIndex(clientY: number) {
-      const mids = current.map((id) => {
-        const el = document.getElementById(`${listId}-row-${id}`);
-        if (!el) return Number.POSITIVE_INFINITY;
-        const rect = el.getBoundingClientRect();
-        return rect.top + rect.height / 2;
-      });
-      let best = lastIndex;
-      let bestDist = Number.POSITIVE_INFINITY;
-      mids.forEach((mid, i) => {
-        const dist = Math.abs(mid - clientY);
-        if (dist < bestDist) {
-          best = i;
-          bestDist = dist;
-        }
-      });
-      return best;
-    }
-
-    function onMove(moveEvent: PointerEvent) {
-      if (Math.abs(moveEvent.clientY - startY) < 8) return;
-      const nextIndex = yToIndex(moveEvent.clientY);
-      if (nextIndex === lastIndex) return;
-      lastIndex = nextIndex;
-      const next = current.filter((id) => id !== rowId);
-      next.splice(nextIndex, 0, rowId);
-      current = next;
-      onReorder(next, false);
-    }
-
-    function onUp() {
-      handle.releasePointerCapture(event.pointerId);
-      handle.removeEventListener("pointermove", onMove);
-      handle.removeEventListener("pointerup", onUp);
-      onReorder(current, true);
-    }
-
-    handle.addEventListener("pointermove", onMove);
-    handle.addEventListener("pointerup", onUp);
-  }
-
-  return (
-    <button
-      type="button"
-      aria-label="Drag to reorder"
-      className="mt-0.5 shrink-0 touch-none px-0.5 text-sm text-muted active:text-ink"
-      onPointerDown={onPointerDown}
-    >
-      ≡
-    </button>
-  );
-}
-
-function AskFromRowModal({
-  session,
-  accounts,
-  prefill,
-  onClose,
-}: {
-  session: SessionAccount;
-  accounts: AccountOption[];
-  prefill: { kind: "task" | "buy"; id: string };
-  onClose: () => void;
-}) {
-  const recipients = accounts.filter((a) => a.id !== session.id);
-  const [pending, startTransition] = useTransition();
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <form
-        className="card w-full max-w-md p-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const fd = new FormData(event.currentTarget);
-          const recipientAccountId = String(fd.get("recipientAccountId") || "");
-          startTransition(async () => {
-            await createRequestFromItem({
-              kind: prefill.kind,
-              sourceId: prefill.id,
-              recipientAccountId,
-            });
-            onClose();
-          });
-        }}
-      >
-        <p className="mb-3 text-sm font-semibold">Ask someone about this</p>
-        <label className="mb-3 block text-sm">
-          <span className="mb-1 block text-xs text-muted">To</span>
-          <select name="recipientAccountId" required className="field-input" defaultValue="">
-            <option value="" disabled>
-              Choose who…
-            </option>
-            {recipients.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="flex gap-2">
-          <button type="submit" className="btn-primary min-h-[44px]" disabled={pending}>
-            Send ask
-          </button>
-          <button type="button" className="btn-secondary min-h-[44px]" onClick={onClose}>
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
   );
 }
