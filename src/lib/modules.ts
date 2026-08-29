@@ -29,20 +29,22 @@ export type ModuleDef = {
   edit?: keyof AccountModuleFlags;
   /** Pinned to the bottom bar instead of the More sheet. */
   primary?: boolean;
+  /** Keep the route; hide the More-sheet link (redirects still work). */
+  hideFromMore?: boolean;
   badge?: "unread";
   icon: ModuleIconName;
 };
 
 /** Every app module — single source of truth for nav, routes, and permissions. */
 export const MODULES: ModuleDef[] = [
-  { key: "tasks", label: "Today", href: "/today", group: "plan", see: "canSeeTasks", primary: true, icon: "tasks" },
+  { key: "home", label: "Home", href: "/home", group: "plan", primary: true, badge: "unread", icon: "tasks" },
   { key: "dayof", label: "Day-of", href: "/day", group: "wedding", see: "canSeeTimeline", primary: true, icon: "day" },
-  { key: "requests", label: "Ask", href: "/requests", group: "comm", see: "canSeeRequests", primary: true, badge: "unread", icon: "ask" },
   { key: "guests", label: "Guests", href: "/guests", group: "wedding", see: "canSeeGuests", primary: true, icon: "guests" },
-  { key: "home", label: "Home", href: "/home", group: "plan", icon: "tasks" },
-  { key: "people", label: "People", href: "/people", group: "plan", see: "canSeePeople", icon: "people" },
+  { key: "tasks", label: "Today", href: "/today", group: "plan", see: "canSeeTasks", hideFromMore: true, icon: "tasks" },
+  { key: "requests", label: "Ask", href: "/requests", group: "comm", see: "canSeeRequests", hideFromMore: true, icon: "ask" },
+  { key: "people", label: "People", href: "/people", group: "plan", see: "canSeePeople", hideFromMore: true, icon: "people" },
   { key: "calendar", label: "Calendar", href: "/calendar", group: "plan", see: "canSeeCalendar", icon: "calendar" },
-  { key: "shop", label: "Shop", href: "/shop", group: "plan", see: "canSeeShop", icon: "shop" },
+  { key: "shop", label: "Shop", href: "/shop", group: "plan", see: "canSeeShop", hideFromMore: true, icon: "shop" },
   { key: "money", label: "Money", href: "/money", group: "money", see: "canSeeBudget", edit: "canEditBudget", icon: "money" },
   { key: "stay", label: "Stay", href: "/stay", group: "wedding", see: "canSeeStay", icon: "stay" },
   { key: "rehearsal", label: "Rehearsal", href: "/rehearsal", group: "wedding", see: "canSeeDinner", icon: "rehearsal" },
@@ -92,7 +94,7 @@ export function moreGroups(session: SessionAccount): MoreGroup[] {
   const result: MoreGroup[] = [];
   for (const group of GROUP_ORDER) {
     const items = MODULES.filter(
-      (m) => m.href && !m.primary && m.group === group && canSeeModule(session, m),
+      (m) => m.href && !m.primary && !m.hideFromMore && m.group === group && canSeeModule(session, m),
     );
     if (items.length) result.push({ group, label: NAV_GROUP_LABELS[group], items });
   }

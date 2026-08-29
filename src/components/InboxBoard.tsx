@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { createRequestFromItem, markRequestRead, reorderInboxItems } from "@/app/actions";
+import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { markRequestRead } from "@/app/actions";
 import { InboxAddBar } from "@/components/InboxAddBar";
 import { InboxGroupHeader } from "@/components/InboxGroup";
+import { InboxNoteRow, InboxPackageHeader } from "@/components/InboxNoteRow";
 import { InboxRow } from "@/components/InboxRow";
 import {
   filterInboxSections,
@@ -75,9 +76,6 @@ export function InboxBoard({
 
   const [expandedAskId, setExpandedAskId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-  const [dragSourceId, setDragSourceId] = useState<string | null>(null);
-  const [askComposePrefill, setAskComposePrefill] = useState<{ kind: "task" | "buy"; id: string } | null>(null);
-
   useEffect(() => {
     const next: Record<string, boolean> = {};
     for (const og of sections.orgGroups) {
@@ -119,28 +117,20 @@ export function InboxBoard({
     }
   }
 
-  function onDropReorder(
-    kind: "task" | "buy",
-    targetSourceId: string,
-    draggedSourceId: string,
-    items: { sourceId: string }[],
-  ) {
-    if (draggedSourceId === targetSourceId) return;
-    const ids = items.map((i) => i.sourceId);
-    const from = ids.indexOf(draggedSourceId);
-    const to = ids.indexOf(targetSourceId);
-    if (from < 0 || to < 0) return;
-    const reordered = [...ids];
-    const [moved] = reordered.splice(from, 1);
-    reordered.splice(to, 0, moved!);
-    startTransition(() => reorderInboxItems(kind, reordered));
-  }
+  const openGroups = filtered.openGroups ?? [];
+  const openBuy = filtered.openBuy ?? filtered.open.filter((item) => item.kind === "buy");
 
-  const openPackages = filtered.open.filter((i) => i.kind === "task");
-  const openBuy = filtered.open.filter((i) => i.kind === "buy");
+  const filterButtons = FILTER_CHIPS.filter((chip) => {
+    if (vendorOnly && (chip.key === "tasks" || chip.key === "buy")) return false;
+    if (!session.canSeeRequests && (chip.key === "needs-me" || chip.key === "waiting" || chip.key === "asks"))
+      return false;
+    return true;
+  });
+
+  const whoButtons = whoChips.filter((chip) => chip.id !== "all");
 
   return (
-    <div className="flex flex-col gap-3 pb-4">
+    <div className="flex flex-col pb-4">
       <InboxAddBar
         session={session}
         accounts={accounts}
@@ -151,85 +141,60 @@ export function InboxBoard({
         }
       />
 
-      <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
-        {FILTER_CHIPS.filter((chip) => {
-          if (vendorOnly && (chip.key === "tasks" || chip.key === "buy")) return false;
-          if (!session.canSeeRequests && (chip.key === "needs-me" || chip.key === "waiting" || chip.key === "asks"))
-            return false;
-          return true;
-        }).map((chip) => {
-          const active = chip.key === "all" ? !filter : filter === chip.key;
-          return (
-            <button
-              key={chip.key}
-              type="button"
-              className="filter-pill shrink-0 rounded-full border px-3 py-2 text-sm font-semibold"
-              data-active={active}
-              style={
-                active
-                  ? {
-                      borderColor: "var(--accent)",
-                      background: "var(--accent-soft)",
-                      color: "var(--accent)",
-                    }
-                  : undefined
-              }
-              onClick={() =>
-                pushParams({ filter: chip.key === "all" ? null : chip.param ?? null })
-              }
-            >
-              {chip.label}
-            </button>
-          );
-        })}
-        {whoChips
-          .filter((w) => w.id !== "all")
-          .map((chip) => {
+      <div className="border-b border-line">
+        <div className="-mx-1 flex gap-0 overflow-x-auto">
+          {filterButtons.map((chip) => {
+            const active = chip.key === "all" ? !filter : filter === chip.key;
+            return (
+              <button
+                key={chip.key}
+                type="button"
+                className={`shrink-0 border-b-2 px-2.5 py-2 text-sm font-semibold ${
+                  active
+                    ? "border-[var(--accent)] text-[var(--accent)]"
+                    : "border-transparent text-muted"
+                }`}
+                onClick={() => pushParams({ filter: chip.key === "all" ? null : chip.param ?? null })}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
+          {whoButtons.map((chip) => {
             const active = who === chip.id;
             return (
               <button
                 key={chip.id}
                 type="button"
-                className="filter-pill shrink-0 rounded-full border px-3 py-2 text-sm font-semibold"
-                data-active={active}
-                style={
+                className={`shrink-0 border-b-2 px-2.5 py-2 text-sm font-semibold ${
                   active
-                    ? {
-                        borderColor: "var(--accent)",
-                        background: "var(--accent-soft)",
-                        color: "var(--accent)",
-                      }
-                    : undefined
-                }
+                    ? "border-[var(--accent)] text-[var(--accent)]"
+                    : "border-transparent text-muted"
+                }`}
                 onClick={() => pushParams({ who: chip.id === "all" ? null : chip.id })}
               >
                 {chip.label}
               </button>
             );
           })}
-        <button
-          type="button"
-          className="filter-pill shrink-0 rounded-full border px-3 py-2 text-sm font-semibold"
-          data-active={showDone}
-          style={
-            showDone
-              ? {
-                  borderColor: "var(--accent)",
-                  background: "var(--accent-soft)",
-                  color: "var(--accent)",
-                }
-              : undefined
-          }
-          onClick={() => pushParams({ done: showDone ? null : "1" })}
-        >
-          Done
-        </button>
+          <button
+            type="button"
+            className={`shrink-0 border-b-2 px-2.5 py-2 text-sm font-semibold ${
+              showDone
+                ? "border-[var(--accent)] text-[var(--accent)]"
+                : "border-transparent text-muted"
+            }`}
+            onClick={() => pushParams({ done: showDone ? null : "1" })}
+          >
+            Done
+          </button>
+        </div>
       </div>
 
       {session.canSeeRequests ? (
         <Section title={`Needs you${filtered.needsYou.length ? ` · ${filtered.needsYou.length}` : ""}`}>
           {filtered.needsYou.length === 0 ? (
-            <p className="px-1 text-sm text-muted">You&apos;re caught up — nothing waiting on you.</p>
+            <p className="py-2 text-sm text-muted">You&apos;re caught up — nothing waiting on you.</p>
           ) : (
             filtered.needsYou.map((item) => (
               <InboxRow
@@ -266,59 +231,26 @@ export function InboxBoard({
 
       {!vendorOnly ? (
         <Section title="Open">
-          {filtered.open.length === 0 ? (
-            <p className="px-1 text-sm text-muted">Nothing open — add something above.</p>
+          {openGroups.length === 0 && openBuy.length === 0 ? (
+            <p className="py-2 text-sm text-muted">Nothing open — add something above.</p>
           ) : (
             <>
-              {openPackages.map((item) => (
-                <DraggableRow
-                  key={item.id}
-                  item={item}
-                  kind="task"
-                  dragSourceId={dragSourceId}
-                  setDragSourceId={setDragSourceId}
-                  onDrop={(targetSourceId, draggedSourceId) =>
-                    onDropReorder("task", targetSourceId, draggedSourceId, openPackages)
-                  }
-                >
-                  <InboxRow
-                    item={item}
-                    session={session}
-                    tasks={tasks}
-                    expanded={false}
-                    onToggleExpand={() => {}}
-                    onAskSomeone={
-                      session.canSeeRequests
-                        ? () => setAskComposePrefill({ kind: "task", id: item.sourceId })
-                        : undefined
-                    }
-                  />
-                </DraggableRow>
-              ))}
+              {openGroups.map((og) =>
+                og.hasChildren ? (
+                  <div key={og.package.id} className="divide-y divide-[var(--line)]">
+                    <InboxPackageHeader item={og.package} session={session} people={people} />
+                    {og.steps.map((step) => (
+                      <div key={step.id} className="pl-3">
+                        <InboxNoteRow item={step} session={session} people={people} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <InboxNoteRow key={og.package.id} item={og.package} session={session} people={people} />
+                ),
+              )}
               {openBuy.map((item) => (
-                <DraggableRow
-                  key={item.id}
-                  item={item}
-                  kind="buy"
-                  dragSourceId={dragSourceId}
-                  setDragSourceId={setDragSourceId}
-                  onDrop={(targetSourceId, draggedSourceId) =>
-                    onDropReorder("buy", targetSourceId, draggedSourceId, openBuy)
-                  }
-                >
-                  <InboxRow
-                    item={item}
-                    session={session}
-                    tasks={tasks}
-                    expanded={false}
-                    onToggleExpand={() => {}}
-                    onAskSomeone={
-                      session.canSeeRequests
-                        ? () => setAskComposePrefill({ kind: "buy", id: item.sourceId })
-                        : undefined
-                    }
-                  />
-                </DraggableRow>
+                <InboxNoteRow key={item.id} item={item} session={session} people={people} />
               ))}
             </>
           )}
@@ -335,14 +267,7 @@ export function InboxBoard({
               />
               {!collapsedGroups[og.group.groupKey]
                 ? og.steps.map((item) => (
-                    <InboxRow
-                      key={item.id}
-                      item={item}
-                      session={session}
-                      tasks={tasks}
-                      expanded={false}
-                      onToggleExpand={() => {}}
-                    />
+                    <InboxNoteRow key={item.id} item={item} session={session} people={people} />
                   ))
                 : null}
             </Section>
@@ -366,124 +291,19 @@ export function InboxBoard({
           ))}
         </Section>
       ) : null}
-
-      {askComposePrefill ? (
-        <AskFromRowModal
-          session={session}
-          accounts={accounts}
-          prefill={askComposePrefill}
-          onClose={() => setAskComposePrefill(null)}
-        />
-      ) : null}
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-2">
+    <section>
       {title ? (
-        <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted">{title}</p>
+        <p className="pt-3 pb-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+          {title}
+        </p>
       ) : null}
-      {children}
+      <div className="divide-y divide-[var(--line)] border-t border-line">{children}</div>
     </section>
-  );
-}
-
-function DraggableRow({
-  item,
-  dragSourceId,
-  setDragSourceId,
-  onDrop,
-  children,
-}: {
-  item: { sourceId: string };
-  kind: "task" | "buy";
-  dragSourceId: string | null;
-  setDragSourceId: (id: string | null) => void;
-  onDrop: (targetSourceId: string, draggedSourceId: string) => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      draggable
-      onDragStart={() => setDragSourceId(item.sourceId)}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault();
-        if (dragSourceId) onDrop(item.sourceId, dragSourceId);
-        setDragSourceId(null);
-      }}
-      className="flex items-stretch gap-1"
-    >
-      <button
-        type="button"
-        className="mt-3 shrink-0 cursor-grab px-1 text-muted active:cursor-grabbing"
-        aria-label="Drag to reorder"
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        ⠿
-      </button>
-      <div className="min-w-0 flex-1">{children}</div>
-    </div>
-  );
-}
-
-function AskFromRowModal({
-  session,
-  accounts,
-  prefill,
-  onClose,
-}: {
-  session: SessionAccount;
-  accounts: AccountOption[];
-  prefill: { kind: "task" | "buy"; id: string };
-  onClose: () => void;
-}) {
-  const recipients = accounts.filter((a) => a.id !== session.id);
-  const [pending, startTransition] = useTransition();
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <form
-        className="card w-full max-w-md p-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const fd = new FormData(event.currentTarget);
-          const recipientAccountId = String(fd.get("recipientAccountId") || "");
-          startTransition(async () => {
-            await createRequestFromItem({
-              kind: prefill.kind,
-              sourceId: prefill.id,
-              recipientAccountId,
-            });
-            onClose();
-          });
-        }}
-      >
-        <p className="mb-3 text-sm font-semibold">Ask someone about this</p>
-        <label className="mb-3 block text-sm">
-          <span className="mb-1 block text-xs text-muted">To</span>
-          <select name="recipientAccountId" required className="field-input" defaultValue="">
-            <option value="" disabled>
-              Choose who…
-            </option>
-            {recipients.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="flex gap-2">
-          <button type="submit" className="btn-primary min-h-[44px]" disabled={pending}>
-            Send ask
-          </button>
-          <button type="button" className="btn-secondary min-h-[44px]" onClick={onClose}>
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
   );
 }

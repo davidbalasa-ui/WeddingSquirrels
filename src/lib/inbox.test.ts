@@ -3,10 +3,14 @@ import { test } from "node:test";
 import {
   buildWhoChips,
   canSeeHome,
+  detailFromTaskPackage,
   filterInboxSections,
   groupInboxItems,
+  inboxDateLine,
   nextCoupleOwnerIds,
   nextShoppingOwnerId,
+  ownerIdsForPreset,
+  ownerWhoPreset,
   type InboxItem,
   type InboxSections,
 } from "./inbox";
@@ -153,6 +157,8 @@ test("who=both means different things per kind", () => {
         sortOrder: 0,
       },
     ],
+    openGroups: [],
+    openBuy: [],
     orgGroups: [],
     done: [],
   };
@@ -202,6 +208,8 @@ test("needs-me filter includes assigneeFilter tasks", () => {
         sortOrder: 0,
       },
     ],
+    openGroups: [],
+    openBuy: [],
     orgGroups: [],
     done: [],
   };
@@ -213,4 +221,81 @@ test("needs-me filter includes assigneeFilter tasks", () => {
     accounts: [],
   });
   assert.equal(filtered.open.length, 1);
+});
+
+test("detailFromTaskPackage lists remaining work as plain text, never a steps count", () => {
+  const detail = detailFromTaskPackage({
+    summary: "Decide look",
+    children: [
+      { title: "Book stylist", status: "todo", sortOrder: 1 },
+      { title: "Done already", status: "done", sortOrder: 0 },
+      { title: "Choose style", status: "todo", sortOrder: 2 },
+    ],
+  });
+  assert.equal(detail, "Book stylist · Choose style · Decide look");
+  assert.equal(detailFromTaskPackage({ children: [{ title: "X", status: "done", sortOrder: 0 }] }), null);
+});
+
+test("inboxDateLine is empty when done or missing", () => {
+  assert.equal(inboxDateLine(null, false), null);
+  assert.equal(inboxDateLine(new Date("2026-01-01"), true), null);
+});
+
+test("ownerWhoPreset stays condensed for couple, other otherwise", () => {
+  assert.equal(ownerWhoPreset(["david"]), "david");
+  assert.equal(ownerWhoPreset(["haley"]), "haley");
+  assert.equal(ownerWhoPreset(["david", "haley"]), "both");
+  assert.equal(ownerWhoPreset(["shelly"]), "other");
+  assert.deepEqual(ownerIdsForPreset("both", []), ["david", "haley"]);
+});
+
+test("groupInboxItems puts package children on the header, not in a dump", () => {
+  const items: InboxItem[] = [
+    {
+      id: "task:p",
+      kind: "task",
+      sourceId: "p",
+      title: "Photos & video",
+      done: false,
+      ownerPersonIds: ["david", "haley"],
+      ownerLabel: "Both",
+      sortOrder: 0,
+    },
+    {
+      id: "task_step:a",
+      kind: "task_step",
+      sourceId: "a",
+      title: "shot list for photographer",
+      done: false,
+      ownerPersonIds: ["david"],
+      ownerLabel: "David",
+      sortOrder: 0,
+      parentId: "p",
+    },
+    {
+      id: "task_step:b",
+      kind: "task_step",
+      sourceId: "b",
+      title: "done shot",
+      done: true,
+      ownerPersonIds: ["david"],
+      ownerLabel: "David",
+      sortOrder: 1,
+      parentId: "p",
+    },
+  ];
+  const grouped = groupInboxItems(items, session());
+  assert.equal(grouped.openGroups.length, 1);
+  assert.equal(grouped.openGroups[0]!.hasChildren, true);
+  assert.equal(grouped.openGroups[0]!.steps.length, 2);
+  assert.equal(grouped.openGroups[0]!.package.title, "Photos & video");
+  const hidden = filterInboxSections(grouped, {
+    filter: null,
+    who: "all",
+    showDone: false,
+    session: session(),
+    accounts: [],
+  });
+  assert.equal(hidden.openGroups[0]!.steps.length, 1);
+  assert.equal(hidden.openGroups[0]!.steps[0]!.title, "shot list for photographer");
 });

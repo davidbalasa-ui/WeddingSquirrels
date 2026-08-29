@@ -3,7 +3,7 @@
 **For:** Composer implementation  
 **Route:** `/home`  
 **UI name:** Home  
-**Rollout:** Build the complete new page. Then decommission the old ones.  
+**Rollout:** Home is the notes-style inbox. Stage B is in scope: promote Home, soft-redirect Today / Ask / Shop / People.  
 **Non-negotiable:** Zero data loss. No schema migration. Ask never goes dark.
 
 Related: `docs/plans/unified-home-inbox-audit.md` (why these rules exist). Implement from **this** file only.
@@ -12,31 +12,24 @@ Related: `docs/plans/unified-home-inbox-audit.md` (why these rules exist). Imple
 
 ## Rollout in one line
 
-1. **Stage A** — `/home` becomes a full replacement for Today + Ask + Shop + People (calendar browse stays). Old URLs keep their current UI.
-2. **Stage B** — Swap nav, land login on Home, soft-redirect old planning URLs. Delete nothing.
+1. **Stage A** — `/home` is the notes-style list (asks + package lines + buy).
+2. **Stage B** — Home is the primary tab. Login lands on Home. Soft-redirect `/today`, `/requests`, `/shop`, `/people`. Delete nothing.
 
-Do not start Stage B until the Stage A gate at the bottom of that section is all checked.
-
-Home must make Ask **faster**, not bury it. Default action on the page is “Ask someone.”
+Home is a notes app, not a card table. Every actionable line is visible and completable on `/home`.
 
 ```
-┌─ NEEDS YOU · 2 ─────────────────────────────────┐
-│ ● Ask · From David   “Can you pick up ice?”     │  unread badge; stays here after read
-│ ○ Ask · From Haley   “Confirm florist time”     │
-├─ WAITING · 1 ───────────────────────────────────┤
-│ ○ Ask · To Avalon    “Final headcount?”         │
+┌─ NEEDS YOU ─────────────────────────────────────┐
+│ ☐ Can you pick up ice?              From David  │
 ├─ OPEN ──────────────────────────────────────────┤
-│ ☐ Decision · Both    Florals & centerpieces  ›  │  workspace chevron
-│ ☐ Buy · Haley        Batteries ×2               │
-├─ WEEK BEFORE · 4/7 ─────────────────────────────┤
-│ ☐ · Both             Confirm vendors            │  org-card children only
-└─ DONE (collapsed) ──────────────────────────────┘
-
-[ Ask someone ]     All · Needs me · Waiting · Asks · Tasks · Buy · David · Haley · …
+│ Photos & video                      Aug 17 · overdue
+│ ☐ shot list for photographer   David        ✎  │
+│ ☐ shot list for videographer   Haley        ✎  │
+│ ☐ new engagement photos        Both         ✎  │
+│ Batteries                          Haley        │
+└─ DONE (hidden unless ?done=1) ──────────────────┘
 ```
 
-**Nav after Stage B:** `Home` · `Day-of` · `Guests` · `More`  
-**Nav during Stage A:** unchanged (`Today` · `Day-of` · `Ask` · `Guests` · `More`). Home is listed in **More** so it is findable without a fifth primary tab.
+**Nav:** `Home` · `Day-of` · `Guests` · `More` (Calendar stays in More).
 
 ---
 
@@ -53,7 +46,7 @@ Copy these into the implementation. They are not optional.
 7. **Drag only within the same kind and the same group.** Asks are not draggable. There is no unified sort column; mixed Open order is display-only.
 8. **Narrow mutations from the list.** Do not post `saveTaskWorkspace`, `saveShoppingItem`, or `saveRequest` from a dense row. Those rewrite the whole record and/or redirect (`saveTaskWorkspace` → `/today`; `createTaskPackage` → `/work/[id]`; `saveTaskWorkspace` does not even write `title`).
 9. **Default compose is Ask.** Recipient is `PinAccount.id`, never `Person.id`.
-10. **Flatten only org-card children.** `orgKey` in `{week_before, day_before}`. Every other task is one decision-package row with a link to `/work/[id]`.
+10. **Flatten package children onto Home as `task_step` rows.** A decision package is a **header**. Each child is its own compressed line: checkbox (hides when done unless `?done=1`) + feather editor (title, due date, who). Do **not** dump child titles into one paragraph. Org-card children stay `org_step` under Week before / Day before. `/work/[id]` remains the deep editor. Do not auto-cascade parent/child done.
 11. **Declined ≠ done.** For asks, `done` is `status === "done"` only. Declined gets a badge and Reopen.
 12. **`canSeeHome` is derived, not a DB column:** `isMaster || canSeeRequests || canSeeTasks || canSeeShop`.
 13. **`firstAllowedRoute` (Stage B only):** if `canSeeHome` → `/home`; else keep the existing `APP_ROUTES` scan. Shared-money still lands on `/money`. Guests-only still lands on `/guests`.
@@ -69,14 +62,26 @@ Copy these into the implementation. They are not optional.
 
 | Today | Home |
 |-------|------|
-| `/today` decision packages | Package rows in Open + workspace chevron |
+| `/today` decision packages | Package **header** + one checkbox/feather row per child (`task_step`) |
 | `/requests` Ask | Needs you + Waiting + inline thread + compose |
 | `/shop` | Buy rows (`kind: "buy"`) |
 | `/people` owner filters | Who chips (same semantics, including extra people) |
 | `/calendar` | Stays as a page. Home header shows next milestone only |
 | `/work/[id]` | Unchanged deep editor |
 
-Org-card steps (“Confirm vendors”, “Charge devices”) live under Week before / Day before on Home. They are **not** Today rows today (`listTasks` excludes `orgKey` and children). Flattening them on Home is intentional and limited to those two cards.
+Org-card steps live under Week before / Day before. Decision-package children are also flattened on Home (`task_step`) so the next line is checkable without opening a workspace.
+
+### Notes-list rows (binding)
+
+Each `task_step` / `org_step` / leaf package (no children) / buy row:
+
+- **Left:** small square checkbox. Done → hidden unless `?done=1`.
+- **Middle:** title. Under it, due date as plain text when set.
+- **Right:** condensed owner + **feather**. Feather opens an inline editor on that row only: title, due date (tasks), who.
+- **Who (tasks):** David · Haley · Both · Other. Other expands the full person list. David / Haley / Both stay one tap. `canManageOwners` required to write assignees. Filtered PINs cannot change who.
+- **Who (buy):** David · Haley · Both (unset). No Other — shop only has couple/unset.
+- **Stay compressed.** No cards, no step counters, no pill chips.
+- **Parent package** is a one-line header (title + package due). Not a second copy of every child title. Optional workspace link in the header/menu.
 
 ---
 
@@ -88,7 +93,7 @@ Org-card steps (“Confirm vendors”, “Charge devices”) live under Week bef
 |---------|----------|-------------|
 | **Needs you** | Open asks where I am recipient (+ master third-party open asks) | “You're caught up — nothing waiting on you.” Header always shown if `canSeeRequests`. |
 | **Waiting** | Open asks I sent | Hide the section when count is 0 |
-| **Open** | Incomplete packages + incomplete buy items. **No asks.** | Compose bar still visible; no giant blank card |
+| **Open** | Package groups (`task` header + incomplete `task_step` lines) + incomplete buy. **No asks.** | Compose bar still visible; no giant blank card |
 | **Week before** / **Day before** | `org_step` rows for that `orgKey` | Hide if the session cannot see tasks or the card has no visible children |
 | **Done** | Done packages, purchased buy, done asks, declined asks | Collapsed unless `?done=1` |
 
@@ -96,14 +101,15 @@ Vendor (`!canSeeTasks && !canSeeShop`): render Needs you / Waiting / Done (asks 
 
 ### Row types
 
-| Kind | Primary tap | Checkbox | Chevron |
+| Kind | Primary tap | Checkbox | Feather |
 |------|-------------|----------|---------|
-| `ask` | Expand thread | Marks complete (`completeRequest`); Reopen in Done | None |
-| `task` (package) | Title edits / expand not required | `toggleTaskDone` | `/work/[id]` |
-| `org_step` | Title | `toggleTaskDone` on the child | None (not a workspace) |
-| `buy` | Title | `toggleShoppingPurchased` | None (optional link if `taskId`) |
+| `ask` | Expand thread | `completeRequest` | None (thread has reply) |
+| `task` (leaf package) | Feather / title | `toggleTaskDone` | title, due, who |
+| `task_step` | Feather / title | `toggleTaskDone` on the child | title, due, who |
+| `org_step` | Feather / title | `toggleTaskDone` on the child | title, due, who |
+| `buy` | Feather / title | `toggleShoppingPurchased` | name, who |
 
-Visual distinction: Ask rows look like messages (From/To, unread pill). Package rows look like decisions (steps badge, due badge, ›). Buy rows look like a shopping checkbox (quantity on the line).
+Package-with-children: header only (not a checkbox-for-all). Children are the work.
 
 ### Filter chips (one horizontal scroller)
 
@@ -169,7 +175,7 @@ export function canManageOwners(session: SessionAccount): boolean {
 ### `InboxItem`
 
 ```ts
-export type InboxKind = "ask" | "task" | "org_step" | "buy";
+export type InboxKind = "ask" | "task" | "task_step" | "org_step" | "buy";
 
 export type InboxItem = {
   id: string;                 // "ask:<sourceId>" — render key only
@@ -207,7 +213,8 @@ export type InboxItem = {
 | Kind | Query | `done` | Notes |
 |------|--------|--------|-------|
 | `ask` | `Request` + messages + sender/recipient names, if `canSeeRequests`, `requestVisibilityWhere` | `status === "done"` | `needsMe` / `waitingOnThem` match `RequestsBoard` grouping, including the master leftover-open-asks → needs loop. `unread` via `isRequestUnread`. |
-| `task` | Top-level `parentId: null`, `orgKey: null`, `taskVisibilityWhere` | `status === "done"` | Include children **counts** only. `href` = `/work/{id}`. |
+| `task` | Top-level `parentId: null`, `orgKey: null`, `taskVisibilityWhere` | `status === "done"` | Header when it has children. `href` = `/work/{id}`. Do **not** concatenate child titles into `detail`. |
+| `task_step` | Children of those packages (same visibility) | `status === "done"` | `parentId` = package id. Owners: child’s assignees, else parent’s (display/filter); feather writes the **child**. |
 | `org_step` | Children of tasks with `orgKey` in `week_before` \| `day_before`, same visibility as tasks | `status === "done"` | `groupKey` = parent orgKey. Do **not** also emit the parent as a row. Group header *is* the parent (title, due, `childDone/childTotal`). |
 | `buy` | All `ShoppingItem` if `canSeeShop` (shop has no extra visibility filter today) | `purchased === true` | `ownerPersonIds` = `[ownerId]` or `[]`. |
 
@@ -278,6 +285,8 @@ Always `revalidatePath("/home")` **in addition to** existing paths. Keep `revali
 | `renameRequest(id, title)` | `title` if `canEditRequest` | Clear `note` / `taskId` |
 | `reorderInboxItems(kind, orderedIds)` | `sortOrder` 0..n on `Task` or `ShoppingItem` | Accept `ask`; accept mixed kinds; accept ids the session cannot mutate |
 | `createRequestFromItem({ kind, sourceId, recipientId })` | `createRequest` with prefilled title. Package: set `taskId`. Buy: title/note from item; `taskId` = item’s `taskId` or null | Add columns |
+| `updateInboxTask(taskId, { title, dueDate, ownerIds })` | `Task.title`, `dueDate`, `setTaskAssignees` | Touch notes, money, status. Write owners only if `canManageOwners`; `restrictTo` `assigneeFilter`. |
+| `createInboxChild(parentId, title)` | Child `Task` under a package | Redirect to workspace; create under `orgKey` cards |
 
 Patch `saveRequest` if reused from the expanded thread: omitted `note` / `taskId` must stay `undefined` (no write), not `null`.
 
@@ -389,7 +398,8 @@ Narrow rename/cycle/create-from-inbox actions. Checkboxes. Guarded owner chips. 
 - [ ] Needs you does not empty out when an ask is opened
 - [ ] Waiting asks are not mixed into Open
 - [ ] Packages check off and still open `/work/[id]`
-- [ ] Org steps check off; decision packages are not flattened
+- [ ] Package children are individual checkbox + feather rows (`task_step`); done lines hide unless `?done=1`
+- [ ] Org steps check off; feather edits title / due / who
 - [ ] Shop check off + rename + owner cycle
 - [ ] Owner cycle never writes non-couple assignees
 - [ ] Vendor: asks only, no empty Task/Buy sections
@@ -529,4 +539,4 @@ Stage A4  pin, same-kind reorder, ask-from-row, density
 Stage B   primary nav, login, soft redirects, offline copy, calendar in More
 ```
 
-Stage A and B may land in one PR **only if** the gate is satisfied in that PR and redirects are the last commits. Prefer two PRs.
+Stage A notes-list + Stage B nav/redirects may land together now that Home is the working surface.

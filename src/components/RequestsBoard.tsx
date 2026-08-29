@@ -1,3 +1,4 @@
+/** @deprecated Stage B — Ask compose and threads live on `/home`. File kept; do not delete. */
 "use client";
 
 import Link from "next/link";
