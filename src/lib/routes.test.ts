@@ -29,16 +29,19 @@ function session(overrides: Partial<SessionAccount> = {}): SessionAccount {
   };
 }
 
-test("firstAllowedRoute lands on the first visible tab", () => {
+test("firstAllowedRoute lands on Home when the PIN can see Home", () => {
+  assert.equal(firstAllowedRoute(session({ isMaster: true })), "/home");
+  assert.equal(firstAllowedRoute(session({ canSeeRequests: true })), "/home");
+  assert.equal(firstAllowedRoute(session({ canSeeTasks: true, canSeeGuests: true })), "/home");
+});
+
+test("firstAllowedRoute keeps shared-money and guests-only landings", () => {
+  assert.equal(firstAllowedRoute(session({ canSeeBudget: true })), "/money");
   assert.equal(firstAllowedRoute(session({ canSeeGuests: true })), "/guests");
-  assert.equal(
-    firstAllowedRoute(session({ canSeeTasks: true, canSeeGuests: true })),
-    "/today",
-  );
   assert.equal(firstAllowedRoute(session()), null);
 });
 
-test("canSeeRoute honors dinner and accounts rules", () => {
+test("canSeeRoute honors dinner, accounts, and Home", () => {
   assert.equal(
     canSeeRoute(session({ canManageAccounts: true }), { href: "/accounts", need: "canManageAccounts" }),
     true,
@@ -46,5 +49,13 @@ test("canSeeRoute honors dinner and accounts rules", () => {
   assert.equal(
     canSeeRoute(session({ canSeeDinner: true }), { href: "/rehearsal", need: "canSeeDinner" }),
     true,
+  );
+  assert.equal(
+    canSeeRoute(session({ canSeeRequests: true }), { href: "/home", need: "canSeeHome" }),
+    true,
+  );
+  assert.equal(
+    canSeeRoute(session({ canSeeBudget: true }), { href: "/home", need: "canSeeHome" }),
+    false,
   );
 });

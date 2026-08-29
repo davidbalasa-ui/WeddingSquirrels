@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { DownloadOfflineButton } from "@/components/DownloadOfflineButton";
 import { InboxBoard } from "@/components/InboxBoard";
 import { loadInboxPageData } from "@/lib/inbox";
 import { requireHomeSession } from "@/lib/session";
@@ -39,6 +40,9 @@ export default async function HomeInboxPage() {
           whoChips={data.whoChips}
         />
       </Suspense>
+      <div className="pt-2">
+        <DownloadOfflineButton />
+      </div>
     </>
   );
 }

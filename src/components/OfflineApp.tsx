@@ -127,7 +127,7 @@ export function OfflineApp() {
   const tabs = useMemo(() => {
     if (!pack || pack === "loading") return [];
     const available: { id: TabId; label: string; count: number }[] = [];
-    if (asTasks(pack).length) available.push({ id: "tasks", label: "Today", count: asTasks(pack).length });
+    if (asTasks(pack).length) available.push({ id: "tasks", label: "Home", count: asTasks(pack).length });
     if (asTimeline(pack).length) available.push({ id: "day", label: "Day-of", count: asTimeline(pack).length });
     if (asContacts(pack).length) available.push({ id: "contacts", label: "Contacts", count: asContacts(pack).length });
     if (asAssignments(pack).length)
@@ -157,7 +157,7 @@ export function OfflineApp() {
         <div className="card p-6 text-sm">
           <p className="font-semibold">No offline copy saved yet.</p>
           <p className="mt-1 text-muted">
-            Sign in on this device, go to <span className="font-semibold">Today</span>, tap{" "}
+            Sign in on this device, go to <span className="font-semibold">Home</span>, tap{" "}
             <span className="font-semibold">Download for offline</span>, then come back here. The
             copy stays on this device.
           </p>
@@ -240,7 +240,7 @@ function TasksView({ pack }: { pack: OfflinePack }) {
   const tasks = asTasks(pack);
   return (
     <div className="flex flex-col gap-3">
-      <SectionTitle>Today</SectionTitle>
+      <SectionTitle>Home</SectionTitle>
       {tasks.map((task) => {
         const names = task.assignees.map((a) => a.person.name).join(" · ");
         return (
