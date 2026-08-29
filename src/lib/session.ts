@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { canSeeDinnerTab } from "@/lib/access";
+import { canSeeHome } from "@/lib/inbox";
 import { getSession } from "@/lib/auth";
 import { firstAllowedRoute } from "@/lib/routes";
 import type { SessionAccount } from "@/lib/types";
@@ -30,6 +31,17 @@ export async function requirePageSession(opts?: { need?: NeedKey }) {
     if (!allowed) {
       redirect(firstAllowedRoute(session) ?? "/no-access");
     }
+  }
+
+  return session;
+}
+
+export async function requireHomeSession() {
+  const session = await getSession();
+  if (!session) redirect("/");
+
+  if (!canSeeHome(session)) {
+    redirect(firstAllowedRoute(session) ?? "/no-access");
   }
 
   return session;

@@ -31,6 +31,7 @@ import {
   type TimelineSchedule,
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
+import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
 import { applyRsvpChange, effectiveInvitedCount, syncLegacyGuestNames } from "@/lib/guest-gifts";
@@ -93,6 +94,8 @@ export async function toggleTaskDone(taskId: string) {
 
   revalidatePath("/today");
   revalidatePath("/people");
+  revalidatePath("/home");
+  revalidatePath("/home");
   revalidatePath(`/work/${task.parentId || task.id}`);
 }
 
@@ -117,6 +120,8 @@ export async function toggleTaskEscalation(taskId: string) {
 
   revalidatePath("/today");
   revalidatePath("/people");
+  revalidatePath("/home");
+  revalidatePath("/home");
   revalidatePath(`/work/${taskId}`);
 }
 
@@ -188,6 +193,7 @@ export async function saveTaskWorkspace(
 
   revalidatePath("/today");
   revalidatePath("/people");
+  revalidatePath("/home");
   revalidatePath(`/work/${id}`);
   revalidatePath("/money");
   revalidatePath("/calendar");
@@ -258,6 +264,7 @@ export async function createTaskPackage(
 
   revalidatePath("/today");
   revalidatePath("/people");
+  revalidatePath("/home");
   revalidatePath("/calendar");
   redirect(`/work/${taskId}`);
 }
@@ -547,6 +554,7 @@ async function syncAccountShares(args: {
   revalidatePath("/money");
   revalidatePath("/today");
   revalidatePath("/people");
+  revalidatePath("/home");
   revalidatePath("/accounts");
 }
 
@@ -750,11 +758,13 @@ export async function setTaskShares(taskId: string, pinAccountIds: string[]) {
 
   revalidatePath("/today");
   revalidatePath("/people");
+  revalidatePath("/home");
   revalidatePath(`/work/${taskId}`);
 }
 
 function revalidateRequests() {
   revalidatePath("/requests");
+  revalidatePath("/home");
 }
 
 export async function createRequest(formData: FormData): Promise<void> {
@@ -1448,6 +1458,7 @@ export async function createShoppingItem(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/shop");
+  revalidatePath("/home");
 }
 
 export async function saveShoppingItem(formData: FormData): Promise<void> {
@@ -1477,6 +1488,7 @@ export async function saveShoppingItem(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/shop");
+  revalidatePath("/home");
 }
 
 export async function toggleShoppingPurchased(itemId: string): Promise<void> {
@@ -1492,6 +1504,7 @@ export async function toggleShoppingPurchased(itemId: string): Promise<void> {
   });
 
   revalidatePath("/shop");
+  revalidatePath("/home");
 }
 
 export async function deleteShoppingItem(itemId: string): Promise<void> {
@@ -1500,6 +1513,256 @@ export async function deleteShoppingItem(itemId: string): Promise<void> {
 
   await prisma.shoppingItem.delete({ where: { id: itemId } });
   revalidatePath("/shop");
+  revalidatePath("/home");
+}
+
+export async function renameTask(taskId: string, title: string): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const trimmed = title.trim();
+  if (!trimmed) return;
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { assignees: true, children: { include: { assignees: true } } },
+  });
+  if (!task || !(await sessionCanMutateTask(session, task))) throw new Error("FORBIDDEN");
+
+  await prisma.task.update({ where: { id: taskId }, data: { title: trimmed } });
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath("/home");
+  revalidatePath(`/work/${task.parentId || task.id}`);
+}
+
+export async function createTaskFromInbox(
+  title: string,
+  dueDateRaw?: string,
+  assigneeIds?: string[],
+): Promise<{ id: string } | { error: string }> {
+  const session = await requireSession();
+  if (!session.canSeeTasks) return { error: "This PIN can't add tasks." };
+
+  const trimmed = title.trim();
+  if (!trimmed) return { error: "Add a title." };
+
+  const canManage = session.isMaster || !session.assigneeFilter?.length;
+  try {
+    const people = await resolveAssigneeIds(assigneeIds ?? [], null, {
+      restrictTo: session.assigneeFilter,
+      fallback: session.assigneeFilter?.length ? session.assigneeFilter : ["david", "haley"],
+    });
+
+    const last = await prisma.task.findFirst({
+      where: { parentId: null },
+      orderBy: { sortOrder: "desc" },
+    });
+
+    const task = await prisma.task.create({
+      data: {
+        title: trimmed,
+        summary:
+          "Open this card to write the decision, money needed, money spent, and mark it done when finished.",
+        planNotes: "",
+        dueDate: dueDateRaw ? parseDueDate(dueDateRaw) : null,
+        status: "todo",
+        sortOrder: (last?.sortOrder ?? -1) + 1,
+        amountSpent: 0,
+      },
+    });
+
+    await setTaskAssignees(task.id, people);
+    const assigned = await prisma.taskAssignee.count({ where: { taskId: task.id } });
+    if (people.length > 0 && assigned === 0) {
+      await prisma.task.delete({ where: { id: task.id } });
+      return { error: "Couldn't assign that owner. Try again." };
+    }
+
+    revalidatePath("/today");
+    revalidatePath("/people");
+    revalidatePath("/home");
+    revalidatePath("/calendar");
+    return { id: task.id };
+  } catch (err) {
+    console.error(err);
+    return { error: "Couldn't create that task. Try again." };
+  }
+}
+
+export async function cycleTaskOwners(taskId: string): Promise<void> {
+  const session = await requireSession();
+  if (!canManageOwners(session) || !session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { assignees: true, children: { include: { assignees: true } } },
+  });
+  if (!task || !(await sessionCanMutateTask(session, task))) throw new Error("FORBIDDEN");
+
+  const current = task.assignees.map((a) => a.personId);
+  const next = nextCoupleOwnerIds(current);
+  if (!next) return;
+
+  await setTaskAssignees(taskId, next);
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath("/home");
+  revalidatePath(`/work/${task.parentId || task.id}`);
+}
+
+export async function renameShoppingItem(itemId: string, name: string): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeShop");
+
+  const trimmed = name.trim();
+  if (!trimmed) return;
+
+  await prisma.shoppingItem.update({ where: { id: itemId }, data: { name: trimmed } });
+  revalidatePath("/shop");
+  revalidatePath("/home");
+}
+
+export async function cycleShoppingOwner(itemId: string): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeShop");
+
+  const item = await prisma.shoppingItem.findUnique({ where: { id: itemId } });
+  if (!item) throw new Error("NOT_FOUND");
+
+  const next =
+    item.ownerId === "david" ? "haley" : item.ownerId === "haley" ? null : "david";
+  await prisma.shoppingItem.update({ where: { id: itemId }, data: { ownerId: next } });
+  revalidatePath("/shop");
+  revalidatePath("/home");
+}
+
+export async function createShoppingItemFromInbox(
+  name: string,
+  ownerIdRaw?: string | null,
+): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeShop");
+
+  const trimmed = name.trim();
+  if (!trimmed) return;
+
+  const ownerId = ownerIdRaw ? parseShoppingOwnerId(ownerIdRaw) : null;
+  const last = await prisma.shoppingItem.findFirst({ orderBy: { sortOrder: "desc" } });
+  await prisma.shoppingItem.create({
+    data: {
+      name: trimmed,
+      ownerId,
+      purchased: false,
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidatePath("/shop");
+  revalidatePath("/home");
+}
+
+export async function renameRequest(requestId: string, title: string): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeRequests");
+
+  const trimmed = title.trim();
+  if (!trimmed) return;
+
+  const row = await prisma.request.findUnique({ where: { id: requestId } });
+  if (!row || !canViewRequest(session, row) || !canEditRequest(session, row)) {
+    throw new Error("FORBIDDEN");
+  }
+
+  await prisma.request.update({ where: { id: requestId }, data: { title: trimmed } });
+  revalidateRequests();
+}
+
+export async function reorderInboxItems(
+  kind: "task" | "buy",
+  orderedIds: string[],
+): Promise<void> {
+  const session = await requireSession();
+  if (kind === "buy") {
+    assertCan(session, "canSeeShop");
+    await prisma.$transaction(
+      orderedIds.map((id, index) =>
+        prisma.shoppingItem.update({ where: { id }, data: { sortOrder: index } }),
+      ),
+    );
+    revalidatePath("/shop");
+    revalidatePath("/home");
+    return;
+  }
+
+  if (!session.canSeeTasks) throw new Error("FORBIDDEN");
+
+  for (const id of orderedIds) {
+    const task = await prisma.task.findUnique({
+      where: { id },
+      include: { assignees: true, children: { include: { assignees: true } } },
+    });
+    if (!task || task.orgKey) throw new Error("INVALID");
+    if (!(await sessionCanMutateTask(session, task))) throw new Error("FORBIDDEN");
+  }
+
+  await prisma.$transaction(
+    orderedIds.map((id, index) => prisma.task.update({ where: { id }, data: { sortOrder: index } })),
+  );
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath("/home");
+}
+
+export async function createRequestFromItem(input: {
+  kind: "task" | "buy";
+  sourceId: string;
+  recipientAccountId: string;
+}): Promise<void> {
+  const session = await requireSession();
+  assertCan(session, "canSeeRequests");
+
+  if (input.recipientAccountId === session.id) throw new Error("INVALID_RECIPIENT");
+
+  const recipient = await prisma.pinAccount.findUnique({
+    where: { id: input.recipientAccountId },
+    select: { id: true },
+  });
+  if (!recipient) throw new Error("NOT_FOUND");
+
+  let title = "";
+  let taskId: string | null = null;
+  let note: string | null = null;
+
+  if (input.kind === "task") {
+    const task = await prisma.task.findFirst({
+      where: { id: input.sourceId, parentId: null, orgKey: null },
+      select: { id: true, title: true },
+    });
+    if (!task) throw new Error("NOT_FOUND");
+    title = `Can you handle: ${task.title}?`;
+    taskId = task.id;
+  } else {
+    const item = await prisma.shoppingItem.findUnique({ where: { id: input.sourceId } });
+    if (!item) throw new Error("NOT_FOUND");
+    title = `Can you pick up: ${item.name}${item.quantity ? ` (${item.quantity})` : ""}?`;
+    note = item.note;
+    taskId = item.taskId;
+  }
+
+  await prisma.request.create({
+    data: {
+      title,
+      note,
+      status: "open",
+      senderAccountId: session.id,
+      recipientAccountId: input.recipientAccountId,
+      taskId,
+      senderReadAt: new Date(),
+    },
+  });
+
+  revalidatePath("/", "layout");
+  revalidateRequests();
 }
 
 export type StayWriteResult =
