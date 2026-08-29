@@ -736,9 +736,7 @@ export async function loadInboxPageData(session: SessionAccount) {
           select: { id: true, title: true },
         })
       : Promise.resolve([]),
-    session.canSeeCalendar
-      ? prisma.calendarEvent.findMany({ orderBy: { startDate: "asc" } })
-      : Promise.resolve([]),
+    prisma.calendarEvent.findMany({ orderBy: { startDate: "asc" } }),
   ]);
 
   const orgCards = session.canSeeTasks

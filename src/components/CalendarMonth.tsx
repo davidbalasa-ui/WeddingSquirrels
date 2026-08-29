@@ -1,3 +1,4 @@
+/** @deprecated Calendar page removed; kept for reference until deleted. */
 "use client";
 
 import Link from "next/link";
