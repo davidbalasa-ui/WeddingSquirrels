@@ -1,381 +1,506 @@
-# Unified Home Inbox — implementation spec
+# Unified Home Inbox — Complete Plan
 
-**Status:** Binding spec for composer. Supersedes the draft audited in `docs/plans/unified-home-inbox-audit.md`.  
-**Route:** `/home` (additive until Phase 5)  
-**Non-negotiable:** Zero data loss. Ask stays fully usable on `/requests` until Home has Ask parity.
+**For:** Composer implementation  
+**Route:** `/home`  
+**UI name:** Home  
+**Rollout:** Build the complete new page. Then decommission the old ones.  
+**Non-negotiable:** Zero data loss. No schema migration. Ask never goes dark.
 
-Working title in UI: **Home**.
+Related: `docs/plans/unified-home-inbox-audit.md` (why these rules exist). Implement from **this** file only.
 
 ---
 
-## Goal
+## Rollout in one line
 
-One session that answers: *What needs me, who owns the rest, and can I act in one tap?*
+1. **Stage A** — `/home` becomes a full replacement for Today + Ask + Shop + People (calendar browse stays). Old URLs keep their current UI.
+2. **Stage B** — Swap nav, land login on Home, soft-redirect old planning URLs. Delete nothing.
 
-Ask is the feature people use. Home must make Ask **faster**, not bury it under tasks.
+Do not start Stage B until the Stage A gate at the bottom of that section is all checked.
+
+Home must make Ask **faster**, not bury it. Default action on the page is “Ask someone.”
 
 ```
 ┌─ NEEDS YOU · 2 ─────────────────────────────────┐
-│ ● Ask · From David   “Can you pick up ice?”     │  ← unread badge; stays here after read
+│ ● Ask · From David   “Can you pick up ice?”     │  unread badge; stays here after read
 │ ○ Ask · From Haley   “Confirm florist time”     │
-├─ WAITING · 1 (collapsed if you never send) ─────┤
+├─ WAITING · 1 ───────────────────────────────────┤
 │ ○ Ask · To Avalon    “Final headcount?”         │
 ├─ OPEN ──────────────────────────────────────────┤
-│ ☐ Decision · Both    Florals & centerpieces  ›  │  ← workspace chevron
+│ ☐ Decision · Both    Florals & centerpieces  ›  │  workspace chevron
 │ ☐ Buy · Haley        Batteries ×2               │
-│ ☐ Task · David       Tip envelopes              │
 ├─ WEEK BEFORE · 4/7 ─────────────────────────────┤
-│ ☐ · Both             Confirm vendors            │  ← org-card children only
+│ ☐ · Both             Confirm vendors            │  org-card children only
 └─ DONE (collapsed) ──────────────────────────────┘
 
-[ Ask someone ▼ ]     chips: All · Needs me · Waiting · …
+[ Ask someone ]     All · Needs me · Waiting · Asks · Tasks · Buy · David · Haley · …
 ```
 
-Bottom nav **after Phase 5 only:** `Home` · `Day-of` · `Guests` · `More`.
-
-Until then, Home is an extra route. Today, Ask, Shop, People, Calendar keep their nav entries and pages.
-
----
-
-## Hard rules (read before writing code)
-
-1. **No Prisma schema changes.** No new tables, no new required columns, no dropping flags.
-2. **No deletes** except existing per-row delete actions (`deleteRequest`, `deleteShoppingItem`). Never bulk-delete.
-3. **Do not redirect old routes until Phase 5.** Phase 1–4 add `/home`; they do not replace `/today` or `/requests`.
-4. **Reuse** `taskVisibilityWhere`, `requestVisibilityWhere`, `sessionCanMutateTask`, and the request permission helpers in `src/lib/requests.ts`. Do not fork visibility rules.
-5. **Needs you is role-based, not unread-based.** Unread = badge only. Expanding a thread may `markRequestRead` and must not move the row out of Needs you.
-6. **Do not cycle owners** unless current task assignees are a subset of `{david, haley}` (or empty) **and** `canManageOwners`. Otherwise you will wipe Shelly / extra people.
-7. **Drag only within kind + group.** Asks are not draggable. Mixed Open order is display-only.
-8. **Narrow mutations.** Do not reuse `saveTaskWorkspace` / `saveShoppingItem` / `saveRequest` from a dense row (they rewrite the whole record and/or redirect).
-9. **Default compose = Ask.** Recipient is `PinAccount.id`, never `Person.id`.
-10. **Flatten only `week_before` / `day_before` children.** Every other task is one package row with a link to `/work/[id]`.
-11. **Declined ≠ done.** `InboxItem.done` for asks is `status === "done"` only.
-12. **`firstAllowedRoute`:** prefer `/home` only if `canSeeHome(session)`; else existing scan. Shared-money still gets `/money`. Vendor may get `/home` (has Ask) — Day-of stays a primary tab.
-13. **Calendar rows stay; `/calendar` stays** until Phase 5, then remains in More (or equivalent browse). Upcoming strip uses `endDate >= today`, not `startDate`.
-14. **Offline:** do not replace pack fields. Derive a Home view from existing `tasks`, `requests`, `shopping`.
-15. Redirects, when added, are **temporary** (`redirect()` / 307), never permanent.
+**Nav after Stage B:** `Home` · `Day-of` · `Guests` · `More`  
+**Nav during Stage A:** unchanged (`Today` · `Day-of` · `Ask` · `Guests` · `More`). Home is listed in **More** so it is findable without a fifth primary tab.
 
 ---
 
-## Data model (read-only merge)
+## Hard rules
 
-### `canSeeHome`
+Copy these into the implementation. They are not optional.
+
+1. **No Prisma schema changes.** No new tables, no new required columns, no dropping `PinAccount` flags.
+2. **No bulk deletes.** Only existing per-row deletes (`deleteRequest`, `deleteShoppingItem`). Never `deleteMany` on Task / Request / ShoppingItem / CalendarEvent / Person.
+3. **Old pages stay fully usable until Stage B.** `/today`, `/requests`, `/shop`, `/people`, `/calendar` keep their current UI through all of Stage A.
+4. **Reuse visibility helpers.** `taskVisibilityWhere`, `requestVisibilityWhere`, `sessionCanMutateTask`, and every helper in `src/lib/requests.ts`. Do not fork permission logic.
+5. **Needs you is role-based.** Open asks where I am the recipient (masters also see third-party open asks). Unread is a **badge**. Expanding a thread may `markRequestRead` and must **not** move the row out of Needs you.
+6. **Owner cycle is guarded.** Cycle task owners only when current assignees ⊆ `{david, haley}` or empty, **and** `canManageOwners` (`session.isMaster || !session.assigneeFilter?.length`). Otherwise tapping the chip does not write `TaskAssignee` (opens `/work/[id]` instead). `setTaskAssignees` deletes all rows — unguarded cycling wipes Shelly and extra people.
+7. **Drag only within the same kind and the same group.** Asks are not draggable. There is no unified sort column; mixed Open order is display-only.
+8. **Narrow mutations from the list.** Do not post `saveTaskWorkspace`, `saveShoppingItem`, or `saveRequest` from a dense row. Those rewrite the whole record and/or redirect (`saveTaskWorkspace` → `/today`; `createTaskPackage` → `/work/[id]`; `saveTaskWorkspace` does not even write `title`).
+9. **Default compose is Ask.** Recipient is `PinAccount.id`, never `Person.id`.
+10. **Flatten only org-card children.** `orgKey` in `{week_before, day_before}`. Every other task is one decision-package row with a link to `/work/[id]`.
+11. **Declined ≠ done.** For asks, `done` is `status === "done"` only. Declined gets a badge and Reopen.
+12. **`canSeeHome` is derived, not a DB column:** `isMaster || canSeeRequests || canSeeTasks || canSeeShop`.
+13. **`firstAllowedRoute` (Stage B only):** if `canSeeHome` → `/home`; else keep the existing `APP_ROUTES` scan. Shared-money still lands on `/money`. Guests-only still lands on `/guests`.
+14. **Calendar is not deleted.** `/calendar` month grid stays (More after Stage B). Upcoming on Home uses `endDate >= startOfDay(today)`, not `startDate`.
+15. **Offline pack shape does not change.** Derive a Home view from existing `tasks` / `requests` / `shopping`. Do not replace those arrays.
+16. **Redirects are temporary** (`redirect()` / 307). Never `permanent: true`.
+17. **Do not auto-cascade done.** Checking an org parent does not mark children done, and vice versa.
+18. **Prefixed inbox ids** (`ask:…`, `task:…`) are React keys only. Actions receive `sourceId`.
+
+---
+
+## What each old surface becomes
+
+| Today | Home |
+|-------|------|
+| `/today` decision packages | Package rows in Open + workspace chevron |
+| `/requests` Ask | Needs you + Waiting + inline thread + compose |
+| `/shop` | Buy rows (`kind: "buy"`) |
+| `/people` owner filters | Who chips (same semantics, including extra people) |
+| `/calendar` | Stays as a page. Home header shows next milestone only |
+| `/work/[id]` | Unchanged deep editor |
+
+Org-card steps (“Confirm vendors”, “Charge devices”) live under Week before / Day before on Home. They are **not** Today rows today (`listTasks` excludes `orgKey` and children). Flattening them on Home is intentional and limited to those two cards.
+
+---
+
+## Information architecture
+
+### Sections (stable membership)
+
+| Section | Contains | Empty state |
+|---------|----------|-------------|
+| **Needs you** | Open asks where I am recipient (+ master third-party open asks) | “You're caught up — nothing waiting on you.” Header always shown if `canSeeRequests`. |
+| **Waiting** | Open asks I sent | Hide the section when count is 0 |
+| **Open** | Incomplete packages + incomplete buy items. **No asks.** | Compose bar still visible; no giant blank card |
+| **Week before** / **Day before** | `org_step` rows for that `orgKey` | Hide if the session cannot see tasks or the card has no visible children |
+| **Done** | Done packages, purchased buy, done asks, declined asks | Collapsed unless `?done=1` |
+
+Vendor (`!canSeeTasks && !canSeeShop`): render Needs you / Waiting / Done (asks only). Do not render Open, Week before, Day before, or Buy chrome.
+
+### Row types
+
+| Kind | Primary tap | Checkbox | Chevron |
+|------|-------------|----------|---------|
+| `ask` | Expand thread | Marks complete (`completeRequest`); Reopen in Done | None |
+| `task` (package) | Title edits / expand not required | `toggleTaskDone` | `/work/[id]` |
+| `org_step` | Title | `toggleTaskDone` on the child | None (not a workspace) |
+| `buy` | Title | `toggleShoppingPurchased` | None (optional link if `taskId`) |
+
+Visual distinction: Ask rows look like messages (From/To, unread pill). Package rows look like decisions (steps badge, due badge, ›). Buy rows look like a shopping checkbox (quantity on the line).
+
+### Filter chips (one horizontal scroller)
+
+URL: `/home?filter=needs-me&who=david&done=1`
+
+| Chip | Param | Logic |
+|------|--------|--------|
+| All | omit `filter` | All sections, permission-scoped |
+| Needs me | `filter=needs-me` | Needs-you asks, plus tasks assigned to `linkedPersonId` **or** `assigneeFilter`, plus buy whose `ownerId` matches `linkedPersonId`. If neither link nor filter is set: asks that need you only |
+| Waiting | `filter=waiting` | `waitingOnThem` |
+| Asks | `filter=asks` | `kind === "ask"` |
+| Tasks | `filter=tasks` | `task` + `org_step` |
+| Buy | `filter=buy` | `kind === "buy"` |
+| Who | `who=` | Per kind (below) |
+| Done | `done=1` | Expands Done (same as today’s Show done) |
+
+Who chips: **All**, David, Haley, **Both** (if both people exist), then every other visible person (`assigneeFilter` applied). Horizontal scroll. Do not drop Shelly.
+
+Who semantics — do not invent a third meaning:
+
+- **task / org_step:** same as `listTasks({ personId })`. `both` = david **and** Haley; `david` = david and not Haley.
+- **buy:** `david` / `haley` = that `ownerId`; `both` = `ownerId === null` (shop’s “Both / unset”).
+- **ask:** if some `PinAccount.linkedPersonId === who`, keep threads involving that account; if `who` has no linked account, **do not hide asks**. `who=both` does not apply to asks.
+
+### Compose bar (`InboxAddBar`)
+
+Sticky above the list (or directly under chips). Single field + type toggle: **Ask** (default) | Task | Buy.
+
+- **Ask:** recipient `<select>` of other PIN accounts (copy `RequestsBoard`), title, optional message, optional related task if `canSeeTasks`. Submits `createRequest`. Hide this type if `!canSeeRequests`.
+- **Task:** title only (optional due date). Assignees = `defaultAssigneeIds(people)`. Stays on `/home` (no redirect to workspace). Hide if `!canSeeTasks`.
+- **Buy:** name, optional owner select (unset / David / Haley). Hide if `!canSeeShop`.
+
+If the session can only see asks, do not show the type toggle — just Ask.
+
+### Ease of use (best-in-class bar)
+
+- One-tap primary action; 44px minimum hit targets.
+- Optimistic checkbox; on failure, revert.
+- Completing an ask: undo toast that calls `reopenRequest`. Do not confirm-modal complete. Confirm **delete** only.
+- Sticky chips + compose on small screens so the list is the content.
+- No second full-width “Ask someone” card if the bar already composes.
+- Pin uses existing `EscalatePriorityButton`, not swipe.
+- `localStorage` collapse state for Week before / Day before only — never persist “hide Needs you.”
+
+---
+
+## Data model
+
+### `canSeeHome` / `requireHomeSession`
 
 ```ts
 export function canSeeHome(session: SessionAccount): boolean {
   return session.isMaster || session.canSeeRequests || session.canSeeTasks || session.canSeeShop;
 }
+
+export function canManageOwners(session: SessionAccount): boolean {
+  return session.isMaster || !session.assigneeFilter?.length;
+}
 ```
 
-Derived in code. **Not** a `PinAccount` column.
+`requireHomeSession()`: `getSession()`, redirect `/` if missing; if `!canSeeHome(session)` redirect `firstAllowedRoute(session) ?? "/no-access"`.
 
-### Source → `InboxItem`
-
-| `kind` | Source | Visible when | `done` | Owners | Notes |
-|--------|--------|--------------|--------|--------|-------|
-| `ask` | `Request` | `canSeeRequests` + `requestVisibilityWhere` | `status === "done"` | Display names from accounts, **not** person ids | `needsMe`, `waitingOnThem`, `unread`, `status` including `declined` |
-| `task` | Top-level `Task` with `orgKey: null` | `canSeeTasks` + `taskVisibilityWhere` | `status === "done"` | `TaskAssignee` person ids | Link `/work/{id}`; steps badge from children |
-| `org_step` | Child of `orgKey` in `week_before` \| `day_before` | same as tasks | `status === "done"` | child’s assignees | `groupKey` = parent orgKey; **not** a workspace row |
-| `buy` | `ShoppingItem` | `canSeeShop` | `purchased === true` | `ownerId` or `[]` if unset | Keep quantity, note, optional `taskId` in meta |
-
-Do not emit a separate inbox row for the org **parent**. The group header *is* that card (title, due, progress). Checking the parent done can remain a header action that calls existing `toggleTaskDone(parentId)` — do **not** auto-toggle children.
-
-### Normalized type (`src/lib/inbox.ts`)
+### `InboxItem`
 
 ```ts
 export type InboxKind = "ask" | "task" | "org_step" | "buy";
 
 export type InboxItem = {
-  id: string;                 // "ask:<sourceId>" etc. Render key only
+  id: string;                 // "ask:<sourceId>" — render key only
   kind: InboxKind;
-  sourceId: string;           // raw cuid / id passed to actions
+  sourceId: string;           // passed to actions
   title: string;
   done: boolean;
   ownerPersonIds: string[];   // empty for asks
-  ownerLabel: string;         // "From David" / "David · Haley" / "Both" / "Unassigned"
+  ownerLabel: string;         // "From David" / "To Avalon" / "David · Haley" / "Both" / "Unassigned"
   dueDate?: Date | null;
   groupKey?: "week_before" | "day_before";
   groupLabel?: string;
   sortOrder: number;
   unread?: boolean;
-  needsMe?: boolean;          // ask: I am recipient && open (master: also third-party open)
-  waitingOnThem?: boolean;    // ask: I am sender && open
+  needsMe?: boolean;
+  waitingOnThem?: boolean;
   escalated?: boolean;
   declined?: boolean;
   linkedTaskId?: string | null;
   linkedTaskTitle?: string | null;
-  href?: string;              // /work/[id] for kind=task
+  href?: string;              // /work/[id] for kind=task only
   meta?: {
     messageCount?: number;
     quantity?: string | null;
     note?: string | null;
-    status?: string;
+    status?: string;          // ask: open | done | declined
     childDone?: number;
     childTotal?: number;
   };
 };
 ```
 
-Ask rows: set `needsMe` / `waitingOnThem` from account ids, matching `RequestsBoard` (including the master “unseen open asks → needs” loop).
+### Source mapping
+
+| Kind | Query | `done` | Notes |
+|------|--------|--------|-------|
+| `ask` | `Request` + messages + sender/recipient names, if `canSeeRequests`, `requestVisibilityWhere` | `status === "done"` | `needsMe` / `waitingOnThem` match `RequestsBoard` grouping, including the master leftover-open-asks → needs loop. `unread` via `isRequestUnread`. |
+| `task` | Top-level `parentId: null`, `orgKey: null`, `taskVisibilityWhere` | `status === "done"` | Include children **counts** only. `href` = `/work/{id}`. |
+| `org_step` | Children of tasks with `orgKey` in `week_before` \| `day_before`, same visibility as tasks | `status === "done"` | `groupKey` = parent orgKey. Do **not** also emit the parent as a row. Group header *is* the parent (title, due, `childDone/childTotal`). |
+| `buy` | All `ShoppingItem` if `canSeeShop` (shop has no extra visibility filter today) | `purchased === true` | `ownerPersonIds` = `[ownerId]` or `[]`. |
+
+### Fetch (`listInboxItems`)
+
+Parallel:
+
+1. Requests (if `canSeeRequests`) — same include as `requests/page.tsx`
+2. Packages via existing `listTasks(session, { showDone: true })` so Done can be filled client/server without a second query
+3. Org cards via `listOrgCards(session, { showDone: true })` plus each card’s children (cards already `include: { children: true }` — use those children as `org_step`, not as extra packages)
+4. Shopping (if `canSeeShop`)
+5. People (for chips + compose), filtered by `assigneeFilter`
+6. PIN accounts `{ id, name }` (for Ask compose + From/To labels)
+
+`groupInboxItems(items, session)` returns the five sections.  
+`filterInboxItems(items, { filter, who, showDone, session, accounts })` applies chips.
+
+Open sort (packages vs buy, **not** mixed with asks):
+
+1. Escalated packages (`escalatedAt` desc)
+2. Overdue, then due today (reuse `dueLabel` ranks)
+3. Remaining packages by `sortOrder`, then title
+4. Buy items after packages, by `sortOrder`, then name
+
+### Owner cycle helper (unit-test this; do not inline)
+
+```ts
+const COUPLE = ["david", "haley"] as const;
+
+export function nextCoupleOwnerIds(current: string[]): string[] | null {
+  const set = new Set(current);
+  if ([...set].some((id) => id !== "david" && id !== "haley")) return null;
+  const hasD = set.has("david");
+  const hasH = set.has("haley");
+  if (!hasD && !hasH) return ["david"];
+  if (hasD && !hasH) return ["haley"];
+  if (!hasD && hasH) return ["david", "haley"];
+  return ["david"]; // both → david
+}
+```
+
+Shop cycle: `null → "david" → "haley" → null`.
+
+### Upcoming milestone
+
+`nextCalendarMilestone(events, today = new Date())`: first `CalendarEvent` with `endDate >= startOfDay(today)`, ordered by `startDate`. As of 2026-08-29 that is the wedding, not bachelor. Show only on Home, and only if `canSeeCalendar`.
 
 ---
 
-## Sort, sections, filters
+## Server actions
 
-### Sections (stable membership)
+Always `revalidatePath("/home")` **in addition to** existing paths. Keep `revalidatePath("/requests")` etc. so Stage A dual-running stays fresh.
 
-1. **Needs you** — `needsMe` (open asks to me). Never empty-hide the header if the user can see asks; use “You're caught up”.
-2. **Waiting** — `waitingOnThem`. Collapse when count is 0.
-3. **Open** — incomplete tasks (non-org packages), incomplete buy items, and nothing else from asks.
-4. **Week before / Day before** — `org_step` groups, collapsible.
-5. **Done / closed** — collapsed. Includes done tasks, purchased buy, done asks, **declined asks** (badge “Declined” + Reopen).
+### Reuse as-is
 
-### Default order inside Open
+`toggleTaskDone`, `toggleTaskEscalation` (packages only — already no-ops on `parentId`), `toggleShoppingPurchased`, `deleteShoppingItem`, `createRequest`, `addRequestMessage`, `completeRequest`, `declineRequest`, `reopenRequest`, `deleteRequest`, `markRequestRead`.
 
-1. Escalated tasks (`escalatedAt` desc)
-2. Overdue, then due today (`dueLabel` ranks)
-3. Remaining tasks by `sortOrder`, then title
-4. Buy items by `sortOrder`, then name  
+### New / patch (narrow)
 
-Do not interleave asks here.
+| Action | Writes | Must not |
+|--------|--------|----------|
+| `renameTask(taskId, title)` | `Task.title` | Touch notes, money, due, assignees, status |
+| `createTaskFromInbox(title, dueDate?)` | Same create as `createTaskPackage` | `redirect(/work/…)` — return `{ id }` or void and stay on Home |
+| `cycleTaskOwners(taskId)` | `setTaskAssignees` only if `canManageOwners` and `nextCoupleOwnerIds` is non-null | Run on Shelly / mixed owners |
+| `renameShoppingItem(itemId, name)` | `name` | Clear quantity, note, owner, taskId, purchased |
+| `cycleShoppingOwner(itemId)` | `ownerId` only | |
+| `createShoppingItemFromInbox(name, ownerId?)` | name + owner + next sortOrder | |
+| `renameRequest(id, title)` | `title` if `canEditRequest` | Clear `note` / `taskId` |
+| `reorderInboxItems(kind, orderedIds)` | `sortOrder` 0..n on `Task` or `ShoppingItem` | Accept `ask`; accept mixed kinds; accept ids the session cannot mutate |
+| `createRequestFromItem({ kind, sourceId, recipientId })` | `createRequest` with prefilled title. Package: set `taskId`. Buy: title/note from item; `taskId` = item’s `taskId` or null | Add columns |
 
-### Filter chips (URL)
-
-`/home?filter=needs-me&who=david&done=1`
-
-| Chip | Param | Logic |
-|------|--------|--------|
-| All | (omit `filter`) | All sections, permission-scoped |
-| Needs me | `filter=needs-me` | Needs you asks + tasks assigned to `linkedPersonId` or `assigneeFilter` + buy with matching `ownerId`. If no link/filter, asks only |
-| Waiting | `filter=waiting` | `waitingOnThem` |
-| Asks | `filter=asks` | `kind === "ask"` |
-| Tasks | `filter=tasks` | `task` + `org_step` |
-| Buy | `filter=buy` | `kind === "buy"` |
-| Who | `who=` | **Per kind** (see below) |
-| Done | `done=1` | Expand Done section |
-
-Who semantics (existing, do not invent a third meaning):
-
-- **task / org_step:** same as `listTasks({ personId })` — `both` = david AND haley; `david` = david and not haley; etc.
-- **buy:** `david` / `haley` = that `ownerId`; `both` = `ownerId === null`; omit = all
-- **ask:** if the person has a `PinAccount.linkedPersonId` matching `who`, filter to threads involving that account; if `who` is a person with no linked account, **do not hide asks** (cannot map). `who=both` does not apply to asks.
-
-Who chips: All, David, Haley, Both (if both people exist), then every other person the session may see (`assigneeFilter` applied). Horizontal scroll. Do not drop Shelly.
+Patch `saveRequest` if reused from the expanded thread: omitted `note` / `taskId` must stay `undefined` (no write), not `null`.
 
 ---
 
-## File map
+## Files
 
 ### New
 
-| File | Purpose |
-|------|---------|
-| `src/lib/inbox.ts` | `canSeeHome`, `listInboxItems`, `groupInboxItems`, `filterInboxItems` |
-| `src/lib/inbox.test.ts` | Normalize, sections, who-per-kind, permissions, declined ≠ done, no unread-section move |
-| `src/components/InboxBoard.tsx` | Client board |
-| `src/components/InboxRow.tsx` | Dense row |
-| `src/components/InboxGroup.tsx` | Org group header |
-| `src/components/InboxAddBar.tsx` | Default Ask compose |
-| `src/app/(app)/home/page.tsx` | Server page + `requireHomeSession()` |
+| File | Responsibility |
+|------|----------------|
+| `src/lib/inbox.ts` | Types, `canSeeHome`, `canManageOwners`, `nextCoupleOwnerIds`, `nextCalendarMilestone`, `listInboxItems`, `groupInboxItems`, `filterInboxItems` |
+| `src/lib/inbox.test.ts` | Sections, unread ≠ move, who-per-kind, vendor, `assigneeFilter`, declined, org_step vs package, owner-cycle helper |
+| `src/components/InboxBoard.tsx` | Sections, chips (URL), compose slot, expand-one-ask |
+| `src/components/InboxRow.tsx` | Dense row + ask expanded thread (port compact UI from `RequestsBoard`, do not import the whole board) |
+| `src/components/InboxGroup.tsx` | Org header: title, `n/m` steps, due, optional mark-parent-done |
+| `src/components/InboxAddBar.tsx` | Ask default + Task + Buy |
+| `src/app/(app)/home/page.tsx` | `requireHomeSession`, fetch, `AppHeader`, board |
 
-### Extend existing (do not rip out)
+### Touch in Stage A (additive)
 
 | File | Change |
 |------|--------|
-| `src/lib/session.ts` | `requireHomeSession()` |
-| `src/lib/routes.ts` | Prefer `/home` when `canSeeHome` (Phase 5 for login landing; can land login on `/home` earlier **only if** `/home` already has Ask compose) |
-| `src/lib/modules.ts` | Add `home` module; **Phase 5** demote Today/Ask from `primary` |
-| `src/app/actions.ts` | Narrow inbox actions + `revalidatePath("/home")` **in addition to** existing paths |
-| `src/app/(app)/layout.tsx` | Unread badge on Home once it is primary |
-| `src/components/AppHeader.tsx` | Optional `extra` / milestone subtitle |
-| `src/app/api/offline/route.ts` | No breaking shape change |
-| `src/components/OfflineApp.tsx` | Optional derived Home tab **in addition to** existing tabs until Phase 5 |
-| `src/lib/routes.test.ts` | Home + shared-money + vendor cases |
+| `src/lib/session.ts` | `requireHomeSession` |
+| `src/lib/modules.ts` | Add `home` module **without** `primary`. `canSeeModule`: `key === "home"` → `canSeeHome(session)` |
+| `src/app/actions.ts` | Narrow actions + `revalidatePath("/home")` on inbox-related writes |
+| `src/components/AppHeader.tsx` | Optional subtitle already exists; Home page passes upcoming milestone string |
+| `src/lib/inbox.ts` icon: reuse `"tasks"` until a home icon exists | `ModuleIconName` has no `"home"` |
 
-### Unchanged on purpose
+### Touch only in Stage B
 
-- `src/app/(app)/work/[id]/page.tsx` (back link updates in Phase 5)
-- `src/components/TaskWorkspaceForm.tsx`
-- `src/lib/tasks.ts`, `requests.ts`, `people.ts` — call them, don’t copy them
-- `src/components/RequestsBoard.tsx`, `ShoppingListBoard.tsx` — keep until Phase 5 redirects; then `@deprecated`, do not delete
+| File | Change |
+|------|--------|
+| `src/lib/modules.ts` | `home.primary = true`, `badge: "unread"`. Remove `primary` from `tasks` and `requests`. Leave `people`, `shop`, `calendar` in More (`calendar` required). Hide `people` and `shop` from More once Home chips cover them (keep the routes as redirects). |
+| `src/lib/routes.ts` | `firstAllowedRoute`: Home if `canSeeHome`, else scan. Master → `/home` |
+| `src/lib/routes.test.ts` | Home / shared-money `/money` / vendor `/home` / guests-only `/guests` |
+| `src/app/(app)/today/page.tsx` | `redirect("/home")` |
+| `src/app/(app)/requests/page.tsx` | `redirect("/home?filter=asks")` |
+| `src/app/(app)/shop/page.tsx` | `redirect` to `/home?filter=buy` (preserve `who` if present) |
+| `src/app/(app)/people/page.tsx` | `redirect` to `/home` preserving `who` and `done` |
+| `src/app/(app)/calendar/page.tsx` | **No redirect** |
+| `src/app/(app)/work/[id]/page.tsx` | Back link → `/home` |
+| `src/app/(app)/error.tsx` | Link → `/home` |
+| `src/app/(app)/layout.tsx` | Unread badge already works via `badge: "unread"` on whichever primary has it |
+| `src/components/OfflineApp.tsx` | Add a derived Home list; keep existing tab data. Copy still says “Today” until this change — update that sentence to Home |
+| `src/app/api/offline/route.ts` | No field removals. Optional additive `inbox` only with client fallback |
+| `src/lib/account-flags.ts` | Summary may mention Home **in addition to** Tasks / Requests / Shop |
+| `src/components/ModulePermissionGrid.tsx` | Keep granular Tasks, Ask, Shop. Do not add `canSeeHome` |
+| `src/components/RequestsBoard.tsx` / `ShoppingListBoard.tsx` | `@deprecated` comment. **Do not delete** |
 
----
+### Do not change
 
-## Phase 1 — Additive read model (no behavior taken away)
+`TaskWorkspaceForm`, `src/lib/tasks.ts` / `requests.ts` / `people.ts` (call them), `prisma/schema.prisma`, calendar month grid internals, `/work/[id]` editor.
 
-**Goal:** `/home` shows merged data. Every old URL still renders the old UI.
-
-### Tasks
-
-1. `src/lib/inbox.ts`
-   - Parallel fetch requests / tasks / org cards+children / shopping using existing visibility helpers and flags
-   - Normalize + `groupInboxItems`
-   - `filterInboxItems`
-2. `requireHomeSession()` — if `!canSeeHome`, `redirect(firstAllowedRoute(session) ?? "/no-access")`
-3. `src/app/(app)/home/page.tsx` — fetch grouped items, accounts (for later compose), people
-4. `InboxBoard` v1
-   - Sections as specified
-   - Expand ask thread **read-only** is OK; if you call `markRequestRead`, section must stay Needs you
-   - Filter chips, URL-driven
-   - Package rows link to `/work/[id]`
-   - Hide Task/Buy sections when the session lacks that flag (vendor: asks only)
-5. Unit tests listed above
-6. **Do not** change `MODULES` primary tabs, `firstAllowedRoute`, or old pages
-
-### Success
-
-- [ ] David sees asks, packages, org steps, buy items
-- [ ] Vendor sees only asks; no empty Task/Buy chrome
-- [ ] Mother-in-law sees `assigneeFilter` tasks + her asks
-- [ ] `/today` and `/requests` unchanged
-- [ ] Declined asks are not checked off as done
-- [ ] Org steps appear under Week/Day before; “Makeup plan” is still one package row
+`src/app/page.tsx` stays the PIN pad (`HomePage` function name is fine; route `/` is not `/home`).
 
 ---
 
-## Phase 2 — Ask parity (the phase that matters)
+## Stage A — Build the complete page
 
-**Goal:** Nobody needs `/requests` to live in Ask. Still no redirects.
+Old nav and old pages unchanged. Add `/home`. Surface it in **More** (not primary).
 
-Reuse `createRequest`, `addRequestMessage`, `completeRequest`, `declineRequest`, `reopenRequest`, `deleteRequest`, `markRequestRead`, `saveRequest` (full edit inside expanded thread only).
+Ship Stage A as one or more PRs. Suggested commit order:
 
-### Tasks
+### A1 — Read model + shell
 
-1. `InboxAddBar` default type **Ask**: recipient `<select>` of other PIN accounts, title, optional message, optional related task if `canSeeTasks` (copy `RequestsBoard` compose)
-2. Inline thread: reply, decline, reopen, delete — same permission helpers
-3. Complete ask: checkbox or Done button; `reopenRequest` from Done. Prefer undo toast over confirm; never delete on complete
-4. Waiting section works
-5. Unread “New” badge + layout badge still from `unreadRequestsWhere`
-6. `revalidatePath("/home")` on every request action (keep `revalidateRequests()`)
+- `inbox.ts` + tests
+- `requireHomeSession`
+- `/home` page: grouped list, chips, package › to workspace, vendor/filter scoping
+- Expand ask **read-only** is acceptable in this commit; `markRequestRead` must not change section
+- MODULES: non-primary `home`
 
-### Success
+**Done when:** David sees all kinds; vendor sees asks only; mother-in-law sees filtered tasks; declined is not checked done; Makeup plan is one package row; Confirm vendors is an org_step; `/today` and `/requests` still render their current UI.
 
-- [ ] Send an ask from Home
-- [ ] Reply without leaving the list
-- [ ] Read an ask; it **stays** in Needs you until completed/declined
-- [ ] Vendor can do all of this with no task UI
+### A2 — Ask parity (required before decommission)
 
-Do **not** switch login or bottom nav yet unless Phase 2 is in the same release as Phase 5. Safer: keep Ask tab until Phase 5.
+Port compact thread from `RequestsBoard`: messages, reply, Done, Decline (optional note), Reopen, Delete, title edit for sender, related-task link.
 
----
+Compose bar default Ask.
 
-## Phase 3 — Task / buy actions on the list
+`revalidatePath("/home")` on request actions.
 
-**Goal:** Act on todos without opening workspace, without wiping fields.
+**Done when:** Send, reply, complete, decline, reopen all work on `/home`. Read an ask — it stays in Needs you. Vendor can live on Home for messaging. Waiting section works.
 
-### New actions (narrow)
+### A3 — Task and buy actions
 
-| Action | Behavior |
-|--------|----------|
-| `renameTask(taskId, title)` | `canSeeTasks` + `sessionCanMutateTask`; **title only** |
-| `cycleTaskOwners(taskId)` | Only if `canManageOwners` and current ids ⊆ `{david, haley}` or empty. Cycle `[] → [david] → [haley] → [david,haley] → [david]`. Else no-op (row still links to workspace) |
-| `cycleShoppingOwner(itemId)` | `unset → david → haley → unset` via `ownerId` only |
-| `renameShoppingItem(itemId, name)` | Name only |
+Narrow rename/cycle/create-from-inbox actions. Checkboxes. Guarded owner chips. Quick add Task/Buy. Org-step checkboxes.
 
-Existing: `toggleTaskDone`, `toggleShoppingPurchased`, `toggleTaskEscalation` (packages only, not `org_step` — matches current `parentId` guard). For org steps, checkbox = `toggleTaskDone(step.id)` (already used in workspace).
+**Done when:** Check off org step and shop item, reload persists. Rename does not clear notes/quantity. Shelly owners do not cycle to David. Filtered PIN cannot cycle. New task stays on Home.
 
-Quick add Task: new `createTaskPackage` path **without** `redirect(/work/…)`, or a `createTaskFromInbox` that stays on `/home`. Default assignees = `defaultAssigneeIds(...)`.
+### A4 — Speed + density (still on `/home` only)
 
-Quick add Buy: `createShoppingItem` without requiring the huge shop form; name + optional owner.
+- Pin button on packages
+- Same-kind drag reorder
+- Row menu: workspace (packages), Ask someone, Pin, Delete
+- Ask-from-row (`createRequestFromItem`)
+- Done collapsed; `?done=1`
+- Upcoming milestone in `AppHeader` subtitle on Home if `canSeeCalendar`
+- Empty states, density pass, group collapse `localStorage`
+- Optimistic UI + ask-complete undo
 
-Inline title edit for asks: only if `canEditRequest` (sender or master, open). Title-only update — add `renameRequest` or patch `saveRequest` so omitted `note` / `taskId` are left unchanged (`undefined`, not `null`).
-
-### Success
-
-- [ ] Check off org step and shop item; refresh persists
-- [ ] Rename does not clear notes / money / quantity
-- [ ] Cycling a Shelly task does nothing to assignees
-- [ ] Filtered PIN cannot cycle owners
-- [ ] New task from bar does not force-open workspace
+**Done when:** Reorder two shop items survives reload; mixed-kind drop is rejected; ask-from-task sets `taskId`; ask-from-buy needs no schema change; next milestone is not a past bachelor party.
 
 ---
 
-## Phase 4 — Reorder, pin, ask-from-row
+## Stage A gate (must all be true before Stage B)
 
-1. **Pin:** `EscalatePriorityButton` on package rows (not swipe, not org_step)
-2. **Drag:** same kind, same group, persist `sortOrder` on `Task` or `ShoppingItem`. Pattern: small dedicated reorder, not a port of `DayTimeline.tsx`
-3. **Ask from row:** `createRequest` with prefilled title. Package: `taskId` set. Buy: title/note from item; `taskId` = `ShoppingItem.taskId` if present, else null
-4. Row menu: Open workspace (packages), Ask someone, Pin, Delete (existing permission)
-5. Done section collapsed; `?done=1` or Done chip
+- [ ] Ask: create, reply, complete, decline, reopen, delete (with existing permissions)
+- [ ] Needs you does not empty out when an ask is opened
+- [ ] Waiting asks are not mixed into Open
+- [ ] Packages check off and still open `/work/[id]`
+- [ ] Org steps check off; decision packages are not flattened
+- [ ] Shop check off + rename + owner cycle
+- [ ] Owner cycle never writes non-couple assignees
+- [ ] Vendor: asks only, no empty Task/Buy sections
+- [ ] Mother-in-law: `assigneeFilter` honored
+- [ ] Shared-money PIN still cannot open `/home` (redirects to `/money`)
+- [ ] `/today`, `/requests`, `/shop`, `/people`, `/calendar` still work as today
+- [ ] No Prisma migration
+- [ ] Automated `inbox.test.ts` + existing task/request/people tests pass
 
-### Success
-
-- [ ] Reorder two shop items; order survives reload
-- [ ] Dragging a shop item “onto” a task does not write either table incorrectly (reject / snap back)
-- [ ] Ask-from-task creates a linked request
-- [ ] Ask-from-buy does not require a schema change
+If any box is unchecked, **do not decommission.**
 
 ---
 
-## Phase 5 — Nav, redirects, calendar, offline, polish
+## Stage B — Decommission old surfaces
 
-Only after Phases 2–3 are real.
+Only after the gate. Prefer a separate PR so Stage A can ship and soak.
 
-1. `MODULES`: `{ key: "home", label: "Home", href: "/home", group: "plan", primary: true, badge: "unread", icon: "tasks" }` with a custom `canSeeModule` branch for `canSeeHome`. Remove `primary` from `tasks` and `requests`. Keep `people`, `shop`, `calendar` **in More** (do not delete). Optionally hide `people`/`shop` from More once filters on Home are enough — **keep `/calendar` in More**.
-2. `firstAllowedRoute`: if `canSeeHome` return `/home`, else scan. Master → `/home`. Tests for shared-money → `/money`, guests-only → `/guests`, vendor → `/home` (timeline still in nav).
-3. Soft redirects:
+1. Promote Home to `primary` with `badge: "unread"`. Demote Today and Ask from primary.
+2. Hide People and Shop from More (routes become redirects). **Keep Calendar in More.**
+3. `firstAllowedRoute` prefers `/home` when `canSeeHome`.
+4. Soft redirects:
    - `/today` → `/home`
    - `/requests` → `/home?filter=asks`
-   - `/shop` → `/home?filter=buy`
-   - `/people` → `/home` preserving `?who=`
-   - `/calendar` **does not redirect** (still the month grid)
-4. `revalidatePath("/home")` already in place; old paths can stay
-5. Work back link + `error.tsx` → `/home`
-6. Upcoming on Home header if `canSeeCalendar`: next `CalendarEvent` where `endDate >= startOfDay(today)`, plus overdue/due-soon count. Do not claim bachelor is next after 2026-08-23
-7. Offline: add a derived Home list from existing pack arrays; keep Today/Ask/Shop tabs or fold them later without dropping fields
-8. Density: sticky Needs you + compose; one chip scroller; min 44px tap targets; no full-width duplicate compose card
-9. Empty Open: compose still visible
-10. Group collapse: `localStorage` for week/day only
-11. Mark `RequestsBoard` / `ShoppingListBoard` `@deprecated` — **do not delete**
-12. Permission grid: keep Tasks, Ask, Shop as separate toggles. Do not add `canSeeHome` to the grid
-13. `accountSummaryLabel`: can say “Home” as shorthand **in addition to** listing Tasks/Ask/Shop, not instead of them
+   - `/shop` → `/home?filter=buy` (+ `who` if present)
+   - `/people` → `/home` (+ `who`, `done`)
+   - `/calendar` — no redirect
+5. Workspace back link and `error.tsx` → `/home`.
+6. Offline: derived Home view; do not drop pack fields; fix the “go to Today to download” copy.
+7. `@deprecated` on old boards — files stay.
+8. Permission grid unchanged (granular flags). Optional summary label includes Home plus the underlying flags.
 
-### Success
-
-- [ ] Login with a Home-capable PIN opens `/home`
-- [ ] Shared-money PIN still opens `/money`
-- [ ] Old URLs (except calendar) land on Home without 404
-- [ ] Calendar still opens from More
-- [ ] Unread badge is on Home
-- [ ] Existing offline packs still load
+**Done when:** Login (Home-capable PIN) opens `/home`. Shared-money opens `/money`. Vendor opens `/home` and still has Day-of in the bar. Old planning URLs do not 404. Calendar still opens. Unread badge is on Home. Existing offline packs still load.
 
 ---
 
-## Permission matrix (unchanged flags)
+## Permissions (flags unchanged)
 
-| Account | Home shows |
-|---------|------------|
+| Account | Home |
+|---------|------|
 | Master / Partner | Asks + packages + org steps + buy |
-| Helper | Same if flags on; no money |
-| Vendor | Asks only (`canSeeRequests`; Day-of remains a tab via `canSeeTimeline`) |
+| Helper | Per flags (usually all three) |
+| Vendor | Asks only; Day-of stays a primary tab |
 | Mother in law | Asks + tasks matching `assigneeFilter` (typically `["shelly"]`) |
-| Shared-money | **No Home** — Money only |
+| Shared-money | **No Home** |
 | Wedding party | Per flags (often tasks + asks, no shop) |
 
-`canSeePeople` continues to gate `/people` until that route redirects. After redirect, owner chips are available to anyone with `canSeeTasks` (people list still filtered by `assigneeFilter`).
+Do not collapse Tasks + Ask + Shop into one accounts-grid checkbox. Vendor must stay Ask-only.
+
+After Stage B, `canSeePeople` no longer needs to gate a page; who-chips follow `canSeeTasks` + `assigneeFilter`. `canSeeCalendar` still gates `/calendar` and the Home milestone.
 
 ---
 
 ## Testing
 
-### Automated
+### Automated (Stage A)
 
-- `inbox.test.ts` — section membership; unread does not change Needs you; who=both per kind; vendor scoping; `assigneeFilter`; declined; org_step vs package; owner-cycle guard (pure helper)
-- `routes.test.ts` — `canSeeHome` prefer `/home`; shared-money `/money`; empty session `null`
-- Existing `tasks.test.ts`, `requests.test.ts`, `people.test.ts` still pass
+- Section membership; unread does not change Needs you
+- `who=both` per kind
+- Vendor scoping; `assigneeFilter`
+- Declined ≠ done
+- org_step vs package
+- `nextCoupleOwnerIds` returns `null` for `["shelly"]`
+- `canSeeHome` false when only `canSeeBudget`
 
-### Manual (must do in browser)
+### Automated (Stage B)
 
-1. PIN 0425: merged Home; send ask; reply; complete; reopen
-2. Expand ask in Needs you — still there after read
-3. Vendor PIN: asks only; send/reply
-4. Mother-in-law: Shelly tasks only; cannot cycle owners onto David
-5. Check org step; reload
-6. Check shop item; reload
-7. Rename shop item; quantity/note unchanged
-8. `/requests` still works until Phase 5; after Phase 5 it redirects and Ask still works on Home
-9. `/calendar` still shows due dates
-10. Shared-money account never hits a broken Home
+- `firstAllowedRoute(master)` → `/home`
+- `firstAllowedRoute(shared-money)` → `/money`
+- `firstAllowedRoute(vendor)` → `/home`
+- `firstAllowedRoute(guests-only)` → `/guests`
+- `firstAllowedRoute(empty)` → `null`
+
+Existing `tasks.test.ts`, `requests.test.ts`, `people.test.ts` must still pass.
+
+### Manual (browser, Stage A)
+
+1. PIN 0425: open `/home` from More; send ask; reply; complete; undo/reopen
+2. Expand Needs you ask — still in Needs you after read
+3. Open a package › workspace; back still works (to Today until Stage B)
+4. Check org step; reload
+5. Check shop item; rename; quantity still there
+6. Tap owner on a Shelly task — assignees unchanged
+7. Vendor PIN: asks only
+8. Mother-in-law: Shelly tasks + asks
+9. Confirm `/requests` still composes (Stage A)
+
+### Manual (Stage B)
+
+1. Login lands on `/home`
+2. Bottom nav is Home · Day-of · Guests · More
+3. `/today` and `/requests` redirect and Ask still works on Home
+4. `/calendar` still shows the month + due dates
+5. Shared-money PIN never sees a broken Home
+6. Download offline, open `/offline`, list still populated
+
+---
+
+## Data preservation checklist
+
+| Data | After Stage B |
+|------|----------------|
+| `Task` + children + `orgKey` cards | Home rows + `/work/[id]` |
+| `TaskAssignee` | Owner chips; cycle never deletes non-couple people |
+| `Request` + `RequestMessage` | Ask rows + inline thread |
+| `ShoppingItem` | Buy rows |
+| `CalendarEvent` | Header milestone + `/calendar` |
+| `Person` | Who chips, owners |
+| `TaskShare`, `assigneeFilter` | `listInboxItems` via `taskVisibilityWhere` |
+| Offline IndexedDB packs | Same keys; Home derived |
+
+Nothing deleted. No migrations.
 
 ---
 
@@ -387,17 +512,21 @@ Only after Phases 2–3 are real.
 - Removing `/calendar` month grid
 - Auto-converting shop items to asks
 - Swipe gestures
-- New DB flag `canSeeHome`
-- Running `scripts/backfill-permissions.ts` as a deploy step (optional, not required for Needs me)
+- `canSeeHome` database column
+- Running `scripts/backfill-permissions.ts` as a deploy step
+- Deleting `RequestsBoard.tsx` / `ShoppingListBoard.tsx` / old page files
 
 ---
 
-## Phase summary
+## Implementation order (composer)
 
-| Phase | Ships | User-visible |
-|-------|--------|----------------|
-| **1** | Merged `/home`, old apps intact | Extra URL for testers |
-| **2** | Ask works on Home | Can live on Home for messaging |
-| **3** | Checkbox, rename, guarded owners, quick add | Act without `/work` |
-| **4** | Same-kind reorder, pin, ask-from-row | Prioritize / delegate |
-| **5** | Nav + soft redirects + calendar in More + polish | One tab; **no data gone** |
+```
+Stage A1  read model + /home shell in More
+Stage A2  Ask parity on /home
+Stage A3  task/buy/org mutations
+Stage A4  pin, same-kind reorder, ask-from-row, density
+   GATE
+Stage B   primary nav, login, soft redirects, offline copy, calendar in More
+```
+
+Stage A and B may land in one PR **only if** the gate is satisfied in that PR and redirects are the last commits. Prefer two PRs.

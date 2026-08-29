@@ -1,9 +1,9 @@
 # Audit: Unified Home Inbox plan
 
 **Date:** 2026-08-29  
-**Verdict:** Do not implement the original plan as written. The destination (one Home list) is right. Several rules would hide data, break Ask, or silently overwrite owners.
+**Verdict:** Do not implement the original five-phase draft as written. The destination (one Home list) is right. Several rules would hide data, break Ask, or silently overwrite owners.
 
-Composer should implement from `docs/plans/unified-home-inbox.md` (revised spec), not from the draft this audit covers.
+**Implement from `docs/plans/unified-home-inbox.md` (complete plan).** That file is the spec: Stage A builds a complete `/home`, Stage B decommissions old surfaces. This audit is background only.
 
 ---
 
