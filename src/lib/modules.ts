@@ -1,4 +1,5 @@
 import { canManageAccounts, canSeeDinnerTab } from "@/lib/access";
+import { canSeeHome } from "@/lib/inbox";
 import type { AccountModuleFlags, SessionAccount } from "@/lib/types";
 
 /** Icon name for a module — keep in sync with ModuleIcon.tsx. */
@@ -38,6 +39,7 @@ export const MODULES: ModuleDef[] = [
   { key: "dayof", label: "Day-of", href: "/day", group: "wedding", see: "canSeeTimeline", primary: true, icon: "day" },
   { key: "requests", label: "Ask", href: "/requests", group: "comm", see: "canSeeRequests", primary: true, badge: "unread", icon: "ask" },
   { key: "guests", label: "Guests", href: "/guests", group: "wedding", see: "canSeeGuests", primary: true, icon: "guests" },
+  { key: "home", label: "Home", href: "/home", group: "plan", icon: "tasks" },
   { key: "people", label: "People", href: "/people", group: "plan", see: "canSeePeople", icon: "people" },
   { key: "calendar", label: "Calendar", href: "/calendar", group: "plan", see: "canSeeCalendar", icon: "calendar" },
   { key: "shop", label: "Shop", href: "/shop", group: "plan", see: "canSeeShop", icon: "shop" },
@@ -72,6 +74,7 @@ export const NAV_GROUP_LABELS: Record<ModuleGroup, string> = {
 export function canSeeModule(session: SessionAccount, module: ModuleDef): boolean {
   if (session.isMaster) return true;
   if (!module.href) return false;
+  if (module.key === "home") return canSeeHome(session);
   if (module.key === "accounts") return canManageAccounts(session);
   if (module.key === "rehearsal") return canSeeDinnerTab(session);
   return module.see ? Boolean(session[module.see]) : false;
