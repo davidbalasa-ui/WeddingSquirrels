@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
 import { inferDueDate, weddingDate } from "../src/lib/due-dates";
+import { assertDestructiveSeedAllowed } from "../src/lib/seed-safety";
 
 const prisma = new PrismaClient();
 const DOWNLOADS = path.join(process.env.USERPROFILE || process.env.HOME || "", "Downloads");
@@ -208,6 +209,8 @@ function packageFor(title: string): PackageDef | null {
 }
 
 async function main() {
+  assertDestructiveSeedAllowed("db:seed");
+
   console.log("Seeding WeddingSquirrels (decision packages)...");
 
   await prisma.taskAssignee.deleteMany();
