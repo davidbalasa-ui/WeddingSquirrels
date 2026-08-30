@@ -9,5 +9,5 @@ export default async function ShopPage({
   const sp = await searchParams;
   const next = new URLSearchParams({ filter: "buy" });
   if (sp.who) next.set("who", sp.who);
-  redirect(`/home?${next.toString()}`);
+  redirect(`/today?${next.toString()}`);
 }

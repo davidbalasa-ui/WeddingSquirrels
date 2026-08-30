@@ -32,7 +32,7 @@ export function canSeeRoute(session: SessionAccount, route: AppRoute): boolean {
 }
 
 export function firstAllowedRoute(session: SessionAccount): string | null {
-  if (canSeeHome(session)) return "/home";
+  if (canSeeHome(session)) return "/today";
   for (const route of APP_ROUTES) {
     if (SKIP_FIRST_ROUTE.has(route.href)) continue;
     if (canSeeRoute(session, route)) return route.href;

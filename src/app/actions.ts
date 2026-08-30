@@ -94,8 +94,8 @@ export async function toggleTaskDone(taskId: string) {
 
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/home");
-  revalidatePath("/home");
+  revalidatePath("/today");
+  revalidatePath("/today");
   revalidatePath(`/work/${task.parentId || task.id}`);
 }
 
@@ -120,8 +120,8 @@ export async function toggleTaskEscalation(taskId: string) {
 
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/home");
-  revalidatePath("/home");
+  revalidatePath("/today");
+  revalidatePath("/today");
   revalidatePath(`/work/${taskId}`);
 }
 
@@ -193,7 +193,7 @@ export async function saveTaskWorkspace(
 
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/home");
+  revalidatePath("/today");
   revalidatePath(`/work/${id}`);
   revalidatePath("/money");
   redirect("/today");
@@ -263,7 +263,7 @@ export async function createTaskPackage(
 
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/home");
+  revalidatePath("/today");
   redirect(`/work/${taskId}`);
 }
 
@@ -552,7 +552,7 @@ async function syncAccountShares(args: {
   revalidatePath("/money");
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/home");
+  revalidatePath("/today");
   revalidatePath("/accounts");
 }
 
@@ -756,13 +756,13 @@ export async function setTaskShares(taskId: string, pinAccountIds: string[]) {
 
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/home");
+  revalidatePath("/today");
   revalidatePath(`/work/${taskId}`);
 }
 
 function revalidateRequests() {
   revalidatePath("/requests");
-  revalidatePath("/home");
+  revalidatePath("/today");
 }
 
 export async function createRequest(formData: FormData): Promise<void> {
@@ -1456,7 +1456,7 @@ export async function createShoppingItem(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/shop");
-  revalidatePath("/home");
+  revalidatePath("/today");
 }
 
 export async function saveShoppingItem(formData: FormData): Promise<void> {
@@ -1486,7 +1486,7 @@ export async function saveShoppingItem(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/shop");
-  revalidatePath("/home");
+  revalidatePath("/today");
 }
 
 export async function toggleShoppingPurchased(itemId: string): Promise<void> {
@@ -1502,7 +1502,7 @@ export async function toggleShoppingPurchased(itemId: string): Promise<void> {
   });
 
   revalidatePath("/shop");
-  revalidatePath("/home");
+  revalidatePath("/today");
 }
 
 export async function deleteShoppingItem(itemId: string): Promise<void> {
@@ -1511,7 +1511,7 @@ export async function deleteShoppingItem(itemId: string): Promise<void> {
 
   await prisma.shoppingItem.delete({ where: { id: itemId } });
   revalidatePath("/shop");
-  revalidatePath("/home");
+  revalidatePath("/today");
 }
 
 export async function renameTask(taskId: string, title: string): Promise<void> {
@@ -1530,7 +1530,7 @@ export async function renameTask(taskId: string, title: string): Promise<void> {
   await prisma.task.update({ where: { id: taskId }, data: { title: trimmed } });
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/home");
+  revalidatePath("/today");
   revalidatePath(`/work/${task.parentId || task.id}`);
 }
 
@@ -1565,7 +1565,7 @@ export async function updateInboxTask(
 
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/home");
+  revalidatePath("/today");
   revalidatePath(`/work/${task.parentId || task.id}`);
 }
 
@@ -1601,7 +1601,7 @@ export async function createInboxChild(parentId: string, title: string): Promise
 
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/home");
+  revalidatePath("/today");
   revalidatePath(`/work/${parentId}`);
 }
 
@@ -1650,7 +1650,7 @@ export async function createTaskFromInbox(
 
     revalidatePath("/today");
     revalidatePath("/people");
-    revalidatePath("/home");
+    revalidatePath("/today");
     return { id: task.id };
   } catch (err) {
     console.error(err);
@@ -1675,7 +1675,7 @@ export async function cycleTaskOwners(taskId: string): Promise<void> {
   await setTaskAssignees(taskId, next);
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/home");
+  revalidatePath("/today");
   revalidatePath(`/work/${task.parentId || task.id}`);
 }
 
@@ -1688,7 +1688,7 @@ export async function renameShoppingItem(itemId: string, name: string): Promise<
 
   await prisma.shoppingItem.update({ where: { id: itemId }, data: { name: trimmed } });
   revalidatePath("/shop");
-  revalidatePath("/home");
+  revalidatePath("/today");
 }
 
 export async function setShoppingOwner(itemId: string, ownerId: string | null): Promise<void> {
@@ -1697,7 +1697,7 @@ export async function setShoppingOwner(itemId: string, ownerId: string | null): 
   const next = ownerId === "david" || ownerId === "haley" ? ownerId : null;
   await prisma.shoppingItem.update({ where: { id: itemId }, data: { ownerId: next } });
   revalidatePath("/shop");
-  revalidatePath("/home");
+  revalidatePath("/today");
 }
 
 export async function cycleShoppingOwner(itemId: string): Promise<void> {
@@ -1711,7 +1711,7 @@ export async function cycleShoppingOwner(itemId: string): Promise<void> {
     item.ownerId === "david" ? "haley" : item.ownerId === "haley" ? null : "david";
   await prisma.shoppingItem.update({ where: { id: itemId }, data: { ownerId: next } });
   revalidatePath("/shop");
-  revalidatePath("/home");
+  revalidatePath("/today");
 }
 
 export async function createShoppingItemFromInbox(
@@ -1735,7 +1735,7 @@ export async function createShoppingItemFromInbox(
     },
   });
   revalidatePath("/shop");
-  revalidatePath("/home");
+  revalidatePath("/today");
 }
 
 export async function renameRequest(requestId: string, title: string): Promise<void> {
@@ -1767,7 +1767,7 @@ export async function reorderInboxItems(
       ),
     );
     revalidatePath("/shop");
-    revalidatePath("/home");
+    revalidatePath("/today");
     return;
   }
 
@@ -1787,7 +1787,7 @@ export async function reorderInboxItems(
   );
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/home");
+  revalidatePath("/today");
 }
 
 export async function createRequestFromItem(input: {

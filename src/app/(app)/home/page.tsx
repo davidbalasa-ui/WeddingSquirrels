@@ -1,48 +1,19 @@
-import { Suspense } from "react";
-import { AppHeader } from "@/components/AppHeader";
-import { DownloadOfflineButton } from "@/components/DownloadOfflineButton";
-import { InboxBoard } from "@/components/InboxBoard";
-import { loadInboxPageData } from "@/lib/inbox";
-import { requireHomeSession } from "@/lib/session";
+import { redirect } from "next/navigation";
 
-function milestoneSubtitle(milestone: { title: string; startDate: Date } | null) {
-  if (!milestone) return "Tasks, asks, and shopping in one list";
-  return `Next: ${milestone.title} · ${milestone.startDate.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  })}`;
-}
-
-export default async function HomeInboxPage() {
-  const session = await requireHomeSession();
-  const data = await loadInboxPageData(session);
-
-  return (
-    <>
-      <AppHeader
-        session={session}
-        title="Home"
-        subtitle={
-          data.milestone
-            ? milestoneSubtitle(data.milestone)
-            : session.assigneeFilter?.length
-              ? "Your assigned items"
-              : "Tasks, asks, and shopping in one list"
-        }
-      />
-      <Suspense>
-        <InboxBoard
-          session={session}
-          sections={data.sections}
-          accounts={data.accounts}
-          people={data.people}
-          tasks={data.tasks}
-          whoChips={data.whoChips}
-        />
-      </Suspense>
-      <div className="pt-2">
-        <DownloadOfflineButton />
-      </div>
-    </>
-  );
+/** @deprecated V2 — Today lives at /today. */
+export default async function HomeRedirectPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const next = new URLSearchParams();
+  for (const [key, value] of Object.entries(sp)) {
+    if (typeof value === "string") next.set(key, value);
+    else if (Array.isArray(value)) {
+      for (const part of value) next.append(key, part);
+    }
+  }
+  const q = next.toString();
+  redirect(q ? `/today?${q}` : "/today");
 }
