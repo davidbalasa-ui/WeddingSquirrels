@@ -1,507 +1,458 @@
-# One Person — Unified Directory, Home, and Daily Work
+# Contextual wedding — People, Vendors, Day-of
 
 **For:** Composer implementation  
 **Wedding:** October 16, 2026  
-**UI names:** Home · Day-of · Guests · More → People, Money  
-**Non-negotiable:** Zero data loss. Additive schema only. Ask never goes dark. No fourth primary tab.
+**Supersedes:** the Home-centered draft in this file (asks-on-Home, Pay/Thank strips, no Vendors surface).  
+**Home inbox plan** (`unified-home-inbox.md`) already shipped. This file is the next product. Implement from **this** file.
 
-Related: `docs/plans/unified-home-inbox.md` (Home already shipped). Implement the product from **this** file.
+**Non-negotiable:** Zero data loss. Additive schema only. Existing ask threads become messages — they do not disappear. Contacts with photos and phones must work **offline without tapping Download**.
 
 ---
 
 ## Destination in one line
 
-One human is one row. Home is what you **do**. Guests is households. Day-of is the clock. Vendors, contacts, payments, asks, and thank-yous are **views of the same people**, not new apps.
+You work **on the thing**, not on a master list. People is the face book (on the phone). Vendors is setup + money. Day-of is the clock. Messages is just texting each other, with a ping.
 
 ```
-Home          Day-of           Guests
- do            when             households
-asks · buy     timeline         RSVP · table
-pay · thank    call list        gifts · thank
-               (from People)
+People              Vendors                 Day-of
+who they are        what we still owe       when it happens
+photo · phone       how to pay              timeline
+on this phone       insurance · contract    same people, Call
+                    tips · their tasks
 ```
 
-**Nav stays** `Home` · `Day-of` · `Guests` · `More`.  
-**Do not add** Vendors, Contacts, Directory, or Thank-you as primary tabs or standalone apps.
+**Nav:** `People` · `Vendors` · `Day-of` · `More`  
+**More:** Guests · Messages · Shop · Stay · Rehearsal · Accounts  
+**Header:** envelope (unread messages) on every screen. Not a primary tab. Not a thing called Ask.
+
+Home is **not** a primary tab. Login lands on People, except inside 7 days of the wedding → Day-of.
 
 ---
 
-## Why the app feels messy (facts)
+## Why the last plan still felt wrong
 
-These are load-bearing. The Home inbox plan unified *lists*. It did not unify *people*. That is why the product still feels duplicated and hard to learn.
+Home-as-inbox assumed the couple wants a notes app of every leftover Excel line. They don’t. They want to **make progress while looking at the vendor, the guest, or the day**.
 
-| Fact | Today |
-|------|--------|
-| Four identity systems | `Person` (task owners) · `PinAccount` (ask to/from) · `Contact` (day-of phone/photo) · `Guest` / `GuestPerson` (households) |
-| Same human, different names | David / "Groom - David"; Shelly / "Shelly Wiewiora"; Avalon as `avalon_planner` + `avalon_green` |
-| 17 of 22 `Person` rows have zero task/shop/day-assignment links | They still appear on Home who-chips |
-| PIN links are incomplete | Mom Balasa `null`; Avalon `null`; John → `shelly`; Shelly → `shelly` |
-| Vendors have no home | Phone on Contacts, money on `/money`, asks on Home, name on People — four hops |
-| Home Open is planning residue | 54 parent tasks / 140 children from Excel, mixed with 3 shop items and 17 asks |
-| Ask compose is account-to-account | Recipient `<select>` of PIN names ("Mom Balasa", "John"), not people |
-| Thank-you is buried | Gifts exist on `GuestGift`; only visible in Guests **Edit** |
-| `scripts/audit-duplicate-data.ts` | Mentioned in ops notes; **not in this repo** and not in `package.json` |
-| People page is gone | `/people` soft-redirects to Home who-chips (Stage B). Who-chips are filters, not a directory |
-
-Jobs the couple actually asked for:
-
-1. Manage **vendors and payments**
-2. Manage **contacts**
-3. Manage **guests** (seating, gifts, thank-you)
-4. Things to **buy**
-5. **Ask someone** fast
-
-Constraint they set: **it cannot be three new pages.** Do not solve this by adding Vendors + Contacts + Thank-you.
+| Last plan | What they actually said |
+|-----------|-------------------------|
+| Home is the daily list (asks, pay, buy, thank, packages) | Home still doesn’t feel right |
+| Vendors are a hat + a Pay strip on Home | Vendor **setup** is a place: owed, how to pay, insurance, contract, tips |
+| Contacts are a filter of People | Photos + phones must live **on the device** so everyone knows who everyone is on Oct 16 |
+| Ask stays a ticket (Needs you / Done / Decline) | Ask may not be a thing — **messaging + notifications** |
+| Tasks stay on Home, collapsed | **Move tasks** to where the work is; sort the existing pile |
 
 ---
 
 ## Hard rules
 
-Copy these into the implementation. They are not optional.
-
-1. **No fourth primary tab.** Nav stays Home · Day-of · Guests · More. People returns as a **More** destination only.
-2. **No new apps.** Do not create `/vendors`, `/contacts` (top-level), `/thank-you`, or `/directory`. Day-of Contacts stays at `/day/contacts` and **renders the same directory component**.
-3. **One person sheet, not one person page.** Tapping a name anywhere opens `PersonSheet` (bottom sheet). Do not navigate to `/people/[id]` as the primary pattern.
-4. **Households stay `Guest` / `GuestPerson`.** Do not flatten 32 households into `Person`. Optional `GuestPerson.personId` is a link for the few overlaps (Belle, Wendy), not a merge of the guest list.
-5. **Ask recipients stay `PinAccount.id` on the wire.** The UI may show people; `createRequest` still writes `recipientAccountId`. Never send `Person.id` as a recipient.
-6. **Additive schema only.** New nullable columns and optional FKs are allowed. No `DROP`, no required columns on existing rows, no deleting `Contact` / `PinAccount` / `GuestPerson` tables in this project.
-7. **No bulk deletes of real data.** Merge scripts log before/after and are reversible. Never `deleteMany` on Task / Request / ShoppingItem / Guest / BudgetItem except through existing per-row actions.
-8. **Reuse visibility helpers.** `taskVisibilityWhere`, `requestVisibilityWhere`, `sessionCanMutateTask`, `canSeeHome`, `canManageOwners`. Do not fork permission logic.
-9. **Home default is daily work, not the Excel dump.** Decision packages stay in the database and on `/work/[id]`. They are not the default Open list.
-10. **Who-chips do not list unused people.** Home who-chips: All · David · Haley · Both, then people who actually own a visible task/shop item or match `assigneeFilter`. Avalon Green with zero tasks is not a chip.
-11. **Owner cycle stays guarded.** Same `nextCoupleOwnerIds` rule as the inbox plan.
-12. **Offline pack shape does not change.** Derive directory/Home extras client-side. Additive fields only, with fallback.
-13. **Redirects stay temporary** (`redirect()`, never `permanent: true`).
-14. **`ensurePersonByName` must alias-match** before create. Re-running `ensure-known-people` / `ensure-day-of` must not create `avalon_planner` next to `avalon_green` again.
-15. **Declined ≠ done. Unread ≠ section.** Inbox ask rules still apply.
+1. **No Home dump.** Do not put 54 packages back on a default list. `/home` may redirect to People (or a 4-line Next card). `/today` stays a soft redirect.
+2. **People is the face book.** Name, photo, phone, role. Searchable. Works from IndexedDB if the network is gone. Wedding-party / vendor PINs with Day-of access get this book.
+3. **Offline contacts are automatic.** On login and whenever People/Day-of is opened online, upsert the contact book into IndexedDB. The “Download for offline” button may still refresh the *full* pack (timeline, guests, money). Faces and phones must not depend on that tap.
+4. **Vendors is the money + paperwork place.** One card per vendor. Budget lines attach to a vendor. “How much is left?” is answered here, not on Home.
+5. **Tasks live on a home.** Every open parent package is assigned a home (table below). Unassigned leftovers go to a small “Loose ends” on Vendors or More — not back onto Home.
+6. **Ask is Messages.** Keep `Request` + `RequestMessage` rows. Drop ticket verbs from the default UI (Decline / related decision / Needs you vs Waiting as sections). A thread is a conversation. Unread is a badge + a push.
+7. **Ask recipients stay `PinAccount.id` on the wire.** UI shows the person.
+8. **Households stay `Guest`.** Do not flatten 32 parties into Person.
+9. **Additive schema only.** No `DROP`. No `deleteMany` on real user data. Merge scripts log and are reversible.
+10. **Owner cycle / visibility helpers stay.** Do not fork `taskVisibilityWhere` or `requestVisibilityWhere`.
+11. **Photos stay small.** Existing client resize (~400px data URLs) is the v1 photo store. Good enough for faces on a phone. Do not block on Blob storage for portraits.
+12. **Contracts/insurance v1 are checkboxes + note + optional URL.** File upload (Vercel Blob) is phase-later, not a gate.
 
 ---
 
-## Product model
+## The three objects
 
-### A person has hats, not tables
+### 1. Person — “who is this”
+
+What you need on October 16 when you don’t know the DJ from the florist:
+
+- Photo
+- Display name
+- Role line (`Planner`, `Photographer`, `Maid of honor`, `Groom`)
+- Phone (`tel:`) · email
+- Optional: they have a PIN → Message
+
+This list **syncs to the phone**. Day-of Contacts is this list, filtered to “has phone or is vendor,” same component.
+
+Hats: `couple` · `family` · `party` · `vendor` · `group`
+
+Groups (`Bridal party`) stay groups. They are not faces.
+
+### 2. Vendor — “are we set with them”
+
+A vendor **is** a Person (`hat: vendor`) plus a setup record. Opening Avalon from People shows Call / Message. Opening Avalon from Vendors shows money and paperwork. Same human.
+
+Per vendor:
+
+| Field | Why |
+|-------|-----|
+| Role | Planner, Venue, Photographer, … |
+| Phone / email / photo | Same as Person (offline) |
+| Budget lines | Total · paid · **left** · pay-by date |
+| Pay method | check · Venmo · Zelle · cash · card · wire · invoice |
+| Pay details | handle, memo, who the check is to |
+| Insurance on file | yes / no / n/a |
+| Contract | yes / no + optional URL or note (where the PDF lives) |
+| Tip | needed? amount? how (cash envelope / add to check / Venmo) |
+| Open tasks | only the lines that belong to **this** vendor |
+| Messages | threads with their PIN, if any |
+
+“Other costs” (dress, veil, cutlery, Airbnb) that are not a day-of human stay at the bottom of Vendors as **Other costs** — same money math, no face required.
+
+### 3. Day-of — “what happens when”
+
+Timeline stays. Assignments stay. Contacts tab **is** the People book (day-of preset). Week-before / day-before org steps live **here**, not on Home — that is when you will actually do them.
+
+---
+
+## What Home becomes
+
+Not a product. Two options (pick A unless Next is requested in implementation):
+
+**A (default).** `/home` → `redirect("/people")` (or `/day` if `daysUntilWedding <= 7`).  
+**B.** `/home` is a 4-line card: days left · unread messages · next unpaid vendor · next vendor missing insurance/contract. Each line is a link. No task list. No chip bar.
+
+Do not keep InboxBoard as the default UI.
+
+---
+
+## Messages (Ask is over as a product word)
+
+Today Ask is a ticket: title, recipient, open/done/declined, related task, Needs you / Waiting. That is why it feels like another task list.
+
+**Keep the data.** 17 threads (10 open) become conversations.
+
+**New UI (More → Messages, plus header envelope):**
 
 ```
-Person (canonical)
-  name, photo, phone, email
-  hats: couple | family | vendor | party | group
-  optional: PinAccount (can receive asks)
-  optional: BudgetItem[] (if vendor / payee)
-  optional: GuestPerson (if they are also a named guest)
+Avalon          Reception dinner options     · 2
+Shelly          Can you confirm the count    ·
 ```
 
-`Contact` becomes the **day-of projection** of a Person who has a phone or photo.  
-`PinAccount` is **login + inbox**, linked with `linkedPersonId`.  
-`Guest` is a **household** (address, RSVP, table, gifts) that contains `GuestPerson` names.
+Tap → thread (existing messages + composer). No Decline. No “mark done” required. Optional overflow: “Archive” maps to `status: done` so old threads can hide.
 
-### The person sheet (the unification primitive)
+**Compose:** pick a person who has a PIN → type. No “related decision” field on the default path.
 
-One sheet, opened from Home, Day-of, Money, Ask picker, Guests (when linked):
+**Notifications:**
 
+- In-app unread badge (already exists) moves from Home to the envelope.
+- **Web Push** on the existing service worker (`public/sw.js`): `push` + `notificationclick`.
+- New table `PushSubscription` (`id`, `pinAccountId`, `endpoint`, `p256dh`, `auth`, `createdAt`).
+- VAPID keys in env (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`). Prompt once after login (People or layout).
+- On `addRequestMessage` / new thread: send to the other party’s subscriptions. Fail soft — message still saves if push fails.
+- Do not add SMS/email in this project.
+
+Vendor PIN “Ask-only” becomes **Messages + Day-of**. Same flags (`canSeeRequests`, `canSeeTimeline`).
+
+---
+
+## Offline face book (this is the day-of feature)
+
+Today: a manual Download button writes a whole pack to IndexedDB; contacts are one array inside it; the SW only caches the app shell.
+
+**Needed:**
+
+1. `src/lib/contacts-cache.ts` — IndexedDB store `contacts-v1`, key `book`.
+2. Shape: `{ fetchedAt, people: [{ id, name, hat, role, phone, email, photoData }] }`.
+3. `GET /api/contacts-book` — permission: `canSeeTimeline` **or** `canSeePeople`. Returns the same rows the directory shows.
+4. Client: on app layout mount (online), fetch and upsert. People and Day-of Contacts **read cache first**, then network.
+5. Photos are already downscaled data URLs — they go in the cache. That is how “we all know who everyone is” works with no signal at BSS.
+6. Full `/api/offline` pack stays for timeline/guests/money. Do not remove it. Do not make faces wait on it.
+
+Wedding-party PINs (timeline on, guests off) still get the face book.
+
+---
+
+## Schema (additive)
+
+```prisma
+model Person {
+  // existing…
+  hat         String?   // couple | family | party | vendor | group
+  role        String?   // "Planner", "Photographer"
+  phone       String?
+  email       String?
+  photoData   String?
+  aliases     String[]  @default([])
+  vendor      Vendor?
+  contacts    Contact[]
+}
+
+model Vendor {
+  id             String   @id @default(cuid())
+  personId       String   @unique
+  person         Person   @relation(fields: [personId], references: [id])
+  payMethod      String?  // check | venmo | zelle | cash | card | wire | invoice
+  payDetails     String?
+  insurance      String   @default("unknown") // yes | no | na | unknown
+  contract       String   @default("unknown")
+  contractNote   String?
+  tipNeeded      Boolean  @default(false)
+  tipAmount      Float?
+  tipHow         String?
+  notes          String?
+  budgetItems    BudgetItem[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model BudgetItem {
+  // existing… plus:
+  vendorId String?
+  vendor   Vendor? @relation(fields: [vendorId], references: [id])
+}
+
+model Contact {
+  // existing… plus:
+  personId String?
+  person   Person? @relation(fields: [personId], references: [id])
+}
+
+model PushSubscription {
+  id           String     @id @default(cuid())
+  pinAccountId String
+  pinAccount   PinAccount @relation(fields: [pinAccountId], references: [id], onDelete: Cascade)
+  endpoint     String     @unique
+  p256dh       String
+  auth         String
+  createdAt    DateTime   @default(now())
+}
+
+model PersonMergeLog {
+  id          String   @id @default(cuid())
+  winnerId    String
+  retiredId   String
+  retiredName String
+  reassigned  Json
+  createdAt   DateTime @default(now())
+}
 ```
-┌─────────────────────────────────┐
-│ [photo]  Avalon Green           │
-│          Vendor · planner       │
-│          555-…                  │
-│                                 │
-│  [ Call ]              [ Ask ]  │
-│                                 │
-│  Payments                       │
-│  $2,400 left · due Sep 15       │
-│  ████████░░░░  60%              │
-│                                 │
-│  Open asks                      │
-│  Reception dinner options       │
-└─────────────────────────────────┘
-```
 
-- **Call** if `phone` is set (`tel:`). Hidden if empty.
-- **Ask** if some `PinAccount.linkedPersonId === person.id` and `canSeeRequests`. Hidden if they have no PIN.
-- **Payments** if any `BudgetItem` is linked to this person. Tap amount → inline pay / open Money row.
-- **Open asks** involving that account. Expand in-sheet or jump to Home with that thread.
-- Family/party people omit Payments. Guests-only people (no Person link) do not use this sheet — they stay on the household card.
+`Task` stays. Add optional `vendorId` **or** keep using `budgetItemId` / parent package and resolve vendor in the directory layer. Prefer `Task.vendorId` nullable so a task can sit on a vendor without a budget line.
 
-### What each existing surface becomes
+`Request` stays. UI ignores `declined` unless opening archive.
 
-| Surface | After | Not |
-|---------|--------|-----|
-| **Home** | Needs you · Pay · Buy · Thank · Week/Day before. Compose is Ask with **people**. Decisions behind a chip. | A wall of 54 packages + 15 who-chips |
-| **Day-of → Contacts** | Same `PeopleDirectory` filtered to people with phone/photo (and vendors). Add person writes `Person`, not a second identity. | A separate Contact-only database forever |
-| **Day-of → Timeline / Assignments** | Unchanged. Assignment dropdown uses the cleaned Person list. | — |
-| **Guests** | View · By table · Thank-you · Edit. Thank-you is a first-class mode. View tap expands gifts. | A new `/thank-you` page |
-| **Money** | Ledger + print. Row name opens PersonSheet when linked. Home Pay is the daily slice. | A Vendors app |
-| **More → People** | Full directory: search + chips Everyone · Family · Vendors · Day-of · Has PIN. | Primary tab |
-| **`/work/[id]`** | Unchanged deep editor | — |
+---
+
+## Sort the existing work (do this, don’t leave it on Home)
+
+Production has ~54 parent tasks / 140 children from Excel packages plus week/day-before org cards. **Homes** below are the assignment. Implementation moves `vendorId` / leaves a pointer; it does not delete titles unless listed as merge/kill.
+
+### Vendors to create (from day-of contacts + known names)
+
+| Vendor | Role | Phone / email already in seed | Budget match (name contains) |
+|--------|------|-------------------------------|------------------------------|
+| Avalon Green | Planner | (386) 589-7215 | coordinator, Avalon |
+| Black Sheep Shelter | Venue | (616) 335-0797 | black sheep, BSS, venue |
+| Barry Tilson | Photographer | (248) 704-3731 | photog |
+| Belle Genton | Videographer | (513) 833-0929 | video (if a line exists) |
+| Precious Peony | Caterer | preciouspeonyllc@gmail.com | cater, flower, peon |
+| Wendy Rush | Mistress of ceremonies | (616) 318-9393 | usually $0; still a vendor card if they are paid or need a tip |
+| Bartender | Bartender | *(add when known)* | bartender |
+| Band / DJ | Music | *(add when known)* | band, DJ |
+
+**Other costs** (no face): Airbnb, hotel, wedding dress, alterations, veil, groom attire, stationer/invites, cutlery, officiant if unpaid to a nameless line.
+
+Merge Person dups first: `avalon_planner` → `avalon_green`, `barry` → `barry_tilson`. Link Contacts (`Avalon Green · Planner`, etc.) to those People. Copy phone/photo onto Person.
+
+### Where each package goes
+
+| Today’s package | Home after | What to do with children |
+|-----------------|------------|--------------------------|
+| **Vendor payments** | **Split onto vendors** | “Pay X / tip envelope / balance” → that vendor’s tasks + tip fields. Kill the package header once children are attached. |
+| **Vendor & BSS paperwork** | **Vendor setup fields** | Insurance / licenses / names / bartender / helpers → checkboxes on BSS, Avalon, bartender. Do not keep a floating “paperwork” package. |
+| **Florals & centerpieces** | Precious Peony | Bouquet, centerpieces, extra flowers stay as that vendor’s tasks. |
+| **Photos & video** | Barry + Belle | Shot lists, engagement, golden hour → Barry. Video/camcorder → Belle. Split children by title. |
+| **Decor & venue styling** | Avalon + BSS | Avalon list / signage / placement → Avalon. Table layout / venue constraints → BSS. |
+| **Cake & dessert** | Other costs **or** a baker vendor if they name one | Keep as vendor tasks if a person exists; else Other costs + Shop if they still need to buy a topper. |
+| **Music & sound** | Band/DJ vendor if named; else BSS / Day-of notes | Playlists, walk song, downloads → vendor or Day-before “playlists” (already an org step). |
+| **Makeup plan** | People (Katie / Belle) + Day-of assignments | These are day-of humans, not a decision dump. Open steps become assignment notes or person notes. |
+| **Hair plan** | Same as makeup | Stylist / trial → that person if they exist; else Loose ends. |
+| **Invitations & RSVPs** | **Guests** | Order/send/remind → a short checklist on Guests (not Home). Website RSVP stays a note. |
+| **Guest logistics** | **Guests** | Count, seating, escort cards, parking, travel → Guests modes (View / By table / a Logistics note at top). |
+| **Thank-you cards** | **Guests → Thank-you** | Order/write/send + per-gift `thanked`. |
+| **Rehearsal dinner** | **Rehearsal** (`/rehearsal`) | Venue, time, count, outfits. Merge the duplicate “confirm rehearsal time” / “Confirm Rehersal Time” into one child. |
+| **Ceremony plan** | **Day-of** timeline / BSS | Confetti, vows, ceremony flow belong on Friday’s blocks or BSS notes — not a Home package. |
+| **Reception moments** | **Day-of** | Toasts, dances, exit, favors → timeline notes or assignments (Wendy/Kurt). |
+| **Attire & rings** | **People → Us** (David & Haley) | Rings, outfits, emergency kit — a small checklist on the couple, not a vendor. |
+| **Guest book** | **Shop** | Buy the book. One shopping line if not purchased. |
+| **Registry** | **Loose ends** or drop | Out of band (registry site). Don’t keep a decision package on Home. |
+| **Communication game plan** | **Kill as a package** | Messages *is* the plan. “Share folder / website / need to know” → one note on People or Day-of. |
+| **Week-of & day-of readiness** | **Day-of** | Already `week_before` / `day_before` org cards. Move UI from Home to Day-of (collapsible on Timeline). |
+
+### Org-card steps (already the right work — wrong screen)
+
+| Step | Stays on Day-of, plus |
+|------|------------------------|
+| Confirm final payments / tip envelopes | Vendors: any `tipNeeded` still open |
+| Confirm vendors (photog, Avalon, BSS, bartender, catering) | Vendors list — if setup is complete, this step is done |
+| Final guest count / seating | Guests |
+| Share timeline + parking with wedding party | Messages (send the thread) + Day-of |
+| Charge devices / pack / maps / sleep / clothes | Day-before only |
+| Rehearsal time + dinner locked | Rehearsal |
+
+### Asks (production)
+
+17 threads, 10 open, one linked to “Provide Reception Dinner Options” → Rehearsal dinner.  
+**Do not delete.** Show as Messages. The rehearsal-dinner link can appear as a quiet “about Rehearsal” chip; do not require it for new threads.
 
 ---
 
 ## Information architecture
 
-### Home sections (default, no `?filter=`)
+### People (`/people`, primary)
 
-| Section | Contains | Empty |
-|---------|----------|--------|
-| **Needs you** | Open asks where I am recipient (+ master third-party), same as today | “You're caught up.” Always show header if `canSeeRequests` |
-| **Waiting** | Open asks I sent | Hide when 0 |
-| **Pay** | Unpaid `BudgetItem` (and unpaid minor task money) with `payByDate` ascending, overdue first. Max ~5 + “All money →” | Hide if `!canSeeBudget` or count is 0 |
-| **Buy** | Incomplete `ShoppingItem` | Hide if `!canSeeShop` or count is 0 |
-| **Thank** | `GuestGift` where `thanked === false` | Hide if `!canSeeGuests` or count is 0 |
-| **Week before / Day before** | `org_step` rows | Hide if no tasks permission or no children |
-| **Decisions** | Package groups (`task` + `task_step`). **Collapsed by default.** `?filter=tasks` expands. | Hide if `!canSeeTasks` |
+- Search
+- Chips: Everyone · Family · Party · Vendors · Has PIN
+- Row: photo · name · role · trailing Call
+- Tap row → sheet: photo, phone, email, Call, Message (if PIN), and **Set up** if `hat === vendor` (opens vendor card)
+- Add person: name, role/hat, phone, email, photo
 
-Vendor PIN (`!canSeeTasks && !canSeeShop`): Needs you / Waiting / Done only. No Pay / Buy / Thank / Decisions.
+### Vendors (`/vendors`, primary) — replaces Money as the default money UI
 
-### Home chips (one scroller, short)
+- Sort: unpaid first, then pay-by date, then name
+- Row: photo/initials · name · role · **$ left** · missing-insurance/contract dots
+- Tap → vendor setup (fields above) + that vendor’s tasks (checkboxes) + budget lines
+- Footer: **Other costs** (non-vendor budget items) + **Print** (existing `/money/print`)
+- `/money` soft-redirects to `/vendors` (keep print route)
 
-`/home?filter=needs-me&who=david`
+Shared-money PIN: still no People/Day-of if flags say so; they land on `/vendors` (read-only lines they can see). `firstAllowedRoute`: budget-only → `/vendors`.
 
-| Chip | Param | Shows |
-|------|--------|--------|
-| All | omit | Default sections above |
-| Needs me | `needs-me` | Needs-you asks + my tasks + my buy (existing inbox rule) |
-| Asks | `asks` | Ask rows only |
-| Buy | `buy` | Buy only |
-| Pay | `pay` | Pay only (requires `canSeeBudget`) |
-| Thank | `thank` | Thank only (requires `canSeeGuests`) |
-| Decisions | `tasks` | Decision packages + org steps |
-| Done | `done=1` | Existing Done |
+### Day-of (`/day`, primary)
 
-**Who chips:** All · David · Haley · Both, then **only people with visible work** or `assigneeFilter`. Horizontal scroll. Do not dump the 17 unused Person rows.
+- Tabs: Timeline · People · Assignments  
+  (`/day/contacts` stays, label **People**, same directory, day-of preset)
+- Week before / Day before checklists sit under Timeline (collapsed)
 
-Remove Home chips: Waiting (section is enough), the old Tasks chip name (becomes Decisions).
+### Guests (`/guests`, More)
 
-### Ask compose (fast)
+- View · By table · Thank-you · Edit  
+- Thank-you mode: unthanked gifts first  
+- View tap expands gifts (don’t require Edit)
 
-Default control is still **Ask someone**.
+### Messages (`/messages`, More + header)
 
-Do **not** lead with a `<select>` of PIN accounts.
+- Soft-redirect `/requests` → `/messages` (not `/home?filter=asks`)
+- Header envelope on `AppHeader` for anyone with `canSeeRequests`
 
-1. Tap **Ask someone**
-2. Horizontal people row: photo/initials of PIN accounts the session can message, labeled with **Person name** (fallback account name)
-3. Tap a person → title field focuses
-4. Optional message
-5. Send → `createRequest` with that account’s id
+### Shop (`/shop`, More)
 
-Related-decision picker stays optional and collapsed (“Link a decision”).  
-If the session can only see asks, no Ask/Task/Buy toggle.
-
-### Guests modes
-
-Keep the segmented control. Add **Thank-you** as a mode, not a page:
-
-`View` · `By table` · `Thank-you` · `Edit`
-
-- **View:** tap a household to expand address, seating, gifts, thanked state (read). Edit still for structured changes.
-- **Thank-you:** flat list of gifts, unthanked first, checkbox → `setGuestGiftThanked`. Household name as the row label.
-- **By table / Edit:** as today.
-
-### People directory (More + Day-of Contacts)
-
-Same component, two query presets:
-
-- `/people` — Everyone
-- `/day/contacts` — Day-of (has phone or photo or `hat === vendor`)
-
-Chips: Everyone · Family · Vendors · Day-of · Has PIN  
-Search: name, phone, company  
-
-Add person: one form (name, hat, phone, email, photo). Writes `Person`. If they need a PIN, that stays on Accounts (do not invent PIN creation from the directory in v1).
+- Restore the list (undo Stage B redirect to Home). Three items deserve a list, not a chip on a dump.
 
 ---
 
-## Data model (additive)
+## PIN / permission notes
 
-### Schema additions (all nullable / optional)
+Flags unchanged. Rename copy only.
 
-```prisma
-model Person {
-  // existing fields…
-  hat         String?  // "couple" | "family" | "vendor" | "party" | "group"
-  phone       String?
-  email       String?
-  photoData   String?
-  company     String?
-  aliases     String[] @default([])
-  contacts    Contact[]
-  guestPeople GuestPerson[]
-  vendorBills BudgetItem[] @relation("BudgetVendor")
-}
+| Account | After |
+|---------|--------|
+| Master / Partner | People · Vendors · Day-of · Messages |
+| Vendor (Avalon) | Day-of + Messages. Their vendor card is not an admin edit unless you later grant budget. |
+| Wedding party | People (faces) · Day-of · Messages. No money. |
+| Mother-in-law | Messages + whatever task filter remains on **Us / Loose ends** — not a vendor admin |
+| Shared-money | `/vendors` read-only (same share rules as Money) |
+| Guests-only | `/guests` |
 
-model Contact {
-  // existing fields…
-  personId String?
-  person   Person? @relation(fields: [personId], references: [id])
-}
+`canSeeHome` can stay as a derived helper but should not gate a tab. `firstAllowedRoute`: if `canSeePeople` or `canSeeTimeline` → People (or Day-of when ≤7 days); else existing scan (`/vendors`, `/guests`, `/messages`).
 
-model GuestPerson {
-  // existing fields…
-  personId String?
-  person   Person? @relation(fields: [personId], references: [id])
-}
-
-model BudgetItem {
-  // existing fields…
-  vendorPersonId String?
-  vendorPerson   Person? @relation("BudgetVendor", fields: [vendorPersonId], references: [id])
-}
-
-model PersonMergeLog {
-  id           String   @id @default(cuid())
-  winnerId     String
-  retiredId    String
-  retiredName  String
-  reassigned   Json     // counts / ids touched
-  createdAt    DateTime @default(now())
-}
-```
-
-`Contact` rows stay. UI prefers `Person` when `personId` is set; otherwise shows the Contact (so nothing vanishes mid-migration).
-
-`PinAccount.linkedPersonId` already exists — **backfill**, do not add a new column.
-
-### Alias map (authoritative for merges)
-
-Use this table in `src/lib/person-aliases.ts` and in the merge script. Names are production as of 2026-08-30.
-
-| Winner `Person.id` | Also means | Also `Contact` name | PIN |
-|--------------------|------------|---------------------|-----|
-| `david` | | Groom - David | David |
-| `haley` | | (bride contact if present) | Haley |
-| `shelly` | | Shelly Wiewiora | Shelly, John (keep both PINs → same person) |
-| `bri` | | Bri Eling | — |
-| `avalon_green` | `avalon_planner` | Avalon / Avalon Green | Avalon |
-| `barry_tilson` | `barry` | Barry Tilson | — |
-| `belle_genton` | | Belle Genton | — (also GuestPerson) |
-| `precious_peony` | | Precious Peony | — |
-| `wendy_rush` | | Wendy Rush | — (also GuestPerson) |
-| `black_sheep_shelter` / BSS | | BSS / Black Sheep Shelter | — |
-| `kurt` | | Kurt (role label if any) | — |
-
-Contacts **only** (create `Person` if missing, `hat: family` or `party`): Andi Carhart, Evan Eling, Trinity Medler, Lisa Pelfresne, Denise Bordeaux.
-
-Groups stay groups: `bridal_party`, Maid of Honor, Best Man, etc. `hat: group`. Do not merge groups into humans.
-
-### Merge behavior (script, not UI)
-
-`scripts/merge-people.ts` (new):
-
-For each alias pair:
-
-1. Reassign `TaskAssignee`, `DayAssignmentAssignee`, `ShoppingItem.ownerId`, `BudgetItem.ownerId` / `paidById`, `PinAccount.linkedPersonId` from retired → winner
-2. Append retired name to `winner.aliases`
-3. Insert `PersonMergeLog`
-4. Delete the retired `Person` **only if** it has zero remaining FKs
-5. Print a dry-run by default; `--apply` writes
-
-Never merge a `Guest` household into a `Person`. Only optional `GuestPerson.personId`.
-
-### Duplicate task (known)
-
-Under package “Rehearsal dinner”: **confirm rehersal time** and **Confirm Rehersal Time**.
-
-Merge: keep the child with more notes / assignees / later `updatedAt`; move any `Request.taskId` to the keeper; delete the empty duplicate via existing `delete` path or a logged one-row script. Do not `deleteMany`.
-
-### Dedup on create
-
-- `ensurePersonByName`: match `name` **or** `aliases` (insensitive) **or** slug-equivalent (`Avalon Green` ↔ `avalon_green` ↔ `avalon planner`)
-- `createRequest` / `createRequestFromItem`: if an **open** ask already exists with same sender, recipient, and normalized title, return the existing id (no second row)
-- `ensure-known-people.ts` / `ensure-day-of.ts`: call the shared helper, never a private copy of slug+create
+Backfill `linkedPersonId`: Avalon → `avalon_green`. Mom Balasa → confirm before pointing at `shelly`.
 
 ---
 
-## Home Pay / Thank rows
+## Files (new / touch)
 
-These are **derived inbox kinds**, not new tables.
+| File | Role |
+|------|------|
+| `src/lib/person-aliases.ts` | Merge map + slug match |
+| `src/lib/directory.ts` | Face book query |
+| `src/lib/vendors.ts` | Vendor list, remaining $, setup completeness |
+| `src/lib/contacts-cache.ts` | IndexedDB face book |
+| `src/lib/push.ts` | VAPID send helper |
+| `src/components/PeopleDirectory.tsx` | Shared list |
+| `src/components/PersonSheet.tsx` | Call / Message / Set up |
+| `src/components/VendorCard.tsx` | Setup + money + tasks |
+| `src/components/MessagesBoard.tsx` | Thread list (port from RequestsBoard, drop ticket chrome) |
+| `src/app/(app)/people/page.tsx` | Restore; primary |
+| `src/app/(app)/vendors/page.tsx` | New |
+| `src/app/(app)/messages/page.tsx` | New |
+| `src/app/api/contacts-book/route.ts` | Face-book JSON |
+| `src/app/api/push/subscribe/route.ts` | Store subscription |
+| `public/sw.js` | `push` + `notificationclick` |
+| `scripts/audit-duplicate-data.ts` | Read-only report |
+| `scripts/merge-people.ts` | Dry-run / `--apply` |
+| `scripts/attach-tasks-to-vendors.ts` | One-time: apply the sort table (logged, reversible) |
+| `src/lib/modules.ts` | People + Vendors + Day-of primary; hide Home; Messages in More + header |
+| `src/app/(app)/home/page.tsx` | Redirect (option A) |
+| `src/app/(app)/money/page.tsx` | Redirect to `/vendors` |
+| `src/app/(app)/requests/page.tsx` | Redirect to `/messages` |
+| `src/app/(app)/shop/page.tsx` | Restore board |
+| `package.json` | `db:audit` |
 
-```ts
-// additive to InboxKind
-type InboxKind = "ask" | "task" | "task_step" | "org_step" | "buy" | "pay" | "thank";
-```
-
-| Kind | Source | `done` | Primary tap | Checkbox |
-|------|--------|--------|-------------|----------|
-| `pay` | `BudgetItem` where remaining > 0 | remaining ≈ 0 | PersonSheet or expand: amount paid | None (money is not a checkbox). Optional “Log payment” inline |
-| `thank` | `GuestGift` where `!thanked` | `thanked` | Expand household | `setGuestGiftThanked` |
-
-Permissions: Pay requires `canSeeBudget` (same visibility as `/money` — master/edit sees all; shared-money sees shared/owned). Thank requires `canSeeGuests`. Shared-money PIN still has **no Home** (`canSeeHome` unchanged).
-
-Do not put Pay/Thank in the offline pack as a new required array. Offline Home can omit them until a later additive pack field.
-
----
-
-## Server actions / files
-
-### New
-
-| File | Responsibility |
-|------|----------------|
-| `src/lib/person-aliases.ts` | Winner map, slug/alias match, `hats` |
-| `src/lib/directory.ts` | `listDirectory(session, filter)`, `getPersonSheet(id)`, merge of Person+Contact+PIN |
-| `src/lib/directory.test.ts` | Alias match, unused people excluded from who-chips, vendor filter, PIN resolution |
-| `src/components/PersonSheet.tsx` | Sheet: call, ask, pay, open asks |
-| `src/components/PeopleDirectory.tsx` | Search + hat chips + rows |
-| `src/components/PeopleAvatarPicker.tsx` | Ask compose recipients |
-| `src/components/HomePayRow.tsx` / thank row | Dense rows; or extend `InboxNoteRow` |
-| `scripts/audit-duplicate-data.ts` | Read-only report (Person dups, Contact overlap, Guest overlap, task title dups, unlinked PINs) |
-| `scripts/merge-people.ts` | Dry-run / `--apply` using the alias map |
-| `src/app/(app)/people/page.tsx` | Restore directory (remove Stage B redirect) |
-
-### Touch
-
-| File | Change |
-|------|--------|
-| `prisma/schema.prisma` | Additive columns above; `npx prisma db push` |
-| `src/lib/people.ts` | `ensurePersonByName` uses aliases; stop private slug-only create in scripts |
-| `src/lib/inbox.ts` | Default sections; `pay` / `thank` kinds; who-chips = people with work |
-| `src/lib/inbox.test.ts` | Default Home hides Decisions; who-chip exclusion |
-| `src/lib/modules.ts` | `people.hideFromMore = false`; keep `primary` false |
-| `src/lib/routes.ts` | Remove `/people` from `SKIP_FIRST_ROUTE` **only if** guests-only must not land on People. Guests-only still lands on `/guests`. People is not a firstAllowed target. |
-| `src/app/actions.ts` | Narrow: `savePersonProfile`, `linkContactToPerson`, `setBudgetVendor`, `logBudgetPayment` (amountPaid only). Ask compose unchanged besides recipient UX. `revalidatePath("/people")` + `/home` + `/day/contacts` |
-| `src/components/InboxAddBar.tsx` | Avatar picker; related task collapsed |
-| `src/components/InboxBoard.tsx` | New default sections; shorter chips |
-| `src/components/GuestList.tsx` | Thank-you mode; View expand |
-| `src/components/ContactsPanel.tsx` | Thin wrapper around `PeopleDirectory` or delete usage |
-| `src/app/(app)/day/contacts/page.tsx` | Render directory with day-of preset |
-| `src/app/(app)/money/page.tsx` | Pass vendorPersonId; row opens sheet |
-| `package.json` | `"db:audit": "tsx scripts/audit-duplicate-data.ts"` |
-| Scripts | `ensure-known-people.ts` / `ensure-day-of.ts` import shared helper |
-
-### Do not change
-
-`createRequest` permission model, `RequestsBoard` (still deprecated, still present), `/work/[id]`, Stay / Rehearsal / Dinner, PIN pad, `canSeeHome` derivation, owner-cycle guard, offline IndexedDB version unless adding optional fields.
-
----
-
-## PIN backfill (ops, not a product dependency)
-
-| Account | Set `linkedPersonId` |
-|---------|----------------------|
-| David | `david` (already) |
-| Haley | `haley` (already) |
-| Bridal Party | `bridal_party` (already) |
-| Shelly | `shelly` (already) |
-| John | keep `shelly` (same human, second PIN) **or** leave and treat both as Shelly in the picker |
-| Mom Balasa | `shelly` if that is mother-in-law; otherwise create/keep a dedicated Person — **confirm before apply** |
-| Avalon | `avalon_green` after merge |
-
-Home Ask picker groups multiple PINs for one person as one avatar (sends to the non-master / vendor account when obvious; if two PINs share a person, picker shows the account subtitle once: “Shelly · John”).
-
-Do not block UI on this backfill. Picker falls back to account name when `linkedPersonId` is null.
-
----
-
-## Visual refinement (same routes, calmer)
-
-The cream / forest tokens stay. The mess is **density and too many equal controls**, not the palette.
-
-1. **Home compose** is one primary button until opened. Opened state is a sheet (reuse `.sheet`), not a second card stacked on chips.
-2. **Chip row ≤ 6 visible concepts** before scroll (All, Needs me, Asks, Buy, Pay, Decisions). Who is a second row **only when** more than the couple exist as owners.
-3. **Pay / Buy / Thank** use the notes-list row language already on Home (no new card skins).
-4. **Person rows** (directory): 56px photo, name, one muted line (phone or “Vendor”), trailing Call. Same as today’s Contacts, shared.
-5. **Guest View** stays dense; expansion is in-row, not a modal.
-6. **44px** hit targets on Call, Ask, checkbox, compose.
-7. Do not redesign Timeline, Money print, or PIN pad in this project.
+Do not delete `InboxBoard` / `RequestsBoard` in the first PR — redirect away, `@deprecated`.
 
 ---
 
 ## Phases
 
-Ship in this order. Do not restore `/people` as a broken empty page. Do not redirect Day-of Contacts away until the directory reads Person+Contact together.
+### P0 — Audit + sort script (no UI)
 
-### P0 — See the mess (read-only)
+- `scripts/audit-duplicate-data.ts` + `npm run db:audit`
+- Write `scripts/attach-tasks-to-vendors.ts` as **dry-run first**: print each open parent/child → proposed vendor/home using the table above
+- Couple reviews the dry-run before `--apply`
 
-- Add `scripts/audit-duplicate-data.ts` + `npm run db:audit`
-- Report: Person slug/name dups, Person↔Contact overlaps, GuestPerson↔Person overlaps, unlinked PINs, task title dups (normalized), unused Person ids
-- Commit the script even if production numbers differ
+**Done when:** dry-run lists every open package with a home. Nothing written.
 
-**Done when:** `npm run db:audit` prints the tables against local or `DATABASE_URL` without writing.
+### P1 — Stop duplicate people
 
-### P1 — Stop creating duplicates
+- Shared `ensurePersonByName` with aliases
+- Merge `avalon_planner` / `barry` with `PersonMergeLog`
 
-- Shared `ensurePersonByName` with alias + slug match
-- Scripts call it; delete the private copy in `ensure-known-people.ts`
-- Open-ask dedup in `createRequest`
-- Unit tests for alias match (`Avalon Green` / `avalon_planner`)
+### P2 — Face book (Person fields + offline cache)
 
-**Done when:** calling `ensurePersonByName("Avalon Green")` twice and `"avalon planner"` returns the same id in tests.
+- Additive Person columns; `Contact.personId`; copy phones from day-of contacts
+- People page restored (can ship in More first, then promote)
+- Auto IndexedDB sync; Day-of Contacts reads cache first
+- Photos can be added immediately (existing resize)
 
-### P2 — Merge known duplicate People (logged)
+**Done when:** Airplane mode after one online visit still shows Avalon’s face and `tel:` link.
 
-- Schema: `aliases`, `PersonMergeLog` (can land with P3 if one push is easier)
-- `scripts/merge-people.ts --dry-run` then `--apply` on production with the couple present
-- Merge `avalon_planner` → `avalon_green`, `barry` → `barry_tilson`
-- One-row rehearsal task duplicate
+### P3 — Vendor setup + move money
 
-**Done when:** audit shows those Person dups gone; task assignees still resolve; Ask still works.
+- `Vendor` + `BudgetItem.vendorId` + name-match backfill
+- `/vendors` UI; `/money` redirects
+- Setup fields: pay method, insurance, contract, tips
+- Other costs footer
 
-### P3 — Person profile fields + Contact link
+**Done when:** BSS remaining balance and “insurance unknown” are visible on one card.
 
-- Additive `hat`, `phone`, `email`, `photoData`, `company`, `Contact.personId`
-- Copy matching Contact fields onto Person (do not delete Contact)
-- Create Person for contacts-only names
-- Backfill `hat` for known vendors / couple / family
-- `savePersonProfile` narrow action
+### P4 — Attach tasks to homes
 
-**Done when:** David has phone from “Groom - David” on `Person`; Contact row still exists and points at `david`.
+- `Task.vendorId` (or equivalent) from the reviewed dry-run
+- Vendor card shows that vendor’s open steps
+- Org cards render on Day-of
+- Guests get thank-you mode + logistics note
+- Rehearsal keeps rehearsal-dinner children
+- Home no longer lists packages
 
-### P4 — Directory + PersonSheet (More + Day-of)
+**Done when:** “Shot list for photographer” is on Barry, not on Home. Week-before is on Day-of.
 
-- Restore `/people` in More
-- `PeopleDirectory` + `PersonSheet`
-- `/day/contacts` uses the same component (day-of preset)
-- Add person writes Person (+ optional Contact row for offline pack compatibility)
+### P5 — Messages + push
 
-**Done when:** Adding “Florist temp” on Day-of Contacts shows on More → People; Call works; no second Person on re-add.
+- `/messages` + header envelope
+- `/requests` redirects
+- Archive = `status: done`
+- Web Push subscribe + send on new message
+- Copy: “Message”, never “Ask” in the UI
 
-### P5 — Ask is people (Home)
+**Done when:** David messages Avalon; Avalon’s phone shows a notification; thread is in Messages, not a Needs-you ticket.
 
-- `PeopleAvatarPicker` in compose
-- PersonSheet **Ask** pre-fills recipient
-- Labels use Person name
+### P6 — Nav swap + calm
 
-**Done when:** Sending to Avalon is tap-avatar, not “choose who…” dropdown. Vendor PIN still receives the ask.
-
-### P6 — Vendors and payments
-
-- `BudgetItem.vendorPersonId` + name match backfill (Avalon, Barry, BSS, …)
-- Home **Pay** section
-- PersonSheet payments + `logBudgetPayment`
-- Money row opens sheet
-
-**Done when:** Home shows next unpaid; paying from the sheet updates Money; shared-money PIN still cannot open Home.
-
-### P7 — Thank-you on Guests + Home
-
-- Guests **Thank-you** mode
-- View-row expand for gifts
-- Home **Thank** section if `canSeeGuests`
-
-**Done when:** Checking thanked on Guests hides the Home Thank row after refresh. Print gift list still works.
-
-### P8 — Home default is daily (beauty)
-
-- Decisions collapsed; default sections as specified
-- Who-chips exclude unused people
-- Compose in a sheet; chip bar shortened
-- Inbox tests updated
-
-**Done when:** Master login shows Needs you + Pay/Buy/Thank/org cards, **not** Makeup plan / Florals as the first Open wall. `?filter=tasks` still shows every package. Mother-in-law still sees only Shelly work.
-
----
-
-## Permissions (flags unchanged)
-
-Do not add `canSeeDirectory`. People in More uses `canSeePeople` **or** (`canSeeTimeline` && viewing from Day-of). Day-of Contacts remains gated by `canSeeTimeline` so vendors keep their call list without seeing the couple’s full family directory.
-
-| Account | People (More) | Day-of Contacts | Home extras |
-|---------|---------------|-----------------|-------------|
-| Master / Partner | Full | Full | Pay + Thank if flags on |
-| Vendor | No | Yes (timeline) | Asks only |
-| Mother-in-law | If `canSeePeople` | No (no timeline today) | Asks + filtered tasks |
-| Shared-money | No | No | No Home |
-| Guests-only | No | No | Lands on `/guests` |
-
-Accounts grid: keep granular flags. Do not add a Home or Directory checkbox.
+- Primary: People · Vendors · Day-of
+- Home redirect; shop restored in More
+- `firstAllowedRoute` updated + tests
+- Offline copy button stays for the full pack; faces already cached
 
 ---
 
@@ -509,88 +460,47 @@ Accounts grid: keep granular flags. Do not add a Home or Directory checkbox.
 
 ### Automated
 
-- Alias / slug match; merge does not create a third person
-- `createRequest` dedup of identical open asks
-- Who-chips omit unused Person
-- Default Home section membership (Decisions absent unless `filter=tasks`)
-- `canSeeHome` still false for budget-only
-- `firstAllowedRoute`: Home / money / guests-only unchanged
-- Existing `inbox.test.ts`, `routes.test.ts`, `people.ts` consumers, guest gift helpers
+- Alias match / merge
+- Face-book API permission (vendor with timeline: yes; shared-money: no)
+- Vendor remaining $ math
+- `firstAllowedRoute`: partner → People (or Day-of ≤7 days); shared-money → `/vendors`; guests-only → `/guests`
+- Existing request visibility still scopes threads
+- Inbox tests that assume Home as primary: update or retire
 
-### Manual (browser, master 0425)
+### Manual
 
-1. `db:audit` on a copy of production data
-2. Merge dry-run; then apply on staging/prod with a backup
-3. Home: send ask via avatar (Avalon); reply; complete
-4. Home: Pay row appears for an unpaid item; log a payment; Money matches
-5. Day-of Contacts: call David; edit photo; same person on More → People
-6. Guests: Thank-you mode; check a gift; Home Thank updates
-7. Vendor PIN: Home is asks only; Day-of Contacts still there
-8. Mother-in-law: no vendor directory leak; Shelly tasks only
-9. Shared-money: `/money` only
-10. Offline download still opens
-
----
-
-## Data-preservation checklist
-
-| Data | After |
-|------|--------|
-| `Person` (used) | Winner row + aliases |
-| `Person` (unused but real humans) | Kept, now have phone/hat — they become the directory |
-| `Person` (true dups) | Merged via log; retired id gone only when FKs are empty |
-| `Contact` | Kept; `personId` set when matched |
-| `PinAccount` | Kept; `linkedPersonId` backfilled where obvious |
-| `Guest` / `GuestPerson` / `GuestGift` | Kept; thank-you mode + optional `personId` |
-| `Task` packages + org cards | Kept; Decisions chip / `/work/[id]` |
-| `Request` + messages | Kept; ask picker is UX only |
-| `BudgetItem` | Kept; optional vendor link |
-| `ShoppingItem` | Kept; Home Buy |
-| Offline packs | Same keys |
+1. Online: add a photo to Barry; go offline; open People — photo and Call still work
+2. Wedding-party PIN: sees faces, not Vendors money
+3. Vendor card: log a payment; remaining drops; print still works
+4. Dry-run sort; apply on a copy of production; Barry has photo tasks
+5. Message Avalon; badge + (if permission granted) system notification
+6. `/home` and `/requests` do not show the old inbox
+7. Oct 16 path: Day-of People tab is the same book
 
 ---
 
 ## Out of scope
 
-- Dropping `Contact` or `GuestPerson`
-- Guest website / public RSVP
-- Seating chart canvas (By table list is enough)
-- Auto-creating PIN accounts from the directory
-- Rewriting Timeline, Stay, Rehearsal, Dinner
+- SMS / email notifications
+- Public guest RSVP site
+- Seating canvas
+- Dropping `Contact` or `Request` tables
+- Vercel Blob contract uploads (v2)
 - Restoring the calendar month grid
-- Swipe gestures
-- A unified `InboxItem` table
-- Running Excel `db:seed` against production
-- Deleting `RequestsBoard` / `ShoppingListBoard`
+- Re-running Excel `db:seed` on production
 
 ---
 
 ## Implementation order
 
 ```
-P0  audit script (read-only)
-P1  ensurePersonByName aliases + ask dedup
-P2  merge known Person dups + rehearsal task
-P3  Person profile columns + Contact.personId backfill
-P4  directory + PersonSheet (More + Day-of Contacts)
-P5  Ask avatar picker
-P6  vendorPersonId + Home Pay
-P7  Guests Thank-you mode + Home Thank
-P8  Home default = daily work; chip/compose beauty
+P0  audit + task-home dry-run (sort the pile)
+P1  merge duplicate people
+P2  face book + automatic offline cache   ← day-of “who is this”
+P3  vendor setup + money                  ← owed / how / insurance / tips
+P4  attach tasks to those homes           ← progress where you already are
+P5  messages + web push                   ← ask is just texting
+P6  nav: People · Vendors · Day-of
 ```
 
-P0–P2 can ship without UI. P4 is the first user-visible unification. P8 is what makes Home feel finished — do not ship P8 before Pay/Thank exist or the default Home will look empty in the wrong way (hide packages **and** have nothing else).
-
----
-
-## Suggested commit subjects
-
-- `Add duplicate-data audit script`
-- `Match people by alias before creating Person rows`
-- `Merge duplicate Person rows with a reversible log`
-- `Add Person contact fields and link Contact`
-- `Restore People directory and shared person sheet`
-- `Ask people from avatars instead of PIN dropdowns`
-- `Link budget items to vendor people and surface Pay on Home`
-- `Add thank-you mode on Guests and Home`
-- `Collapse decision packages on Home by default`
+P2 and P3 are the product. P4 is the cleanup they asked us to **sort**. P5 is Ask growing up. P6 is what makes Home finally go away.
