@@ -23,7 +23,7 @@ export default async function HomeInboxPage() {
         session={session}
         title="Home"
         subtitle={
-          session.canSeeCalendar && data.milestone
+          data.milestone
             ? milestoneSubtitle(data.milestone)
             : session.assigneeFilter?.length
               ? "Your assigned items"

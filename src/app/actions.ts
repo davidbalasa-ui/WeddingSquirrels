@@ -196,7 +196,6 @@ export async function saveTaskWorkspace(
   revalidatePath("/home");
   revalidatePath(`/work/${id}`);
   revalidatePath("/money");
-  revalidatePath("/calendar");
   redirect("/today");
 }
 
@@ -265,7 +264,6 @@ export async function createTaskPackage(
   revalidatePath("/today");
   revalidatePath("/people");
   revalidatePath("/home");
-  revalidatePath("/calendar");
   redirect(`/work/${taskId}`);
 }
 
@@ -1653,7 +1651,6 @@ export async function createTaskFromInbox(
     revalidatePath("/today");
     revalidatePath("/people");
     revalidatePath("/home");
-    revalidatePath("/calendar");
     return { id: task.id };
   } catch (err) {
     console.error(err);

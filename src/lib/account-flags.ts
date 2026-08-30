@@ -82,7 +82,6 @@ export function accountSummaryLabel(
   const parts = [
     account.canSeeTasks && "Tasks",
     account.canSeePeople && "People",
-    account.canSeeCalendar && "Cal",
     account.canSeeShop && "Shop",
     account.canSeeBudget && (account.canEditBudget ? "Money (edit)" : "Money"),
     account.canSeeTimeline && (account.canEditTimeline ? "Day-of (edit)" : "Day-of"),
