@@ -1,417 +1,337 @@
-# Wedding coordination app — Day is the product
+# Next action + Day — a planning app that can also run Friday
 
 **For:** Composer implementation  
 **Wedding:** October 16, 2026  
-**Users:** Coordinator (Avalon) · Couple (David & Haley) · Planner/helpers · Wedding party · Vendors with a PIN  
-**Supersedes:** Home-inbox, “People / Vendors / Day-of as three tabs,” and “asks on Home.”  
-**Implement from this file.**
+**Users:** Couple (David & Haley) · Coordinator (Avalon) · party / vendor PINs  
+**This file is the spec.** It replaces Home-as-inbox, three-tab filing, and “Day is the only product.”
 
-**Non-negotiable:** Zero data loss. Additive schema. Existing ask threads become DMs. Faces + names + phones work **offline without tapping Download**. Precious Peony is **food / catering**, not florals.
-
----
-
-## Destination in one sentence
-
-A coordinator-grade run-of-show: every moment has **faces**, every face has a **call** and a **task list**, every “can you do this” is a **task**, and talking is a **DM** with a ping.
-
-```
-DAY (the app)                         PLAN (how you load the day)
-run-of-show with faces                same people, same vendors
-NOW / NEXT highlighted                vendor setup (pay, insurance, tips)
-call sheet = photo grid               guests · seating · thank-you
-tap a face → call · DM · their tasks  tasks assigned to faces
-```
-
-**Nav:** `Day` · `Plan` · envelope (DMs)  
-Two tabs. Not Home. Not Ask. Not People-versus-Vendors-versus-Day-of.
-
-Login: `Day` if the account can see the timeline; else first Plan surface they can see (Vendors/money, Guests, or Messages). Inside 7 days everyone with Day access lands on Day.
+**Non-negotiable:** Zero data loss. Additive schema. Asks become **tasks** (work) + **DMs** (talk). Precious Peony is **food**, not florals. Faces/phones cache offline automatically.
 
 ---
 
-## Why it still didn’t feel like a coordinator app
+## Challenge (read this first)
 
-The last draft improved *where money lives*. It did not change *how you run Friday*.
+Three drafts optimized the wrong job.
 
-Today’s Day-of is three disconnected tools:
+| Draft | What it got right | Why it still fails |
+|-------|-------------------|--------------------|
+| Home inbox | One place to look | Everything is equal. 54 packages is not “what do I do next.” |
+| People / Vendors / Day-of | Money has a home | Filing cabinets. You still hunt. |
+| Day-as-the-product | Friday needs faces on the clock | **It is September.** Landing on a 10:30 AM timeline does not make planning progress. Call sheet does not pay BSS. |
 
-| Tab | What you get | What’s missing |
-|-----|----------------|----------------|
-| Timeline | Time + a paragraph of notes | Katie, Belle, Barry are **words**, not faces you can tap |
-| Contacts | Name / phone cards | Not a photo call sheet; not on the moment |
-| Assignments | A second list of jobs | Not on the clock, not on the face |
+**The couple’s actual job until ~Oct 9:** *What is the next action I can take? If I can’t, what is blocking it, and how do I fix that? Then the next one.*
 
-A coordinator does not open Contacts, then Timeline, then Money. They look at **12:30 — photographer arrives**, see **Barry’s face**, tap Call, and know the shot-list task is still open.
+**Avalon’s job on Oct 16:** *What is happening now, who is that face, call them.*
 
-Aisle Planner / Planning Pod / a film call sheet all work this way: **the schedule is the directory**.
+Those are two **modes**, not two apps, and not “Day swallows planning.”
 
-Precious Peony correction: she is **catering / food**. Florals stay open until they name a florist — do not hang bouquet tasks on the caterer.
+**Focused work mode** is the right *intensity* for planning (one card, one action, hide the pile). It is the wrong *only* UI. Seating, the run-of-show, and “show me every vendor balance” are boards. You open a board when the next action *is* “place table 4” or “scan the timeline.” You do not live on boards.
+
+So: **Next** is the planning product. **Focus** is Next with the rest of the chrome gone. **Day** is the coordination product. Same people, same tasks, same vendors.
+
+Nav: `Next` · `Day` · More (Vendors, Guests, Roster, Shop, Stay).  
+Envelope on the header.  
+Login: Next, unless `daysUntil <= 7` and they can see the timeline → Day.
+
+---
+
+## Destination
+
+```
+NEXT (default now)                    DAY (default week-of)
+one ranked queue                      run-of-show + faces
+Ready  ·  Blocked                     Now / Next moment
+Focus = one card                      call sheet photo grid
+do the work on the card               tap face → call · DM · tasks
+```
+
+A Next card **is** the vendor, the task, the payment, or the DM — not a link that dumps you into another app and loses the queue. Save, then the following ready item.
 
 ---
 
 ## Hard rules
 
-1. **Day is the product.** Plan exists to load Day. Do not add a third primary tab for People or Vendors.
-2. **Faces on the moment.** A timeline block shows the people who belong there (photo + first name). Notes stay for “what happens,” not for “who.”
-3. **Call sheet is a photo grid.** Name under the face, role under the name. This is how the party learns who Skila is. List-of-cards is the fallback, not the default.
-4. **Ask is a task.** “Can you confirm the bartender?” → task titled that, assigned to Avalon (or whoever). Do not create a second ticket type.
-5. **DMs are talk.** Notifications on new messages. Optional link to a task or a timeline block. No Decline / Needs you / Waiting as product words.
-6. **Same objects, three jobs.** Couple pays and assigns. Coordinator runs the clock and the faces. Party sees the day + who they are standing next to. One database.
-7. **Offline face book is automatic.** IndexedDB upsert on login / Day open. Photos, names, phones, roles. Full offline pack stays for timeline + guests.
-8. **Additive schema.** Use `Task.timelineBlockId` (already on the model, unused in UI) and `Request.taskId` (already unused in spirit). Add people-on-blocks. Do not drop tables.
-9. **No Home dump.** `/home` redirects to Day (or Plan if no timeline).
-10. **Do not invent a florist.** Florals stay Loose ends / a “Florist — TBD” vendor until they add a name.
+1. **Next answers one question:** “What do I do now?” If the honest answer is “wait,” show **why** and the **unblock** action (Message Avalon, assign an owner, name the florist). Then still offer the next *ready* item so they are not stuck staring at a wall.
+2. **Blocked is first-class.** A pretty list that ignores waiting-on is Home again.
+3. **Do the work on the card.** Pay remaining, check insurance, mark purchased, assign, send a DM, add a missing photo. Opening Vendors/Guests/Day is allowed when the action *needs* a board (seating). After that, back to Next.
+4. **Ask is a task.** Work has an owner. Talk is a DM (notify, optional link to that task). Do not rebuild Needs-you tickets.
+5. **Day does not replace Next.** Faces-on-blocks and the call sheet stay. They are mode 2.
+6. **Rank, don’t dump.** Default Next shows ~1 focus card + a short “Up next” (3–5). The rest is “Later.” `?all=1` for the coward’s list.
+7. **Mine vs ours.** David’s Next prefers David-owned + unassigned couple work + DMs to David. Haley’s the same. Master can toggle Ours. Avalon sees tasks on her + Day. Party does not get Next; they get Day + call sheet.
+8. **Peony = caterer.** Floral tasks are blocked on “name a florist” until a Person exists — that *is* a Next action, not a silent mis-file.
+9. **Additive schema. No bulk deletes.** Merge scripts dry-run first.
+10. **Offline faces are automatic.** Still required. Not the planning loop.
 
 ---
 
-## What “together” means
+## What a Next card is
 
-One person record. That face appears in four places without copying:
+Derived. No `InboxItem` table.
 
+```ts
+type NextKind =
+  | "task"        // do, or assign
+  | "pay"         // budget remaining, due soon/overdue
+  | "vendor_gap"  // insurance / contract / tip / missing phone
+  | "buy"         // shop
+  | "dm"          // unread / needs reply
+  | "face_gap"    // day-critical person missing photo or phone
+  | "guest"       // RSVP / seating only when the date makes it urgent
+  | "unblock";    // the action is "fix the blocker" on another item
 ```
-Person (photo, name, role, phone)
-   ├─ on a timeline block     (“who is in this moment”)
-   ├─ on the call sheet        (yearbook)
-   ├─ as a vendor (if hat=vendor)  (owed, insurance, tip)
-   └─ as a task owner          (“this is on Barry”)
-```
 
-Tap the face from **any** of those → the same sheet: photo, role, Call, DM, open tasks, and Setup if they are a vendor.
+### Ready vs blocked
 
-Assignments tab goes away as a place. A day-of job is either:
+| State | Meaning | Card |
+|-------|---------|------|
+| **Ready** | You can finish this without someone else | Primary button: Pay / Done / Add photo / Reply |
+| **Blocked** | Waiting on a person, a date, or missing info | Why + Unblock (Message, assign, “Name florist”) |
+| **Later** | Real work, not due, not blocking Friday | Hidden unless Later / All |
 
-- people pinned on a block, or
-- a task with `timelineBlockId` set (the column already exists)
+**Derive blocked** (do not require a new field on day one):
+
+- Task assignees are *only* other people (Avalon, Shelly, Haley if you are David) → blocked, waiting on them
+- Task has no assignee → ready, but the action may be **Assign** (unassigned critical work is a smell)
+- `payByDate` more than 14 days out and not overdue → Later
+- Vendor insurance `unknown` on a named vendor → Ready (`vendor_gap`) for the couple
+- Floral package and no florist Person → Ready unblock: “Add florist”
+- DM to you, unread/open → Ready
+- DM you sent, no reply → Blocked (waiting). Unblock = nudge
+- Face gap: vendor or party with a PIN / a block pin, and no photo or no phone → Ready once we are inside 21 days (or immediately for Avalon/Barry/Peony/BSS)
+
+Optional additive later: `Task.waitingOnId` when derivation is wrong (“I’m waiting on the venue contract, but the task is still on me”). v1 lives on derivation + a “I’m blocked — who?” control on the card that *sets* `waitingOnId`.
+
+### Rank (couple, September)
+
+Score, then take the top:
+
+1. Overdue **pay**
+2. **DM** that needs you
+3. Blocked item on the **critical path** (venue, food, planner, photo, legal) → show as `unblock` if you can nudge
+4. Ready task due within 7 days, assigned to me / both / unassigned
+5. `vendor_gap` on those same vendors
+6. **buy**
+7. **face_gap** inside 21 days
+8. **guest** seating / final count inside 14 days
+9. Everything else → Later
+
+Critical-path vendors: Avalon, BSS, Precious Peony (food), Barry, Belle, bartender, florist-if-named. Not “guest book.”
+
+Org-card week/day-before steps: Later until we are inside their window; then they enter Ready.
+
+### Focus mode
+
+`/next?focus=1` or a Focus toggle.
+
+- One card, large
+- One primary action (44px+)
+- Blocked? Unblock is the primary
+- Skip → next ready (does not complete)
+- “I’m blocked” → pick a person, sets `waitingOnId`, card becomes unblock for the other partner / leaves your queue
+- No chip bar, no 15 who-filters, no package wall
+- Escape: Day, Guests, Vendors in the header overflow — not a second inbox
+
+Focus is **not** a third primary tab.
 
 ---
 
-## Day — Friday in the hand
+## Day (unchanged job, demoted to a mode)
 
-This is what Avalon, David, Haley, and the party open on October 16.
+Friday / rehearsal / Avalon’s console.
 
-```
-  NOW · 12:32                    [grid] call sheet
+- Now / Next **moment** (clock), faces on each block
+- Call sheet = photo grid (name + role)
+- Tap face → Call · DM · their tasks · vendor setup if vendor
+- Morning vendor strip (arrival, $ left, insurance dot)
+- Block tasks via `Task.timelineBlockId` (column already exists)
+- Contacts / Assignments tabs go away
+- Automatic offline face book
 
-  12:30 – 1:00
-  Photographer arrives
-  [Barry] [Avalon]
-  ☐ Detail shots — dress, rings      on Barry
-  Call · Message
-
-  1:00 – 2:15
-  Final getting ready
-  [Haley] [Katie] [Barry] [Harmony] [Melody] [Skila]
-```
-
-**Now / Next.** While the clock is inside a block, that block is pinned at the top with a live “NOW” mark. Next block is one tap below. You do not hunt through morning notes during portraits.
-
-**Faces on the row.** 40–48px circles, first name. Overflow `+2`. Tap a face → person sheet (Call, DM, tasks). Long-press / edit: add/remove who belongs on that moment.
-
-**Open tasks on the block.** Only tasks with `timelineBlockId === this block` (or vendor tasks that were pinned here). Checkbox. This is coordinator progress — not 54 Excel packages.
-
-**Call sheet button** (grid icon, always on Day). Full-screen photo roster:
-
-```
-[Avalon]     [Barry]      [Belle]      [Peony]
- Planner     Photo        Video        Food
-
-[Wendy]      [Kurt]       [Katie]      [Skila]
- MC          MC           Hair         Kids
-```
-
-Search. Filter: All · Vendors · Party · Family. Tap → same person sheet. This is the “images with names so we know who everyone is” feature. It is **the** organizing tool, not a settings page.
-
-**Vendor morning strip** (before noon, or a chip): each vendor who has an arrival block or a remaining balance. Photo · “arrives 12:30” · $ left · insurance dot. Tap → vendor setup. Coordinator sees “is the caterer here / paid / insured” without leaving Day.
-
-**Week before / day before** sit on Day as a collapsed checklist *above* the clock, only until those days pass. After Friday morning they hide.
-
-Review vs Edit stays: Review is the coordinator view (faces, now, call). Edit is times + notes + who-on-this-block.
+Party PINs land here. They do not need Next.
 
 ---
 
-## Plan — one place, four modes
+## Talk vs work
 
-Not four apps. Segmented control on `/plan` (or `/people` as the roster home with sibling modes):
+| | Work | Talk |
+|---|-|-|
+| Object | `Task` (owner, optional block, optional vendor) | `Request` thread |
+| How it starts | “Add task” / assign from a card | Envelope · person sheet · Unblock |
+| Done | checkbox | archive (`status: done`) |
+| Ping | no | **Web Push** on new DM |
+| Link | — | optional `taskId` / `timelineBlockId` chip |
 
-`Roster` · `Vendors` · `Guests` · `Tasks`
+“Ask Avalon for the bartender license” → **task** on Avalon. If you want to talk about it → DM with that task linked. Your Next: either the task (if it’s yours) or “Waiting on Avalon — Message” (if it’s theirs and critical).
 
-Same People records. Same bottom nav: you are still in **Plan**.
-
-### Roster (photo-first)
-
-Add/edit faces: photo, name, role (`Planner`, `Photographer`, `Caterer`, `MOH`, `Groom`…), hat, phone, email, PIN link (read-only; PIN creation stays on Accounts).
-
-This is also how the couple prepares the call sheet. If Barry has no photo on October 1, the coordinator knows to add one.
-
-### Vendors
-
-One card per vendor person. Precious Peony = **Food / Caterer**.
-
-| Field | |
-|-------|-|
-| Remaining $ · pay-by | from linked budget lines |
-| Pay method + details | Venmo / check / Zelle / cash / card / wire |
-| Insurance | yes / no / n/a / unknown |
-| Contract | yes / no + note or URL |
-| Tip | needed, amount, how (envelope / add to check / Venmo) |
-| Arrival | which timeline block they belong on (pins their face there) |
-| Their tasks | shot list, final headcount to caterer, etc. |
-
-**Other costs** (dress, Airbnb, cutlery, **florals until a florist exists**) at the bottom. `/money` redirects here. Print stays.
-
-### Guests
-
-Households. View · By table · Thank-you · Edit. Unchanged job, just no longer a primary tab. Seating and gifts are planner work, not Friday’s clock.
-
-### Tasks
-
-A real coordinator checklist — **assigned to a face**, optional **on a moment**, optional **on a vendor**.
-
-```
-☐ Shot list — detail photos     Barry     12:30 Photographer arrives
-☐ Final headcount to Peony      Avalon    5:00 Dinner
-☐ Tip envelope — Barry          David     (vendor)
-```
-
-Filters: Mine · Open · By person · By moment.  
-Create: title, who (person), optional moment, optional vendor.  
-**This replaces Ask.** “Ask Avalon to lock rehearsal time” is a task on Avalon, on the rehearsal block if you want.
-
-Mother-in-law / `assigneeFilter` still only sees her tasks.
+Existing 17 threads: DMs. If a title is clearly a job, also ensure a task and link the thread. Do not delete.
 
 ---
 
-## DMs (Ask the product word dies)
+## Boards (More, opened from a card when needed)
 
-Keep `Request` + `RequestMessage`. 17 existing threads stay.
+Not primaries. Same records.
 
-**UI:** envelope in the header. Thread list. Composer is a person with a PIN.
+| Board | When Next sends you there |
+|-------|---------------------------|
+| **Vendors** | Pay, insurance, contract, tip, Peony=food, Other costs, florals TBD |
+| **Roster** | Add photo / phone / role (feeds call sheet + face_gap cards) |
+| **Guests** | Seating, RSVP, thank-you |
+| **Shop** | The three buy lines, also completable on the card |
+| **Stay / Rehearsal / Accounts** | Rare; stay in More |
 
-**Notifications:** Web Push on `public/sw.js` (`push` + `notificationclick`). `PushSubscription` table. VAPID env keys. Soft-fail.
-
-**Link (optional, collapsed):** “About a task…” or “About a moment…” — writes `Request.taskId` (exists today) or a new nullable `Request.timelineBlockId`. The thread shows a chip; tap opens that task/block. Do not require a link to send.
-
-**Do not** show Decline, Needs you, Waiting, related-decision as the default path. Archive = `status: done`.
-
-If someone without a PIN must be reached: Call from the face sheet. Tasks can still be assigned to them; DMs cannot.
-
----
-
-## Roles (same Day, different chrome)
-
-| Who | Day | Plan | DMs |
-|-----|-----|------|-----|
-| **Couple** (master/partner) | Full run-of-show, call sheet, vendor strip | Roster, vendors/money, guests, all tasks | Everyone with a PIN |
-| **Coordinator** (Avalon) | Full run-of-show — this is her console | Roster + tasks she can see; money only if you grant it | Couple + party as you allow |
-| **Planner/helper** | Day + faces | Tasks / roster per flags | Per flags |
-| **Wedding party** | Day + call sheet (learn faces) | None, or stay | Couple / coordinator |
-| **Vendor PIN** | Their arrival block + call sheet | No money | Couple / coordinator |
-| **Shared-money** | No Day | Vendors read-only | No |
-| **Guests-only** | No | Guests only | No |
-
-Do not add `canSeeHome`. `canSeeRequests` = DMs. `canSeePeople` = roster edit. `canSeeTimeline` = Day. Vendor preset stays timeline + requests.
+`/home` → `/next`. `/money` → Vendors board. `/requests` → DMs. `/people` → Roster. `/day/contacts` → Day call sheet.
 
 ---
 
-## Data (mostly relationships you already have)
+## Roles
+
+| Account | Default | Next | Day |
+|---------|---------|------|-----|
+| Couple | Next | Full rank | Full |
+| Avalon | Day (or Next if she has tasks) | Tasks on her + DMs | Console |
+| Party | Day | Hidden | Call sheet + run-of-show |
+| Shared-money | Vendors board | Pay cards only if we ever allow a thin Next | No |
+| Guests-only | Guests | No | No |
+
+`firstAllowedRoute`: Next if `canSeeTasks || canSeeBudget || canSeeRequests || canSeeShop`; Day if only timeline; else existing scan. Week-of override: Day if they can see it.
+
+---
+
+## Data (still one person)
 
 ```
 Person     + hat, role, phone, email, photoData, aliases
-Vendor     1:1 Person     pay method, insurance, contract, tip, notes
+Vendor     1:1 Person     pay method, insurance, contract, tip
 BudgetItem + vendorId
-Contact    + personId     (kept; UI prefers Person)
-TimelineBlockPerson       NEW  blockId + personId   (faces on the moment)
-Task.timelineBlockId      EXISTS — start writing it
-Task.vendorId             NEW nullable (or infer via budgetItem)
-Request.taskId            EXISTS — DM “about this task”
-Request.timelineBlockId   NEW nullable
-PushSubscription          NEW
-PersonMergeLog            NEW
+Contact    + personId
+Task       + vendorId, waitingOnId (nullable)
+Task.timelineBlockId     EXISTS — use it
+Request.taskId           EXISTS — DM about work
+Request.timelineBlockId  nullable
+TimelineBlockPerson      faces on a moment
+PushSubscription
+PersonMergeLog
 ```
 
-`DayAssignment` stays in the database for now. New work uses people-on-blocks + tasks-on-blocks. Do not migrate assignments in v1 unless a dry-run shows they are unused.
+### Vendor names (corrected)
 
-### Vendor roster (corrected)
+Avalon (planner), BSS (venue), Barry (photo), Belle (video), **Precious Peony (food)**, Wendy / Kurt (MC), bartender TBD, **florist TBD — not Peony**.
 
-| Person | Role | Phone / email | Money match |
-|--------|------|---------------|-------------|
-| Avalon Green | Planner / coordinator | (386) 589-7215 | coordinator, Avalon |
-| Black Sheep Shelter | Venue | (616) 335-0797 | BSS, venue, black sheep |
-| Barry Tilson | Photographer | (248) 704-3731 | photog |
-| Belle Genton | Videographer | (513) 833-0929 | video |
-| Precious Peony | **Caterer / food** | preciouspeonyllc@gmail.com | cater, dinner, food — **not** flower/peony-as-floral |
-| Wendy Rush | Mistress of ceremonies | (616) 318-9393 | tip if needed |
-| Kurt | Master of ceremonies | *(add)* | — |
-| Bartender | Bartender | TBD | bartender |
-| **Florist** | Florist | **TBD — do not use Peony** | flower, bouquet, centerpiece, peon-as-floral |
+### Sort the pile onto objects (so Next can rank them)
 
-Merge `avalon_planner` → `avalon_green`, `barry` → `barry_tilson`. Copy Contact phones onto Person.
+Same as before, Peony ≠ florals. Payments → vendor pay fields. Paperwork → insurance/contract. Photos → Barry/Belle + 12:30 block. Food/dinner headcount → Peony. Guests/thank-you → Guests board. Ceremony/reception → Day blocks. Week/day before → enter Next when the window opens. Communication package → kill. Duplicate rehearsal-time children → merge.
 
-### Pin people onto blocks (seed from notes you already wrote)
-
-The notes already name who is where. v1 can **suggest** pins; do not auto-write without a dry-run review.
-
-| Block | Faces to pin |
-|-------|----------------|
-| 9:00 Settle in Airbnb | Wedding party, Haley, David; Katie + Belle (arrive 11:00) |
-| 10:30 Venue opens | Avalon, Wendy, Kurt, vendors |
-| 10:30–12:30 Vendor + party arrival | Avalon, BSS, florist TBD, Peony if food setup, party |
-| 11:00 DIY hair | Party, Haley, Katie |
-| 12:00 Party leaves Airbnb | Party (not David, Haley, Belle) |
-| 12:00 Quiet time | David, Haley, Belle |
-| 12:30 Photographer arrives | Barry, Avalon, David, Haley |
-| 1:00 Final getting ready | Haley, Katie, Barry, Harmony, Melody, Skila, groomsmen |
-| 2:15 Getting dressed | Haley, parents, Barry |
-| 2:45 First look + portraits | David, Haley, party, family, Barry, Belle |
-| 3:15 Pre-ceremony | Party, Barry, Wendy, Kurt |
-| 3:30 Ceremony | Full party, officiant, Wendy, Kurt, Barry, Belle |
-| 4:00 Cocktail | Peony (food), bartender, Barry |
-| 5:00 Dinner | Peony, Wendy, Kurt |
-| 6:00 Toasts + cake | Best man, MOH, FOB, Barry |
-| 6:30 First dances | David, Haley, FOB, music |
-| 7:00 Open dancing | Barry until 9:00 |
-| 10:00 Tear down | Everyone |
+Unassigned critical tasks become Next **Assign** cards, not a hidden Excel graveyard.
 
 ---
 
-## Where the Excel pile goes (sort, corrected)
+## Next engine (`src/lib/next-actions.ts`)
 
-| Package | Home | Notes |
-|---------|------|--------|
-| Vendor payments / tip envelopes | **Vendor fields** | Split; kill package header |
-| Vendor & BSS paperwork | **Vendor checkboxes** | Insurance/licenses on BSS, Avalon, bartender |
-| Florals & centerpieces | **Florist — TBD** or Loose ends | **Not** Precious Peony |
-| Photos & video | **Barry / Belle** + pin on 12:30 / portraits | Split stills vs video |
-| Decor & venue | **Avalon + BSS** + arrival block | |
-| Cake & dessert | Other costs or baker if named | Peony only if she is actually serving it |
-| Music & sound | Music vendor or Day notes | Playlists also sit on Day-before |
-| Makeup / hair | **Katie / Belle** faces + getting-ready blocks | |
-| Invites / RSVP / guest logistics | **Plan → Guests** | |
-| Thank-you cards | **Plan → Guests → Thank-you** | |
-| Rehearsal dinner | **Rehearsal** | Merge the two “confirm rehearsal time” children |
-| Ceremony / reception moments | **Day blocks** (ceremony, toasts, dances, exit) | Tasks on those moments |
-| Attire & rings | **Roster → David & Haley** | |
-| Guest book | **Shop** | |
-| Registry | Loose ends / out of app | |
-| Communication game plan | **Kill** | DMs + tasks |
-| Week / day before | **Day**, collapsed until done | |
+Pure functions, heavy tests. This is the product.
 
-Existing open asks: become DM threads. If the title is really a job (“Provide Reception Dinner Options”), also make (or keep) a **task** on Avalon / Peony and link the DM. Do not delete the thread.
+```ts
+listNextActions(session, now) → { focus: NextCard | null, ready: NextCard[], blocked: NextCard[], later: NextCard[] }
+```
 
----
+Unit tests (must exist before UI):
 
-## Schema / files (delta)
-
-New: `TimelineBlockPerson`, `Vendor`, Person profile columns, `BudgetItem.vendorId`, `Task.vendorId`, `Request.timelineBlockId`, `PushSubscription`, `PersonMergeLog`, `Contact.personId`.
-
-New UI: `CallSheet` (photo grid), `PersonSheet`, `DayBlock` (faces + now + tasks), `PlanSwitcher`, `VendorCard`, `TaskBoard` (replaces inbox as the checklist), `MessagesBoard`, `contacts-cache` IndexedDB, push helper.
-
-`/day` is primary **Day**. `/plan` (or roster URL) is primary **Plan**.  
-`/home` → `/day`. `/requests` → messages overlay or `/messages`. `/people` and `/day/contacts` → call sheet / roster. `/money` → Plan · Vendors. `/shop` restored under Plan or More.
-
-`DayTabs` (Timeline / Contacts / Assignments) **go away**. Day is one scroll + call sheet.
+- Overdue BSS pay beats “buy guest book”
+- David does not get Avalon-owned shot list as Ready; he gets Unblock if it is critical
+- Haley DM unread beats a task due in three weeks
+- No florist + open floral children → Ready “Add florist”
+- Peony remaining $ is `pay`, not floral
+- Week-before steps stay Later on Aug 30; they are Ready on Oct 9
+- Shared-money session: no task cards
+- Vendor-only session: no Next (Day)
 
 ---
 
 ## Phases
 
-### P0 — Dry-runs (no UI)
+### P0 — Rank the real queue (no UI)
 
-- `db:audit` (dups, unlinked PINs, Peony-vs-floral mis-tags)
-- `attach-tasks-to-homes` dry-run (corrected: florals ≠ Peony)
-- `suggest-block-faces` dry-run from the table above
-- Couple + Avalon review before `--apply`
+- `db:audit`
+- Script: print **today’s** Next for David / Haley / Avalon against production (or a copy): focus, ready[5], blocked[5]
+- Couple looks at that list and says “wrong” — **fix the ranker before building chrome**
 
-### P1 — Faces exist
+If the printed Next is dumb, Focus mode will be a prettier dump.
 
-- Person photo/phone/role; merge dups; link Contacts
-- Roster in Plan; **call sheet photo grid**
-- Automatic IndexedDB face book
-- Person sheet: Call · DM (if PIN)
+### P1 — `/next` + Focus (planning product)
 
-**Done when:** Airplane mode still shows Barry’s photo and `tel:`. A guest-of-the-party PIN can open the grid and identify Wendy.
+- `next-actions.ts` + tests
+- `/next` page: focus card + Up next + Blocked (short) + Later collapse
+- Card actions: `toggleTaskDone`, `logBudgetPayment`, `setVendorGap`, `toggleShoppingPurchased`, reply DM, `setTaskWaitingOn`, assign
+- Focus toggle
+- `/home` redirects here
 
-### P2 — Faces on the clock (this is the coordinator jump)
+**Done when:** Master PIN opens the app and the first button is a real action (pay / reply / assign / add florist), not Makeup plan.
 
-- `TimelineBlockPerson`
-- Day review: Now/Next, faces on each block, tap → sheet
-- Edit: add/remove who on a block
-- Apply reviewed pin suggestions
-- Kill Day Contacts / Assignments tabs (routes redirect to Day / the block)
+### P2 — Unblock is a first-class action
 
-**Done when:** “Photographer arrives” shows Barry’s face. Avalon can call him from that row.
+- Blocked cards: waiting-on face + Message (creates/opens DM, optional task link)
+- “I’m blocked” on a ready card
+- Push on DM (can slip to P4 if needed, badge is enough for P2)
 
-### P3 — Tasks are asks
+**Done when:** A task on Avalon disappears from David’s Ready and shows “Waiting on Avalon — Message.” After she completes it, it leaves Blocked.
 
-- Task board in Plan (who + optional moment + optional vendor)
-- Block shows that moment’s open tasks
-- Creating “need X from Avalon” does **not** create a Request
-- Mother-in-law filter still works
+### P3 — Faces + Day mode (coordination product)
 
-**Done when:** Shot list is on Barry and on the 12:30 block — not on Home.
+- Person photo/phone/role, merge dups, contact link, offline cache
+- Call sheet grid
+- Faces on blocks, Now/Next moment
+- Face-gap cards appear on Next inside 21 days
 
-### P4 — Vendor setup on the same face
+**Done when:** Airplane mode call sheet works. 12:30 shows Barry. Next can say “Add Barry’s photo.”
 
-- Vendor record + money/insurance/tip
-- Plan · Vendors; Other costs; `/money` redirect
-- Day morning vendor strip
-- Peony = food; florist TBD
+### P4 — Vendor setup on the same face + DMs named Messages
 
-**Done when:** Peony’s card says Caterer and remaining food balance. Bouquet tasks are not on her.
+- Vendor fields, Peony=food, `/money` redirect
+- Envelope + web push
+- Ask copy gone
 
-### P5 — DMs + push
+### P5 — Nav + boards
 
-- Envelope, threads, optional task/moment chip
-- Web Push
-- `/requests` redirect; copy says Message
-
-**Done when:** Haley DMs Avalon about the headcount task; Avalon’s phone notifies; chip opens the task.
-
-### P6 — Nav is Day · Plan
-
-- Home gone. Two primaries + envelope
-- `firstAllowedRoute` tests
-- Week/day-before on Day
-- Shop / Stay / Rehearsal / Accounts in More
+- Next · Day · More
+- Party → Day only
+- Week-of login → Day
+- Shop / Guests restored as boards
 
 ---
 
-## Testing (coordinator-shaped)
+## Testing
 
-1. Add photos for Avalon, Barry, Belle, Peony, Wendy, Katie. Open call sheet offline. Every face labeled.
-2. As Avalon PIN: Day shows Now/Next; 12:30 has Barry; Call works.
-3. As David: Plan · Vendors, pay BSS, insurance still unknown (dot on Day strip).
-4. Create task “Final headcount” on Avalon + Dinner block. It appears on Day at 5:00 and on Avalon’s sheet. No Ask ticket created.
-5. DM that task; recipient gets a notification; chip deep-links.
-6. Wedding-party PIN: call sheet + Day, no dollar amounts.
-7. Shared-money: vendors only.
-8. Florals task is not on Precious Peony.
+1. Aug 30 master: first card is a payment, a DM, or a critical confirm — not a decision package
+2. Mark it done → the next card is the new focus
+3. Mark “I’m blocked” on Haley → David’s Next shows unblock, Haley’s shows the task
+4. Avalon PIN: Day usable; Next only her work
+5. Party PIN: no Next, call sheet works offline
+6. Peony pay card labeled food; floral unblock is “Add florist”
+7. Oct 9: week-before steps enter Ready
+8. Oct 16: login → Day, Now is the current block
 
 ---
 
 ## Out of scope
 
 - SMS
-- Public RSVP site
+- Public RSVP
 - Seating canvas
-- Blob contract uploads (v1 = checkbox + URL)
-- Auto-creating PINs from the roster
-- Dropping `Contact`, `Request`, or `DayAssignment` tables
-- Re-seeding Excel onto production
-- Inventing a florist name
+- Blob uploads
+- Dropping Contact / Request / DayAssignment
+- A fourth primary tab
+- Re-seeding Excel on production
 
 ---
 
 ## Order
 
 ```
-P0  dry-run sort + face-on-block suggestions
-P1  photo roster + offline call sheet          ← “who is this”
-P2  faces on the run-of-show + Now/Next        ← coordinator app
-P3  tasks replace ask
-P4  vendor setup on the same faces (Peony=food)
-P5  DMs + notifications + optional task link
-P6  Day · Plan nav; Home retired
+P0  print Next for David/Haley/Avalon — argue with the rank
+P1  /next + Focus cards (do work here)
+P2  blocked + unblock (Message / assign / name florist)
+P3  Day faces + call sheet + offline
+P4  vendor setup + DM push
+P5  Next · Day nav
 ```
 
-P1+P2 are what make Friday feel like a real coordination tool. Everything else is how the couple and Avalon load that day so the work is already sitting on the moment and the face.
+P0 is the challenge made concrete. If we cannot print a Next list you believe, we do not get to build Focus chrome.
