@@ -2,5 +2,5 @@ import { redirect } from "next/navigation";
 
 /** @deprecated Stage B — Ask lives on Home. */
 export default function RequestsPage() {
-  redirect("/home?filter=asks");
+  redirect("/today?filter=asks");
 }

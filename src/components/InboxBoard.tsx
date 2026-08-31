@@ -93,7 +93,7 @@ export function InboxBoard({
         else next.set(key, value);
       }
       const q = next.toString();
-      router.push(q ? `/home?${q}` : "/home");
+      router.push(q ? `/today?${q}` : "/today");
     },
     [params, router],
   );

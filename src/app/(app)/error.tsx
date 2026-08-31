@@ -19,7 +19,7 @@ export default function AppError({
         <button type="button" className="btn-primary" onClick={() => retry()}>
           Try again
         </button>
-        <a href="/home" className="btn-secondary">
+        <a href="/today" className="btn-secondary">
           Back to Home
         </a>
       </div>

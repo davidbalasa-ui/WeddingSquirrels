@@ -8,6 +8,7 @@
   --line: #d9d2c4;
   --accent: #2f5d50;
   --accent-soft: #dce8e2;
+  --gold: #b8956b;
   --warn: #8a4b2a;
   --warn-soft: #f3e2d6;
   --danger: #8f2f2f;
@@ -23,6 +24,7 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-gold: var(--gold);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
   --font-sans: var(--font-body);

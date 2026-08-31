@@ -2,6 +2,9 @@ import { canManageAccounts, canSeeDinnerTab } from "@/lib/access";
 import { canSeeHome } from "@/lib/inbox";
 import type { AccountModuleFlags, SessionAccount } from "@/lib/types";
 
+/** V2 primary navigation tab. */
+export type NavTab = "today" | "plan" | "people" | "money" | "more";
+
 /** Icon name for a module — keep in sync with ModuleIcon.tsx. */
 export type ModuleIconName =
   | "tasks"
@@ -24,6 +27,8 @@ export type ModuleDef = {
   label: string;
   href?: string;
   group: ModuleGroup;
+  /** V2 bottom-nav tab this module belongs to. */
+  navTab: NavTab;
   see?: keyof AccountModuleFlags;
   edit?: keyof AccountModuleFlags;
   /** Pinned to the bottom bar instead of the More sheet. */
@@ -36,19 +41,140 @@ export type ModuleDef = {
 
 /** Every app module — single source of truth for nav, routes, and permissions. */
 export const MODULES: ModuleDef[] = [
-  { key: "home", label: "Home", href: "/home", group: "plan", primary: true, badge: "unread", icon: "tasks" },
-  { key: "dayof", label: "Day-of", href: "/day", group: "wedding", see: "canSeeTimeline", primary: true, icon: "day" },
-  { key: "guests", label: "Guests", href: "/guests", group: "wedding", see: "canSeeGuests", primary: true, icon: "guests" },
-  { key: "tasks", label: "Today", href: "/today", group: "plan", see: "canSeeTasks", hideFromMore: true, icon: "tasks" },
-  { key: "requests", label: "Ask", href: "/requests", group: "comm", see: "canSeeRequests", hideFromMore: true, icon: "ask" },
-  { key: "people", label: "People", href: "/people", group: "plan", see: "canSeePeople", hideFromMore: true, icon: "people" },
-  { key: "shop", label: "Shop", href: "/shop", group: "plan", see: "canSeeShop", hideFromMore: true, icon: "shop" },
-  { key: "money", label: "Money", href: "/money", group: "money", see: "canSeeBudget", edit: "canEditBudget", icon: "money" },
-  { key: "stay", label: "Stay", href: "/stay", group: "wedding", see: "canSeeStay", icon: "stay" },
-  { key: "rehearsal", label: "Rehearsal", href: "/rehearsal", group: "wedding", see: "canSeeDinner", icon: "rehearsal" },
-  { key: "dinner", label: "Dinner", group: "wedding", edit: "canEditDinner", icon: "dinner" },
-  { key: "accounts", label: "Accounts", href: "/accounts", group: "admin", see: "canManageAccounts", icon: "accounts" },
+  {
+    key: "home",
+    label: "Today",
+    href: "/today",
+    group: "plan",
+    navTab: "today",
+    primary: true,
+    badge: "unread",
+    icon: "tasks",
+  },
+  {
+    key: "dayof",
+    label: "Day-of",
+    href: "/day",
+    group: "wedding",
+    navTab: "plan",
+    see: "canSeeTimeline",
+    primary: true,
+    icon: "day",
+  },
+  {
+    key: "guests",
+    label: "Guests",
+    href: "/guests",
+    group: "wedding",
+    navTab: "people",
+    see: "canSeeGuests",
+    primary: true,
+    icon: "guests",
+  },
+  {
+    key: "tasks",
+    label: "Today",
+    href: "/today",
+    group: "plan",
+    navTab: "today",
+    see: "canSeeTasks",
+    hideFromMore: true,
+    icon: "tasks",
+  },
+  {
+    key: "requests",
+    label: "Ask",
+    href: "/requests",
+    group: "comm",
+    navTab: "today",
+    see: "canSeeRequests",
+    hideFromMore: true,
+    icon: "ask",
+  },
+  {
+    key: "people",
+    label: "People",
+    href: "/people",
+    group: "plan",
+    navTab: "people",
+    see: "canSeePeople",
+    hideFromMore: true,
+    icon: "people",
+  },
+  {
+    key: "shop",
+    label: "Shop",
+    href: "/shop",
+    group: "plan",
+    navTab: "plan",
+    see: "canSeeShop",
+    hideFromMore: true,
+    icon: "shop",
+  },
+  {
+    key: "money",
+    label: "Money",
+    href: "/money",
+    group: "money",
+    navTab: "money",
+    see: "canSeeBudget",
+    edit: "canEditBudget",
+    icon: "money",
+  },
+  {
+    key: "stay",
+    label: "Stay",
+    href: "/stay",
+    group: "wedding",
+    navTab: "plan",
+    see: "canSeeStay",
+    icon: "stay",
+  },
+  {
+    key: "rehearsal",
+    label: "Rehearsal",
+    href: "/rehearsal",
+    group: "wedding",
+    navTab: "plan",
+    see: "canSeeDinner",
+    icon: "rehearsal",
+  },
+  {
+    key: "dinner",
+    label: "Dinner",
+    group: "wedding",
+    navTab: "plan",
+    edit: "canEditDinner",
+    icon: "dinner",
+  },
+  {
+    key: "accounts",
+    label: "Accounts",
+    href: "/accounts",
+    group: "admin",
+    navTab: "more",
+    see: "canManageAccounts",
+    icon: "accounts",
+  },
 ];
+
+/** V2 bottom navigation tabs in display order. */
+export const NAV_TABS: { tab: NavTab; label: string; href: string; icon: ModuleIconName }[] = [
+  { tab: "today", label: "Today", href: "/today", icon: "tasks" },
+  { tab: "plan", label: "Plan", href: "/plan", icon: "day" },
+  { tab: "people", label: "People", href: "/people", icon: "people" },
+  { tab: "money", label: "Money", href: "/money", icon: "money" },
+  { tab: "more", label: "More", href: "/more", icon: "more" },
+];
+
+/** Path prefixes that belong to each V2 nav tab (for active-state detection). */
+export const NAV_TAB_PREFIXES: Record<NavTab, string[]> = {
+  today: ["/today", "/home", "/work"],
+  plan: ["/plan", "/day", "/rehearsal", "/stay", "/shop", "/calendar"],
+  people: ["/people", "/guests"],
+  money: ["/money"],
+  more: ["/more", "/accounts", "/offline"],
+};
 
 /** Order groups render in, in both the permission grid and the More sheet. */
 export const GROUP_ORDER: ModuleGroup[] = ["plan", "money", "wedding", "comm", "admin"];
@@ -80,6 +206,21 @@ export function canSeeModule(session: SessionAccount, module: ModuleDef): boolea
   return module.see ? Boolean(session[module.see]) : false;
 }
 
+/** Whether a V2 bottom-nav tab is visible for this session. */
+export function canSeeNavTab(session: SessionAccount, tab: NavTab): boolean {
+  if (session.isMaster) return true;
+  if (tab === "more") return true;
+  if (tab === "today") return canSeeHome(session);
+  if (tab === "money") return Boolean(session.canSeeBudget);
+  return MODULES.some((m) => m.navTab === tab && canSeeModule(session, m));
+}
+
+export function isNavTabActive(pathname: string, tab: NavTab): boolean {
+  return NAV_TAB_PREFIXES[tab].some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 /** Modules pinned to the bottom bar. */
 export function primaryModules(session: SessionAccount): ModuleDef[] {
   return MODULES.filter((m) => m.primary && canSeeModule(session, m));
@@ -102,4 +243,9 @@ export function moreGroups(session: SessionAccount): MoreGroup[] {
 /** Permission-grid rows (includes permission-only modules like Dinner). */
 export function permissionModules(group: ModuleGroup): ModuleDef[] {
   return MODULES.filter((m) => m.group === group && (m.see || m.edit));
+}
+
+/** Modules visible under a V2 hub tab (for placeholder hub link lists). */
+export function modulesForNavTab(session: SessionAccount, tab: NavTab): ModuleDef[] {
+  return MODULES.filter((m) => m.navTab === tab && m.href && canSeeModule(session, m));
 }
