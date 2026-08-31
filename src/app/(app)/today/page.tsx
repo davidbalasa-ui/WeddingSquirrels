@@ -1,45 +1,46 @@
 import { Suspense } from "react";
-import { AppHeader } from "@/components/AppHeader";
 import { DownloadOfflineButton } from "@/components/DownloadOfflineButton";
 import { InboxBoard } from "@/components/InboxBoard";
-import { loadInboxPageData } from "@/lib/inbox";
+import { TodayComingUpList } from "@/components/TodayComingUpList";
+import { TodayHero } from "@/components/TodayHero";
+import { TodayPrioritySections } from "@/components/TodayPrioritySections";
+import { TodayPulseStrip } from "@/components/TodayPulseStrip";
+import { TodayWeddingWeek } from "@/components/TodayWeddingWeek";
+import { loadTodayPageData } from "@/lib/today";
 import { requireHomeSession } from "@/lib/session";
-
-function milestoneSubtitle(milestone: { title: string; startDate: Date } | null) {
-  if (!milestone) return "Tasks, asks, and shopping in one list";
-  return `Next: ${milestone.title} · ${milestone.startDate.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  })}`;
-}
 
 export default async function TodayPage() {
   const session = await requireHomeSession();
-  const data = await loadInboxPageData(session);
+  const data = await loadTodayPageData(session);
 
   return (
     <>
-      <AppHeader
-        session={session}
-        title="Today"
-        subtitle={
-          data.milestone
-            ? milestoneSubtitle(data.milestone)
-            : session.assigneeFilter?.length
-              ? "Your assigned items"
-              : "Tasks, asks, and shopping in one list"
-        }
-      />
+      <TodayHero session={session} hero={data.hero} />
       <Suspense>
-        <InboxBoard
+        <TodayPrioritySections
           session={session}
-          sections={data.sections}
-          accounts={data.accounts}
-          people={data.people}
-          tasks={data.tasks}
-          whoChips={data.whoChips}
+          attention={data.attention}
+          waiting={data.waiting}
+          tasks={data.inbox.tasks}
         />
       </Suspense>
+      <TodayWeddingWeek items={data.weddingWeek} />
+      <TodayPulseStrip stats={data.pulse} />
+      <TodayComingUpList items={data.comingUp} />
+      <section>
+        <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">All items</p>
+        <Suspense>
+          <InboxBoard
+            session={session}
+            sections={data.inbox.sections}
+            accounts={data.inbox.accounts}
+            people={data.inbox.people}
+            tasks={data.inbox.tasks}
+            whoChips={data.inbox.whoChips}
+            hidePrioritySections
+          />
+        </Suspense>
+      </section>
       <div className="pt-2">
         <DownloadOfflineButton />
       </div>
