@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const hasUrl = Boolean(process.env.DATABASE_URL);
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await prisma.pinAccount.count();
     return Response.json({
       ok: true,
       db: "up",

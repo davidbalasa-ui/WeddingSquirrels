@@ -25,7 +25,7 @@ test("createPrismaClient preserves the Prisma Client API with the Neon adapter",
     "postgresql://example:secret@ep-example-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require",
   );
 
-  assert.equal(typeof client.$queryRaw, "function");
+  assert.equal(typeof client.pinAccount.count, "function");
   assert.equal(typeof client.$transaction, "function");
   await client.$disconnect();
 });
