@@ -20,7 +20,7 @@ import {
   requireSession,
   unlockWithPin,
 } from "@/lib/auth";
-import { isDatabaseUnreachable, prisma, withDatabaseRetry } from "@/lib/db";
+import { isDatabaseUnreachable, prisma, prismaErrorCode } from "@/lib/db";
 import {
   applyPeerOrder,
   parseTimelineSchedule,
@@ -62,12 +62,15 @@ export async function unlockAction(
   }
   let account;
   try {
-    account = await withDatabaseRetry(() => unlockWithPin(pin));
+    account = await unlockWithPin(pin);
   } catch (error) {
+    const code = prismaErrorCode(error);
     if (isDatabaseUnreachable(error)) {
-      return { error: "Database is waking up. Wait 20 seconds, then try again." };
+      return {
+        error: `Can't reach the wedding database${code ? ` (${code})` : ""}. Check DATABASE_URL on Vercel and redeploy.`,
+      };
     }
-    throw error;
+    return { error: `Login failed${code ? ` (${code})` : ""}. Try again.` };
   }
   if (!account) {
     return { error: "Incorrect PIN" };

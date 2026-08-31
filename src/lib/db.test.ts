@@ -1,16 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isDatabaseUnreachable, withConnectionTimeouts } from "./db";
-
-test("withConnectionTimeouts adds Neon-friendly timeouts", () => {
-  const next = withConnectionTimeouts(
-    "postgresql://user:pass@ep-example-pooler.c-11.us-east-1.aws.neon.tech/neondb?sslmode=require",
-  );
-  const url = new URL(next);
-  assert.equal(url.searchParams.get("connect_timeout"), "10");
-  assert.equal(url.searchParams.get("pool_timeout"), "10");
-  assert.equal(url.searchParams.get("sslmode"), "require");
-});
+import { isDatabaseUnreachable, prismaErrorCode } from "./db";
 
 test("isDatabaseUnreachable detects Prisma P1001", () => {
   assert.equal(
@@ -18,4 +8,9 @@ test("isDatabaseUnreachable detects Prisma P1001", () => {
     true,
   );
   assert.equal(isDatabaseUnreachable(new Error("Incorrect PIN")), false);
+});
+
+test("prismaErrorCode reads Prisma error codes", () => {
+  assert.equal(prismaErrorCode({ code: "P1001" }), "P1001");
+  assert.equal(prismaErrorCode(new Error("nope")), "");
 });
