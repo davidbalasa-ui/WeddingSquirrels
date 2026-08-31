@@ -1,4 +1,4 @@
 {
   "framework": "nextjs",
-  "buildCommand": "prisma generate && prisma db push && next build"
+  "buildCommand": "bash scripts/vercel-build.sh"
 }
