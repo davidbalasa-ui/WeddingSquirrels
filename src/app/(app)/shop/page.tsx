@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
 
-/** @deprecated Stage B — Shop lives on Home. */
+/** @deprecated V2 shopping lives under Plan. */
 export default async function ShopPage({
   searchParams,
 }: {
   searchParams: Promise<{ who?: string }>;
 }) {
   const sp = await searchParams;
-  const next = new URLSearchParams({ filter: "buy" });
+  const next = new URLSearchParams();
   if (sp.who) next.set("who", sp.who);
-  redirect(`/today?${next.toString()}`);
+  const query = next.toString();
+  redirect(query ? `/plan/shopping?${query}` : "/plan/shopping");
 }

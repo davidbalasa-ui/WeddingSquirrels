@@ -17,6 +17,7 @@ export type ModuleIconName =
   | "stay"
   | "rehearsal"
   | "dinner"
+  | "calendar"
   | "accounts"
   | "more";
 
@@ -73,10 +74,10 @@ export const MODULES: ModuleDef[] = [
   },
   {
     key: "tasks",
-    label: "Today",
-    href: "/today",
+    label: "Tasks",
+    href: "/plan/tasks",
     group: "plan",
-    navTab: "today",
+    navTab: "plan",
     see: "canSeeTasks",
     hideFromMore: true,
     icon: "tasks",
@@ -103,13 +104,23 @@ export const MODULES: ModuleDef[] = [
   },
   {
     key: "shop",
-    label: "Shop",
-    href: "/shop",
+    label: "Shopping",
+    href: "/plan/shopping",
     group: "plan",
     navTab: "plan",
     see: "canSeeShop",
     hideFromMore: true,
     icon: "shop",
+  },
+  {
+    key: "calendar",
+    label: "Calendar",
+    href: "/plan/calendar",
+    group: "plan",
+    navTab: "plan",
+    see: "canSeeCalendar",
+    hideFromMore: true,
+    icon: "calendar",
   },
   {
     key: "money",
