@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { useCallback, useMemo, useState, useTransition, type ReactNode } from "react";
 import { markRequestRead } from "@/app/actions";
 import { InboxAddBar } from "@/components/InboxAddBar";
 import { InboxGroupHeader } from "@/components/InboxGroup";
@@ -78,14 +78,12 @@ export function InboxBoard({
 
   const [expandedAskId, setExpandedAskId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-  useEffect(() => {
-    const next: Record<string, boolean> = {};
-    for (const og of sections.orgGroups) {
-      const stored = localStorage.getItem(collapseKey(og.group.groupKey));
-      next[og.group.groupKey] = stored === "1";
-    }
-    setCollapsedGroups(next);
-  }, [sections.orgGroups]);
+
+  function isGroupCollapsed(groupKey: string) {
+    if (groupKey in collapsedGroups) return collapsedGroups[groupKey];
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(collapseKey(groupKey)) === "1";
+  }
 
   const pushParams = useCallback(
     (updates: Record<string, string | null>) => {
@@ -264,10 +262,10 @@ export function InboxBoard({
             <Section key={og.group.groupKey} title="">
               <InboxGroupHeader
                 group={og.group}
-                collapsed={Boolean(collapsedGroups[og.group.groupKey])}
+                collapsed={isGroupCollapsed(og.group.groupKey)}
                 onToggleCollapse={() => toggleGroupCollapse(og.group.groupKey)}
               />
-              {!collapsedGroups[og.group.groupKey]
+              {!isGroupCollapsed(og.group.groupKey)
                 ? og.steps.map((item) => (
                     <InboxNoteRow key={item.id} item={item} session={session} people={people} />
                   ))

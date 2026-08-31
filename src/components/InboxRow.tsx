@@ -61,14 +61,15 @@ export function InboxRow({
   const [pending, startTransition] = useTransition();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(item.title);
+  const [prevItemTitle, setPrevItemTitle] = useState(item.title);
+  if (item.title !== prevItemTitle) {
+    setPrevItemTitle(item.title);
+    setTitleDraft(item.title);
+  }
   const [reply, setReply] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [undoId, setUndoId] = useState<string | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    setTitleDraft(item.title);
-  }, [item.title]);
 
   useEffect(() => {
     return () => {
