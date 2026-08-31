@@ -20,7 +20,7 @@ import {
   requireSession,
   unlockWithPin,
 } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { isDatabaseUnreachable, prisma, withDatabaseRetry } from "@/lib/db";
 import {
   applyPeerOrder,
   parseTimelineSchedule,
@@ -60,7 +60,15 @@ export async function unlockAction(
   if (!/^\d{4,8}$/.test(pin)) {
     return { error: "Enter a 4–8 digit PIN" };
   }
-  const account = await unlockWithPin(pin);
+  let account;
+  try {
+    account = await withDatabaseRetry(() => unlockWithPin(pin));
+  } catch (error) {
+    if (isDatabaseUnreachable(error)) {
+      return { error: "Database is waking up. Wait 20 seconds, then try again." };
+    }
+    throw error;
+  }
   if (!account) {
     return { error: "Incorrect PIN" };
   }
