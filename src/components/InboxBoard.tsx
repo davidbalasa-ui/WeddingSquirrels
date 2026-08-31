@@ -37,6 +37,7 @@ export function InboxBoard({
   people,
   tasks,
   whoChips,
+  hidePrioritySections = false,
 }: {
   session: SessionAccount;
   sections: InboxSections;
@@ -44,6 +45,7 @@ export function InboxBoard({
   people: PersonOption[];
   tasks: TaskOption[];
   whoChips: { id: string; label: string }[];
+  hidePrioritySections?: boolean;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -191,7 +193,7 @@ export function InboxBoard({
         </div>
       </div>
 
-      {session.canSeeRequests ? (
+      {session.canSeeRequests && !hidePrioritySections ? (
         <Section title={`Needs you${filtered.needsYou.length ? ` · ${filtered.needsYou.length}` : ""}`}>
           {filtered.needsYou.length === 0 ? (
             <p className="py-2 text-sm text-muted">You&apos;re caught up — nothing waiting on you.</p>
@@ -212,7 +214,7 @@ export function InboxBoard({
         </Section>
       ) : null}
 
-      {session.canSeeRequests && filtered.waiting.length > 0 ? (
+      {session.canSeeRequests && !hidePrioritySections && filtered.waiting.length > 0 ? (
         <Section title={`Waiting · ${filtered.waiting.length}`}>
           {filtered.waiting.map((item) => (
             <InboxRow
