@@ -17,7 +17,7 @@
     "db:known-people": "tsx scripts/ensure-known-people.ts",
     "db:day-of": "tsx scripts/ensure-day-of.ts",
     "icons": "node scripts/generate-icons.mjs",
-    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
+    "db:reset": "tsx scripts/db-reset.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
