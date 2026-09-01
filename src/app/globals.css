@@ -177,17 +177,39 @@ a {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  overflow-y: auto;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
   padding: 24px 16px;
 }
 
 .overlay-panel {
   width: min(560px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   background: var(--bg-elevated);
   border: 1px solid var(--line);
   border-radius: 24px;
   box-shadow: var(--shadow);
   padding: 20px;
+}
+
+.overlay-field {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 10px 12px;
+  font-size: 16px;
+  line-height: 1.25;
+  outline: none;
+}
+
+.overlay-field:focus {
+  border-color: var(--accent);
 }
 
 .role-card {
