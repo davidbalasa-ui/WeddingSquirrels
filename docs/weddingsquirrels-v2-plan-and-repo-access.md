@@ -355,12 +355,6 @@ Extend existing warm foundation — do not replace blindly.
 - Remove dead components and split oversized action modules only when behavior is covered
 - Success gate: automated checks pass, mobile walkthroughs pass, and every primary screen feels finished rather than merely functional
 
-### Phase 5 — MONEY (major)
-
-- `BudgetPayment` migration + backfill script
-- Contract detail with deposit/final/installment UI
-- TODAY surfaces overdue payments
-
 ---
 
 ## Phase 1 status (completed)
