@@ -53,6 +53,10 @@ export function OfflineSetupCard() {
       setChecking(false);
       setSyncFailed(true);
     };
+    const onSyncStarted = () => {
+      setChecking(true);
+      setSyncFailed(false);
+    };
     const onInstallAvailable = () => {
       setInstallPrompt(window.__weddingsquirrelsInstallPrompt ?? null);
     };
@@ -64,12 +68,14 @@ export function OfflineSetupCard() {
 
     window.addEventListener("weddingsquirrels:offline-pack-updated", onPackUpdated);
     window.addEventListener("weddingsquirrels:offline-pack-error", onSyncError);
+    window.addEventListener("weddingsquirrels:offline-sync-started", onSyncStarted);
     window.addEventListener("weddingsquirrels:install-available", onInstallAvailable);
     window.addEventListener("weddingsquirrels:installed", onInstalled);
     return () => {
       active = false;
       window.removeEventListener("weddingsquirrels:offline-pack-updated", onPackUpdated);
       window.removeEventListener("weddingsquirrels:offline-pack-error", onSyncError);
+      window.removeEventListener("weddingsquirrels:offline-sync-started", onSyncStarted);
       window.removeEventListener("weddingsquirrels:install-available", onInstallAvailable);
       window.removeEventListener("weddingsquirrels:installed", onInstalled);
     };
@@ -125,6 +131,18 @@ export function OfflineSetupCard() {
               <Link href="/offline" className="text-sm font-semibold text-[var(--accent)] underline">
                 Open offline copy
               </Link>
+              {pack ? (
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-[var(--accent)] underline"
+                  disabled={checking}
+                  onClick={() =>
+                    window.dispatchEvent(new Event("weddingsquirrels:offline-sync-request"))
+                  }
+                >
+                  {checking ? "Updating…" : "Update now"}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>

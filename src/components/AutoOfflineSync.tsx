@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import {
   loadOfflinePack,
+  OFFLINE_SYNC_INTERVAL_MS,
   saveOfflinePack,
   shouldRefreshOfflinePack,
   type OfflinePack,
@@ -11,6 +12,8 @@ import {
 const OFFLINE_CACHE = "weddingsquirrels-v2";
 const PACK_UPDATED_EVENT = "weddingsquirrels:offline-pack-updated";
 const PACK_SYNC_ERROR_EVENT = "weddingsquirrels:offline-pack-error";
+const PACK_SYNC_REQUEST_EVENT = "weddingsquirrels:offline-sync-request";
+const PACK_SYNC_STARTED_EVENT = "weddingsquirrels:offline-sync-started";
 
 declare global {
   interface Window {
@@ -45,9 +48,9 @@ async function warmOfflineShell(): Promise<void> {
   );
 }
 
-async function syncOfflineCopy(): Promise<void> {
+async function syncOfflineCopy(force = false): Promise<void> {
   const existing = await loadOfflinePack().catch(() => null);
-  if (!shouldRefreshOfflinePack(existing?.fetchedAt)) {
+  if (!force && !shouldRefreshOfflinePack(existing?.fetchedAt)) {
     await warmOfflineShell().catch(() => {
       // Existing data remains usable even if shell warming fails.
     });
@@ -71,12 +74,11 @@ async function syncOfflineCopy(): Promise<void> {
 
 export function AutoOfflineSync() {
   useEffect(() => {
-    if (!navigator.onLine) return;
-
-    const run = () => {
+    const run = (force = false) => {
       if (!navigator.onLine) return;
       if (!window.__weddingsquirrelsOfflineSync) {
-        window.__weddingsquirrelsOfflineSync = syncOfflineCopy()
+        window.dispatchEvent(new Event(PACK_SYNC_STARTED_EVENT));
+        window.__weddingsquirrelsOfflineSync = syncOfflineCopy(force)
           .catch((error) => {
             console.error(error);
             window.dispatchEvent(new Event(PACK_SYNC_ERROR_EVENT));
@@ -88,8 +90,22 @@ export function AutoOfflineSync() {
     };
 
     run();
-    window.addEventListener("online", run);
-    return () => window.removeEventListener("online", run);
+    const interval = window.setInterval(() => run(true), OFFLINE_SYNC_INTERVAL_MS);
+    const onOnline = () => run(true);
+    const onSyncRequest = () => run(true);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") run();
+    };
+
+    window.addEventListener("online", onOnline);
+    window.addEventListener(PACK_SYNC_REQUEST_EVENT, onSyncRequest);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener(PACK_SYNC_REQUEST_EVENT, onSyncRequest);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   return null;
