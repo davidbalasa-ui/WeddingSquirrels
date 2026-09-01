@@ -443,6 +443,47 @@ export async function deleteBudgetItem(id: string): Promise<void> {
   await prisma.budgetItem.delete({ where: { id } });
   revalidatePath("/money");
   revalidatePath("/money/print");
+  revalidatePath("/money/due");
+  revalidatePath("/today");
+}
+
+export async function markBudgetPaymentPaid(paymentId: string): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
+
+  const payment = await prisma.budgetPayment.findUnique({
+    where: { id: paymentId },
+    select: { id: true, budgetItemId: true, amount: true },
+  });
+  if (!payment) return;
+
+  await prisma.budgetPayment.update({
+    where: { id: payment.id },
+    data: {
+      paidAmount: payment.amount,
+      paidAt: new Date(),
+    },
+  });
+
+  const payments = await prisma.budgetPayment.findMany({
+    where: { budgetItemId: payment.budgetItemId },
+    orderBy: [{ sortOrder: "asc" }, { dueDate: "asc" }],
+  });
+  const amountPaid = payments.reduce((sum, row) => sum + row.paidAmount, 0);
+  const nextDue =
+    payments.find((row) => row.paidAmount + 0.001 < row.amount)?.dueDate ?? null;
+
+  await prisma.budgetItem.update({
+    where: { id: payment.budgetItemId },
+    data: {
+      amountPaid,
+      payByDate: nextDue,
+    },
+  });
+
+  revalidatePath("/money");
+  revalidatePath("/money/print");
+  revalidatePath("/money/due");
   revalidatePath("/today");
 }
 

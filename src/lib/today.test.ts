@@ -109,20 +109,22 @@ test("buildAttentionQueue prioritizes unread asks and caps at max", () => {
 });
 
 test("buildAttentionQueue includes overdue payments", () => {
-  const queue = buildAttentionQueue(
-    [],
-    emptySections(),
-    [
+  const queue = buildAttentionQueue([], emptySections(), [], {
+    now: new Date("2026-08-10T12:00:00"),
+    paymentDueItems: [
       {
-        id: "b1",
-        name: "Photographer",
-        price: 1000,
-        amountPaid: 200,
-        payByDate: new Date("2026-08-01T12:00:00"),
+        id: "b1:final",
+        contractId: "b1",
+        contractName: "Photographer",
+        label: "Final",
+        amount: 800,
+        dueDate: new Date("2026-08-01T12:00:00"),
+        overdue: true,
+        ownerId: "david",
+        paidById: "david",
       },
     ],
-    { now: new Date("2026-08-10T12:00:00") },
-  );
+  });
 
   assert.equal(queue.length, 1);
   assert.equal(queue[0]?.type, "payment");

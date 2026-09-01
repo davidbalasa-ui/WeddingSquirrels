@@ -22,6 +22,7 @@ model Person {
   assignees     TaskAssignee[]
   budgets       BudgetItem[]   @relation("BudgetOwner")
   budgetsPaid   BudgetItem[]   @relation("BudgetPayer")
+  budgetPaymentsPaid BudgetPayment[] @relation("BudgetPaymentPayer")
   shoppingItems ShoppingItem[]
   pinAccounts   PinAccount[]
   dayAssignments DayAssignmentAssignee[]
@@ -86,8 +87,28 @@ model BudgetItem {
   note       String?
   tasks      Task[]
   shares     BudgetItemShare[]
+  payments   BudgetPayment[]
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
+}
+
+model BudgetPayment {
+  id           String     @id @default(cuid())
+  budgetItemId String
+  budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id], onDelete: Cascade)
+  label        String
+  amount       Float
+  dueDate      DateTime?
+  paidAmount   Float      @default(0)
+  paidAt       DateTime?
+  paidById     String?
+  paidBy       Person?    @relation("BudgetPaymentPayer", fields: [paidById], references: [id])
+  note         String?
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([budgetItemId, sortOrder])
 }
 
 model BudgetItemShare {

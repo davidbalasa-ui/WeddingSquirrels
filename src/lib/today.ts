@@ -1,6 +1,7 @@
 import { differenceInCalendarDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/db";
-import { moneyEditable } from "@/lib/access";
+import { buildMoneyDueItems } from "@/lib/money";
+import { loadVisibleBudgetContracts } from "@/lib/money-page";
 import { parseDayOfTime, sortTimelineBlocks } from "@/lib/day-of-time";
 import {
   groupInboxItems,
@@ -123,10 +124,15 @@ export function buildAttentionQueue(
   items: InboxItem[],
   sections: InboxSections,
   budgetItems: BudgetItemSnapshot[],
-  opts: { max?: number; now?: Date } = {},
+  opts: {
+    max?: number;
+    now?: Date;
+    paymentDueItems?: ReturnType<typeof buildMoneyDueItems>;
+  } = {},
 ): TodayAttentionItem[] {
   const max = opts.max ?? 7;
   const today = startOfDay(opts.now ?? new Date());
+  const paymentDueItems = opts.paymentDueItems ?? [];
   const result: TodayAttentionItem[] = [];
   const seen = new Set<string>();
 
@@ -173,19 +179,19 @@ export function buildAttentionQueue(
     });
   }
 
-  for (const item of budgetItems) {
-    if (!item.payByDate || item.amountPaid >= item.price) continue;
-    if (!isOverdue(item.payByDate, today)) continue;
-    add({
-      type: "payment",
-      id: `payment:${item.id}`,
-      budgetItemId: item.id,
-      name: item.name,
-      amountRemaining: item.price - item.amountPaid,
-      dueDate: item.payByDate,
-      urgency: "high",
-      reason: "Payment overdue",
-    });
+  for (const payment of paymentDueItems) {
+    if (payment.overdue) {
+      add({
+        type: "payment",
+        id: `payment:${payment.id}`,
+        budgetItemId: payment.contractId,
+        name: `${payment.contractName} · ${payment.label}`,
+        amountRemaining: payment.amount,
+        dueDate: payment.dueDate,
+        urgency: "high",
+        reason: "Payment overdue",
+      });
+    }
   }
 
   for (const item of items) {
@@ -201,9 +207,28 @@ export function buildAttentionQueue(
     });
   }
 
+  for (const payment of paymentDueItems) {
+    if (!payment.overdue && payment.dueDate.getTime() !== today.getTime()) continue;
+    if (!payment.overdue && !isDueToday(payment.dueDate, today)) continue;
+    add({
+      type: "payment",
+      id: `payment:${payment.id}`,
+      budgetItemId: payment.contractId,
+      name: `${payment.contractName} · ${payment.label}`,
+      amountRemaining: payment.amount,
+      dueDate: payment.dueDate,
+      urgency: payment.overdue ? "high" : "normal",
+      reason: payment.overdue ? "Payment overdue" : "Payment due today",
+    });
+  }
+
   for (const item of budgetItems) {
     if (!item.payByDate || item.amountPaid >= item.price) continue;
     if (!isDueToday(item.payByDate, today)) continue;
+    const alreadyCovered = paymentDueItems.some(
+      (payment) => payment.contractId === item.id && isDueToday(payment.dueDate, today),
+    );
+    if (alreadyCovered) continue;
     add({
       type: "payment",
       id: `payment:${item.id}`,
@@ -413,23 +438,8 @@ function formatMoney(amount: number): string {
 }
 
 async function loadVisibleBudgetItems(session: SessionAccount): Promise<BudgetItemSnapshot[]> {
-  if (!session.canSeeBudget) return [];
-
-  const allItems = await prisma.budgetItem.findMany({
-    orderBy: { sortOrder: "asc" },
-    include: { shares: { select: { pinAccountId: true } } },
-  });
-
-  const visible =
-    session.isMaster || moneyEditable(session)
-      ? allItems
-      : allItems.filter(
-          (item) =>
-            (session.linkedPersonId != null && item.ownerId === session.linkedPersonId) ||
-            item.shares.some((share) => share.pinAccountId === session.id),
-        );
-
-  return visible.map((item) => ({
+  const contracts = await loadVisibleBudgetContracts(session);
+  return contracts.map((item) => ({
     id: item.id,
     name: item.name,
     price: item.price,
@@ -475,7 +485,11 @@ export async function loadTodayPageData(session: SessionAccount) {
   ]);
 
   const hero = buildTodayHero(settings, session.name);
-  const attention = buildAttentionQueue(inbox.items, inbox.sections, budgetItems);
+  const contracts = await loadVisibleBudgetContracts(session);
+  const paymentDueItems = buildMoneyDueItems(contracts);
+  const attention = buildAttentionQueue(inbox.items, inbox.sections, budgetItems, {
+    paymentDueItems,
+  });
   const waiting = buildWaitingItems(inbox.sections);
 
   const committed = budgetItems.reduce((sum, item) => sum + item.price, 0);
