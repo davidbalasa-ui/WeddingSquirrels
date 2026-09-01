@@ -1,6 +1,7 @@
 const DB_NAME = "weddingsquirrels-offline";
 const STORE = "packs";
 const KEY = "current";
+export const OFFLINE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
 /** Shape of the snapshot produced by GET /api/offline. */
 export type OfflinePack = {
@@ -82,6 +83,17 @@ export async function clearOfflinePack(): Promise<void> {
       reject(tx.error);
     };
   });
+}
+
+export function shouldRefreshOfflinePack(
+  fetchedAt: string | null | undefined,
+  now = new Date(),
+  intervalMs = OFFLINE_SYNC_INTERVAL_MS,
+): boolean {
+  if (!fetchedAt) return true;
+  const savedAt = new Date(fetchedAt).getTime();
+  if (!Number.isFinite(savedAt)) return true;
+  return now.getTime() - savedAt >= intervalMs;
 }
 
 export function formatFetchedAt(iso: string | null): string {
