@@ -17,7 +17,7 @@
 9. [What must NOT change](#what-must-not-change)
 10. [Git repository access](#git-repository-access)
 11. [Local development setup](#local-development-setup)
-12. [Open questions before Phase 2](#open-questions-before-phase-2)
+12. [Product decisions and quality gates](#product-decisions-and-quality-gates)
 
 ---
 
@@ -43,6 +43,18 @@ It should feel **warm, personal, calm, editorial, and effortless on mobile** —
 **Do not remove valuable functionality** to simplify the UI. Reorganize hierarchy, relationships, and presentation. Everything below must remain available:
 
 People, photos/faces, guests, RSVP, wedding party, family, vendors, vendor contacts, payment schedules (deposits/finals/installments), tasks, assignments, asks/requests, timeline, day-of contacts, day-of responsibilities, stay/room/bed assignments, rehearsal, rehearsal dinner, meal planning, shopping, budget, offline, permissions, printable views.
+
+### Best-in-class quality bar
+
+The product should impress because it is useful, personal, and calm—not because it contains more screens.
+
+- Every primary screen answers one clear question and presents one obvious next action.
+- Couple names, dates, people, money, and wedding details come from authoritative data; never invent content for visual effect.
+- Faces, relationships, ownership, and context make the experience feel like this couple’s wedding—not generic project software.
+- Summaries must help a decision: what is next, blocked, overdue, incomplete, or ready.
+- Supporting data such as calendar events should appear where it improves the workflow; it does not automatically deserve a destination page.
+- Mobile interactions, empty states, loading, errors, accessibility, offline behavior, and visual polish are release criteria—not cleanup afterthoughts.
+- A phase is complete only after automated checks and a working mobile walkthrough against realistic data.
 
 ---
 
@@ -80,7 +92,7 @@ People, photos/faces, guests, RSVP, wedding party, family, vendors, vendor conta
 | TODAY | Inbox overloaded; not a true command center |
 | PEOPLE | Fragmented across `Person`, `Contact`, `Guest`, `MealGuest`, stay text |
 | MONEY | No payment installments — one `amountPaid` + one `payByDate` per budget line |
-| Calendar | Month view removed; only “next milestone” on inbox |
+| Calendar | Month view intentionally removed; event data supports Today and deadline context |
 | Vendors | No first-class model — spread across contacts, budget names, tasks |
 
 ### Technical debt to manage (not fix all at once)
@@ -116,7 +128,6 @@ People, photos/faces, guests, RSVP, wedding party, family, vendors, vendor conta
 /plan/rehearsal             Rehearsal + dinner
 /plan/stay                  Accommodation / beds
 /plan/shopping              Shopping list
-/plan/calendar              Restored month grid + upcoming
 
 /people                     PEOPLE hub
 /people/guests              Guests (alias: /guests)
@@ -140,7 +151,7 @@ People, photos/faces, guests, RSVP, wedding party, family, vendors, vendor conta
 /work/[id]                  Task decision workspace (unchanged)
 ```
 
-Legacy routes (`/day`, `/guests`, `/rehearsal`, `/stay`, `/requests`, `/shop`, `/calendar`, `/accounts`) should keep working via redirects during transition.
+Legacy routes (`/day`, `/guests`, `/rehearsal`, `/stay`, `/requests`, `/shop`, `/calendar`, `/accounts`) should keep working via redirects during transition. `/calendar` returns to Today because calendar events are supporting context, not a standalone product area.
 
 ---
 
@@ -157,13 +168,21 @@ Legacy routes (`/day`, `/guests`, `/rehearsal`, `/stay`, `/requests`, `/shop`, `
 5. **Pulse** — 3–4 tappable stats: RSVP, open tasks, budget remaining, open asks
 6. **Coming up** — next 5 events/deadlines/payments
 
-**Not on TODAY:** full task list, full calendar, budget editor, guest list.
+**Not on TODAY:** full task list, budget editor, guest list. Calendar events belong in Coming up rather than a separate month-grid workflow.
 
 Reuse existing `InboxBoard` row components; evolve layout in Phase 2.
 
 ### PLAN hub (`/plan`)
 
-Six domain rows with status one-liners: Tasks · Timeline · Rehearsal & dinner · Stay · Shopping · Calendar.
+PLAN is the decision workspace, not a directory of modules. It leads with the highest-ranked open decision and then shows five live domains:
+
+1. Tasks — open and overdue decisions
+2. Wedding timeline — run-of-show readiness
+3. Rehearsal & dinner — schedule and meal completion
+4. Stay — required bed assignment completeness
+5. Shopping — remaining and purchased items
+
+Calendar events remain available to TODAY’s Coming up list and task due-date context. A month grid is intentionally excluded until user behavior proves it solves a real planning need.
 
 ### PEOPLE hub (`/people`)
 
@@ -280,12 +299,12 @@ Extend existing warm foundation — do not replace blindly.
 |-------|-------|----------------|
 | **1** | Shell + 5-tab nav + `/today` canonical | Optional `AppSettings` venue |
 | **2** | TODAY command center (hero, attention, pulse, coming up) | Optional venue |
-| **3** | PLAN hub + tasks + shopping + **restore calendar** | None |
-| **4** | PEOPLE hub + profiles + stay UX | `StaySlot` FKs; optional `Contact.category` |
-| **5** | MONEY + payment schedules | `BudgetPayment` |
-| **6** | Cross-linking people ↔ money ↔ tasks ↔ stay | Optional `Contact.budgetItemId` |
-| **7** | Day-of now/next + offline readiness | None |
-| **8** | Polish, a11y, split `actions.ts`, remove dead code | None |
+| **3** | PLAN decision center + dedicated tasks and shopping | None |
+| **4** | PEOPLE: face-forward directory, profiles, party/family/vendor context | `StaySlot` FKs; optional `Contact.category` |
+| **5** | MONEY: financial command center + payment schedules | `BudgetPayment` |
+| **6** | Connect people ↔ money ↔ tasks ↔ stay; remove duplicate mental models | Optional `Contact.budgetItemId` |
+| **7** | Day-of Now/Next mode, call sheet, contacts, offline readiness | None |
+| **8** | Wow pass: visual refinement, motion, accessibility, resilience, performance | None |
 
 ### Phase 2 — TODAY (next)
 
@@ -296,9 +315,45 @@ Extend existing warm foundation — do not replace blindly.
 
 ### Phase 3 — PLAN
 
-- Restore full calendar month view
+- Lead with one ranked “Next decision” card, ownership, and due context
 - Dedicated `/plan/tasks` and `/plan/shopping`
-- PLAN hub with live domain counts
+- Live readiness summaries for timeline, rehearsal/dinner, required stay assignments, and shopping
+- Keep calendar events as supporting data in TODAY and task deadlines; do not restore the unused month page
+- Success gate: a user can open PLAN and know what decision to make next without scanning every module
+
+### Phase 4 — PEOPLE
+
+- Make `/people` visually personal: faces first, clear roles, useful relationship groups
+- Aggregate task ownership, guest/RSVP context, stay placement, meal choices, and day-of responsibilities into profiles
+- Create intentional wedding party, family, and vendor experiences without pretending today’s separate tables are one canonical person record
+- Success gate: each important person answers “who are they, how do I reach them, and what are they responsible for?”
+
+### Phase 5 — MONEY
+
+- Add `BudgetPayment` only after testing the migration on a Neon branch
+- Show committed, paid, remaining, due soon, and overdue at a glance
+- Treat vendor rows as contracts with deposits/finals/installments, not generic expenses
+- Success gate: the couple can answer what is owed, to whom, by when, and who is paying in under ten seconds
+
+### Phase 6 — CONNECTIONS
+
+- Cross-link people, tasks, money, stay, meals, and day-of assignments
+- Remove duplicated navigation and conflicting summaries after the connected flows exist
+- Success gate: moving from a person or vendor to their work, money, and logistics never requires searching another module
+
+### Phase 7 — DAY-OF
+
+- Create a calm Now / Next run-of-show with faces, locations, ownership, and one-tap contacts
+- Preserve the full editable planning timeline for authorized users
+- Validate the offline snapshot and failure states on a real mobile device
+- Success gate: a helper can run the next hour without learning the planning app
+
+### Phase 8 — WOW AND TRUST
+
+- Editorial visual polish, subtle motion, touch feedback, and memorable couple-specific moments
+- Accessibility, loading/error/empty states, performance budgets, offline recovery, and destructive-action safeguards
+- Remove dead components and split oversized action modules only when behavior is covered
+- Success gate: automated checks pass, mobile walkthroughs pass, and every primary screen feels finished rather than merely functional
 
 ### Phase 5 — MONEY (major)
 
@@ -473,14 +528,31 @@ npm run build
 
 ---
 
-## Open questions before Phase 2
+## Product decisions and quality gates
 
-1. **Hero content:** Should venue come from new `AppSettings` fields or stay hardcoded initially?
-2. **Calendar:** Full month grid vs. upcoming list only under PLAN?
-3. **“Home” label:** Page title is now “Today” — confirm that’s the desired user-facing name.
-4. **MORE hub:** When to remove duplicate legacy module links from `/more`?
-5. **Payment schedules:** Confirm 50/50 deposit+final as default template for new vendor contracts?
-6. **Stay linking:** Prefer `Person` picker, `GuestPerson` picker, or both in Phase 4?
+### Decided
+
+1. **Today is the command center.** It surfaces attention, waiting, pulse, and upcoming context.
+2. **Plan is the decision center.** It leads with the next ranked decision and provides focused task and shopping workspaces.
+3. **Calendar is supporting data.** Do not restore the removed month page unless observed usage demonstrates a need.
+4. **Missing wedding details are omitted, not invented.** Venue belongs in AppSettings later.
+5. **Experience unifies before schema.** Aggregate Person, Guest, Contact, MealGuest, and stay data before proposing destructive consolidation.
+6. **Neon production data is authoritative.** Seeds cannot silently replace app edits.
+
+### Deliberate choices still required
+
+1. **Payment templates:** whether new vendor contracts default to 50/50 or require explicit installments.
+2. **Stay links:** whether an occupant can link to Person, GuestPerson, or both.
+3. **Venue shape:** one venue/location or separate ceremony and reception fields.
+4. **Profile matching:** when name matching is insufficient and explicit links become necessary.
+
+### Gate for every future PR
+
+- Real data only; permission rules preserved.
+- No regression to login, Neon connectivity, or legacy routes.
+- Relevant unit tests, typecheck, lint, and production build pass.
+- Mobile walkthrough proves the primary flow.
+- Empty, loading, error, and restricted-PIN states remain coherent.
 
 ---
 
@@ -492,6 +564,7 @@ npm run build
 | Bottom nav | `src/components/V2BottomNav.tsx` |
 | TODAY page | `src/app/(app)/today/page.tsx`, `src/components/InboxBoard.tsx` |
 | Inbox logic | `src/lib/inbox.ts` |
+| PLAN | `src/app/(app)/plan/page.tsx`, `src/lib/plan.ts` |
 | Permissions | `src/lib/access.ts`, `src/lib/auth.ts`, `src/lib/presets.ts` |
 | Money | `src/components/MoneyBoard.tsx`, `prisma/schema.prisma` |
 | Stay | `src/lib/stay.ts`, `src/components/StayBoard.tsx` |
