@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import {
   createBudgetItem,
   deleteBudgetItem,
+  markBudgetPaymentPaid,
   saveBudgetItem,
   saveMinorExpense,
   setBudgetOwner,
@@ -12,18 +13,10 @@ import {
   setBudgetPayByDate,
 } from "@/app/actions";
 import { StarIcon } from "@/components/StarIcon";
+import { MoneyPaymentSchedule } from "@/components/MoneyPaymentSchedule";
+import type { BudgetContractSnapshot } from "@/lib/money";
 
-export type BudgetItemView = {
-  id: string;
-  name: string;
-  price: number;
-  amountPaid: number;
-  ownerId: string | null;
-  paidById: string | null;
-  payByDate: string | null;
-  note: string | null;
-  sortOrder: number;
-};
+export type BudgetItemView = BudgetContractSnapshot;
 
 export type MinorExpenseView = {
   id: string;
@@ -64,11 +57,22 @@ function isFullyPaid(price: number, amountPaid: number) {
   return Math.max(0, price - amountPaid) <= 0.001;
 }
 
+function toDateInput(value: Date | string | null | undefined) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const d = String(value.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return value.slice(0, 10);
+}
+
 function isOverdue(item: BudgetItemView) {
   if (isFullyPaid(item.price, item.amountPaid) || !item.payByDate) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const due = new Date(`${item.payByDate.slice(0, 10)}T12:00:00`);
+  const due = new Date(`${toDateInput(item.payByDate)}T12:00:00`);
   if (Number.isNaN(due.getTime())) return false;
   due.setHours(0, 0, 0, 0);
   return due < today;
@@ -82,10 +86,10 @@ function sortBudgetItems(items: BudgetItemView[]) {
 
     if (!aDone) {
       const aDate = a.payByDate
-        ? new Date(`${a.payByDate.slice(0, 10)}T12:00:00`).getTime()
+        ? new Date(`${toDateInput(a.payByDate)}T12:00:00`).getTime()
         : Number.POSITIVE_INFINITY;
       const bDate = b.payByDate
-        ? new Date(`${b.payByDate.slice(0, 10)}T12:00:00`).getTime()
+        ? new Date(`${toDateInput(b.payByDate)}T12:00:00`).getTime()
         : Number.POSITIVE_INFINITY;
       if (aDate !== bDate) return aDate - bDate;
     }
@@ -98,10 +102,12 @@ export function MoneyBoard({
   items,
   minor,
   canEdit,
+  hideSummary = false,
 }: {
   items: BudgetItemView[];
   minor: MinorExpenseView[];
   canEdit: boolean;
+  hideSummary?: boolean;
 }) {
   const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
   const [editingMinorId, setEditingMinorId] = useState<string | null>(null);
@@ -127,6 +133,7 @@ export function MoneyBoard({
 
   return (
     <div className="flex flex-col gap-4">
+      {!hideSummary ? (
       <section className="card p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -159,13 +166,14 @@ export function MoneyBoard({
           </div>
         </div>
       </section>
+      ) : null}
 
       <div>
-        <h2 className="mb-1 font-[family-name:var(--font-display)] text-xl">Budget</h2>
+        <h2 className="mb-1 font-[family-name:var(--font-display)] text-xl">Vendor contracts</h2>
         <p className="mb-3 text-sm text-muted">
           {canEdit
-            ? "Tap the star to edit any line — totals, paid, due date, payer, notes."
-            : "Main budget lines"}
+            ? "Each line is a vendor contract with deposits, finals, and installments."
+            : "Vendor contracts and payment schedules"}
         </p>
         {sortedItems.length === 0 ? (
           <div className="card p-5 text-sm text-muted">No budget lines yet.</div>
@@ -236,7 +244,7 @@ export function MoneyBoard({
                       <input
                         type="date"
                         name="payByDate"
-                        defaultValue={item.payByDate?.slice(0, 10) || ""}
+                        defaultValue={toDateInput(item.payByDate) || ""}
                         className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
                       />
                     </label>
@@ -433,7 +441,7 @@ export function MoneyBoard({
                     <input
                       type="date"
                       className="print-hide w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
-                      defaultValue={item.payByDate?.slice(0, 10) || ""}
+                      defaultValue={toDateInput(item.payByDate) || ""}
                       disabled={pending}
                       onChange={(e) => {
                         const value = e.target.value;
@@ -441,11 +449,20 @@ export function MoneyBoard({
                       }}
                     />
                   ) : (
-                    <p className="text-sm text-muted">
-                      {item.payByDate ? item.payByDate.slice(0, 10) : "—"}
-                    </p>
+                    <p className="text-sm text-muted">{toDateInput(item.payByDate) ?? "—"}</p>
                   )}
                 </div>
+
+                <MoneyPaymentSchedule
+                  contract={item}
+                  canEdit={canEdit}
+                  onMarkPaid={
+                    canEdit
+                      ? (paymentId) =>
+                          startTransition(() => markBudgetPaymentPaid(paymentId))
+                      : undefined
+                  }
+                />
               </article>
             );
           })}
