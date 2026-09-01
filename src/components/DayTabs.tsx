@@ -1,22 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
-const tabs = [
-  { href: "/day", label: "Timeline" },
-  { href: "/day/contacts", label: "Contacts" },
-  { href: "/day/assignments", label: "Assignments" },
-];
-
-export function DayTabs() {
+export function DayTabs({ showNowTab = false }: { showNowTab?: boolean }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const timelineHref = showNowTab ? "/day?view=timeline" : "/day";
+  const viewTimeline = searchParams.get("view") === "timeline";
+
+  const tabs = [
+    ...(showNowTab ? [{ href: "/day/now", label: "Now" }] : []),
+    { href: timelineHref, label: "Timeline" },
+    { href: "/day/contacts", label: "Contacts" },
+    { href: "/day/assignments", label: "Assignments" },
+  ];
 
   return (
     <div className="mb-4 flex flex-wrap gap-2">
       {tabs.map((tab) => {
         const active =
-          tab.href === "/day" ? pathname === "/day" : pathname.startsWith(tab.href);
+          tab.href === "/day/now"
+            ? pathname === "/day/now"
+            : tab.href === timelineHref
+              ? pathname === "/day" && (!showNowTab || viewTimeline)
+              : pathname.startsWith(tab.href);
         return (
           <Link
             key={tab.href}
