@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { moneyContractHref } from "@/lib/connections";
 import type { TodayAttentionPayment } from "@/lib/today";
 
 function formatMoney(amount: number) {
@@ -14,7 +15,7 @@ export function TodayAttentionPaymentRow({ item }: { item: TodayAttentionPayment
 
   return (
     <Link
-      href="/money"
+      href={moneyContractHref(item.budgetItemId)}
       className="flex items-start gap-2 py-2 transition-colors hover:bg-[var(--accent-soft)]/20"
     >
       <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-[var(--warn)] text-[10px] font-bold text-[var(--warn)]">
