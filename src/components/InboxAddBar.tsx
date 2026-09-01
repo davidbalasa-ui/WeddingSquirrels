@@ -16,12 +16,15 @@ export function InboxAddBar({
   people,
   tasks,
   preferredAssigneeIds,
+  pinToTop = false,
 }: {
   session: SessionAccount;
   accounts: AccountOption[];
   people: PersonOption[];
   tasks: TaskOption[];
   preferredAssigneeIds?: string[];
+  /** When true, skip sticky positioning (e.g. add bar already at page top). */
+  pinToTop?: boolean;
 }) {
   const kinds: ComposeKind[] = [];
   if (session.canSeeRequests) kinds.push("ask");
@@ -37,22 +40,51 @@ export function InboxAddBar({
 
   if (kinds.length === 0) return null;
 
+  const collapsedWrapClass = pinToTop
+    ? "-mx-1 mb-4 py-1"
+    : "sticky top-[var(--header-offset,0px)] z-10 -mx-1 bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] py-1 backdrop-blur-sm";
+
+  const openWrapClass = pinToTop
+    ? "mb-4 overflow-hidden border border-line"
+    : "sticky top-0 z-10 overflow-hidden border border-line";
+
+  function openCompose(nextKind: ComposeKind) {
+    setKind(nextKind);
+    setOpen(true);
+    setError(null);
+  }
+
   if (!open) {
     return (
-      <div className="sticky top-[var(--header-offset,0px)] z-10 -mx-1 bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] py-1 backdrop-blur-sm">
-        <button
-          type="button"
-          className="btn-primary min-h-[44px] w-full"
-          onClick={() => setOpen(true)}
-        >
-          {session.canSeeRequests ? "Ask someone" : kinds[0] === "task" ? "Add task" : "Add item"}
-        </button>
+      <div className={collapsedWrapClass}>
+        {kinds.length === 1 ? (
+          <button
+            type="button"
+            className="btn-primary min-h-[44px] w-full"
+            onClick={() => openCompose(kinds[0])}
+          >
+            {kinds[0] === "ask" ? "Ask someone" : kinds[0] === "task" ? "Add task" : "Add item"}
+          </button>
+        ) : (
+          <div className="flex gap-2">
+            {kinds.map((k) => (
+              <button
+                key={k}
+                type="button"
+                className="btn-primary min-h-[44px] flex-1"
+                onClick={() => openCompose(k)}
+              >
+                {k === "ask" ? "Ask" : k === "task" ? "Task" : "Buy"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <section className="sticky top-0 z-10 overflow-hidden border border-line">
+    <section className={openWrapClass}>
       {kinds.length > 1 ? (
         <div className="flex border-b border-line">
           {kinds.map((k) => (
@@ -78,12 +110,13 @@ export function InboxAddBar({
             className="flex flex-col gap-2"
             onSubmit={(event) => {
               event.preventDefault();
-              const fd = new FormData(event.currentTarget);
+              const form = event.currentTarget;
+              const fd = new FormData(form);
               startTransition(async () => {
                 setError(null);
                 await createRequest(fd);
+                form.reset();
                 setOpen(false);
-                event.currentTarget.reset();
               });
             }}
           >
@@ -130,7 +163,8 @@ export function InboxAddBar({
             className="flex flex-col gap-2"
             onSubmit={(event) => {
               event.preventDefault();
-              const fd = new FormData(event.currentTarget);
+              const form = event.currentTarget;
+              const fd = new FormData(form);
               const title = String(fd.get("title") || "");
               const dueDate = String(fd.get("dueDate") || "");
               const assignees = defaultAssigneeIds(people, preferredAssigneeIds);
@@ -141,8 +175,8 @@ export function InboxAddBar({
                   setError(result.error);
                   return;
                 }
+                form.reset();
                 setOpen(false);
-                event.currentTarget.reset();
               });
             }}
           >
@@ -164,14 +198,15 @@ export function InboxAddBar({
             className="flex flex-col gap-2"
             onSubmit={(event) => {
               event.preventDefault();
-              const fd = new FormData(event.currentTarget);
+              const form = event.currentTarget;
+              const fd = new FormData(form);
               const name = String(fd.get("name") || "");
               const ownerId = String(fd.get("ownerId") || "");
               startTransition(async () => {
                 setError(null);
                 await createShoppingItemFromInbox(name, ownerId || null);
+                form.reset();
                 setOpen(false);
-                event.currentTarget.reset();
               });
             }}
           >
