@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   buildMoneyDueItems,
+  buildMoneyLedgerSummary,
   buildMoneySummary,
   dueDateLabel,
   paymentIsOverdue,
@@ -135,6 +136,26 @@ test("sortContractsByUrgency puts overdue unpaid contracts first", () => {
     today,
   );
   assert.equal(sorted[0]?.id, "late");
+});
+
+test("buildMoneyLedgerSummary separates funding and spending", () => {
+  const ledger = buildMoneyLedgerSummary(
+    [
+      { id: "1", label: "Savings", amount: 5000, status: "available", note: null, sortOrder: 0 },
+      { id: "2", label: "Gift", amount: 5000, status: "expected", note: null, sortOrder: 1 },
+    ],
+    [contract({ price: 8000, amountPaid: 3000 })],
+    [{ id: "m1", title: "Flowers", summary: null, planNotes: null, amountNeeded: 1000, amountSpent: 500 }],
+  );
+
+  assert.equal(ledger.availableFunding, 5000);
+  assert.equal(ledger.expectedFunding, 5000);
+  assert.equal(ledger.projectedBudget, 10000);
+  assert.equal(ledger.committedSpending, 9000);
+  assert.equal(ledger.paidSpending, 3500);
+  assert.equal(ledger.pendingSpending, 5500);
+  assert.equal(ledger.projectedBalance, 1000);
+  assert.equal(ledger.cashOnHand, 1500);
 });
 
 test("paymentRemaining and dueDateLabel helpers", () => {

@@ -35,6 +35,37 @@ export type MoneySummary = {
   overdueAmount: number;
 };
 
+export type FundingSourceStatus = "available" | "expected";
+
+export type FundingSourceSnapshot = {
+  id: string;
+  label: string;
+  amount: number;
+  status: FundingSourceStatus;
+  note: string | null;
+  sortOrder: number;
+};
+
+export type MinorExpenseSnapshot = {
+  id: string;
+  title: string;
+  summary: string | null;
+  planNotes: string | null;
+  amountNeeded: number | null;
+  amountSpent: number;
+};
+
+export type MoneyLedgerSummary = {
+  availableFunding: number;
+  expectedFunding: number;
+  projectedBudget: number;
+  committedSpending: number;
+  paidSpending: number;
+  pendingSpending: number;
+  projectedBalance: number;
+  cashOnHand: number;
+};
+
 export type MoneyDueItem = {
   id: string;
   contractId: string;
@@ -217,11 +248,14 @@ export function buildMoneyDueItems(
 
 export function buildMoneySummary(
   contracts: BudgetContractSnapshot[],
-  opts?: { now?: Date },
+  opts?: { now?: Date; minor?: MinorExpenseSnapshot[] },
 ): MoneySummary {
   const today = startOfDay(opts?.now ?? new Date());
-  const committed = contracts.reduce((sum, contract) => sum + contract.price, 0);
-  const paid = contracts.reduce((sum, contract) => sum + contract.amountPaid, 0);
+  const minor = opts?.minor ?? [];
+  const minorCommitted = minor.reduce((sum, row) => sum + (row.amountNeeded ?? row.amountSpent), 0);
+  const minorPaid = minor.reduce((sum, row) => sum + row.amountSpent, 0);
+  const committed = contracts.reduce((sum, contract) => sum + contract.price, 0) + minorCommitted;
+  const paid = contracts.reduce((sum, contract) => sum + contract.amountPaid, 0) + minorPaid;
   const dueItems = buildMoneyDueItems(contracts, { now: today });
 
   let dueSoonCount = 0;
@@ -248,6 +282,46 @@ export function buildMoneySummary(
     overdueCount,
     overdueAmount,
   };
+}
+
+export function buildMoneyLedgerSummary(
+  sources: FundingSourceSnapshot[],
+  contracts: BudgetContractSnapshot[],
+  minor: MinorExpenseSnapshot[] = [],
+): MoneyLedgerSummary {
+  const availableFunding = sources
+    .filter((source) => source.status === "available")
+    .reduce((sum, source) => sum + source.amount, 0);
+  const expectedFunding = sources
+    .filter((source) => source.status === "expected")
+    .reduce((sum, source) => sum + source.amount, 0);
+  const projectedBudget = availableFunding + expectedFunding;
+
+  const contractCommitted = contracts.reduce((sum, contract) => sum + contract.price, 0);
+  const contractPaid = contracts.reduce((sum, contract) => sum + contract.amountPaid, 0);
+  const minorCommitted = minor.reduce((sum, row) => sum + (row.amountNeeded ?? row.amountSpent), 0);
+  const minorPaid = minor.reduce((sum, row) => sum + row.amountSpent, 0);
+
+  const committedSpending = contractCommitted + minorCommitted;
+  const paidSpending = contractPaid + minorPaid;
+  const pendingSpending = Math.max(0, committedSpending - paidSpending);
+
+  return {
+    availableFunding,
+    expectedFunding,
+    projectedBudget,
+    committedSpending,
+    paidSpending,
+    pendingSpending,
+    projectedBalance: projectedBudget - committedSpending,
+    cashOnHand: availableFunding - paidSpending,
+  };
+}
+
+export function nextUnpaidPaymentLabel(contract: BudgetContractSnapshot, today = startOfDay(new Date())) {
+  const next = nextUnpaidPayment(contract, today);
+  if (!next) return null;
+  return `${next.label} · ${formatMoney(next.amount)} · ${dueDateLabel(next.dueDate, today)}`;
 }
 
 export function sortContractsByUrgency(contracts: BudgetContractSnapshot[], now = new Date()) {

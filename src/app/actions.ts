@@ -20,7 +20,7 @@ import {
   requireSession,
   unlockWithPin,
 } from "@/lib/auth";
-import { isDatabaseUnreachable, prisma, prismaErrorCode, supportsBudgetPayments } from "@/lib/db";
+import { isDatabaseUnreachable, prisma, prismaErrorCode, supportsBudgetFundingSources, supportsBudgetPayments } from "@/lib/db";
 import {
   applyPeerOrder,
   parseTimelineSchedule,
@@ -381,8 +381,6 @@ export async function saveBudgetItem(formData: FormData): Promise<void> {
   const price = clampMoney(parseMoney(String(formData.get("price") || "")) ?? 0);
   const amountPaid = clampMoney(parseMoney(String(formData.get("amountPaid") || "")) ?? 0);
   const note = String(formData.get("note") || "").trim();
-  const ownerId = parseBudgetPersonId(String(formData.get("ownerId") || ""));
-  const paidById = parseBudgetPersonId(String(formData.get("paidById") || ""));
   const payByDate = parseDueDate(String(formData.get("payByDate") || ""));
 
   if (!id || !name) return;
@@ -394,8 +392,6 @@ export async function saveBudgetItem(formData: FormData): Promise<void> {
       price,
       amountPaid,
       note: note || null,
-      ownerId,
-      paidById,
       payByDate,
     },
   });
@@ -412,8 +408,6 @@ export async function createBudgetItem(formData: FormData): Promise<void> {
   const price = clampMoney(parseMoney(String(formData.get("price") || "")) ?? 0);
   const amountPaid = clampMoney(parseMoney(String(formData.get("amountPaid") || "")) ?? 0);
   const note = String(formData.get("note") || "").trim();
-  const ownerId = parseBudgetPersonId(String(formData.get("ownerId") || ""));
-  const paidById = parseBudgetPersonId(String(formData.get("paidById") || ""));
   const payByDate = parseDueDate(String(formData.get("payByDate") || ""));
   if (!name) return;
 
@@ -424,8 +418,6 @@ export async function createBudgetItem(formData: FormData): Promise<void> {
       price,
       amountPaid,
       note: note || null,
-      ownerId,
-      paidById,
       payByDate,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
@@ -512,6 +504,73 @@ export async function saveMinorExpense(formData: FormData): Promise<void> {
   revalidatePath("/money/print");
   revalidatePath(`/work/${id}`);
   revalidatePath("/today");
+}
+
+function parseFundingStatus(raw: string): "available" | "expected" {
+  return raw.trim() === "expected" ? "expected" : "available";
+}
+
+export async function saveFundingSource(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
+  if (!(await supportsBudgetFundingSources())) return;
+
+  const id = String(formData.get("id") || "");
+  const label = String(formData.get("label") || "").trim();
+  const amount = clampMoney(parseMoney(String(formData.get("amount") || "")) ?? 0);
+  const status = parseFundingStatus(String(formData.get("status") || ""));
+  const note = String(formData.get("note") || "").trim();
+
+  if (!id || !label) return;
+
+  await prisma.budgetFundingSource.update({
+    where: { id },
+    data: {
+      label,
+      amount,
+      status,
+      note: note || null,
+    },
+  });
+
+  revalidatePath("/money");
+  revalidatePath("/money/print");
+}
+
+export async function createFundingSource(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
+  if (!(await supportsBudgetFundingSources())) return;
+
+  const label = String(formData.get("label") || "").trim();
+  const amount = clampMoney(parseMoney(String(formData.get("amount") || "")) ?? 0);
+  const status = parseFundingStatus(String(formData.get("status") || ""));
+  const note = String(formData.get("note") || "").trim();
+  if (!label) return;
+
+  const last = await prisma.budgetFundingSource.findFirst({ orderBy: { sortOrder: "desc" } });
+  await prisma.budgetFundingSource.create({
+    data: {
+      label,
+      amount,
+      status,
+      note: note || null,
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+
+  revalidatePath("/money");
+  revalidatePath("/money/print");
+}
+
+export async function deleteFundingSource(id: string): Promise<void> {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
+  if (!(await supportsBudgetFundingSources())) return;
+
+  await prisma.budgetFundingSource.delete({ where: { id } });
+  revalidatePath("/money");
+  revalidatePath("/money/print");
 }
 
 function parseLinkedPersonId(raw: string): string | null {

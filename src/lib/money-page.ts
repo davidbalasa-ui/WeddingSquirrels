@@ -1,18 +1,25 @@
-import { prisma, supportsBudgetPayments } from "@/lib/db";
+import { prisma, supportsBudgetFundingSources, supportsBudgetPayments } from "@/lib/db";
 import { moneyEditable } from "@/lib/access";
 import type { SessionAccount } from "@/lib/types";
 import {
   buildMoneyDueItems,
+  buildMoneyLedgerSummary,
   buildMoneySummary,
   sortContractsByUrgency,
   type BudgetContractSnapshot,
+  type FundingSourceSnapshot,
+  type MinorExpenseSnapshot,
   type MoneyDueItem,
+  type MoneyLedgerSummary,
   type MoneySummary,
 } from "@/lib/money";
 
 export type MoneyPageData = {
   contracts: BudgetContractSnapshot[];
+  minor: MinorExpenseSnapshot[];
+  fundingSources: FundingSourceSnapshot[];
   summary: MoneySummary;
+  ledger: MoneyLedgerSummary;
   dueItems: MoneyDueItem[];
   overdueItems: MoneyDueItem[];
 };
@@ -69,13 +76,68 @@ export async function loadVisibleBudgetContracts(
   }));
 }
 
-export async function loadMoneyPageData(session: SessionAccount): Promise<MoneyPageData> {
-  const contracts = sortContractsByUrgency(await loadVisibleBudgetContracts(session));
-  const summary = buildMoneySummary(contracts);
-  const dueItems = buildMoneyDueItems(contracts).slice(0, 6);
-  const overdueItems = buildMoneyDueItems(contracts, { overdueOnly: true });
+export async function loadMinorExpenses(canEdit: boolean): Promise<MinorExpenseSnapshot[]> {
+  if (!canEdit) return [];
 
-  return { contracts, summary, dueItems, overdueItems };
+  const rows = await prisma.task.findMany({
+    where: {
+      parentId: null,
+      budgetItemId: null,
+      OR: [{ amountNeeded: { not: null } }, { amountSpent: { gt: 0 } }],
+    },
+    orderBy: [{ title: "asc" }],
+    select: {
+      id: true,
+      title: true,
+      summary: true,
+      planNotes: true,
+      amountNeeded: true,
+      amountSpent: true,
+    },
+  });
+
+  return rows;
+}
+
+export async function loadFundingSources(): Promise<FundingSourceSnapshot[]> {
+  if (!(await supportsBudgetFundingSources())) return [];
+
+  const rows = await prisma.budgetFundingSource.findMany({
+    orderBy: { sortOrder: "asc" },
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    label: row.label,
+    amount: row.amount,
+    status: row.status === "expected" ? "expected" : "available",
+    note: row.note,
+    sortOrder: row.sortOrder,
+  }));
+}
+
+export async function loadMoneyPageData(session: SessionAccount): Promise<MoneyPageData> {
+  const canEdit = moneyEditable(session);
+  const [contracts, minor, fundingSources] = await Promise.all([
+    loadVisibleBudgetContracts(session),
+    loadMinorExpenses(canEdit),
+    loadFundingSources(),
+  ]);
+  const sortedContracts = sortContractsByUrgency(contracts);
+  const summary = buildMoneySummary(sortedContracts, { minor });
+  const ledger = buildMoneyLedgerSummary(fundingSources, sortedContracts, minor);
+  const dueItems = buildMoneyDueItems(sortedContracts).slice(0, 6);
+  const overdueItems = buildMoneyDueItems(sortedContracts, { overdueOnly: true });
+
+  return {
+    contracts: sortedContracts,
+    minor,
+    fundingSources,
+    summary,
+    ledger,
+    dueItems,
+    overdueItems,
+  };
 }
 
 export async function syncBudgetItemAmountPaid(budgetItemId: string) {

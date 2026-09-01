@@ -55,7 +55,16 @@ export function isMissingBudgetPaymentTable(error: unknown): boolean {
   return /BudgetPayment|relation.*BudgetPayment/i.test(message);
 }
 
+/** True when Prisma reports the BudgetFundingSource table/relation is missing. */
+export function isMissingBudgetFundingSourceTable(error: unknown): boolean {
+  const code = prismaErrorCode(error);
+  if (code === "P2021" || code === "P2010") return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return /BudgetFundingSource|relation.*BudgetFundingSource/i.test(message);
+}
+
 let budgetPaymentsAvailable: boolean | null = null;
+let budgetFundingAvailable: boolean | null = null;
 
 /** Cached probe — production can run before neon-budget-payment.sql is applied. */
 export async function supportsBudgetPayments(): Promise<boolean> {
@@ -68,6 +77,19 @@ export async function supportsBudgetPayments(): Promise<boolean> {
     if (budgetPaymentsAvailable === null) throw error;
   }
   return budgetPaymentsAvailable;
+}
+
+/** Cached probe — production can run before neon-budget-funding.sql is applied. */
+export async function supportsBudgetFundingSources(): Promise<boolean> {
+  if (budgetFundingAvailable !== null) return budgetFundingAvailable;
+  try {
+    await prisma.budgetFundingSource.count();
+    budgetFundingAvailable = true;
+  } catch (error) {
+    budgetFundingAvailable = isMissingBudgetFundingSourceTable(error) ? false : null;
+    if (budgetFundingAvailable === null) throw error;
+  }
+  return budgetFundingAvailable;
 }
 
 export const databaseTransport = selectDatabaseTransport(process.env.DATABASE_URL);

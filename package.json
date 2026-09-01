@@ -17,6 +17,7 @@
     "db:known-people": "tsx scripts/ensure-known-people.ts",
     "db:day-of": "tsx scripts/ensure-day-of.ts",
     "db:budget-payments": "tsx scripts/ensure-budget-payments.ts",
+    "db:budget-funding": "tsx scripts/ensure-budget-funding.ts",
     "icons": "node scripts/generate-icons.mjs",
     "db:reset": "tsx scripts/db-reset.ts",
     "postinstall": "bash scripts/prisma-generate.sh"
