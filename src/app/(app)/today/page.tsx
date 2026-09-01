@@ -3,6 +3,7 @@ import { InboxBoard } from "@/components/InboxBoard";
 import { OfflineSetupCard } from "@/components/OfflineSetupCard";
 import { TodayComingUpList } from "@/components/TodayComingUpList";
 import { TodayHero } from "@/components/TodayHero";
+import { TodayInboxAddBar } from "@/components/TodayInboxAddBar";
 import { TodayPrioritySections } from "@/components/TodayPrioritySections";
 import { TodayPulseStrip } from "@/components/TodayPulseStrip";
 import { TodayWeddingWeek } from "@/components/TodayWeddingWeek";
@@ -17,6 +18,14 @@ export default async function TodayPage() {
     <>
       <OfflineSetupCard />
       <TodayHero session={session} hero={data.hero} />
+      <Suspense>
+        <TodayInboxAddBar
+          session={session}
+          accounts={data.inbox.accounts}
+          people={data.inbox.people}
+          tasks={data.inbox.tasks}
+        />
+      </Suspense>
       <Suspense>
         <TodayPrioritySections
           session={session}
@@ -39,6 +48,7 @@ export default async function TodayPage() {
             tasks={data.inbox.tasks}
             whoChips={data.inbox.whoChips}
             hidePrioritySections
+            hideAddBar
           />
         </Suspense>
       </section>

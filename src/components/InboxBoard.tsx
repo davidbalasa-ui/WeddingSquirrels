@@ -38,6 +38,7 @@ export function InboxBoard({
   tasks,
   whoChips,
   hidePrioritySections = false,
+  hideAddBar = false,
 }: {
   session: SessionAccount;
   sections: InboxSections;
@@ -46,6 +47,7 @@ export function InboxBoard({
   tasks: TaskOption[];
   whoChips: { id: string; label: string }[];
   hidePrioritySections?: boolean;
+  hideAddBar?: boolean;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -131,15 +133,17 @@ export function InboxBoard({
 
   return (
     <div className="flex flex-col pb-4">
-      <InboxAddBar
-        session={session}
-        accounts={accounts}
-        people={people}
-        tasks={tasks}
-        preferredAssigneeIds={
-          who !== "all" && who !== "both" ? [who] : who === "both" ? ["david", "haley"] : undefined
-        }
-      />
+      {!hideAddBar ? (
+        <InboxAddBar
+          session={session}
+          accounts={accounts}
+          people={people}
+          tasks={tasks}
+          preferredAssigneeIds={
+            who !== "all" && who !== "both" ? [who] : who === "both" ? ["david", "haley"] : undefined
+          }
+        />
+      ) : null}
 
       <div className="border-b border-line">
         <div className="-mx-1 flex gap-0 overflow-x-auto">
