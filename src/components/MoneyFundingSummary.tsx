@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createFundingSource,
   deleteFundingSource,
@@ -41,7 +41,7 @@ export function MoneyFundingSummary({
                 : ""}
             </p>
           </div>
-          {canEdit && sources.length > 0 ? (
+          {canEdit ? (
             <button
               type="button"
               className="btn-secondary shrink-0 px-3 py-2 text-sm"
@@ -76,21 +76,6 @@ export function MoneyFundingSummary({
             </p>
           </div>
         </div>
-
-        {sources.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
-            {sources.map((source) => (
-              <span key={source.id}>
-                {source.label}: {formatMoney(source.amount)}
-                {source.status === "expected" ? " expected" : ""}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-3 text-xs text-muted">
-            Funding sources will appear here after the database migration runs.
-          </p>
-        )}
       </section>
 
       {open ? (
@@ -110,6 +95,17 @@ function FundingEditor({
   canEdit: boolean;
 }) {
   const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const previousTouchAction = document.body.style.touchAction;
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.touchAction = previousTouchAction;
+    };
+  }, []);
 
   return (
     <div className="overlay-backdrop" role="presentation" onClick={onClose}>
@@ -140,6 +136,12 @@ function FundingEditor({
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
+          {sources.length === 0 ? (
+            <p className="text-sm text-muted">
+              No funding sources yet. Add one below to build your total budget.
+            </p>
+          ) : null}
+
           {sources.map((source) => (
             <form
               key={source.id}
@@ -154,7 +156,7 @@ function FundingEditor({
                   name="label"
                   defaultValue={source.label}
                   disabled={!canEdit}
-                  className="w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                  className="overlay-field"
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <input
@@ -162,13 +164,13 @@ function FundingEditor({
                     inputMode="decimal"
                     defaultValue={source.amount}
                     disabled={!canEdit}
-                    className="w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                    className="overlay-field"
                   />
                   <select
                     name="status"
                     defaultValue={source.status}
                     disabled={!canEdit}
-                    className="w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                    className="overlay-field"
                   >
                     <option value="available">Available</option>
                     <option value="expected">Expected</option>
@@ -179,7 +181,7 @@ function FundingEditor({
                   defaultValue={source.note || ""}
                   disabled={!canEdit}
                   placeholder="Optional note"
-                  className="w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                  className="overlay-field"
                 />
               </div>
               {canEdit ? (
@@ -214,7 +216,7 @@ function FundingEditor({
                   <input
                     name="label"
                     placeholder="Source name"
-                    className="w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                    className="overlay-field"
                     autoFocus
                   />
                   <div className="grid grid-cols-2 gap-2">
@@ -222,22 +224,14 @@ function FundingEditor({
                       name="amount"
                       inputMode="decimal"
                       placeholder="Amount"
-                      className="w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                      className="overlay-field"
                     />
-                    <select
-                      name="status"
-                      defaultValue="available"
-                      className="w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-                    >
+                    <select name="status" defaultValue="available" className="overlay-field">
                       <option value="available">Available</option>
                       <option value="expected">Expected</option>
                     </select>
                   </div>
-                  <input
-                    name="note"
-                    placeholder="Optional note"
-                    className="w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-                  />
+                  <input name="note" placeholder="Optional note" className="overlay-field" />
                 </div>
                 <div className="mt-2 flex gap-3">
                   <button type="submit" className="btn-primary px-3 py-2 text-sm">
