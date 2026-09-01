@@ -154,6 +154,7 @@ export function InboxBoard({
                     ? "border-[var(--accent)] text-[var(--accent)]"
                     : "border-transparent text-muted"
                 }`}
+                aria-pressed={active}
                 onClick={() => pushParams({ filter: chip.key === "all" ? null : chip.param ?? null })}
               >
                 {chip.label}
@@ -171,6 +172,7 @@ export function InboxBoard({
                     ? "border-[var(--accent)] text-[var(--accent)]"
                     : "border-transparent text-muted"
                 }`}
+                aria-pressed={active}
                 onClick={() => pushParams({ who: chip.id === "all" ? null : chip.id })}
               >
                 {chip.label}
@@ -184,6 +186,7 @@ export function InboxBoard({
                 ? "border-[var(--accent)] text-[var(--accent)]"
                 : "border-transparent text-muted"
             }`}
+            aria-pressed={showDone}
             onClick={() => pushParams({ done: showDone ? null : "1" })}
           >
             Done

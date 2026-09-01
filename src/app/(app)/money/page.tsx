@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { MoneyBoard } from "@/components/MoneyBoard";
 import { MoneyDueList } from "@/components/MoneyDueList";
 import { MoneyHero } from "@/components/MoneyHero";
+import { PageLoading } from "@/components/PageLoading";
 import { V2PageHeader } from "@/components/V2PageHeader";
 import { moneyEditable } from "@/lib/access";
 import { findProfileIdForBudgetName, profileHref } from "@/lib/connections";
@@ -61,7 +62,7 @@ export default async function MoneyPage() {
         items={data.overdueItems.length > 0 ? data.overdueItems : data.dueItems}
         showAllHref="/money/due"
       />
-      <Suspense fallback={null}>
+      <Suspense fallback={<PageLoading label="Loading budget" />}>
         <MoneyBoard
           items={data.contracts}
           minor={minorCandidates}

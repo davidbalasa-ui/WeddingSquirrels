@@ -1,7 +1,28 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { PersonAvatar } from "@/components/PersonAvatar";
 import { profileHref } from "@/lib/connections";
-import type { DayNowBlock, DayNowNextSnapshot } from "@/lib/day-of-now";
+import {
+  buildDayNowNextSnapshot,
+  type DayNowBlock,
+  type DayNowNextSnapshot,
+  type TimelineBlockInput,
+} from "@/lib/day-of-now";
+
+export type DayNowLiveSource = {
+  blocks: TimelineBlockInput[];
+  contacts: Array<{
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    photoData: string | null;
+  }>;
+  people: Array<{ id: string; name: string }>;
+  daysToGo: number | null;
+};
 
 function ContactChip({ contact }: { contact: DayNowBlock["contacts"][number] }) {
   const href = contact.phone
@@ -124,12 +145,40 @@ function BlockCard({
 }
 
 export function DayNowNext({
-  snapshot,
+  snapshot: initialSnapshot,
+  liveSource,
   canEdit,
+  offline = false,
+  onAllContacts,
 }: {
   snapshot: DayNowNextSnapshot;
+  liveSource?: DayNowLiveSource;
   canEdit: boolean;
+  offline?: boolean;
+  onAllContacts?: () => void;
 }) {
+  const [snapshot, setSnapshot] = useState(initialSnapshot);
+
+  useEffect(() => {
+    setSnapshot(initialSnapshot);
+  }, [initialSnapshot]);
+
+  useEffect(() => {
+    if (!liveSource) return;
+
+    const tick = () => {
+      setSnapshot(
+        buildDayNowNextSnapshot(liveSource.blocks, liveSource.contacts, liveSource.people, {
+          daysToGo: liveSource.daysToGo,
+        }),
+      );
+    };
+
+    tick();
+    const id = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(id);
+  }, [liveSource]);
+
   const hasContent = snapshot.now || snapshot.next || snapshot.upcoming.length > 0;
 
   return (
@@ -137,35 +186,53 @@ export function DayNowNext({
       <div className="flex items-baseline justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
-            Wedding day
+            {offline ? "Offline · wedding day" : "Wedding day"}
           </p>
-          <p className="font-[family-name:var(--font-display)] text-3xl leading-none">
+          <p
+            className="font-[family-name:var(--font-display)] text-3xl leading-none"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             {snapshot.clockLabel}
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
-          <Link href="/day/contacts" className="text-xs font-semibold text-[var(--accent)]">
-            All contacts
-          </Link>
-          {canEdit ? (
-            <Link
-              href="/day?view=timeline&edit=1"
-              className="text-xs font-semibold text-[var(--accent)]"
-            >
-              Edit timeline
-            </Link>
+          {offline ? (
+            onAllContacts ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-[var(--accent)]"
+                onClick={onAllContacts}
+              >
+                All contacts
+              </button>
+            ) : null
           ) : (
-            <Link href="/day?view=timeline" className="text-xs font-semibold text-[var(--accent)]">
-              Full timeline
+            <Link href="/day/contacts" className="text-xs font-semibold text-[var(--accent)]">
+              All contacts
             </Link>
           )}
+          {!offline ? (
+            canEdit ? (
+              <Link
+                href="/day?view=timeline&edit=1"
+                className="text-xs font-semibold text-[var(--accent)]"
+              >
+                Edit timeline
+              </Link>
+            ) : (
+              <Link href="/day?view=timeline" className="text-xs font-semibold text-[var(--accent)]">
+                Full timeline
+              </Link>
+            )
+          ) : null}
         </div>
       </div>
 
       {!hasContent ? (
         <div className="card p-5 text-sm text-muted">
           No timed moments on the timeline yet.
-          {canEdit ? (
+          {canEdit && !offline ? (
             <>
               {" "}
               <Link href="/day?view=timeline&edit=1" className="font-semibold text-[var(--accent)]">

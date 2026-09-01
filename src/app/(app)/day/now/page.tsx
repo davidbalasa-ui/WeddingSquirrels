@@ -8,7 +8,7 @@ import { requirePageSession } from "@/lib/session";
 
 export default async function DayNowPage() {
   const session = await requirePageSession({ need: "canSeeTimeline" });
-  const { snapshot, context, canEdit } = await loadDayNowPageData(session);
+  const { snapshot, liveSource, context, canEdit } = await loadDayNowPageData(session);
 
   if (!context.showNowTab) {
     redirect("/day");
@@ -26,7 +26,7 @@ export default async function DayNowPage() {
         }
       />
       <DayTabs showNowTab={context.showNowTab} />
-      <DayNowNext snapshot={snapshot} canEdit={canEdit} />
+      <DayNowNext snapshot={snapshot} liveSource={liveSource} canEdit={canEdit} />
     </>
   );
 }

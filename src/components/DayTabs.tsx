@@ -31,6 +31,7 @@ export function DayTabs({ showNowTab = false }: { showNowTab?: boolean }) {
             href={tab.href}
             className="filter-pill rounded-full border px-3.5 py-2 text-sm font-semibold"
             data-active={active}
+            aria-current={active ? "page" : undefined}
             style={
               active
                 ? {

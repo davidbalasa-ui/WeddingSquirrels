@@ -4,6 +4,7 @@
 const CACHE = "weddingsquirrels-v1";
 const PRECACHE = [
   "/",
+  "/today",
   "/offline",
   "/manifest.webmanifest",
   "/icon-192.png",

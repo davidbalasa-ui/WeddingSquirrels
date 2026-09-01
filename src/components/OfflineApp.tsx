@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { OfflineDayOfPanel } from "@/components/OfflineDayOfPanel";
 import { formatFetchedAt, loadOfflinePack, type OfflinePack } from "@/lib/offline-db";
 
 type TabId =
@@ -157,12 +158,12 @@ export function OfflineApp() {
         <div className="card p-6 text-sm">
           <p className="font-semibold">No offline copy saved yet.</p>
           <p className="mt-1 text-muted">
-            Sign in on this device, go to <span className="font-semibold">Home</span>, tap{" "}
+            Sign in on this device, go to <span className="font-semibold">Today</span>, tap{" "}
             <span className="font-semibold">Download for offline</span>, then come back here. The
             copy stays on this device.
           </p>
-          <Link href="/" className="btn-primary mt-4 inline-flex">
-            Go to sign in
+          <Link href="/today" className="btn-primary mt-4 inline-flex">
+            Go to Today
           </Link>
         </div>
       </div>
@@ -216,7 +217,9 @@ export function OfflineApp() {
       )}
 
       {active === "tasks" ? <TasksView pack={pack} /> : null}
-      {active === "day" ? <DayView pack={pack} /> : null}
+      {active === "day" ? (
+        <OfflineDayOfPanel pack={pack} onAllContacts={() => setTab("contacts")} />
+      ) : null}
       {active === "contacts" ? <ContactsView pack={pack} /> : null}
       {active === "assignments" ? <AssignmentsView pack={pack} /> : null}
       {active === "guests" ? <GuestsView pack={pack} /> : null}
@@ -268,41 +271,6 @@ function TasksView({ pack }: { pack: OfflinePack }) {
   );
 }
 
-function DayView({ pack }: { pack: OfflinePack }) {
-  const blocks = asTimeline(pack);
-  const rehearsal = blocks.filter((block) => block.schedule === "rehearsal");
-  const wedding = blocks.filter((block) => block.schedule !== "rehearsal");
-
-  const renderBlock = (block: TimelineRow) => {
-    const [title, ...details] = block.notes.split("\n").filter((line) => line.trim());
-    return (
-      <article key={block.id} className="card p-4">
-        <div className="flex items-baseline gap-2">
-          <p className="shrink-0 text-sm font-bold text-[var(--accent)]">{block.startAt}</p>
-          {block.endAt ? <p className="shrink-0 text-sm text-muted">– {block.endAt}</p> : null}
-        </div>
-        <p className="mt-1 font-semibold leading-snug">{title || block.notes}</p>
-        {details.length > 0 ? (
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-muted">{details.join("\n")}</p>
-        ) : null}
-      </article>
-    );
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      <SectionTitle>Wedding day · Oct 16</SectionTitle>
-      {wedding.map(renderBlock)}
-      {rehearsal.length > 0 ? (
-        <>
-          <SectionTitle>Rehearsal · Oct 15</SectionTitle>
-          {rehearsal.map(renderBlock)}
-        </>
-      ) : null}
-    </div>
-  );
-}
-
 function ContactsView({ pack }: { pack: OfflinePack }) {
   const contacts = asContacts(pack);
   return (
@@ -319,8 +287,16 @@ function ContactsView({ pack }: { pack: OfflinePack }) {
           )}
           <div className="min-w-0 flex-1">
             <p className="font-semibold leading-snug">{contact.name}</p>
-            {contact.phone ? <p className="mt-0.5 text-sm text-muted">{contact.phone}</p> : null}
-            {contact.email ? <p className="mt-0.5 text-sm text-muted">{contact.email}</p> : null}
+            {contact.phone ? (
+              <a href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`} className="mt-0.5 block text-sm text-[var(--accent)]">
+                {contact.phone}
+              </a>
+            ) : null}
+            {contact.email ? (
+              <a href={`mailto:${contact.email}`} className="mt-0.5 block text-sm text-[var(--accent)]">
+                {contact.email}
+              </a>
+            ) : null}
           </div>
         </article>
       ))}
