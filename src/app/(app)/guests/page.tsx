@@ -1,6 +1,7 @@
 import { AppHeader } from "@/components/AppHeader";
 import { GuestList } from "@/components/GuestList";
 import { GuestRsvpReport } from "@/components/GuestRsvpReport";
+import { GuestRsvpSync } from "@/components/GuestRsvpSync";
 import { prisma } from "@/lib/db";
 import { summarizeGuestRsvp } from "@/lib/guest-gifts";
 import { guestInclude, mapGuestRecord, mapGuestRsvpFields } from "@/lib/guests";
@@ -31,6 +32,7 @@ export default async function GuestsPage({
         subtitle={`${guests.length} households · ${giftCount} gifts`}
       />
       <GuestRsvpReport report={report} />
+      {session.isMaster ? <GuestRsvpSync /> : null}
       <GuestList
         guests={guests.map((guest) => mapGuestRecord(guest))}
         canEdit={canEdit}
