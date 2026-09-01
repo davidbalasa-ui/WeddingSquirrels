@@ -19,6 +19,48 @@ export default async function PlanHubPage() {
             : "Every part of the wedding"
         }
       />
+      {data.focus ? (
+        <section className="mb-6">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+            Next decision
+          </p>
+          <Link
+            href={data.focus.href}
+            className={`card block p-5 transition-colors hover:bg-[var(--accent-soft)]/35 ${
+              data.focus.escalated ? "ring-2 ring-[var(--warn)]" : ""
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="font-[family-name:var(--font-display)] text-2xl leading-tight">
+                  {data.focus.title}
+                </p>
+                {data.focus.detail ? (
+                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted">
+                    {data.focus.detail}
+                  </p>
+                ) : null}
+                <p className="mt-3 text-xs font-semibold text-[var(--accent)]">
+                  {data.focus.ownerLabel}
+                  {data.focus.dueLabel ? ` · ${data.focus.dueLabel}` : ""}
+                </p>
+              </div>
+              <span className="shrink-0 text-lg text-muted" aria-hidden>
+                ›
+              </span>
+            </div>
+          </Link>
+        </section>
+      ) : session.canSeeTasks ? (
+        <section className="card mb-6 p-5">
+          <p className="font-[family-name:var(--font-display)] text-xl">Planning queue clear</p>
+          <p className="mt-1 text-sm text-muted">No open decision cards need attention.</p>
+        </section>
+      ) : null}
+
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+        Wedding plan
+      </p>
       {data.rows.length === 0 ? (
         <div className="card p-5 text-sm text-muted">No planning modules are enabled for this PIN.</div>
       ) : (

@@ -1,7 +1,9 @@
 import { startOfDay } from "date-fns";
 import { prisma } from "@/lib/db";
-import { taskVisibilityWhere } from "@/lib/tasks";
+import { countFinishedGuests } from "@/lib/meals";
 import type { ModuleIconName } from "@/lib/modules";
+import { assigneeDisplayNames } from "@/lib/people";
+import { dueLabel, listTasks } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 
 export type PlanDomainKey =
@@ -9,8 +11,7 @@ export type PlanDomainKey =
   | "timeline"
   | "rehearsal"
   | "stay"
-  | "shopping"
-  | "calendar";
+  | "shopping";
 
 export type PlanDomainSummary = {
   key: PlanDomainKey;
@@ -27,7 +28,15 @@ export type PlanCounts = {
   rehearsal?: { moments: number; mealGuests: number; mealChoices: number; published: boolean };
   stay?: { assigned: number; total: number };
   shopping?: { remaining: number; purchased: number };
-  calendar?: { upcoming: number; nextTitle: string | null };
+};
+
+export type PlanFocus = {
+  title: string;
+  detail: string | null;
+  ownerLabel: string;
+  dueLabel: string | null;
+  href: string;
+  escalated: boolean;
 };
 
 export function buildPlanDomainSummaries(
@@ -98,50 +107,16 @@ export function buildPlanDomainSummaries(
     });
   }
 
-  if (session.canSeeCalendar && counts.calendar) {
-    rows.push({
-      key: "calendar",
-      label: "Calendar",
-      detail: counts.calendar.nextTitle
-        ? `${counts.calendar.upcoming} upcoming · next: ${counts.calendar.nextTitle}`
-        : "No upcoming events",
-      href: "/plan/calendar",
-      icon: "calendar",
-    });
-  }
-
   return rows;
 }
 
 export async function loadPlanPageData(session: SessionAccount) {
   const today = startOfDay(new Date());
 
-  const [taskCounts, timelineCount, rehearsal, staySlots, shopping, calendar] =
+  const [taskRows, timelineCount, rehearsal, staySlots, shopping] =
     await Promise.all([
       session.canSeeTasks
-        ? Promise.all([
-            prisma.task.count({
-              where: {
-                AND: [
-                  taskVisibilityWhere(session),
-                  { parentId: null, orgKey: null, status: { not: "done" } },
-                ],
-              },
-            }),
-            prisma.task.count({
-              where: {
-                AND: [
-                  taskVisibilityWhere(session),
-                  {
-                    parentId: null,
-                    orgKey: null,
-                    status: { not: "done" },
-                    dueDate: { lt: today },
-                  },
-                ],
-              },
-            }),
-          ])
+        ? listTasks(session)
         : Promise.resolve(null),
       session.canSeeTimeline
         ? prisma.timelineBlock.count({ where: { schedule: "wedding" } })
@@ -149,13 +124,19 @@ export async function loadPlanPageData(session: SessionAccount) {
       session.canSeeDinner
         ? Promise.all([
             prisma.timelineBlock.count({ where: { schedule: "rehearsal" } }),
-            prisma.mealGuest.count(),
-            prisma.mealChoice.groupBy({ by: ["guestId"] }),
+            prisma.mealCourse.findMany({
+              orderBy: { sortOrder: "asc" },
+              include: { options: { orderBy: { sortOrder: "asc" } } },
+            }),
+            prisma.mealGuest.findMany({
+              include: { choices: true },
+              orderBy: { sortOrder: "asc" },
+            }),
             prisma.mealSettings.findUnique({ where: { id: 1 }, select: { published: true } }),
           ])
         : Promise.resolve(null),
       session.canSeeStay
-        ? prisma.staySlot.findMany({ select: { occupant: true } })
+        ? prisma.staySlot.findMany({ select: { occupant: true, optional: true } })
         : Promise.resolve(null),
       session.canSeeShop
         ? Promise.all([
@@ -163,29 +144,38 @@ export async function loadPlanPageData(session: SessionAccount) {
             prisma.shoppingItem.count({ where: { purchased: true } }),
           ])
         : Promise.resolve(null),
-      session.canSeeCalendar
-        ? Promise.all([
-            prisma.calendarEvent.count({ where: { endDate: { gte: today } } }),
-            prisma.calendarEvent.findFirst({
-              where: { endDate: { gte: today } },
-              orderBy: { startDate: "asc" },
-              select: { title: true },
-            }),
-          ])
-        : Promise.resolve(null),
     ]);
 
   const counts: PlanCounts = {
-    ...(taskCounts
-      ? { tasks: { open: taskCounts[0], overdue: taskCounts[1] } }
+    ...(taskRows
+      ? {
+          tasks: {
+            open: taskRows.length,
+            overdue: taskRows.filter((task) => task.dueDate && task.dueDate < today).length,
+          },
+        }
       : {}),
     ...(timelineCount !== null ? { timeline: { moments: timelineCount } } : {}),
     ...(rehearsal
       ? {
           rehearsal: {
             moments: rehearsal[0],
-            mealGuests: rehearsal[1],
-            mealChoices: rehearsal[2].length,
+            mealGuests: rehearsal[2].length,
+            mealChoices: countFinishedGuests(
+              rehearsal[1].map((course) => ({
+                id: course.id,
+                label: course.label,
+                options: course.options.map((option) => ({
+                  id: option.id,
+                  label: option.label,
+                })),
+              })),
+              rehearsal[2].map((guest) => ({
+                choices: Object.fromEntries(
+                  guest.choices.map((choice) => [choice.courseId, choice.optionId]),
+                ),
+              })),
+            ),
             published: Boolean(rehearsal[3]?.published),
           },
         }
@@ -193,21 +183,31 @@ export async function loadPlanPageData(session: SessionAccount) {
     ...(staySlots
       ? {
           stay: {
-            assigned: staySlots.filter((slot) => slot.occupant.trim()).length,
-            total: staySlots.length,
+            assigned: staySlots.filter((slot) => !slot.optional && slot.occupant.trim()).length,
+            total: staySlots.filter((slot) => !slot.optional).length,
           },
         }
       : {}),
     ...(shopping
       ? { shopping: { remaining: shopping[0], purchased: shopping[1] } }
       : {}),
-    ...(calendar
-      ? { calendar: { upcoming: calendar[0], nextTitle: calendar[1]?.title ?? null } }
-      : {}),
   };
+
+  const focusTask = taskRows?.[0] ?? null;
+  const focus: PlanFocus | null = focusTask
+    ? {
+        title: focusTask.title,
+        detail: focusTask.planNotes?.trim() || focusTask.summary,
+        ownerLabel: assigneeDisplayNames(focusTask.assignees) || "Unassigned",
+        dueLabel: dueLabel(focusTask.dueDate, focusTask.status),
+        href: `/work/${focusTask.id}`,
+        escalated: Boolean(focusTask.escalatedAt),
+      }
+    : null;
 
   return {
     rows: buildPlanDomainSummaries(session, counts),
     openTasks: counts.tasks?.open ?? 0,
+    focus,
   };
 }

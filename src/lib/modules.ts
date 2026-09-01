@@ -17,7 +17,6 @@ export type ModuleIconName =
   | "stay"
   | "rehearsal"
   | "dinner"
-  | "calendar"
   | "accounts"
   | "more";
 
@@ -111,16 +110,6 @@ export const MODULES: ModuleDef[] = [
     see: "canSeeShop",
     hideFromMore: true,
     icon: "shop",
-  },
-  {
-    key: "calendar",
-    label: "Calendar",
-    href: "/plan/calendar",
-    group: "plan",
-    navTab: "plan",
-    see: "canSeeCalendar",
-    hideFromMore: true,
-    icon: "calendar",
   },
   {
     key: "money",

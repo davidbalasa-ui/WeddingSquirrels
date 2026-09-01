@@ -40,17 +40,16 @@ const counts: PlanCounts = {
   },
   stay: { assigned: 4, total: 10 },
   shopping: { remaining: 6, purchased: 9 },
-  calendar: { upcoming: 3, nextTitle: "Wedding day" },
 };
 
-test("buildPlanDomainSummaries returns the six live Plan domains", () => {
+test("buildPlanDomainSummaries returns the five action-oriented Plan domains", () => {
   const rows = buildPlanDomainSummaries(session(), counts);
   assert.deepEqual(
     rows.map((row) => row.key),
-    ["tasks", "timeline", "rehearsal", "stay", "shopping", "calendar"],
+    ["tasks", "timeline", "rehearsal", "stay", "shopping"],
   );
   assert.equal(rows[0]?.detail, "12 open · 2 overdue");
-  assert.equal(rows[5]?.href, "/plan/calendar");
+  assert.equal(rows[4]?.href, "/plan/shopping");
 });
 
 test("buildPlanDomainSummaries respects PIN permissions", () => {
@@ -67,12 +66,10 @@ test("buildPlanDomainSummaries respects PIN permissions", () => {
   assert.deepEqual(rows.map((row) => row.key), ["tasks"]);
 });
 
-test("Plan details use calm empty-state language", () => {
+test("Plan task details use calm empty-state language", () => {
   const rows = buildPlanDomainSummaries(session(), {
     ...counts,
     tasks: { open: 0, overdue: 0 },
-    calendar: { upcoming: 0, nextTitle: null },
   });
   assert.equal(rows.find((row) => row.key === "tasks")?.detail, "0 open · nothing overdue");
-  assert.equal(rows.find((row) => row.key === "calendar")?.detail, "No upcoming events");
 });
