@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ModuleIcon } from "@/components/ModuleIcon";
+import { PeopleDirectorySearch } from "@/components/PeopleDirectorySearch";
+import { PeopleSectionGrid } from "@/components/PeopleSectionGrid";
 import { V2PageHeader } from "@/components/V2PageHeader";
-import { modulesForNavTab } from "@/lib/modules";
+import { loadPeopleHubData } from "@/lib/people-hub";
 import { requirePageSession } from "@/lib/session";
 
 export default async function PeopleHubPage({
@@ -19,56 +21,72 @@ export default async function PeopleHubPage({
   }
 
   const session = await requirePageSession();
-  const links = modulesForNavTab(session, "people").filter((item) => item.href !== "/people");
+  const data = await loadPeopleHubData(session);
 
-  const extraLinks = [
+  const quickLinks = [
+    session.canSeeGuests
+      ? { key: "guests", label: "Guest list", href: "/people/guests", detail: `${data.guestCount} households` }
+      : null,
     session.canSeeTimeline
-      ? { key: "contacts", label: "Contacts", href: "/day/contacts", icon: "people" as const }
+      ? {
+          key: "contacts",
+          label: "Day-of contacts",
+          href: "/people/contacts",
+          detail: `${data.contactCount} contacts`,
+        }
       : null,
     session.canSeeTimeline
       ? {
           key: "assignments",
           label: "Responsibilities",
-          href: "/day/assignments",
-          icon: "people" as const,
+          href: "/people/responsibilities",
+          detail: `${data.assignmentCount} assignments`,
         }
       : null,
-  ].filter(Boolean) as { key: string; label: string; href: string; icon: "people" }[];
+  ].filter(Boolean) as { key: string; label: string; href: string; detail: string }[];
 
   return (
     <>
-      <V2PageHeader session={session} title="People" subtitle="Guests, contacts, and responsibilities" />
-      {links.length === 0 && extraLinks.length === 0 ? (
-        <div className="card p-5 text-sm text-muted">No people modules are enabled for this PIN.</div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {links.map((item) => (
-            <Link
-              key={item.key}
-              href={item.href!}
-              className="card flex items-center gap-3 p-4 transition-colors hover:bg-[var(--accent-soft)]/40"
-            >
-              <ModuleIcon name={item.icon} className="h-6 w-6 shrink-0 text-[var(--accent)]" />
-              <span className="flex-1 font-semibold">{item.label}</span>
-              <span className="text-sm text-muted" aria-hidden>
-                ›
-              </span>
-            </Link>
-          ))}
-          {extraLinks.map((item) => (
-            <Link
-              key={item.key}
-              href={item.href}
-              className="card flex items-center gap-3 p-4 transition-colors hover:bg-[var(--accent-soft)]/40"
-            >
-              <ModuleIcon name={item.icon} className="h-6 w-6 shrink-0 text-[var(--accent)]" />
-              <span className="flex-1 font-semibold">{item.label}</span>
-              <span className="text-sm text-muted" aria-hidden>
-                ›
-              </span>
-            </Link>
-          ))}
-        </div>
+      <V2PageHeader
+        session={session}
+        title="People"
+        subtitle="Faces, roles, and who to reach"
+      />
+
+      <PeopleSectionGrid sections={data.sections} />
+
+      {quickLinks.length > 0 ? (
+        <section className="mb-6">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+            Lists
+          </p>
+          <div className="divide-y divide-[var(--line)] border-y border-line">
+            {quickLinks.map((item) => (
+              <Link
+                key={item.key}
+                href={item.href}
+                className="flex min-h-[4.5rem] items-center gap-3 py-3 transition-colors hover:bg-[var(--accent-soft)]/30"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
+                  <ModuleIcon name="people" className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-[family-name:var(--font-display)] text-lg leading-tight">
+                    {item.label}
+                  </span>
+                  <span className="mt-0.5 block text-sm text-muted">{item.detail}</span>
+                </span>
+                <span className="text-lg text-muted" aria-hidden>
+                  ›
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {data.entries.length > 0 ? <PeopleDirectorySearch entries={data.entries} /> : (
+        <div className="card p-5 text-sm text-muted">No people are visible for this PIN yet.</div>
       )}
     </>
   );
