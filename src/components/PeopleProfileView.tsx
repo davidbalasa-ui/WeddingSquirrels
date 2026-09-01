@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PersonAvatar } from "@/components/PersonAvatar";
+import { formatMoney } from "@/lib/money";
 import type { PeopleProfile } from "@/lib/people-profile";
 
 function ContactLink({
@@ -95,6 +96,58 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
                   <p className="mt-1 whitespace-pre-line text-sm text-muted">{assignment.notes}</p>
                 ) : null}
               </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {profile.relatedLinks.length > 0 ? (
+        <section>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+            Connected
+          </p>
+          <div className="divide-y divide-[var(--line)] border-y border-line">
+            {profile.relatedLinks.map((link) => (
+              <Link
+                key={link.href + link.label}
+                href={link.href}
+                className="flex min-h-[4rem] items-center justify-between gap-3 py-3 transition-colors hover:bg-[var(--accent-soft)]/30"
+              >
+                <span className="min-w-0">
+                  <span className="block font-semibold leading-tight">{link.label}</span>
+                  <span className="mt-0.5 block text-sm text-muted">{link.detail}</span>
+                </span>
+                <span className="text-lg text-muted" aria-hidden>
+                  ›
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {profile.budgetContracts.length > 0 ? (
+        <section>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+            Vendor contracts
+          </p>
+          <div className="divide-y divide-[var(--line)] border-y border-line">
+            {profile.budgetContracts.map((contract) => (
+              <Link
+                key={contract.id}
+                href={contract.href}
+                className="flex min-h-[4rem] items-center justify-between gap-3 py-3 transition-colors hover:bg-[var(--accent-soft)]/30"
+              >
+                <span className="min-w-0">
+                  <span className="block font-semibold leading-tight">{contract.name}</span>
+                  <span className="mt-0.5 block text-sm text-muted">
+                    {contract.remaining > 0 ? `${formatMoney(contract.remaining)} remaining` : "Paid in full"}
+                  </span>
+                </span>
+                <span className="text-lg text-muted" aria-hidden>
+                  ›
+                </span>
+              </Link>
             ))}
           </div>
         </section>

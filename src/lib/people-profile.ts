@@ -12,6 +12,13 @@ import {
   profileIdForPerson,
   vendorSubtitle,
 } from "@/lib/people-directory";
+import {
+  budgetContractsForContact,
+  budgetContractsForPerson,
+  buildProfileRelatedLinks,
+  type ProfileBudgetContract,
+  type ProfileRelatedLink,
+} from "@/lib/connections";
 import { dueLabel, listTasks } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 import { STAY_SECTIONS } from "@/lib/stay";
@@ -45,6 +52,8 @@ export type PeopleProfile = {
   } | null;
   stayLabel: string | null;
   mealStatus: string | null;
+  budgetContracts: ProfileBudgetContract[];
+  relatedLinks: ProfileRelatedLink[];
 };
 
 function mealSectionTitle(sectionId: string): string | null {
@@ -100,7 +109,7 @@ export async function loadPeopleProfile(
   const parsed = parseProfileId(profileId);
   if (!parsed) return null;
 
-  const [staySlots, mealGuests, guests, assignments] = await Promise.all([
+  const [staySlots, mealGuests, guests, assignments, budgetItems, contacts] = await Promise.all([
     session.canSeeStay
       ? prisma.staySlot.findMany({ select: { sectionId: true, label: true, occupant: true } })
       : Promise.resolve([]),
@@ -120,6 +129,22 @@ export async function loadPeopleProfile(
           orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
         })
       : Promise.resolve([]),
+    session.canSeeBudget
+      ? prisma.budgetItem.findMany({
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            amountPaid: true,
+            ownerId: true,
+            paidById: true,
+          },
+        })
+      : Promise.resolve([]),
+    session.canSeeTimeline
+      ? prisma.contact.findMany({ select: { id: true, name: true }, orderBy: { sortOrder: "asc" } })
+      : Promise.resolve([]),
   ]);
 
   const guestRecords = guests.map((guest) => mapGuestRecord(guest));
@@ -127,6 +152,7 @@ export async function loadPeopleProfile(
   if (parsed.kind === "contact") {
     const contact = await prisma.contact.findUnique({ where: { id: parsed.id } });
     if (!contact) return null;
+    const budgetContracts = budgetContractsForContact(contact, budgetItems);
     return {
       profileId: profileIdForContact(contact.id),
       name: contact.name,
@@ -140,6 +166,8 @@ export async function loadPeopleProfile(
       guestInfo: null,
       stayLabel: null,
       mealStatus: null,
+      budgetContracts,
+      relatedLinks: buildProfileRelatedLinks({ budgetContracts }),
     };
   }
 
@@ -178,6 +206,20 @@ export async function loadPeopleProfile(
     const mealStatus = mealGuest
       ? mealSectionTitle(mealGuest.sectionId) ?? "Rehearsal dinner"
       : null;
+    const budgetContracts = budgetContractsForPerson(person, budgetItems);
+    const guestInfo = guestPerson
+      ? {
+          household: guestHouseholdLabel({
+            nameLine1: guestPerson.guest.people[0]?.name ?? person.name,
+            nameLine2: guestPerson.guest.people[1]?.name ?? null,
+            street: guestPerson.guest.street,
+            city: guestPerson.guest.city,
+          }),
+          rsvpStatus: guestPerson.guest.rsvpStatus,
+          table: tableLabel(guestPerson.person.tableNumber, guestPerson.person.tableSpot),
+        }
+      : null;
+    const stayLabel = stayLabelForName(person.name, staySlots);
 
     return {
       profileId: profileIdForPerson(person.id),
@@ -189,20 +231,17 @@ export async function loadPeopleProfile(
       roles: personRoles(person, personAssignments.length),
       openTasks,
       assignments: personAssignments,
-      guestInfo: guestPerson
-        ? {
-            household: guestHouseholdLabel({
-              nameLine1: guestPerson.guest.people[0]?.name ?? person.name,
-              nameLine2: guestPerson.guest.people[1]?.name ?? null,
-              street: guestPerson.guest.street,
-              city: guestPerson.guest.city,
-            }),
-            rsvpStatus: guestPerson.guest.rsvpStatus,
-            table: tableLabel(guestPerson.person.tableNumber, guestPerson.person.tableSpot),
-          }
-        : null,
-      stayLabel: stayLabelForName(person.name, staySlots),
+      guestInfo,
+      stayLabel,
       mealStatus,
+      budgetContracts,
+      relatedLinks: buildProfileRelatedLinks({
+        guestInfo: Boolean(guestInfo),
+        stayLabel,
+        mealStatus,
+        assignments: personAssignments.length,
+        budgetContracts,
+      }),
     };
   }
 
@@ -215,6 +254,8 @@ export async function loadPeopleProfile(
   const mealStatus = mealGuest
     ? mealSectionTitle(mealGuest.sectionId) ?? "Rehearsal dinner"
     : null;
+
+  const stayLabel = stayLabelForName(guestPerson.person.name, staySlots);
 
   return {
     profileId: profileIdForGuestPerson(guestPerson.person.id),
@@ -241,8 +282,14 @@ export async function loadPeopleProfile(
       rsvpStatus: guestPerson.guest.rsvpStatus,
       table: tableLabel(guestPerson.person.tableNumber, guestPerson.person.tableSpot),
     },
-    stayLabel: stayLabelForName(guestPerson.person.name, staySlots),
+    stayLabel,
     mealStatus,
+    budgetContracts: [],
+    relatedLinks: buildProfileRelatedLinks({
+      guestInfo: true,
+      stayLabel,
+      mealStatus,
+    }),
   };
 }
 

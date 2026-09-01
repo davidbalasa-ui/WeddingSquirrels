@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { moneyContractHref } from "@/lib/connections";
 import { dueDateLabel, formatMoney, type MoneyDueItem } from "@/lib/money";
 
 export function MoneyDueList({
@@ -26,7 +27,7 @@ export function MoneyDueList({
         {items.map((item) => (
           <Link
             key={item.id}
-            href="/money"
+            href={moneyContractHref(item.contractId)}
             className="flex min-h-[4.5rem] items-center gap-3 py-3 transition-colors hover:bg-[var(--accent-soft)]/30"
           >
             <span className="min-w-0 flex-1">

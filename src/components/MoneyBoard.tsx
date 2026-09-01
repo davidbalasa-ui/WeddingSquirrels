@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   createBudgetItem,
   deleteBudgetItem,
@@ -103,16 +104,26 @@ export function MoneyBoard({
   minor,
   canEdit,
   hideSummary = false,
+  profileHrefByContractId = {},
 }: {
   items: BudgetItemView[];
   minor: MinorExpenseView[];
   canEdit: boolean;
   hideSummary?: boolean;
+  profileHrefByContractId?: Record<string, string>;
 }) {
+  const searchParams = useSearchParams();
+  const highlightContractId = searchParams.get("contract");
+  const highlightRef = useRef<HTMLDivElement | null>(null);
   const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
   const [editingMinorId, setEditingMinorId] = useState<string | null>(null);
   const [addingBudget, setAddingBudget] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!highlightContractId || !highlightRef.current) return;
+    highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightContractId, items.length]);
 
   const budgetTotal = items.reduce((s, i) => s + i.price, 0);
   const budgetPaid = items.reduce((s, i) => s + i.amountPaid, 0);
@@ -329,7 +340,11 @@ export function MoneyBoard({
             return (
               <article
                 key={item.id}
-                className="card relative p-4 pr-12"
+                id={`contract-${item.id}`}
+                ref={highlightContractId === item.id ? highlightRef : null}
+                className={`card relative p-4 pr-12 ${
+                  highlightContractId === item.id ? "ring-2 ring-[var(--accent)]" : ""
+                }`}
                 style={
                   overdue
                     ? {
@@ -356,7 +371,16 @@ export function MoneyBoard({
                 ) : null}
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-semibold leading-snug">{item.name}</h3>
+                    {profileHrefByContractId[item.id] ? (
+                      <Link
+                        href={profileHrefByContractId[item.id]!}
+                        className="text-base font-semibold leading-snug text-[var(--accent)] hover:underline"
+                      >
+                        {item.name}
+                      </Link>
+                    ) : (
+                      <h3 className="text-base font-semibold leading-snug">{item.name}</h3>
+                    )}
                     <p className="mt-1 text-sm text-muted">
                       ${money(item.amountPaid)} paid of ${money(item.price)}
                       {overdue ? " · Overdue" : ""}

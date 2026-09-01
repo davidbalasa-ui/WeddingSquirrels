@@ -1,6 +1,7 @@
 import { differenceInCalendarDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/db";
 import { buildMoneyDueItems } from "@/lib/money";
+import { moneyContractHref } from "@/lib/connections";
 import { loadVisibleBudgetContracts } from "@/lib/money-page";
 import { parseDayOfTime, sortTimelineBlocks } from "@/lib/day-of-time";
 import {
@@ -379,7 +380,7 @@ export function buildComingUpList(
       kind: "payment",
       title: budgetItem.name,
       date: budgetItem.payByDate,
-      href: "/money",
+      href: moneyContractHref(budgetItem.id),
       subtitle: `${formatMoney(budgetItem.price - budgetItem.amountPaid)} due`,
     });
   }
