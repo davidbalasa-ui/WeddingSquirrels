@@ -245,7 +245,7 @@ export function MoneyBoard({
                   {expanded ? (
                     <div className="pb-3 pl-1">
                       {item.note ? (
-                        <p className="mb-3 text-sm leading-relaxed text-muted">{item.note}</p>
+                        <p className="mb-3 break-all text-sm leading-relaxed text-muted">{item.note}</p>
                       ) : null}
                       <MoneyPaymentSchedule
                         contract={item}
@@ -417,7 +417,9 @@ export function MoneyBoard({
                       {formatMoney(m.amountSpent)} spent of {formatMoney(needed)}
                     </span>
                     {m.planNotes ? (
-                      <span className="mt-0.5 block text-xs text-muted">{m.planNotes}</span>
+                      <span className="mt-0.5 line-clamp-2 block overflow-hidden break-all text-xs text-muted">
+                        {m.planNotes}
+                      </span>
                     ) : null}
                   </button>
                   <span className="shrink-0 text-right">
