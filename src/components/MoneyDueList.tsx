@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EmptyState } from "@/components/EmptyState";
 import { moneyContractHref } from "@/lib/connections";
 import { dueDateLabel, formatMoney, type MoneyDueItem } from "@/lib/money";
 
@@ -6,12 +7,26 @@ export function MoneyDueList({
   title,
   items,
   showAllHref,
+  emptyTitle,
 }: {
   title: string;
   items: MoneyDueItem[];
   showAllHref?: string;
+  emptyTitle?: string;
 }) {
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    return (
+      <section className="mb-6">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{title}</p>
+        <EmptyState
+          title={emptyTitle ?? "No payments due right now"}
+          detail="Installments and balances will show up here when something is coming due."
+          actionHref={showAllHref}
+          actionLabel={showAllHref ? "View payment schedule" : undefined}
+        />
+      </section>
+    );
+  }
 
   return (
     <section className="mb-6">

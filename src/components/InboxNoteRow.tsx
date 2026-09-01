@@ -118,11 +118,13 @@ export function InboxNoteRow({
           }}
           onDelete={
             item.kind === "buy"
-              ? () =>
+              ? () => {
+                  if (!window.confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
                   startTransition(async () => {
                     await deleteShoppingItem(item.sourceId);
                     setEditing(false);
-                  })
+                  });
+                }
               : undefined
           }
         />

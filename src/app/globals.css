@@ -313,6 +313,49 @@ a {
   cursor: pointer;
 }
 
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--line) 55%, transparent) 0%,
+    color-mix(in srgb, var(--accent-soft) 80%, transparent) 50%,
+    color-mix(in srgb, var(--line) 55%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.filter-pill:focus-visible,
+.nav-link:focus-visible,
+.role-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-key:active,
+  .btn-primary:active,
+  .btn-secondary:active,
+  .star-btn:active {
+    transform: none;
+  }
+
+  .loading-shimmer {
+    animation: none;
+    background: color-mix(in srgb, var(--line) 55%, transparent);
+  }
+}
+
 @media print {
   body {
     background: white;

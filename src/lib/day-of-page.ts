@@ -4,6 +4,7 @@ import {
   buildDayNowNextSnapshot,
   shouldShowDayNowTab,
   type DayNowNextSnapshot,
+  type TimelineBlockInput,
 } from "@/lib/day-of-now";
 import { sortTimelineBlocks } from "@/lib/day-of-time";
 import { buildTodayHero, formatWeddingDateLabel } from "@/lib/today";
@@ -32,8 +33,22 @@ export async function loadDayOfContext(): Promise<DayOfPageContext> {
   };
 }
 
+export type DayNowLiveSource = {
+  blocks: TimelineBlockInput[];
+  contacts: Array<{
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    photoData: string | null;
+  }>;
+  people: Array<{ id: string; name: string }>;
+  daysToGo: number | null;
+};
+
 export async function loadDayNowPageData(session: SessionAccount): Promise<{
   snapshot: DayNowNextSnapshot;
+  liveSource: DayNowLiveSource;
   context: DayOfPageContext;
   canEdit: boolean;
 }> {
@@ -68,12 +83,19 @@ export async function loadDayNowPageData(session: SessionAccount): Promise<{
     }),
   ]);
 
-  const snapshot = buildDayNowNextSnapshot(sortTimelineBlocks(blocks), contacts, people, {
+  const sortedBlocks = sortTimelineBlocks(blocks);
+  const snapshot = buildDayNowNextSnapshot(sortedBlocks, contacts, people, {
     daysToGo: context.daysToGo,
   });
 
   return {
     snapshot,
+    liveSource: {
+      blocks: sortedBlocks,
+      contacts,
+      people,
+      daysToGo: context.daysToGo,
+    },
     context,
     canEdit: session.isMaster || session.canEditTimeline,
   };

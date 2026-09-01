@@ -291,12 +291,13 @@ export function InboxRow({
                     <button
                       type="button"
                       className="block w-full px-3 py-2 text-left text-sm font-semibold text-[var(--danger)] hover:bg-[var(--surface)]"
-                      onClick={() =>
+                      onClick={() => {
+                        if (!window.confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
                         startTransition(async () => {
                           await deleteShoppingItem(item.sourceId);
                           setMenuOpen(false);
-                        })
-                      }
+                        });
+                      }}
                     >
                       Delete
                     </button>
@@ -305,12 +306,13 @@ export function InboxRow({
                     <button
                       type="button"
                       className="block w-full px-3 py-2 text-left text-sm font-semibold text-[var(--danger)] hover:bg-[var(--surface)]"
-                      onClick={() =>
+                      onClick={() => {
+                        if (!window.confirm(`Delete this ask? This cannot be undone.`)) return;
                         startTransition(async () => {
                           await deleteRequest(item.sourceId);
                           setMenuOpen(false);
-                        })
-                      }
+                        });
+                      }}
                     >
                       Delete
                     </button>
