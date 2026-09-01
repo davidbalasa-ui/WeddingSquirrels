@@ -20,7 +20,7 @@ import {
   requireSession,
   unlockWithPin,
 } from "@/lib/auth";
-import { isDatabaseUnreachable, prisma, prismaErrorCode } from "@/lib/db";
+import { isDatabaseUnreachable, prisma, prismaErrorCode, supportsBudgetPayments } from "@/lib/db";
 import {
   applyPeerOrder,
   parseTimelineSchedule,
@@ -450,6 +450,7 @@ export async function deleteBudgetItem(id: string): Promise<void> {
 export async function markBudgetPaymentPaid(paymentId: string): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
+  if (!(await supportsBudgetPayments())) return;
 
   const payment = await prisma.budgetPayment.findUnique({
     where: { id: paymentId },

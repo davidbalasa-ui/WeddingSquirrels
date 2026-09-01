@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma, supportsBudgetPayments } from "@/lib/db";
 import { moneyEditable } from "@/lib/access";
 import type { SessionAccount } from "@/lib/types";
 import {
@@ -22,11 +22,15 @@ export async function loadVisibleBudgetContracts(
 ): Promise<BudgetContractSnapshot[]> {
   if (!session.canSeeBudget) return [];
 
+  const includePayments = await supportsBudgetPayments();
+
   const allItems = await prisma.budgetItem.findMany({
     orderBy: { sortOrder: "asc" },
     include: {
       shares: { select: { pinAccountId: true } },
-      payments: { orderBy: { sortOrder: "asc" } },
+      ...(includePayments
+        ? { payments: { orderBy: { sortOrder: "asc" } } }
+        : {}),
     },
   });
 
@@ -49,17 +53,19 @@ export async function loadVisibleBudgetContracts(
     payByDate: item.payByDate,
     note: item.note,
     sortOrder: item.sortOrder,
-    payments: item.payments.map((payment) => ({
-      id: payment.id,
-      label: payment.label,
-      amount: payment.amount,
-      dueDate: payment.dueDate,
-      paidAmount: payment.paidAmount,
-      paidAt: payment.paidAt,
-      paidById: payment.paidById,
-      note: payment.note,
-      sortOrder: payment.sortOrder,
-    })),
+    payments: includePayments
+      ? item.payments.map((payment) => ({
+          id: payment.id,
+          label: payment.label,
+          amount: payment.amount,
+          dueDate: payment.dueDate,
+          paidAmount: payment.paidAmount,
+          paidAt: payment.paidAt,
+          paidById: payment.paidById,
+          note: payment.note,
+          sortOrder: payment.sortOrder,
+        }))
+      : [],
   }));
 }
 
@@ -73,6 +79,8 @@ export async function loadMoneyPageData(session: SessionAccount): Promise<MoneyP
 }
 
 export async function syncBudgetItemAmountPaid(budgetItemId: string) {
+  if (!(await supportsBudgetPayments())) return;
+
   const payments = await prisma.budgetPayment.findMany({
     where: { budgetItemId },
     orderBy: [{ sortOrder: "asc" }, { dueDate: "asc" }],

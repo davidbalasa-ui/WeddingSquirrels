@@ -47,6 +47,29 @@ export function prismaErrorCode(error: unknown): string {
   return "";
 }
 
+/** True when Prisma reports the BudgetPayment table/relation is missing (Phase 5 not migrated yet). */
+export function isMissingBudgetPaymentTable(error: unknown): boolean {
+  const code = prismaErrorCode(error);
+  if (code === "P2021" || code === "P2010") return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return /BudgetPayment|relation.*BudgetPayment/i.test(message);
+}
+
+let budgetPaymentsAvailable: boolean | null = null;
+
+/** Cached probe — production can run before neon-budget-payment.sql is applied. */
+export async function supportsBudgetPayments(): Promise<boolean> {
+  if (budgetPaymentsAvailable !== null) return budgetPaymentsAvailable;
+  try {
+    await prisma.budgetPayment.count();
+    budgetPaymentsAvailable = true;
+  } catch (error) {
+    budgetPaymentsAvailable = isMissingBudgetPaymentTable(error) ? false : null;
+    if (budgetPaymentsAvailable === null) throw error;
+  }
+  return budgetPaymentsAvailable;
+}
+
 export const databaseTransport = selectDatabaseTransport(process.env.DATABASE_URL);
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();
