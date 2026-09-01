@@ -37,7 +37,7 @@ export default async function MoreHubPage() {
 
         <section>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted">Offline</p>
-          <OfflineSetupCard />
+          <OfflineSetupCard variant="panel" />
         </section>
 
         {legacyGroups.length > 0 ? (
