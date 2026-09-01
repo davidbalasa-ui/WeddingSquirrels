@@ -18,7 +18,7 @@
     "db:day-of": "tsx scripts/ensure-day-of.ts",
     "icons": "node scripts/generate-icons.mjs",
     "db:reset": "tsx scripts/db-reset.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "bash scripts/prisma-generate.sh"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
