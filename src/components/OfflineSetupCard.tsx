@@ -37,9 +37,24 @@ export function OfflineSetupCard() {
 
     loadOfflinePack()
       .then((saved) => {
-        if (active) setPack(saved);
+        if (!active) return;
+        setPack(saved);
+        if (saved) {
+          setChecking(false);
+          return;
+        }
+        if (window.__weddingsquirrelsOfflineSync) {
+          setChecking(true);
+          return;
+        }
+        if (navigator.onLine) {
+          setChecking(true);
+          window.dispatchEvent(new Event("weddingsquirrels:offline-sync-request"));
+        } else {
+          setChecking(false);
+        }
       })
-      .finally(() => {
+      .catch(() => {
         if (active) setChecking(false);
       });
 
@@ -96,9 +111,11 @@ export function OfflineSetupCard() {
   const status = checking
     ? "Saving your offline copy automatically…"
     : pack
-      ? `Offline copy ready · updated ${formatFetchedAt(pack.fetchedAt)}`
+      ? syncFailed
+        ? `Offline copy ready · updated ${formatFetchedAt(pack.fetchedAt)} · refresh failed`
+        : `Offline copy ready · updated ${formatFetchedAt(pack.fetchedAt)}`
       : syncFailed
-        ? "Couldn’t refresh the offline copy. Your last saved copy is still safe."
+        ? "Couldn’t save an offline copy. Stay online and try Update now."
         : "Sign in once while online to prepare this device.";
 
   return (

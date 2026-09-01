@@ -158,9 +158,9 @@ export function OfflineApp() {
         <div className="card p-6 text-sm">
           <p className="font-semibold">No offline copy saved yet.</p>
           <p className="mt-1 text-muted">
-            Sign in on this device, go to <span className="font-semibold">Today</span>, tap{" "}
-            <span className="font-semibold">Download for offline</span>, then come back here. The
-            copy stays on this device.
+            Sign in on this device while online and open <span className="font-semibold">Today</span>{" "}
+            or <span className="font-semibold">More</span>. Your offline copy saves automatically,
+            then this page will show it.
           </p>
           <Link href="/today" className="btn-primary mt-4 inline-flex">
             Go to Today

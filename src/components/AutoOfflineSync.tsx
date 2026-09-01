@@ -24,6 +24,10 @@ declare global {
 async function warmOfflineShell(): Promise<void> {
   if (!("caches" in window)) return;
 
+  const cache = await caches.open(OFFLINE_CACHE);
+  // Bypass the service worker's cache-first /offline handler so deploys refresh the shell.
+  await cache.delete("/offline");
+
   const response = await fetch("/offline", { credentials: "same-origin" });
   if (!response.ok) return;
 
@@ -38,7 +42,6 @@ async function warmOfflineShell(): Promise<void> {
     .map((element) => element.getAttribute("src") ?? element.getAttribute("href"))
     .filter((url): url is string => Boolean(url?.startsWith("/")));
 
-  const cache = await caches.open(OFFLINE_CACHE);
   await cache.put("/offline", response);
   await Promise.allSettled(
     [...new Set(assetUrls)].map(async (url) => {
@@ -74,23 +77,33 @@ async function syncOfflineCopy(force = false): Promise<void> {
 
 export function AutoOfflineSync() {
   useEffect(() => {
+    let pendingForce = false;
+
     const run = (force = false) => {
       if (!navigator.onLine) return;
-      if (!window.__weddingsquirrelsOfflineSync) {
-        window.dispatchEvent(new Event(PACK_SYNC_STARTED_EVENT));
-        window.__weddingsquirrelsOfflineSync = syncOfflineCopy(force)
-          .catch((error) => {
-            console.error(error);
-            window.dispatchEvent(new Event(PACK_SYNC_ERROR_EVENT));
-          })
-          .finally(() => {
-            window.__weddingsquirrelsOfflineSync = undefined;
-          });
-      }
+      if (force) pendingForce = true;
+      if (window.__weddingsquirrelsOfflineSync) return;
+
+      const shouldForce = pendingForce;
+      pendingForce = false;
+
+      window.dispatchEvent(new Event(PACK_SYNC_STARTED_EVENT));
+      window.__weddingsquirrelsOfflineSync = syncOfflineCopy(shouldForce)
+        .catch((error) => {
+          console.error(error);
+          window.dispatchEvent(new Event(PACK_SYNC_ERROR_EVENT));
+        })
+        .finally(() => {
+          window.__weddingsquirrelsOfflineSync = undefined;
+          if (pendingForce) run(true);
+        });
     };
 
     run();
-    const interval = window.setInterval(() => run(true), OFFLINE_SYNC_INTERVAL_MS);
+    const interval = window.setInterval(() => {
+      if (document.hidden) return;
+      run(true);
+    }, OFFLINE_SYNC_INTERVAL_MS);
     const onOnline = () => run(true);
     const onSyncRequest = () => run(true);
     const onVisibilityChange = () => {
