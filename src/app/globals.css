@@ -38,6 +38,12 @@
 html,
 body {
   min-height: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+html {
+  overflow-wrap: anywhere;
 }
 
 body {
@@ -65,9 +71,11 @@ a {
 
 .app-shell {
   width: min(560px, 100%);
+  max-width: 100%;
   margin: 0 auto;
   min-height: 100dvh;
   padding: 0 16px 96px;
+  overflow-x: clip;
 }
 
 .card {
@@ -94,10 +102,12 @@ a {
 
 .nav-bar {
   position: fixed;
-  left: 50%;
+  left: 8px;
+  right: 8px;
   bottom: 12px;
-  transform: translateX(-50%);
-  width: min(560px, calc(100% - 16px));
+  margin-inline: auto;
+  width: min(560px, calc(100vw - 16px));
+  max-width: calc(100vw - 16px);
   display: flex;
   gap: 2px;
   overflow-x: auto;
