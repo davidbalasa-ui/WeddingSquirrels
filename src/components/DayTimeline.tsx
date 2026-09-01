@@ -515,14 +515,15 @@ export function DayTimeline({
               onCommit={(next) => setDraft({ ...draft, ...next })}
               onOpenChange={handleStepperOpenChange}
             />
-            <input
+            <textarea
               value={draft.notes}
-              placeholder="What happens"
+              placeholder="What happens — press Enter for a new line"
+              rows={3}
               autoFocus
               onFocus={() => setNoteFocused(true)}
               onBlur={() => setNoteFocused(false)}
               onChange={(event) => setDraft({ ...draft, notes: event.target.value })}
-              className="mt-1 w-full border-0 bg-transparent p-0 text-[15px] leading-snug outline-none"
+              className="mt-1 w-full resize-y border-0 bg-transparent p-0 text-[15px] leading-snug outline-none"
             />
             <div className="mt-2 flex gap-2">
               <button type="button" className="text-sm font-semibold text-[var(--accent)]" onClick={() => void persistDraft(draft)}>
@@ -759,8 +760,9 @@ function EditCard({
         )}
       </div>
       {endWarn ? <p className="text-[11px] font-semibold text-[var(--warn)]">Ends before it starts</p> : null}
-      <input
+      <textarea
         value={row.notes}
+        rows={Math.min(8, Math.max(2, row.notes.split(/\r?\n/).length))}
         onChange={(event) => onPatchNotes(row.id, event.target.value)}
         onFocus={(event) => {
           onNoteFocusChange(true);
@@ -770,7 +772,7 @@ function EditCard({
           onNoteFocusChange(false);
           onFlushNotes(row.id);
         }}
-        className="mt-0.5 w-full border-0 bg-transparent p-0 text-[15px] leading-snug outline-none"
+        className="mt-0.5 w-full resize-y border-0 bg-transparent p-0 text-[15px] leading-snug outline-none"
       />
       {label ? (
         <button

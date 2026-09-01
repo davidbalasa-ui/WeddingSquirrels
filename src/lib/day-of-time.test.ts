@@ -308,5 +308,6 @@ test("review notes split on semicolons into line items", () => {
     "vendor arrivals + set up",
   ]);
   assert.deepEqual(reviewNoteLines("  one ; two ;  ; three  "), ["one", "two", "three"]);
+  assert.deepEqual(reviewNoteLines("line one\nline two"), ["line one", "line two"]);
   assert.deepEqual(reviewNoteLines(""), []);
 });
