@@ -1,7 +1,7 @@
 /* WeddingSquirrels service worker — keeps the app shell available offline.
  * The app's actual data is stored in IndexedDB by the "Download for offline"
  * button; this worker only handles the static shell and navigation fallback. */
-const CACHE = "weddingsquirrels-v1";
+const CACHE = "weddingsquirrels-v2";
 const PRECACHE = [
   "/",
   "/today",
@@ -56,6 +56,13 @@ self.addEventListener("fetch", (event) => {
 
   // Navigations: network-first, fall back to the offline view.
   if (request.mode === "navigate") {
+    if (url.pathname === "/offline") {
+      event.respondWith(
+        caches.match("/offline").then((cached) => cached || fetch(request)),
+      );
+      return;
+    }
+
     event.respondWith(
       fetch(request)
         .then((response) => {

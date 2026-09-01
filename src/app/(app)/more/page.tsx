@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ModuleIcon } from "@/components/ModuleIcon";
+import { OfflineSetupCard } from "@/components/OfflineSetupCard";
 import { V2PageHeader } from "@/components/V2PageHeader";
 import { modulesForNavTab, moreGroups } from "@/lib/modules";
 import { requirePageSession } from "@/lib/session";
@@ -36,16 +37,7 @@ export default async function MoreHubPage() {
 
         <section>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted">Offline</p>
-          <Link
-            href="/offline"
-            className="card flex items-center gap-3 p-4 transition-colors hover:bg-[var(--accent-soft)]/40"
-          >
-            <ModuleIcon name="stay" className="h-6 w-6 shrink-0 text-[var(--accent)]" />
-            <span className="flex-1 font-semibold">Offline copy</span>
-            <span className="text-sm text-muted" aria-hidden>
-              ›
-            </span>
-          </Link>
+          <OfflineSetupCard />
         </section>
 
         {legacyGroups.length > 0 ? (

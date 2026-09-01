@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { DownloadOfflineButton } from "@/components/DownloadOfflineButton";
 import { InboxBoard } from "@/components/InboxBoard";
+import { OfflineSetupCard } from "@/components/OfflineSetupCard";
 import { TodayComingUpList } from "@/components/TodayComingUpList";
 import { TodayHero } from "@/components/TodayHero";
 import { TodayPrioritySections } from "@/components/TodayPrioritySections";
@@ -16,6 +16,7 @@ export default async function TodayPage() {
   return (
     <>
       <TodayHero session={session} hero={data.hero} />
+      <OfflineSetupCard />
       <Suspense>
         <TodayPrioritySections
           session={session}
@@ -41,9 +42,6 @@ export default async function TodayPage() {
           />
         </Suspense>
       </section>
-      <div className="pt-2">
-        <DownloadOfflineButton />
-      </div>
     </>
   );
 }

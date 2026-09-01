@@ -1,3 +1,4 @@
+import { AutoOfflineSync } from "@/components/AutoOfflineSync";
 import { V2BottomNav } from "@/components/V2BottomNav";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { prisma } from "@/lib/db";
@@ -16,6 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app-shell">
+      <AutoOfflineSync />
       <OfflineBanner />
       {children}
       <V2BottomNav session={session} unreadRequests={unreadRequests} />
