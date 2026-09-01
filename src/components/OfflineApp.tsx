@@ -212,7 +212,8 @@ export function OfflineApp() {
         </div>
       ) : (
         <p className="mb-4 text-sm text-muted">
-          This offline copy has no saved data yet. Download it while you&apos;re online.
+          This offline copy has no saved data yet. Sign in while online and open Today or More to
+          sync automatically.
         </p>
       )}
 

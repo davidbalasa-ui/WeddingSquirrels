@@ -35,29 +35,6 @@ export function OfflineSetupCard() {
     setAppleMobile(isAppleMobile());
     setInstallPrompt(window.__weddingsquirrelsInstallPrompt ?? null);
 
-    loadOfflinePack()
-      .then((saved) => {
-        if (!active) return;
-        setPack(saved);
-        if (saved) {
-          setChecking(false);
-          return;
-        }
-        if (window.__weddingsquirrelsOfflineSync) {
-          setChecking(true);
-          return;
-        }
-        if (navigator.onLine) {
-          setChecking(true);
-          window.dispatchEvent(new Event("weddingsquirrels:offline-sync-request"));
-        } else {
-          setChecking(false);
-        }
-      })
-      .catch(() => {
-        if (active) setChecking(false);
-      });
-
     const onPackUpdated = (event: Event) => {
       const detail = (event as CustomEvent<OfflinePack>).detail;
       if (detail) setPack(detail);
@@ -86,6 +63,38 @@ export function OfflineSetupCard() {
     window.addEventListener("weddingsquirrels:offline-sync-started", onSyncStarted);
     window.addEventListener("weddingsquirrels:install-available", onInstallAvailable);
     window.addEventListener("weddingsquirrels:installed", onInstalled);
+
+    const hydratePack = async () => {
+      try {
+        let saved = await loadOfflinePack();
+        if (!active) return;
+        if (!saved && !window.__weddingsquirrelsOfflineSync) {
+          // Sync may have finished while IndexedDB was being read.
+          saved = await loadOfflinePack();
+          if (!active) return;
+        }
+        setPack(saved);
+        if (saved) {
+          setChecking(false);
+          return;
+        }
+        if (window.__weddingsquirrelsOfflineSync) {
+          setChecking(true);
+          return;
+        }
+        if (navigator.onLine) {
+          setChecking(true);
+          window.dispatchEvent(new Event("weddingsquirrels:offline-sync-request"));
+        } else {
+          setChecking(false);
+        }
+      } catch {
+        if (active) setChecking(false);
+      }
+    };
+
+    void hydratePack();
+
     return () => {
       active = false;
       window.removeEventListener("weddingsquirrels:offline-pack-updated", onPackUpdated);

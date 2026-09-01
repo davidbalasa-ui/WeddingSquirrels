@@ -18,6 +18,7 @@ const PACK_SYNC_STARTED_EVENT = "weddingsquirrels:offline-sync-started";
 declare global {
   interface Window {
     __weddingsquirrelsOfflineSync?: Promise<void>;
+    __weddingsquirrelsOfflineShellWarmAt?: number;
   }
 }
 
@@ -51,12 +52,17 @@ async function warmOfflineShell(): Promise<void> {
   );
 }
 
+async function warmOfflineShellIfDue(): Promise<void> {
+  const lastWarm = window.__weddingsquirrelsOfflineShellWarmAt ?? 0;
+  if (Date.now() - lastWarm < OFFLINE_SYNC_INTERVAL_MS) return;
+  await warmOfflineShell().catch(() => {});
+  window.__weddingsquirrelsOfflineShellWarmAt = Date.now();
+}
+
 async function syncOfflineCopy(force = false): Promise<void> {
   const existing = await loadOfflinePack().catch(() => null);
   if (!force && !shouldRefreshOfflinePack(existing?.fetchedAt)) {
-    await warmOfflineShell().catch(() => {
-      // Existing data remains usable even if shell warming fails.
-    });
+    await warmOfflineShellIfDue();
     window.dispatchEvent(
       new CustomEvent(PACK_UPDATED_EVENT, { detail: existing }),
     );
@@ -71,7 +77,10 @@ async function syncOfflineCopy(force = false): Promise<void> {
 
   const pack = (await response.json()) as OfflinePack;
   await saveOfflinePack(pack);
-  await warmOfflineShell();
+  await warmOfflineShell().catch(() => {
+    // Pack is already saved; shell warming is best-effort.
+  });
+  window.__weddingsquirrelsOfflineShellWarmAt = Date.now();
   window.dispatchEvent(new CustomEvent(PACK_UPDATED_EVENT, { detail: pack }));
 }
 
