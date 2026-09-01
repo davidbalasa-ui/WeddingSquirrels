@@ -21,11 +21,11 @@ export function MoneyPaymentSchedule({
   if (payments.length === 0) return null;
 
   return (
-    <div className="mt-4 border-t border-line pt-3">
+    <div className="mt-3 border-t border-line pt-2">
       <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
         Payment schedule
       </p>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         {payments.map((payment) => {
           const paid = paymentIsPaid(payment);
           const remaining = paymentRemaining(payment);
@@ -33,12 +33,12 @@ export function MoneyPaymentSchedule({
           return (
             <div
               key={payment.id}
-              className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm ${
+              className={`flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm ${
                 paid
-                  ? "bg-[var(--accent-soft)]/50"
+                  ? "bg-[var(--accent-soft)]/40"
                   : overdue
                     ? "bg-[var(--warn-soft)]"
-                    : "bg-[var(--bg)]"
+                    : ""
               }`}
             >
               <div className="min-w-0">
