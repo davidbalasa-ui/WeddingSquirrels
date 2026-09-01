@@ -15,8 +15,8 @@ export default async function TodayPage() {
 
   return (
     <>
-      <TodayHero session={session} hero={data.hero} />
       <OfflineSetupCard />
+      <TodayHero session={session} hero={data.hero} />
       <Suspense>
         <TodayPrioritySections
           session={session}
