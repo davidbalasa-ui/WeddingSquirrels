@@ -1456,6 +1456,49 @@ function revalidateGuests() {
   revalidatePath("/guests/print");
 }
 
+export type GuestRsvpImportWriteResult =
+  | { ok: true; processed: number; updated: number; created: number }
+  | { ok: false; reason: "forbidden" | "invalid" };
+
+async function requireGuestRsvpImporter() {
+  try {
+    const session = await requireSession();
+    if (!session.isMaster || !session.canSeeGuests) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+export async function syncBundledGuestRsvp(): Promise<GuestRsvpImportWriteResult> {
+  if (!(await requireGuestRsvpImporter())) return { ok: false, reason: "forbidden" };
+
+  const { readFileSync } = await import("node:fs");
+  const path = await import("node:path");
+  const csvPath = path.join(process.cwd(), "data", "guest-rsvp.csv");
+
+  try {
+    const csvText = readFileSync(csvPath, "utf8");
+    if (!csvText.trim()) return { ok: false, reason: "invalid" };
+    const { applyGuestRsvpImport } = await import("@/lib/apply-guest-rsvp-import");
+    const result = await applyGuestRsvpImport(prisma, csvText);
+    revalidateGuests();
+    return { ok: true, ...result };
+  } catch {
+    return { ok: false, reason: "invalid" };
+  }
+}
+
+export async function importGuestRsvpCsv(csvText: string): Promise<GuestRsvpImportWriteResult> {
+  if (!(await requireGuestRsvpImporter())) return { ok: false, reason: "forbidden" };
+  if (!csvText.trim()) return { ok: false, reason: "invalid" };
+
+  const { applyGuestRsvpImport } = await import("@/lib/apply-guest-rsvp-import");
+  const result = await applyGuestRsvpImport(prisma, csvText);
+  revalidateGuests();
+  return { ok: true, ...result };
+}
+
 export async function addGuestGift(guestId: string): Promise<GuestGiftWriteResult> {
   if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
   if (!guestId) return { ok: false, reason: "invalid" };
