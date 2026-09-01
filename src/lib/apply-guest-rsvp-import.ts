@@ -5,6 +5,7 @@ import {
   groupCsvRowsByHousehold,
   householdRsvpFromPeople,
   parseGuestRsvpCsv,
+  resolveImportedRsvp,
   type CsvHousehold,
 } from "@/lib/guest-rsvp-import";
 
@@ -19,6 +20,8 @@ type DbGuest = {
   sortOrder: number;
   nameLine1: string;
   nameLine2: string | null;
+  rsvpStatus: string;
+  acceptedCount: number;
   people: Array<{ name: string }>;
 };
 
@@ -38,7 +41,12 @@ async function upsertHousehold(
     name: person.displayName,
     sortOrder: index,
   }));
-  const rsvp = householdRsvpFromPeople(household.people);
+  const rsvp = resolveImportedRsvp(
+    householdRsvpFromPeople(household.people),
+    guest
+      ? { rsvpStatus: guest.rsvpStatus, acceptedCount: guest.acceptedCount }
+      : null,
+  );
   const legacy = syncLegacyGuestNames(people);
 
   if (guest) {
@@ -110,6 +118,8 @@ export async function applyGuestRsvpImport(
       sortOrder: true,
       nameLine1: true,
       nameLine2: true,
+      rsvpStatus: true,
+      acceptedCount: true,
       people: { select: { name: true }, orderBy: { sortOrder: "asc" } },
     },
     orderBy: { sortOrder: "asc" },

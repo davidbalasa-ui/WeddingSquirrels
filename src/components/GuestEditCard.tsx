@@ -7,23 +7,9 @@ import {
   deleteGuestGift,
   saveGuestPeople,
   saveGuestGift,
-  saveGuestRsvp,
   setGuestGiftThanked,
 } from "@/app/actions";
 import type { GuestGiftRecord, GuestPersonRecord, GuestRecord } from "@/lib/guests";
-import {
-  effectiveAcceptedCount,
-  effectiveInvitedCount,
-  parseGuestCount,
-  parseRsvpStatus,
-  type RsvpStatus,
-} from "@/lib/guest-gifts";
-
-const RSVP_OPTIONS: { id: RsvpStatus; label: string }[] = [
-  { id: "pending", label: "No reply" },
-  { id: "attending", label: "Attending" },
-  { id: "not_attending", label: "Not attending" },
-];
 
 type EditablePerson = GuestPersonRecord & { clientKey: string };
 
@@ -94,17 +80,10 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
   }
 
   return (
-    <article className="card overflow-hidden">
-      <div className="p-4">
-        <p className="font-semibold">{people.map((person) => person.name.trim()).filter(Boolean).join(" · ") || "Guest"}</p>
-        {address ? <p className="mt-1 text-sm text-muted">{address}</p> : null}
-      </div>
-
-      <GuestRsvpControls
-        key={`${guest.id}-${guest.rsvpStatus}-${guest.invitedCount}-${guest.acceptedCount}-${people.length}`}
-        guest={guest}
-        people={people}
-      />
+    <div>
+      {address ? (
+        <p className="border-t border-line px-3 py-2 text-sm text-muted">{address}</p>
+      ) : null}
 
       <div className="flex flex-col gap-3 border-t border-line p-4">
         {banner ? (
@@ -179,117 +158,6 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
       </div>
 
       <GuestGifts guestId={guest.id} gifts={guest.gifts} />
-    </article>
-  );
-}
-
-function GuestRsvpControls({
-  guest,
-  people,
-}: {
-  guest: GuestRecord;
-  people: GuestPersonRecord[];
-}) {
-  const router = useRouter();
-  const rsvpGuest = {
-    nameLine1: people[0]?.name ?? "",
-    nameLine2: people[1]?.name ?? null,
-    rsvpStatus: guest.rsvpStatus,
-    invitedCount: guest.invitedCount,
-    acceptedCount: guest.acceptedCount,
-    people,
-  };
-  const [rsvp, setRsvp] = useState<RsvpStatus>(parseRsvpStatus(guest.rsvpStatus));
-  const [invited, setInvited] = useState(String(effectiveInvitedCount(rsvpGuest)));
-  const [accepted, setAccepted] = useState(String(effectiveAcceptedCount(rsvpGuest)));
-  const [pending, startTransition] = useTransition();
-
-  function persist(patch: { rsvpStatus?: RsvpStatus; invitedCount?: number; acceptedCount?: number }) {
-    startTransition(async () => {
-      const result = await saveGuestRsvp({ guestId: guest.id, ...patch });
-      if (result.ok) router.refresh();
-    });
-  }
-
-  function commitInvited() {
-    const next = parseGuestCount(invited);
-    if (next == null) {
-      setInvited(String(effectiveInvitedCount(rsvpGuest)));
-      return;
-    }
-    if (next === effectiveInvitedCount(rsvpGuest)) return;
-    persist({ invitedCount: next });
-  }
-
-  function commitAccepted() {
-    const next = parseGuestCount(accepted);
-    if (next == null) {
-      setAccepted(String(effectiveAcceptedCount(rsvpGuest)));
-      return;
-    }
-    if (next === effectiveAcceptedCount(rsvpGuest)) return;
-    persist({ acceptedCount: next });
-  }
-
-  return (
-    <div className="border-t border-line px-4 py-3">
-      <div className="grid grid-cols-3 gap-1 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5">
-        {RSVP_OPTIONS.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            disabled={pending}
-            className={`rounded-full px-2 py-1.5 text-xs font-semibold disabled:opacity-60 ${
-              rsvp === option.id
-                ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                : "text-muted"
-            }`}
-            onClick={() => {
-              if (option.id === rsvp) return;
-              setRsvp(option.id);
-              if (option.id === "not_attending") setAccepted("0");
-              if (option.id === "attending" && (parseGuestCount(accepted) ?? 0) === 0) {
-                setAccepted(invited);
-              }
-              persist({ rsvpStatus: option.id });
-            }}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <label className="block text-sm">
-          <span className="mb-1 block text-xs text-muted"># invited</span>
-          <input
-            inputMode="numeric"
-            value={invited}
-            disabled={pending}
-            onChange={(event) => setInvited(event.target.value)}
-            onBlur={commitInvited}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-            }}
-            className="field-input"
-            aria-label="Number invited"
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block text-xs text-muted"># accepted</span>
-          <input
-            inputMode="numeric"
-            value={accepted}
-            disabled={pending}
-            onChange={(event) => setAccepted(event.target.value)}
-            onBlur={commitAccepted}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-            }}
-            className="field-input"
-            aria-label="Number accepted"
-          />
-        </label>
-      </div>
     </div>
   );
 }
