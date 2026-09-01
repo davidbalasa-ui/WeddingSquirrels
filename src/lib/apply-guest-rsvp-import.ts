@@ -1,3 +1,4 @@
+import { appendFileSync } from "node:fs";
 import type { Prisma } from "@prisma/client";
 import { syncLegacyGuestNames } from "@/lib/guest-gifts";
 import {
@@ -19,6 +20,9 @@ type DbGuest = {
   sortOrder: number;
   nameLine1: string;
   nameLine2: string | null;
+  rsvpStatus: string;
+  invitedCount: number;
+  acceptedCount: number;
   people: Array<{ name: string }>;
 };
 
@@ -40,6 +44,9 @@ async function upsertHousehold(
   }));
   const rsvp = householdRsvpFromPeople(household.people);
   const legacy = syncLegacyGuestNames(people);
+  // #region agent log
+  appendFileSync("/opt/cursor/logs/debug.log", JSON.stringify({ hypothesisId: "D", location: "src/lib/apply-guest-rsvp-import.ts:upsertHousehold:decision", message: "CSV household RSVP import decision", data: { matchedExisting: Boolean(guest), incoming: rsvp, existing: guest ? { rsvpStatus: guest.rsvpStatus, invitedCount: guest.invitedCount, acceptedCount: guest.acceptedCount } : null }, timestamp: Date.now() }) + "\n");
+  // #endregion
 
   if (guest) {
     await client.guest.update({
@@ -51,6 +58,13 @@ async function upsertHousehold(
         acceptedCount: rsvp.acceptedCount,
       },
     });
+    const persisted = await client.guest.findUnique({
+      where: { id: guest.id },
+      select: { rsvpStatus: true, invitedCount: true, acceptedCount: true },
+    });
+    // #region agent log
+    appendFileSync("/opt/cursor/logs/debug.log", JSON.stringify({ hypothesisId: "D", location: "src/lib/apply-guest-rsvp-import.ts:upsertHousehold:persisted", message: "Matched guest RSVP after CSV update", data: { incoming: rsvp, persisted }, timestamp: Date.now() }) + "\n");
+    // #endregion
 
     const existingPeople = await client.guestPerson.findMany({
       where: { guestId: guest.id },
@@ -110,6 +124,9 @@ export async function applyGuestRsvpImport(
       sortOrder: true,
       nameLine1: true,
       nameLine2: true,
+      rsvpStatus: true,
+      invitedCount: true,
+      acceptedCount: true,
       people: { select: { name: true }, orderBy: { sortOrder: "asc" } },
     },
     orderBy: { sortOrder: "asc" },

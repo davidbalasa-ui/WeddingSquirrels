@@ -1,3 +1,4 @@
+import { appendFileSync } from "node:fs";
 import { AppHeader } from "@/components/AppHeader";
 import { GuestList } from "@/components/GuestList";
 import { GuestRsvpReport } from "@/components/GuestRsvpReport";
@@ -21,6 +22,9 @@ export default async function GuestsPage({
     orderBy: { sortOrder: "asc" },
     include: guestInclude(),
   });
+  // #region agent log
+  appendFileSync("/opt/cursor/logs/debug.log", JSON.stringify({ hypothesisId: "C", location: "src/app/(app)/guests/page.tsx:GuestsPage:loaded", message: "Guests page loaded RSVP distribution", data: { total: guests.length, attending: guests.filter((guest) => guest.rsvpStatus === "attending").length, notAttending: guests.filter((guest) => guest.rsvpStatus === "not_attending").length, pending: guests.filter((guest) => guest.rsvpStatus === "pending").length }, timestamp: Date.now() }) + "\n");
+  // #endregion
   const giftCount = guests.reduce((sum, guest) => sum + guest.gifts.length, 0);
   const report = summarizeGuestRsvp(guests.map((guest) => mapGuestRsvpFields(guest)));
 

@@ -1,5 +1,6 @@
 "use server";
 
+import { appendFileSync } from "node:fs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -1400,7 +1401,14 @@ export async function saveGuestRsvp(input: {
   invitedCount?: number;
   acceptedCount?: number;
 }): Promise<GuestRsvpWriteResult> {
-  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  // #region agent log
+  appendFileSync("/opt/cursor/logs/debug.log", JSON.stringify({ hypothesisId: "A,B", location: "src/app/actions.ts:saveGuestRsvp:entry", message: "RSVP save action entered", data: { hasGuestId: Boolean(input.guestId), patch: { rsvpStatus: input.rsvpStatus, invitedCount: input.invitedCount, acceptedCount: input.acceptedCount } }, timestamp: Date.now() }) + "\n");
+  // #endregion
+  const viewer = await requireGuestViewer();
+  // #region agent log
+  appendFileSync("/opt/cursor/logs/debug.log", JSON.stringify({ hypothesisId: "A", location: "src/app/actions.ts:saveGuestRsvp:authorization", message: "RSVP save authorization evaluated", data: { allowed: Boolean(viewer) }, timestamp: Date.now() }) + "\n");
+  // #endregion
+  if (!viewer) return { ok: false, reason: "forbidden" };
   if (!input.guestId) return { ok: false, reason: "invalid" };
 
   const existing = await prisma.guest.findUnique({
@@ -1415,6 +1423,9 @@ export async function saveGuestRsvp(input: {
       people: { select: { name: true }, orderBy: { sortOrder: "asc" } },
     },
   });
+  // #region agent log
+  appendFileSync("/opt/cursor/logs/debug.log", JSON.stringify({ hypothesisId: "B,E", location: "src/app/actions.ts:saveGuestRsvp:existing", message: "Existing RSVP loaded before mutation", data: existing ? { found: true, rsvpStatus: existing.rsvpStatus, invitedCount: existing.invitedCount, acceptedCount: existing.acceptedCount, peopleCount: existing.people.length } : { found: false }, timestamp: Date.now() }) + "\n");
+  // #endregion
   if (!existing) return { ok: false, reason: "not_found" };
 
   const next = applyRsvpChange(
@@ -1432,11 +1443,21 @@ export async function saveGuestRsvp(input: {
       acceptedCount: input.acceptedCount,
     },
   );
+  // #region agent log
+  appendFileSync("/opt/cursor/logs/debug.log", JSON.stringify({ hypothesisId: "B,E", location: "src/app/actions.ts:saveGuestRsvp:computed", message: "RSVP mutation payload computed", data: next, timestamp: Date.now() }) + "\n");
+  // #endregion
 
   await prisma.guest.update({
     where: { id: existing.id },
     data: next,
   });
+  const persisted = await prisma.guest.findUnique({
+    where: { id: existing.id },
+    select: { rsvpStatus: true, invitedCount: true, acceptedCount: true },
+  });
+  // #region agent log
+  appendFileSync("/opt/cursor/logs/debug.log", JSON.stringify({ hypothesisId: "B,C", location: "src/app/actions.ts:saveGuestRsvp:persisted", message: "RSVP re-read after database update", data: { persisted }, timestamp: Date.now() }) + "\n");
+  // #endregion
   revalidateGuests();
   return { ok: true, id: existing.id };
 }
