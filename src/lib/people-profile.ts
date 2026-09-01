@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { guestInclude, mapGuestRecord } from "@/lib/guests";
 import { MEAL_SECTIONS } from "@/lib/meals";
 import {
+  classifyNameGroup,
+  mealGuestsByGroup,
   namesMatch,
   normalizePersonName,
   parseProfileId,
@@ -58,6 +60,19 @@ function stayLabelForName(name: string, slots: { sectionId: string; label: strin
     return `${section.title} · ${slot.label}`;
   }
   return null;
+}
+
+function personRoles(person: { id: string; name: string }, assignmentCount: number): string[] {
+  if (["david", "haley"].includes(person.id)) return ["Couple"];
+  const { party, family } = mealGuestsByGroup();
+  const group = classifyNameGroup(
+    person.name,
+    party.map((guest) => guest.name),
+    family.map((guest) => guest.name),
+  );
+  if (group === "party") return ["Wedding party"];
+  if (assignmentCount > 0) return ["Day-of helper"];
+  return ["Family & helpers"];
 }
 
 function guestHouseholdLabel(guest: {
@@ -171,11 +186,7 @@ export async function loadPeopleProfile(
       photoSrc: null,
       phone: null,
       email: null,
-      roles: ["david", "haley"].includes(person.id)
-        ? ["Couple"]
-        : personAssignments.length
-          ? ["Day-of helper"]
-          : ["Family & helpers"],
+      roles: personRoles(person, personAssignments.length),
       openTasks,
       assignments: personAssignments,
       guestInfo: guestPerson
