@@ -266,7 +266,7 @@ export function normalizeClockMinute(raw: string): string {
 
 export function reviewNoteLines(notes: string): string[] {
   return notes
-    .split(";")
+    .split(/\r?\n|;/)
     .map((line) => line.trim())
     .filter(Boolean);
 }
