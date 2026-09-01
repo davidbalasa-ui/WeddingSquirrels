@@ -3,48 +3,39 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  effectiveAcceptedCount,
-  effectiveInvitedCount,
   groupGuestsByTable,
   guestAddressLine,
   guestNameLines,
   guestSeatingSummary,
-  parseRsvpStatus,
-  rsvpStatusLabel,
 } from "@/lib/guest-gifts";
 import type { GuestRecord } from "@/lib/guests";
 import { GuestEditCard } from "@/components/GuestEditCard";
+import { GuestRsvpControls } from "@/components/GuestRsvpControls";
 
-type Mode = "view" | "table" | "edit";
+type Mode = "list" | "table";
 
 export function GuestList({
   guests,
   canEdit,
-  startInEdit,
 }: {
   guests: GuestRecord[];
   canEdit: boolean;
-  startInEdit: boolean;
 }) {
-  const [mode, setMode] = useState<Mode>(canEdit && startInEdit ? "edit" : "view");
-  const editing = canEdit && mode === "edit";
+  const [mode, setMode] = useState<Mode>("list");
+  const [openId, setOpenId] = useState<string | null>(null);
 
   return (
-    <div className={editing ? "pb-4" : ""}>
+    <div>
       <div className="mb-3 flex items-center justify-between gap-3 print-hide">
-        <div
-          className={`grid flex-1 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5 ${
-            canEdit ? "grid-cols-3" : "grid-cols-2"
-          }`}
-        >
+        <div className="grid flex-1 grid-cols-2 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5">
           <button
             type="button"
             className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
-              mode === "view" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
+              mode === "list" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
             }`}
-            onClick={() => setMode("view")}
+            onClick={() => setMode("list")}
           >
-            View
+            List
           </button>
           <button
             type="button"
@@ -55,52 +46,82 @@ export function GuestList({
           >
             By table
           </button>
-          {canEdit ? (
-            <button
-              type="button"
-              className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
-                mode === "edit" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
-              }`}
-              onClick={() => setMode("edit")}
-            >
-              Edit
-            </button>
-          ) : null}
         </div>
         <Link href="/guests/print" className="btn-secondary shrink-0 px-4 py-2 text-sm">
           Print gift list
         </Link>
       </div>
 
-      {editing ? (
+      {mode === "list" && canEdit ? (
         <p className="mb-2 text-xs text-muted">
-          Add family members, update seating, and track gifts. Tap + Add person for kids or extra guests.
+          Tap a reply to change it. Tap a household to add people, seats, or gifts.
         </p>
       ) : mode === "table" ? (
         <p className="mb-2 text-xs text-muted">Everyone listed by table number and seat order.</p>
       ) : null}
 
       {guests.length === 0 ? (
-        <div className="card p-6 text-center text-sm text-muted">
-          {editing ? "No guests yet." : "No guests yet."}
-          {canEdit && !editing ? " Switch to Edit to manage guests." : null}
-        </div>
-      ) : editing ? (
-        <div className="flex flex-col gap-3">
-          {guests.map((guest) => (
-            <GuestEditCard key={guest.id} guest={guest} />
-          ))}
-        </div>
+        <div className="card p-6 text-center text-sm text-muted">No guests yet.</div>
       ) : mode === "table" ? (
         <GuestTableView guests={guests} />
       ) : (
-        <div className="card divide-y divide-[var(--line)] overflow-hidden">
+        <div className="flex flex-col gap-2">
           {guests.map((guest) => (
-            <GuestViewRow key={guest.id} guest={guest} />
+            <GuestHouseholdRow
+              key={guest.id}
+              guest={guest}
+              canEdit={canEdit}
+              open={openId === guest.id}
+              onToggle={() => setOpenId((current) => (current === guest.id ? null : guest.id))}
+            />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+function GuestHouseholdRow({
+  guest,
+  canEdit,
+  open,
+  onToggle,
+}: {
+  guest: GuestRecord;
+  canEdit: boolean;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const names = guestNameLines({
+    nameLine1: guest.people[0]?.name ?? "",
+    nameLine2: guest.people[1]?.name ?? null,
+    people: guest.people,
+  });
+  const address = guestAddressLine(guest);
+  const seating = guestSeatingSummary({ people: guest.people });
+
+  return (
+    <article className="card overflow-hidden">
+      <button
+        type="button"
+        className="flex w-full items-start gap-2 px-3 py-2 text-left"
+        onClick={onToggle}
+        aria-expanded={open}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-semibold leading-5">{names.join(" · ") || "Guest"}</p>
+          {address ? <p className="mt-0.5 text-[12px] leading-5 text-muted">{address}</p> : null}
+          {seating ? <p className="mt-0.5 text-[12px] leading-5 text-[var(--accent)]">{seating}</p> : null}
+        </div>
+        <span className="shrink-0 pt-0.5 text-xs font-semibold text-muted">{open ? "Hide" : "Details"}</span>
+      </button>
+      {canEdit ? (
+        <div className="border-t border-line px-3 py-2">
+          <GuestRsvpControls guest={guest} people={guest.people} compact />
+        </div>
+      ) : null}
+      {open ? <GuestEditCard guest={guest} /> : null}
+    </article>
   );
 }
 
@@ -135,59 +156,5 @@ function GuestTableView({ guests }: { guests: GuestRecord[] }) {
         </section>
       ))}
     </div>
-  );
-}
-
-function GuestViewRow({ guest }: { guest: GuestRecord }) {
-  const names = guestNameLines({
-    nameLine1: guest.people[0]?.name ?? "",
-    nameLine2: guest.people[1]?.name ?? null,
-    people: guest.people,
-  });
-  const address = guestAddressLine(guest);
-  const seating = guestSeatingSummary({ people: guest.people });
-  const invited = effectiveInvitedCount({
-    nameLine1: guest.people[0]?.name ?? "",
-    nameLine2: guest.people[1]?.name ?? null,
-    invitedCount: guest.invitedCount,
-    people: guest.people,
-  });
-  const accepted = effectiveAcceptedCount({
-    nameLine1: guest.people[0]?.name ?? "",
-    nameLine2: guest.people[1]?.name ?? null,
-    rsvpStatus: guest.rsvpStatus,
-    invitedCount: guest.invitedCount,
-    acceptedCount: guest.acceptedCount,
-    people: guest.people,
-  });
-  const status = parseRsvpStatus(guest.rsvpStatus);
-  const statusTone =
-    status === "attending"
-      ? "text-[var(--accent)]"
-      : status === "not_attending"
-        ? "text-muted"
-        : "text-[var(--warn)]";
-
-  return (
-    <article className="px-3 py-1.5">
-      <div className="flex items-start gap-2">
-        <p className="min-w-0 flex-1 text-[14px] font-semibold leading-5">{names.join(" · ")}</p>
-        <p className={`shrink-0 whitespace-nowrap text-[12px] font-semibold leading-5 ${statusTone}`}>
-          {rsvpStatusLabel(guest.rsvpStatus)}
-        </p>
-      </div>
-      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] leading-5 text-muted">
-        {address ? <span>{address}</span> : null}
-        <span className="font-semibold text-ink">
-          {accepted}/{invited}
-        </span>
-        {guest.gifts.length > 0 ? (
-          <span>
-            {guest.gifts.length} gift{guest.gifts.length === 1 ? "" : "s"}
-          </span>
-        ) : null}
-      </div>
-      {seating ? <p className="mt-0.5 text-[12px] leading-5 text-[var(--accent)]">{seating}</p> : null}
-    </article>
   );
 }

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   assertCan,
@@ -1454,6 +1454,7 @@ async function requireGuestViewer() {
 function revalidateGuests() {
   revalidatePath("/guests");
   revalidatePath("/guests/print");
+  refresh();
 }
 
 export type GuestRsvpImportWriteResult =

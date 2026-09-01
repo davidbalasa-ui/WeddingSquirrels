@@ -1,4 +1,4 @@
-import type { RsvpStatus } from "@/lib/guest-gifts";
+import { parseRsvpStatus, type RsvpStatus } from "@/lib/guest-gifts";
 
 export type CsvGuestRow = {
   firstName: string;
@@ -151,6 +151,23 @@ export function householdRsvpFromPeople(people: Array<{ rsvp: PersonRsvp }>): Ho
   else rsvpStatus = "pending";
 
   return { rsvpStatus, invitedCount, acceptedCount };
+}
+
+/** CSV "No Response" must not wipe a household that already replied. */
+export function resolveImportedRsvp(
+  incoming: HouseholdRsvp,
+  existing?: { rsvpStatus: string; acceptedCount: number } | null,
+): HouseholdRsvp {
+  if (!existing) return incoming;
+  const existingStatus = parseRsvpStatus(existing.rsvpStatus);
+  if (incoming.rsvpStatus === "pending" && existingStatus !== "pending") {
+    return {
+      rsvpStatus: existingStatus,
+      invitedCount: incoming.invitedCount,
+      acceptedCount: existingStatus === "not_attending" ? 0 : existing.acceptedCount,
+    };
+  }
+  return incoming;
 }
 
 export function normalizeNameToken(value: string): string {

@@ -7,6 +7,7 @@ import {
   groupCsvRowsByHousehold,
   householdRsvpFromPeople,
   mapCsvRsvp,
+  resolveImportedRsvp,
   parseGuestRsvpCsv,
   scoreGuestHouseholdMatch,
 } from "./guest-rsvp-import";
@@ -30,6 +31,28 @@ test("displayNameForCsvPerson names generic plus ones from party label", () => {
       "Marie Wiewiora",
     ),
     "Marie Wiewiora +1",
+  );
+});
+
+test("CSV no response does not overwrite an existing reply", () => {
+  const incoming = { rsvpStatus: "pending" as const, invitedCount: 2, acceptedCount: 0 };
+  assert.deepEqual(resolveImportedRsvp(incoming, { rsvpStatus: "not_attending", acceptedCount: 0 }), {
+    rsvpStatus: "not_attending",
+    invitedCount: 2,
+    acceptedCount: 0,
+  });
+  assert.deepEqual(resolveImportedRsvp(incoming, { rsvpStatus: "attending", acceptedCount: 2 }), {
+    rsvpStatus: "attending",
+    invitedCount: 2,
+    acceptedCount: 2,
+  });
+  assert.deepEqual(resolveImportedRsvp(incoming, { rsvpStatus: "pending", acceptedCount: 0 }), incoming);
+  assert.deepEqual(
+    resolveImportedRsvp(
+      { rsvpStatus: "not_attending", invitedCount: 2, acceptedCount: 0 },
+      { rsvpStatus: "attending", acceptedCount: 2 },
+    ),
+    { rsvpStatus: "not_attending", invitedCount: 2, acceptedCount: 0 },
   );
 });
 
