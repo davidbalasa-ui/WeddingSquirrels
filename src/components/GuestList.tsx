@@ -138,7 +138,12 @@ export function GuestList({
                       >
                         <span className="block text-[15px] font-semibold leading-snug">{title}</span>
                         {details.map((line) => (
-                          <span key={line} className="mt-0.5 block truncate text-xs text-muted">
+                          <span
+                            key={line}
+                            className={`mt-0.5 text-xs text-muted ${
+                              line === seating ? "line-clamp-2" : "block truncate"
+                            }`}
+                          >
                             {line}
                           </span>
                         ))}
@@ -147,7 +152,12 @@ export function GuestList({
                       <>
                         <span className="block text-[15px] font-semibold leading-snug">{title}</span>
                         {details.map((line) => (
-                          <span key={line} className="mt-0.5 block truncate text-xs text-muted">
+                          <span
+                            key={line}
+                            className={`mt-0.5 text-xs text-muted ${
+                              line === seating ? "line-clamp-2" : "block truncate"
+                            }`}
+                          >
                             {line}
                           </span>
                         ))}
@@ -203,7 +213,7 @@ export function GuestList({
                 ) : null}
 
                 {open ? (
-                  <div className="mt-2 border-t border-line pt-2">
+                  <div className="mt-2 border-t border-line">
                     <GuestEditCard guest={guest} />
                   </div>
                 ) : null}

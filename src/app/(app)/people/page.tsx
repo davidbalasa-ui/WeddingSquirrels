@@ -53,7 +53,7 @@ export default async function PeopleHubPage({
 
       {tab === "guests" ? (
         session.canSeeGuests ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             <GuestRsvpReport report={data.guestReport} />
             {session.isMaster ? <GuestRsvpSync /> : null}
             <GuestList guests={data.guests} canEdit={canEditGuests} canEditDayOf={canEditDayOf} />
