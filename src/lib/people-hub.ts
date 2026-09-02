@@ -9,6 +9,7 @@ import {
   buildDirectoryEntries,
   filterEntriesByTab,
   namesMatch,
+  normalizePersonName,
   resolveIsDayOfContact,
   type DirectoryEntry,
   type PeopleTab,
@@ -55,7 +56,11 @@ function attachContactPhotos(
     ...guest,
     people: guest.people.map((person) => {
       if (person.photoData) return person;
-      const contact = contacts.find((row) => namesMatch(row.name, person.name));
+      const contact = contacts.find(
+        (row) =>
+          row.photoData?.trim() &&
+          normalizePersonName(row.name) === normalizePersonName(person.name),
+      );
       if (!contact?.photoData) return person;
       return { ...person, photoData: contact.photoData };
     }),
@@ -74,7 +79,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
         isDayOfContact: true,
       },
     }),
-    session.canSeeTimeline
+    session.canSeeTimeline || session.canSeeGuests
       ? prisma.contact.findMany({
           orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
           select: {

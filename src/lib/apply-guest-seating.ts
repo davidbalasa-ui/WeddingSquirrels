@@ -82,10 +82,42 @@ export async function applyGuestSeating(client: DbClient): Promise<GuestSeatingA
   });
 
   let created = 0;
-  if (missing.length) {
+  // Prefer attaching missing people onto an existing household that already has
+  // someone at the same table. Only create a new household when no host exists.
+  for (const seat of missing) {
+    const host = guests.find((guest) =>
+      guest.people.some((person) => person.tableNumber === seat.tableNumber),
+    );
+    if (!host) continue;
+
+    const maxSort = host.people.reduce((max, person) => Math.max(max, person.sortOrder), -1);
+    await client.guestPerson.create({
+      data: {
+        guestId: host.id,
+        name: seat.name,
+        tableNumber: seat.tableNumber,
+        tableSpot: tableSpotForSeat(seat),
+        sortOrder: maxSort + 1,
+      },
+    });
+    const people = await client.guestPerson.findMany({
+      where: { guestId: host.id },
+      orderBy: { sortOrder: "asc" },
+    });
+    await client.guest.update({
+      where: { id: host.id },
+      data: syncLegacyGuestNames(people),
+    });
+    host.people = people;
+    created += 1;
+    matchedKeys.add(normalizeSeatingName(seat.name));
+  }
+
+  const stillMissing = missing.filter((seat) => !matchedKeys.has(normalizeSeatingName(seat.name)));
+  if (stillMissing.length) {
     const maxSort = guests.reduce((max, guest) => Math.max(max, guest.sortOrder), 0);
-    const byHousehold = new Map<number, typeof missing>();
-    for (const seat of missing) {
+    const byHousehold = new Map<number, typeof stillMissing>();
+    for (const seat of stillMissing) {
       const bucket = byHousehold.get(seat.tableNumber) ?? [];
       bucket.push(seat);
       byHousehold.set(seat.tableNumber, bucket);

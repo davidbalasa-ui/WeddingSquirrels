@@ -19,8 +19,18 @@ export function GuestRsvpSync() {
         return;
       }
       setMessage(
-        `Synced ${result.processed} households (${result.updated} updated, ${result.created} new).`,
+        [
+          `Synced ${result.processed} households (${result.updated} updated, ${result.created} new)`,
+          result.merged ? `merged ${result.merged}` : null,
+          result.photosCopied ? `copied ${result.photosCopied} photos` : null,
+          result.skippedConflicts ? `skipped ${result.skippedConflicts} conflicts` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ") + ".",
       );
+      if (result.report?.length) {
+        setMessage((current) => `${current ?? ""}\n${result.report!.slice(0, 5).join(" · ")}`);
+      }
       router.refresh();
     });
   }
@@ -89,7 +99,9 @@ export function GuestRsvpSync() {
           onChange={onFileChange}
         />
       </div>
-      {message ? <p className="mt-2 text-sm text-muted">{message}</p> : null}
+      {message ? (
+        <p className="mt-2 whitespace-pre-line text-sm text-muted">{message}</p>
+      ) : null}
     </div>
   );
 }

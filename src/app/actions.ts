@@ -32,6 +32,7 @@ import {
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
 import {
+  normalizePersonName,
   parseProfileId,
   profileIdForContact,
   profileIdForGuestPerson,
@@ -1705,6 +1706,22 @@ export async function saveGuestPersonPhoto(
     where: { id: guestPersonId },
     data: { photoData: nextPhoto },
   });
+  if (nextPhoto) {
+    const contacts = await prisma.contact.findMany({
+      select: { id: true, name: true, photoData: true },
+    });
+    const match = contacts.find(
+      (row) =>
+        !row.photoData?.trim() &&
+        normalizePersonName(row.name) === normalizePersonName(person.name),
+    );
+    if (match) {
+      await prisma.contact.update({
+        where: { id: match.id },
+        data: { photoData: nextPhoto },
+      });
+    }
+  }
   revalidateGuests();
   return { ok: true, id: guestPersonId };
 }
@@ -1791,7 +1808,16 @@ function revalidateGuests() {
 }
 
 export type GuestRsvpImportWriteResult =
-  | { ok: true; processed: number; updated: number; created: number }
+  | {
+      ok: true;
+      processed: number;
+      updated: number;
+      created: number;
+      merged?: number;
+      skippedConflicts?: number;
+      photosCopied?: number;
+      report?: string[];
+    }
   | { ok: false; reason: "forbidden" | "invalid" };
 
 async function requireGuestRsvpImporter() {
@@ -1827,8 +1853,17 @@ export async function syncBundledGuestRsvp(): Promise<GuestRsvpImportWriteResult
     if (!csvText.trim()) return { ok: false, reason: "invalid" };
     const { applyGuestRsvpImport } = await import("@/lib/apply-guest-rsvp-import");
     const result = await applyGuestRsvpImport(prisma, csvText);
+    const { applySafeGuestHouseholdMerges } = await import("@/lib/apply-guest-household-merge");
+    const repair = await applySafeGuestHouseholdMerges(prisma);
     revalidateGuests();
-    return { ok: true, ...result };
+    return {
+      ok: true,
+      ...result,
+      merged: repair.merged,
+      skippedConflicts: repair.skippedConflicts,
+      photosCopied: repair.photosCopied,
+      report: repair.report,
+    };
   } catch {
     return { ok: false, reason: "invalid" };
   }
@@ -1840,8 +1875,17 @@ export async function importGuestRsvpCsv(csvText: string): Promise<GuestRsvpImpo
 
   const { applyGuestRsvpImport } = await import("@/lib/apply-guest-rsvp-import");
   const result = await applyGuestRsvpImport(prisma, csvText);
+  const { applySafeGuestHouseholdMerges } = await import("@/lib/apply-guest-household-merge");
+  const repair = await applySafeGuestHouseholdMerges(prisma);
   revalidateGuests();
-  return { ok: true, ...result };
+  return {
+    ok: true,
+    ...result,
+    merged: repair.merged,
+    skippedConflicts: repair.skippedConflicts,
+    photosCopied: repair.photosCopied,
+    report: repair.report,
+  };
 }
 
 export async function addGuestGift(guestId: string): Promise<GuestGiftWriteResult> {
@@ -2671,15 +2715,33 @@ export async function saveContact(formData: FormData): Promise<void> {
   const existing = await prisma.contact.findUnique({ where: { id } });
   if (!existing) return;
 
+  const nextPhoto = clearPhoto ? null : photoData ?? existing.photoData;
   await prisma.contact.update({
     where: { id },
     data: {
       name,
       phone: phone || null,
       email: email || null,
-      photoData: clearPhoto ? null : photoData ?? existing.photoData,
+      photoData: nextPhoto,
     },
   });
+
+  if (nextPhoto) {
+    const guestPeople = await prisma.guestPerson.findMany({
+      select: { id: true, name: true, photoData: true },
+    });
+    const match = guestPeople.find(
+      (row) =>
+        !row.photoData?.trim() &&
+        normalizePersonName(row.name) === normalizePersonName(name),
+    );
+    if (match) {
+      await prisma.guestPerson.update({
+        where: { id: match.id },
+        data: { photoData: nextPhoto },
+      });
+    }
+  }
 
   revalidateDayData();
   revalidatePeople();
