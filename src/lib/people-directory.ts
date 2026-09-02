@@ -7,6 +7,12 @@ export type PeoplePrimaryList = "guests" | "vendors";
 export type PeopleTab = "guests" | "vendors" | "day-of" | "all";
 
 export type PeopleSort = "name" | "role" | "rsvp" | "table";
+/** Combo filter: role dropdown on the People page. */
+export type PeopleRoleFilter = "all" | "guest" | "wedding_party" | "family" | "vendor";
+/** Combo filter: attendance dropdown on the People page. */
+export type PeopleAttendanceFilter = "all" | "pending" | "attending" | "not_attending";
+/** List vs seating-table view. */
+export type PeopleView = "list" | "table";
 
 export type DirectoryEntry = {
   profileId: string;
@@ -74,6 +80,23 @@ export function parsePeopleTab(raw: string | null | undefined): PeopleTab | null
 
 export function parsePeopleSort(raw: string | null | undefined): PeopleSort | null {
   if (raw === "name" || raw === "role" || raw === "rsvp" || raw === "table") return raw;
+  return null;
+}
+
+export function parsePeopleRoleFilter(raw: string | null | undefined): PeopleRoleFilter | null {
+  if (raw === "all" || raw === "guest" || raw === "wedding_party" || raw === "family" || raw === "vendor") {
+    return raw;
+  }
+  return null;
+}
+
+export function parsePeopleAttendanceFilter(raw: string | null | undefined): PeopleAttendanceFilter | null {
+  if (raw === "all" || raw === "pending" || raw === "attending" || raw === "not_attending") return raw;
+  return null;
+}
+
+export function parsePeopleView(raw: string | null | undefined): PeopleView | null {
+  if (raw === "list" || raw === "table") return raw;
   return null;
 }
 
