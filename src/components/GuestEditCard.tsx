@@ -71,7 +71,6 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
         name: person.name.trim(),
         tableNumber: person.tableNumber,
         tableSpot: person.tableSpot,
-        isDayOfContact: person.isDayOfContact,
       }))
       .filter((person) => person.name);
     if (payload.length === 0) {
@@ -197,17 +196,6 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
                 />
               </label>
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-line"
-                checked={person.isDayOfContact}
-                onChange={(event) =>
-                  updatePerson(person.clientKey, { isDayOfContact: event.target.checked })
-                }
-              />
-              <span>On day-of call list</span>
-            </label>
           </fieldset>
         ))}
 

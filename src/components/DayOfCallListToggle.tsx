@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useOptimistic, useState, useTransition } from "react";
 import { setDayOfContact } from "@/app/actions";
 
 export function DayOfCallListToggle({
@@ -9,52 +8,57 @@ export function DayOfCallListToggle({
   checked,
   disabled,
   compact,
+  personLabel,
 }: {
   profileId: string;
   checked: boolean;
   disabled?: boolean;
   compact?: boolean;
+  personLabel?: string;
 }) {
-  const router = useRouter();
+  const [optimisticChecked, setOptimisticChecked] = useOptimistic(checked);
   const [pending, startTransition] = useTransition();
-  const [value, setValue] = useState(checked);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setValue(checked);
-  }, [checked]);
+  const errorId = `day-of-error-${profileId}`;
+  const visibleLabel = personLabel ?? "On day-of call list";
+  const checkboxLabel = personLabel ? `On day-of call list, ${personLabel}` : visibleLabel;
 
   return (
-    <div className={compact ? undefined : "flex flex-col gap-1"}>
+    <div className={compact ? undefined : "flex flex-col gap-1"} aria-busy={pending || undefined}>
       <label
-        className={`flex items-center gap-2 text-sm ${disabled ? "text-muted" : ""}`}
+        className={`flex items-center gap-2 ${compact ? "text-xs" : "text-sm"} ${disabled ? "text-muted" : ""}`}
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
         <input
           type="checkbox"
-          className="h-4 w-4 rounded border-line"
-          checked={value}
+          className="h-4 w-4 shrink-0 rounded border-line"
+          checked={optimisticChecked}
           disabled={disabled || pending}
+          aria-label={checkboxLabel}
+          aria-describedby={error ? errorId : undefined}
           onChange={(event) => {
             const next = event.target.checked;
             setError(null);
-            setValue(next);
             startTransition(async () => {
+              setOptimisticChecked(next);
               const result = await setDayOfContact(profileId, next);
               if (!result.ok) {
-                setValue(checked);
                 setError("Could not update day-of call list.");
-                return;
               }
-              router.refresh();
             });
           }}
         />
-        <span>On day-of call list</span>
+        <span className="whitespace-nowrap">{visibleLabel}</span>
       </label>
-      {error ? <p className="text-xs text-[var(--danger)]">{error}</p> : null}
-      {pending ? <p className="text-xs text-muted">Saving…</p> : null}
+      <span className="sr-only" role="status" aria-live="polite">
+        {pending ? "Saving day-of call list status" : ""}
+      </span>
+      {error ? (
+        <p id={errorId} className="text-xs text-[var(--danger)]">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

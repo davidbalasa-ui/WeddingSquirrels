@@ -119,9 +119,10 @@ export function GuestList({
               : null;
             const open = openId === guest.id;
 
+            const dayOfPeople = guest.people.filter((person) => person.id);
             const details = [
               address || null,
-              `RSVP · ${rsvpStatusLabel(guest.rsvpStatus)}`,
+              canEdit ? null : `RSVP · ${rsvpStatusLabel(guest.rsvpStatus)}`,
               seating || null,
             ].filter((line, index, lines): line is string => Boolean(line) && lines.indexOf(line) === index);
 
@@ -154,29 +155,6 @@ export function GuestList({
                     )}
 
                     {canEdit ? (
-                      <div className="mt-2">
-                        <GuestRsvpControls guest={guest} people={guest.people} compact inline />
-                      </div>
-                    ) : null}
-
-                    {canEditDayOf
-                      ? guest.people
-                          .filter((person) => person.id)
-                          .map((person) => (
-                            <div key={person.id} className="mt-2">
-                              {guest.people.length > 1 ? (
-                                <p className="mb-1 text-xs font-semibold text-muted">{person.name}</p>
-                              ) : null}
-                              <DayOfCallListToggle
-                                profileId={profileIdForGuestPerson(person.id)}
-                                checked={person.isDayOfContact}
-                                compact
-                              />
-                            </div>
-                          ))
-                      : null}
-
-                    {canEdit ? (
                       <button
                         type="button"
                         className="mt-2 text-xs font-semibold text-[var(--accent)]"
@@ -198,6 +176,31 @@ export function GuestList({
                     </Link>
                   ) : null}
                 </div>
+
+                {canEdit ? (
+                  <div className="mt-2">
+                    <GuestRsvpControls guest={guest} people={guest.people} compact inline />
+                  </div>
+                ) : null}
+
+                {canEditDayOf && dayOfPeople.length > 0 ? (
+                  <div className="mt-2 pl-10">
+                    {dayOfPeople.length > 1 ? (
+                      <p className="mb-1 text-xs font-semibold text-muted">Day-of call list</p>
+                    ) : null}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      {dayOfPeople.map((person) => (
+                        <DayOfCallListToggle
+                          key={person.id}
+                          profileId={profileIdForGuestPerson(person.id)}
+                          checked={person.isDayOfContact}
+                          compact
+                          personLabel={dayOfPeople.length > 1 ? person.name : undefined}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 {open ? (
                   <div className="mt-2 border-t border-line pt-2">

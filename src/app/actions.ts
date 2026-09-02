@@ -1324,7 +1324,7 @@ export async function saveGuestPeople(input: {
       name: person.name.trim(),
       tableNumber: person.tableNumber ?? null,
       tableSpot: person.tableSpot?.trim() || null,
-      isDayOfContact: Boolean(person.isDayOfContact),
+      isDayOfContact: person.isDayOfContact,
     }))
     .filter((person) => person.name);
   if (people.length === 0) return { ok: false, reason: "invalid" };
@@ -1366,7 +1366,9 @@ export async function saveGuestPeople(input: {
             name: person.name,
             tableNumber: person.tableNumber,
             tableSpot: person.tableSpot,
-            isDayOfContact: person.isDayOfContact,
+            ...(person.isDayOfContact === undefined
+              ? {}
+              : { isDayOfContact: person.isDayOfContact }),
             sortOrder: index,
           },
         });
@@ -1377,7 +1379,7 @@ export async function saveGuestPeople(input: {
           name: person.name,
           tableNumber: person.tableNumber,
           tableSpot: person.tableSpot,
-          isDayOfContact: person.isDayOfContact,
+          isDayOfContact: person.isDayOfContact ?? false,
           sortOrder: index,
         },
       });
@@ -1504,7 +1506,7 @@ async function requireGuestViewer() {
 function revalidateGuests() {
   revalidatePath("/guests");
   revalidatePath("/guests/print");
-  refresh();
+  revalidatePath("/people");
 }
 
 export type GuestRsvpImportWriteResult =

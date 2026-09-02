@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { saveGuestRsvp } from "@/app/actions";
 import {
   effectiveAcceptedCount,
@@ -17,6 +17,23 @@ const RSVP_OPTIONS: { id: RsvpStatus; label: string }[] = [
   { id: "not_attending", label: "Not attending" },
 ];
 
+function guestSnapshot(guest: GuestRecord, people: GuestPersonRecord[]) {
+  const rsvpGuest = {
+    nameLine1: people[0]?.name ?? "",
+    nameLine2: people[1]?.name ?? null,
+    rsvpStatus: guest.rsvpStatus,
+    invitedCount: guest.invitedCount,
+    acceptedCount: guest.acceptedCount,
+    people,
+  };
+  return {
+    rsvpGuest,
+    serverRsvp: parseRsvpStatus(guest.rsvpStatus),
+    serverInvited: String(effectiveInvitedCount(rsvpGuest)),
+    serverAccepted: String(effectiveAcceptedCount(rsvpGuest)),
+  };
+}
+
 export function GuestRsvpControls({
   guest,
   people,
@@ -26,40 +43,44 @@ export function GuestRsvpControls({
   guest: GuestRecord;
   people: GuestPersonRecord[];
   compact?: boolean;
-  /** Pills only — hides invited/accepted count fields. */
   inline?: boolean;
 }) {
-  const rsvpGuest = {
-    nameLine1: people[0]?.name ?? "",
-    nameLine2: people[1]?.name ?? null,
-    rsvpStatus: guest.rsvpStatus,
-    invitedCount: guest.invitedCount,
-    acceptedCount: guest.acceptedCount,
-    people,
-  };
-  const [rsvp, setRsvp] = useState<RsvpStatus>(parseRsvpStatus(guest.rsvpStatus));
-  const [invited, setInvited] = useState(String(effectiveInvitedCount(rsvpGuest)));
-  const [accepted, setAccepted] = useState(String(effectiveAcceptedCount(rsvpGuest)));
+  const { rsvpGuest, serverRsvp, serverInvited, serverAccepted } = guestSnapshot(guest, people);
+  const [optimisticRsvp, setOptimisticRsvp] = useOptimistic(serverRsvp);
+  const [invited, setInvited] = useState(serverInvited);
+  const [accepted, setAccepted] = useState(serverAccepted);
+  const [editingField, setEditingField] = useState<"invited" | "accepted" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const syncToken = `${serverRsvp}|${serverInvited}|${serverAccepted}`;
+  const [prevSyncToken, setPrevSyncToken] = useState(syncToken);
+  if (syncToken !== prevSyncToken && !pending && editingField === null) {
+    setPrevSyncToken(syncToken);
+    setInvited(serverInvited);
+    setAccepted(serverAccepted);
+  }
 
   function persist(patch: { rsvpStatus?: RsvpStatus; invitedCount?: number; acceptedCount?: number }) {
     setError(null);
     startTransition(async () => {
+      if (patch.rsvpStatus !== undefined) {
+        setOptimisticRsvp(patch.rsvpStatus);
+      }
       const result = await saveGuestRsvp({ guestId: guest.id, ...patch });
       if (!result.ok) {
-        setRsvp(parseRsvpStatus(guest.rsvpStatus));
-        setInvited(String(effectiveInvitedCount(rsvpGuest)));
-        setAccepted(String(effectiveAcceptedCount(rsvpGuest)));
+        setInvited(serverInvited);
+        setAccepted(serverAccepted);
         setError("Couldn’t save RSVP — try again.");
       }
     });
   }
 
   function commitInvited() {
+    setEditingField(null);
     const next = parseGuestCount(invited);
     if (next == null) {
-      setInvited(String(effectiveInvitedCount(rsvpGuest)));
+      setInvited(serverInvited);
       return;
     }
     if (next === effectiveInvitedCount(rsvpGuest)) return;
@@ -67,9 +88,10 @@ export function GuestRsvpControls({
   }
 
   function commitAccepted() {
+    setEditingField(null);
     const next = parseGuestCount(accepted);
     if (next == null) {
-      setAccepted(String(effectiveAcceptedCount(rsvpGuest)));
+      setAccepted(serverAccepted);
       return;
     }
     if (next === effectiveAcceptedCount(rsvpGuest)) return;
@@ -77,21 +99,26 @@ export function GuestRsvpControls({
   }
 
   return (
-    <div className={compact ? "" : "border-t border-line px-4 py-3"}>
-      <div className="grid grid-cols-3 gap-1 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5">
+    <div className={compact ? "" : "border-t border-line px-4 py-3"} aria-busy={pending || undefined}>
+      <div
+        role="radiogroup"
+        aria-label="RSVP status"
+        className="grid w-full grid-cols-3 gap-1 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5"
+      >
         {RSVP_OPTIONS.map((option) => (
           <button
             key={option.id}
             type="button"
+            role="radio"
+            aria-checked={optimisticRsvp === option.id}
             disabled={pending}
-            className={`rounded-full px-2 py-1.5 text-xs font-semibold disabled:opacity-60 ${
-              rsvp === option.id
+            className={`min-w-0 whitespace-nowrap rounded-full px-1.5 py-1.5 text-[11px] font-semibold disabled:opacity-60 sm:px-2 sm:text-xs ${
+              optimisticRsvp === option.id
                 ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                 : "text-muted"
             }`}
             onClick={() => {
-              if (option.id === rsvp) return;
-              setRsvp(option.id);
+              if (option.id === optimisticRsvp) return;
               if (option.id === "not_attending") setAccepted("0");
               if (option.id === "attending" && (parseGuestCount(accepted) ?? 0) === 0) {
                 setAccepted(invited);
@@ -103,6 +130,9 @@ export function GuestRsvpControls({
           </button>
         ))}
       </div>
+      <span className="sr-only" role="status" aria-live="polite">
+        {pending ? "Saving RSVP" : ""}
+      </span>
       {inline ? null : (
         <div className={`grid grid-cols-2 gap-3 ${compact ? "mt-2" : "mt-3"}`}>
           <label className="block text-sm">
@@ -112,6 +142,9 @@ export function GuestRsvpControls({
               value={invited}
               disabled={pending}
               onChange={(event) => setInvited(event.target.value)}
+              onFocus={() => {
+                setEditingField("invited");
+              }}
               onBlur={commitInvited}
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();
@@ -127,6 +160,9 @@ export function GuestRsvpControls({
               value={accepted}
               disabled={pending}
               onChange={(event) => setAccepted(event.target.value)}
+              onFocus={() => {
+                setEditingField("accepted");
+              }}
               onBlur={commitAccepted}
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();
