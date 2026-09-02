@@ -57,7 +57,7 @@ export function GuestList({
           Tap a reply to change it. Tap a household to add people, seats, or gifts.
         </p>
       ) : mode === "table" ? (
-        <p className="mb-2 text-xs text-muted">Everyone listed by table number and seat order.</p>
+        <p className="mb-2 text-xs text-muted">Everyone listed by table. Floor plan shows where each table sits.</p>
       ) : null}
 
       {guests.length === 0 ? (
@@ -136,6 +136,16 @@ function GuestTableView({ guests }: { guests: GuestRecord[] }) {
 
   return (
     <div className="flex flex-col gap-3">
+      <figure className="overflow-hidden rounded-lg border border-line bg-[var(--bg-elevated)]">
+        <img
+          src="/seating-layout.png"
+          alt="Black Sheep Shelter floor plan with South tables on the left, North tables on the right, and the head table at the bar and band end"
+          className="w-full"
+        />
+        <figcaption className="px-3 py-2 text-xs text-muted">
+          Layout reference — South is left, North is right, Head is between the bar and band.
+        </figcaption>
+      </figure>
       {groups.map((group) => (
         <section key={group.label}>
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">

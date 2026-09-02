@@ -1,3 +1,5 @@
+import { tableSeatingLabel } from "@/lib/guest-seating-chart";
+
 export type GuestPersonFields = {
   name: string;
   tableNumber?: number | null;
@@ -254,7 +256,7 @@ export function groupGuestsByTable(
     });
     groups.push({
       tableNumber,
-      label: `Table ${tableNumber}`,
+      label: tableSeatingLabel(tableNumber),
       rows: tableRows,
     });
   }
