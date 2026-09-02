@@ -60,7 +60,6 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
           profileId={profile.profileId}
           primaryList={profile.primaryList}
           isDayOfContact={profile.isDayOfContact}
-          showsOnDayOfCallList={profile.showsOnDayOfCallList}
           canEditPrimaryList={profile.canEditPrimaryList}
           canEditDayOf={profile.canEditDayOf}
         />

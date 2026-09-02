@@ -15,6 +15,9 @@ export type DirectoryEntry = {
   roles: string[];
   phone: string | null;
   email: string | null;
+  address: string | null;
+  rsvpLabel: string | null;
+  tableLabel: string | null;
   sortKey: string;
   primaryList: PeoplePrimaryList | null;
   isDayOfContact: boolean;
@@ -81,19 +84,25 @@ export function resolvePrimaryList(input: {
 
 export function resolveIsDayOfContact(input: {
   isDayOfContact?: boolean | null;
-  name: string;
-  kind: "person" | "contact" | "guest";
   directoryList?: string | null;
 }): boolean {
-  if (input.isDayOfContact) return true;
-  if (input.directoryList === "day-of") return true;
-  if (input.kind === "person" && isDayOfContactName(input.name)) return true;
-  return false;
+  return Boolean(input.isDayOfContact) || input.directoryList === "day-of";
 }
 
 export function filterEntriesByTab(entries: DirectoryEntry[], tab: PeopleTab): DirectoryEntry[] {
-  if (tab === "day-of") return entries.filter((entry) => entry.isDayOfContact);
+  if (tab === "day-of") {
+    return entries.filter(
+      (entry) =>
+        entry.isDayOfContact && (entry.primaryList === "guests" || entry.primaryList === "vendors"),
+    );
+  }
   return entries.filter((entry) => entry.primaryList === tab);
+}
+
+export function sourceListLabel(list: PeoplePrimaryList | null): string | null {
+  if (list === "guests") return "Guest list";
+  if (list === "vendors") return "Vendors";
+  return null;
 }
 
 /** @deprecated Use isPeoplePrimaryList */
@@ -210,6 +219,9 @@ export type RawPeopleDirectoryInput = {
     householdLabel: string;
     directoryLabel?: string | null;
     isDayOfContact?: boolean | null;
+    address?: string | null;
+    rsvpLabel?: string | null;
+    tableLabel?: string | null;
   }[];
 };
 
@@ -220,12 +232,18 @@ export function buildDirectoryEntries(input: RawPeopleDirectoryInput): Directory
   const partyNames = party.map((guest) => guest.name);
   const familyNames = family.map((guest) => guest.name);
 
+  function claim(name: string) {
+    claimed.add(normalizePersonName(name));
+  }
+
+  function isClaimed(name: string) {
+    return [...claimed].some((existing) => namesMatch(existing, name));
+  }
+
   for (const contact of input.contacts) {
     const primaryList = resolvePrimaryList({ kind: "contact", directoryList: contact.directoryList });
     const isDayOfContact = resolveIsDayOfContact({
       isDayOfContact: contact.isDayOfContact,
-      name: contact.name,
-      kind: "contact",
       directoryList: contact.directoryList,
     });
     const roles = contact.directoryLabel?.trim()
@@ -233,7 +251,7 @@ export function buildDirectoryEntries(input: RawPeopleDirectoryInput): Directory
       : primaryList === "vendors"
         ? ["Vendor"]
         : ["Guest"];
-    const entry: DirectoryEntry = {
+    entries.push({
       profileId: profileIdForContact(contact.id),
       name: contact.name,
       subtitle: contact.directoryLabel?.trim() || vendorSubtitle(contact.name),
@@ -242,24 +260,49 @@ export function buildDirectoryEntries(input: RawPeopleDirectoryInput): Directory
       roles,
       phone: contact.phone,
       email: contact.email,
+      address: null,
+      rsvpLabel: null,
+      tableLabel: null,
       sortKey: normalizePersonName(contact.name),
       primaryList,
       isDayOfContact,
-    };
-    entries.push(entry);
-    claimed.add(normalizePersonName(contact.name));
+    });
+    claim(contact.name);
+  }
+
+  for (const guest of input.guestPeople) {
+    if (isClaimed(guest.name)) continue;
+    const group = classifyNameGroup(guest.name, partyNames, familyNames);
+    const defaultRole = group === "party" ? "Wedding party" : "Guest";
+    const roles = guest.directoryLabel?.trim() ? [guest.directoryLabel.trim()] : [defaultRole];
+    entries.push({
+      profileId: profileIdForGuestPerson(guest.id),
+      name: guest.name,
+      subtitle: guest.householdLabel,
+      photoSrc: null,
+      group,
+      roles,
+      phone: null,
+      email: null,
+      address: guest.address?.trim() || null,
+      rsvpLabel: guest.rsvpLabel?.trim() || null,
+      tableLabel: guest.tableLabel?.trim() || null,
+      sortKey: normalizePersonName(guest.name),
+      primaryList: "guests",
+      isDayOfContact: resolveIsDayOfContact({ isDayOfContact: guest.isDayOfContact }),
+    });
+    claim(guest.name);
   }
 
   for (const person of input.persons) {
     const primaryList = resolvePrimaryList({ kind: "person", directoryList: person.directoryList });
+    if (!primaryList) continue;
+    if (isClaimed(person.name)) continue;
+
     const isDayOfContact = resolveIsDayOfContact({
       isDayOfContact: person.isDayOfContact,
-      name: person.name,
-      kind: "person",
       directoryList: person.directoryList,
     });
-    if (!person.directoryList && !isDayOfContact) continue;
-
     const group = classifyNameGroup(person.name, partyNames, familyNames);
     const defaultRoles =
       group === "party"
@@ -270,7 +313,7 @@ export function buildDirectoryEntries(input: RawPeopleDirectoryInput): Directory
             ? ["Vendor"]
             : ["Guest"];
     const roles = person.directoryLabel?.trim() ? [person.directoryLabel.trim()] : defaultRoles;
-    const entry: DirectoryEntry = {
+    entries.push({
       profileId: profileIdForPerson(person.id),
       name: person.name,
       subtitle: person.directoryLabel?.trim() || roles[0] || null,
@@ -279,40 +322,14 @@ export function buildDirectoryEntries(input: RawPeopleDirectoryInput): Directory
       roles,
       phone: null,
       email: null,
+      address: null,
+      rsvpLabel: null,
+      tableLabel: null,
       sortKey: normalizePersonName(person.name),
       primaryList,
       isDayOfContact,
-    };
-    entries.push(entry);
-    claimed.add(normalizePersonName(person.name));
-  }
-
-  for (const guest of input.guestPeople) {
-    const key = normalizePersonName(guest.name);
-    if ([...claimed].some((name) => namesMatch(name, guest.name))) continue;
-    const group = classifyNameGroup(guest.name, partyNames, familyNames);
-    const defaultRole = group === "party" ? "Wedding party" : "Guest";
-    const roles = guest.directoryLabel?.trim() ? [guest.directoryLabel.trim()] : [defaultRole];
-    const isDayOfContact = resolveIsDayOfContact({
-      isDayOfContact: guest.isDayOfContact,
-      name: guest.name,
-      kind: "guest",
     });
-    const entry: DirectoryEntry = {
-      profileId: profileIdForGuestPerson(guest.id),
-      name: guest.name,
-      subtitle: guest.householdLabel,
-      photoSrc: null,
-      group,
-      roles,
-      phone: null,
-      email: null,
-      sortKey: key,
-      primaryList: "guests",
-      isDayOfContact,
-    };
-    entries.push(entry);
-    claimed.add(key);
+    claim(person.name);
   }
 
   return entries.sort(directoryEntrySort);
@@ -323,7 +340,18 @@ export function filterDirectoryEntries(entries: DirectoryEntry[], query: string)
   if (!needle) return entries;
   return entries.filter((entry) => {
     const haystack = normalizePersonName(
-      [entry.name, entry.subtitle, entry.roles.join(" ")].filter(Boolean).join(" "),
+      [
+        entry.name,
+        entry.subtitle,
+        entry.roles.join(" "),
+        entry.phone,
+        entry.email,
+        entry.address,
+        entry.rsvpLabel,
+        entry.tableLabel,
+      ]
+        .filter(Boolean)
+        .join(" "),
     );
     return haystack.includes(needle);
   });
