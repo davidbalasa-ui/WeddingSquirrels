@@ -61,14 +61,15 @@ export default async function PeopleHubPage({
         />
       </Suspense>
 
+      {session.isMaster && session.canSeeGuests ? <GuestRsvpSync /> : null}
+
       {filter === "all" || filter === "guests" ? (
         session.canSeeGuests ? (
           <div className="flex flex-col gap-3">
             {filter === "all" ? (
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Guests</p>
             ) : null}
-            {filter === "guests" ? <GuestRsvpReport report={data.guestReport} /> : null}
-            {filter === "guests" && session.isMaster ? <GuestRsvpSync /> : null}
+            <GuestRsvpReport report={data.guestReport} />
             <GuestList guests={data.guests} canEdit={canEditGuests} sort={sort} />
           </div>
         ) : filter === "guests" ? (
