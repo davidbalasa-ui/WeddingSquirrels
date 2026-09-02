@@ -70,6 +70,7 @@ export function InboxRow({
   }
   const [reply, setReply] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const [undoId, setUndoId] = useState<string | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -88,51 +89,6 @@ export function InboxRow({
     setUndoId(requestId);
     if (undoTimer.current) clearTimeout(undoTimer.current);
     undoTimer.current = setTimeout(() => setUndoId(null), 5000);
-  }
-
-  function handleCheckbox() {
-    startTransition(async () => {
-      if (item.kind === "ask") {
-        if (item.done || item.declined) {
-          await reopenRequest(item.sourceId);
-          return;
-        }
-        await completeRequest(item.sourceId);
-        scheduleUndo(item.sourceId);
-        return;
-      }
-      if (item.kind === "buy") {
-        await toggleShoppingPurchased(item.sourceId);
-        return;
-      }
-      await toggleTaskDone(item.sourceId);
-    });
-  }
-
-  function saveTitle() {
-    const trimmed = titleDraft.trim();
-    if (!trimmed || trimmed === item.title) {
-      setEditingTitle(false);
-      return;
-    }
-    startTransition(async () => {
-      if (item.kind === "task" || item.kind === "org_step") await renameTask(item.sourceId, trimmed);
-      else if (item.kind === "buy") await renameShoppingItem(item.sourceId, trimmed);
-      else if (item.kind === "ask") await renameRequest(item.sourceId, trimmed);
-      setEditingTitle(false);
-    });
-  }
-
-  function cycleOwner() {
-    if (item.kind === "buy") {
-      startTransition(() => cycleShoppingOwner(item.sourceId));
-      return;
-    }
-    if (!canCycleOwners) {
-      if (item.href) window.location.href = item.href;
-      return;
-    }
-    startTransition(() => cycleTaskOwners(item.sourceId));
   }
 
   const askPerm = item.askData
@@ -157,6 +113,74 @@ export function InboxRow({
       }
     : null;
 
+  const askCheckboxDisabled =
+    item.kind === "ask" &&
+    (item.done || item.declined ? !askPerms?.reopen : !askPerms?.complete);
+
+  function runMutation(action: () => Promise<void>, onSuccess?: () => void) {
+    setMutationError(null);
+    startTransition(async () => {
+      try {
+        await action();
+        onSuccess?.();
+      } catch {
+        setMutationError("Couldn't save — try again.");
+      }
+    });
+  }
+
+  function handleCheckbox() {
+    if (item.kind === "ask") {
+      if (item.done || item.declined) {
+        if (!askPerms?.reopen) return;
+      } else if (!askPerms?.complete) {
+        return;
+      }
+    }
+    runMutation(async () => {
+      if (item.kind === "ask") {
+        if (item.done || item.declined) {
+          await reopenRequest(item.sourceId);
+          return;
+        }
+        await completeRequest(item.sourceId);
+        scheduleUndo(item.sourceId);
+        return;
+      }
+      if (item.kind === "buy") {
+        await toggleShoppingPurchased(item.sourceId);
+        return;
+      }
+      await toggleTaskDone(item.sourceId);
+    });
+  }
+
+  function saveTitle() {
+    const trimmed = titleDraft.trim();
+    if (!trimmed || trimmed === item.title) {
+      setEditingTitle(false);
+      return;
+    }
+    runMutation(async () => {
+      if (item.kind === "task" || item.kind === "org_step") await renameTask(item.sourceId, trimmed);
+      else if (item.kind === "buy") await renameShoppingItem(item.sourceId, trimmed);
+      else if (item.kind === "ask") await renameRequest(item.sourceId, trimmed);
+      setEditingTitle(false);
+    });
+  }
+
+  function cycleOwner() {
+    if (item.kind === "buy") {
+      runMutation(() => cycleShoppingOwner(item.sourceId));
+      return;
+    }
+    if (!canCycleOwners) {
+      if (item.href) window.location.href = item.href;
+      return;
+    }
+    runMutation(() => cycleTaskOwners(item.sourceId));
+  }
+
   const unread = askPerm ? isRequestUnread(session, askPerm) : false;
   const dateLine = inboxDateLine(item.dueDate, item.done);
   const ownerTappable = item.kind === "buy" || canCycleOwners || Boolean(item.href);
@@ -168,7 +192,7 @@ export function InboxRow({
       <button
         type="button"
         aria-label={item.done ? "Mark not done" : item.kind === "buy" ? "Mark purchased" : "Mark done"}
-        disabled={pending}
+        disabled={pending || askCheckboxDisabled}
         className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-line text-[11px] leading-none"
         style={{
           background: item.done || item.declined ? "var(--accent)" : "transparent",
@@ -336,6 +360,10 @@ export function InboxRow({
           </p>
         ) : null}
 
+        {mutationError ? (
+          <p className="mt-1 text-sm text-[var(--danger)]">{mutationError}</p>
+        ) : null}
+
         {item.kind === "ask" && expanded && item.askData ? (
           <div className="mt-2 border-t border-line pt-2">
             <AskThread messages={item.askData.messages} sessionId={session.id} />
@@ -396,8 +424,13 @@ export function InboxRow({
                   const body = reply.trim();
                   if (!body) return;
                   startTransition(async () => {
-                    await addRequestMessage(item.sourceId, body);
-                    setReply("");
+                    try {
+                      await addRequestMessage(item.sourceId, body);
+                      setReply("");
+                      setMutationError(null);
+                    } catch {
+                      setMutationError("Couldn't send reply — try again.");
+                    }
                   });
                 }}
               >
