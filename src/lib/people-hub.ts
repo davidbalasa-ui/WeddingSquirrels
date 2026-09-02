@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
+import { guestAddressLine, rsvpStatusLabel, summarizeGuestRsvp, type GuestRsvpReport } from "@/lib/guest-gifts";
 import { guestInclude, mapGuestRecord, type GuestRecord } from "@/lib/guests";
-import { summarizeGuestRsvp, type GuestRsvpReport } from "@/lib/guest-gifts";
 import {
   buildDirectoryEntries,
   filterEntriesByTab,
@@ -15,13 +15,6 @@ export type PeopleHubData = {
   dayOfEntries: DirectoryEntry[];
   guests: GuestRecord[];
   guestReport: GuestRsvpReport;
-  dayOfContacts: {
-    id: string;
-    name: string;
-    phone: string | null;
-    email: string | null;
-    photoData: string | null;
-  }[];
   tabCounts: Record<PeopleTab, number>;
 };
 
@@ -67,12 +60,22 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
   const guestRecords = guests.map((guest) => mapGuestRecord(guest));
   const guestPeople = guests.flatMap((guest) => {
     const mapped = mapGuestRecord(guest);
+    const address = guestAddressLine(mapped) || null;
+    const rsvpLabel = rsvpStatusLabel(mapped.rsvpStatus);
     return mapped.people.map((person) => ({
       id: person.id,
       name: person.name,
       householdLabel: householdLabel(mapped),
       directoryLabel: person.directoryLabel ?? null,
       isDayOfContact: person.isDayOfContact,
+      address,
+      rsvpLabel,
+      tableLabel:
+        person.tableNumber != null
+          ? person.tableSpot?.trim()
+            ? `Table ${person.tableNumber} · ${person.tableSpot.trim()}`
+            : `Table ${person.tableNumber}`
+          : null,
     }));
   });
 
@@ -96,16 +99,6 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
     }),
   );
 
-  const dayOfContacts = contacts
-    .filter((contact) => contact.isDayOfContact)
-    .map((contact) => ({
-      id: contact.id,
-      name: contact.name,
-      phone: contact.phone,
-      email: contact.email,
-      photoData: contact.photoData,
-    }));
-
   const vendorEntries = filterEntriesByTab(entries, "vendors");
   const dayOfEntries = filterEntriesByTab(entries, "day-of");
 
@@ -115,7 +108,6 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
     dayOfEntries,
     guests: guestRecords,
     guestReport,
-    dayOfContacts,
     tabCounts: {
       guests: guestRecords.length,
       vendors: vendorEntries.length,

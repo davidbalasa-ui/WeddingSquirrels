@@ -56,7 +56,7 @@ export default async function PeopleHubPage({
           <div className="flex flex-col gap-4">
             <GuestRsvpReport report={data.guestReport} />
             {session.isMaster ? <GuestRsvpSync /> : null}
-            <GuestList guests={data.guests} canEdit={canEditGuests} />
+            <GuestList guests={data.guests} canEdit={canEditGuests} canEditDayOf={canEditDayOf} />
           </div>
         ) : (
           <div className="card px-3 py-4 text-sm text-muted">Guest list isn’t visible for this PIN.</div>
@@ -68,6 +68,7 @@ export default async function PeopleHubPage({
           entries={data.vendorEntries}
           emptyLabel="No vendors yet"
           searchPlaceholder="Search vendors"
+          canEditDayOf={canEditDayOf}
         />
       ) : null}
 
@@ -75,12 +76,13 @@ export default async function PeopleHubPage({
         session.canSeeTimeline ? (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
-              Everyone to call on the wedding day — pulled from your guest list and vendors.
+              Everyone checked “On day-of call list” on Guest list or Vendors.
             </p>
             <PeopleEntryList
               entries={data.dayOfEntries}
               emptyLabel="No one on the day-of call list yet"
               searchPlaceholder="Search day-of contacts"
+              canEditDayOf={canEditDayOf}
             />
             {canEditDayOf ? (
               <PeopleTabFooterLink

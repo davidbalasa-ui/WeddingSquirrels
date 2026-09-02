@@ -10,6 +10,8 @@ import {
   namesMatch,
   normalizePersonName,
   parseProfileId,
+  profileIdForContact,
+  profileIdForGuestPerson,
   profileIdForPerson,
   resolveIsDayOfContact,
   resolvePrimaryList,
@@ -21,7 +23,13 @@ test("isDayOfContactName matches bridal party and family roster names", () => {
   assert.equal(isDayOfContactName("Avalon Green"), false);
 });
 
-test("filterEntriesByTab separates guests, vendors, and day-of overlay", () => {
+test("resolveIsDayOfContact uses only the saved checkbox flag", () => {
+  assert.equal(resolveIsDayOfContact({ isDayOfContact: true }), true);
+  assert.equal(resolveIsDayOfContact({ isDayOfContact: false, directoryList: "day-of" }), true);
+  assert.equal(resolveIsDayOfContact({ isDayOfContact: false }), false);
+});
+
+test("day-of tab only includes guests or vendors with the checkbox on", () => {
   const entries = buildDirectoryEntries({
     persons: [
       {
@@ -56,11 +64,36 @@ test("filterEntriesByTab separates guests, vendors, and day-of overlay", () => {
         photoData: null,
       },
     ],
-    guestPeople: [{ id: "guest-1", name: "Random Guest", householdLabel: "Random · City" }],
+    guestPeople: [
+      {
+        id: "guest-1",
+        name: "Random Guest",
+        householdLabel: "Random · City",
+        isDayOfContact: false,
+      },
+      {
+        id: "guest-2",
+        name: "Denise Bordeaux",
+        householdLabel: "Denise Bordeaux",
+        address: "123 Main St",
+        rsvpLabel: "No reply",
+        isDayOfContact: true,
+      },
+    ],
   });
 
-  assert.ok(filterEntriesByTab(entries, "day-of").some((entry) => entry.name === "Andi"));
-  assert.ok(filterEntriesByTab(entries, "day-of").some((entry) => entry.name === "Marie Wiewiora"));
+  const dayOf = filterEntriesByTab(entries, "day-of");
+  assert.equal(
+    dayOf.some((entry) => entry.name === "Andi"),
+    false,
+    "unlisted person records must not appear on day-of",
+  );
+  assert.ok(dayOf.some((entry) => entry.name === "Marie Wiewiora"));
+  assert.ok(dayOf.some((entry) => entry.name === "Denise Bordeaux"));
+  assert.equal(
+    dayOf.find((entry) => entry.name === "Denise Bordeaux")?.address,
+    "123 Main St",
+  );
   assert.ok(filterEntriesByTab(entries, "vendors").some((entry) => entry.name.includes("Avalon")));
   assert.ok(filterEntriesByTab(entries, "guests").some((entry) => entry.name === "Random Guest"));
 });
@@ -71,15 +104,14 @@ test("resolvePrimaryList only assigns vendors/guests when explicit", () => {
   assert.equal(resolvePrimaryList({ kind: "person", directoryList: "guests" }), "guests");
 });
 
-test("buildDirectoryEntries prefers person records over duplicate guest names", () => {
+test("buildDirectoryEntries prefers guest records over unlisted person duplicates", () => {
   const entries = buildDirectoryEntries({
     persons: [{ id: "shelly", name: "Shelly", isDayOfContact: true }],
     contacts: [],
     guestPeople: [{ id: "guest-1", name: "Shelly", householdLabel: "Shelly · Orlando" }],
   });
   assert.equal(entries.length, 1);
-  assert.equal(entries[0]?.profileId, profileIdForPerson("shelly"));
-  assert.equal(entries[0]?.isDayOfContact, true);
+  assert.equal(entries[0]?.profileId, profileIdForGuestPerson("guest-1"));
 });
 
 test("vendorSubtitle extracts the role after the dot separator", () => {
@@ -93,6 +125,8 @@ test("classifyNameGroup maps rehearsal dinner sections into party and family", (
 test("parseProfileId round-trips person, contact, and guest ids", () => {
   assert.deepEqual(parseProfileId("person:david"), { kind: "person", id: "david" });
   assert.equal(parseProfileId("invalid"), null);
+  assert.equal(profileIdForPerson("shelly"), "person:shelly");
+  assert.equal(profileIdForContact("c1"), "contact:c1");
 });
 
 test("filterDirectoryEntries searches names and subtitles", () => {
@@ -131,4 +165,9 @@ test("groupDirectoryEntries filters by group", () => {
     guestPeople: [],
   });
   assert.ok(groupDirectoryEntries(entries, "vendor").length >= 1);
+});
+
+test("namesMatch equates first names of sufficient length", () => {
+  assert.equal(namesMatch("Kurt Huizenga", "Kurt"), true);
+  assert.equal(normalizePersonName("Denise  Bordeaux"), "denise bordeaux");
 });
