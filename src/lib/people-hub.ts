@@ -1,13 +1,28 @@
 import { prisma } from "@/lib/db";
-import { guestInclude, mapGuestRecord } from "@/lib/guests";
-import { buildDirectoryEntries, type DirectoryEntry } from "@/lib/people-directory";
+import { guestInclude, mapGuestRecord, type GuestRecord } from "@/lib/guests";
+import { summarizeGuestRsvp, type GuestRsvpReport } from "@/lib/guest-gifts";
+import {
+  buildDirectoryEntries,
+  filterEntriesByTab,
+  type DirectoryEntry,
+  type PeopleTab,
+} from "@/lib/people-directory";
 import type { SessionAccount } from "@/lib/types";
 
 export type PeopleHubData = {
   entries: DirectoryEntry[];
-  guestCount: number;
-  contactCount: number;
-  assignmentCount: number;
+  vendorEntries: DirectoryEntry[];
+  dayOfEntries: DirectoryEntry[];
+  guests: GuestRecord[];
+  guestReport: GuestRsvpReport;
+  dayOfContacts: {
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    photoData: string | null;
+  }[];
+  tabCounts: Record<PeopleTab, number>;
 };
 
 function householdLabel(guest: ReturnType<typeof mapGuestRecord>) {
@@ -18,10 +33,16 @@ function householdLabel(guest: ReturnType<typeof mapGuestRecord>) {
 }
 
 export async function loadPeopleHubData(session: SessionAccount): Promise<PeopleHubData> {
-  const [persons, contacts, guests, assignments] = await Promise.all([
+  const [persons, contacts, guests] = await Promise.all([
     prisma.person.findMany({
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, directoryLabel: true, directoryList: true },
+      select: {
+        id: true,
+        name: true,
+        directoryLabel: true,
+        directoryList: true,
+        isDayOfContact: true,
+      },
     }),
     session.canSeeTimeline
       ? prisma.contact.findMany({
@@ -31,6 +52,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
             name: true,
             directoryLabel: true,
             directoryList: true,
+            isDayOfContact: true,
             phone: true,
             email: true,
             photoData: true,
@@ -40,11 +62,9 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
     session.canSeeGuests
       ? prisma.guest.findMany({ orderBy: { sortOrder: "asc" }, include: guestInclude() })
       : Promise.resolve([]),
-    session.canSeeTimeline
-      ? prisma.dayAssignment.count()
-      : Promise.resolve(0),
   ]);
 
+  const guestRecords = guests.map((guest) => mapGuestRecord(guest));
   const guestPeople = guests.flatMap((guest) => {
     const mapped = mapGuestRecord(guest);
     return mapped.people.map((person) => ({
@@ -52,6 +72,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
       name: person.name,
       householdLabel: householdLabel(mapped),
       directoryLabel: person.directoryLabel ?? null,
+      isDayOfContact: person.isDayOfContact,
     }));
   });
 
@@ -61,10 +82,44 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
     guestPeople,
   });
 
+  const guestReport = summarizeGuestRsvp(
+    guests.map((guest) => {
+      const mapped = mapGuestRecord(guest);
+      return {
+        nameLine1: mapped.people[0]?.name ?? guest.nameLine1,
+        nameLine2: mapped.people[1]?.name ?? guest.nameLine2,
+        people: mapped.people,
+        rsvpStatus: mapped.rsvpStatus,
+        invitedCount: mapped.invitedCount,
+        acceptedCount: mapped.acceptedCount,
+      };
+    }),
+  );
+
+  const dayOfContacts = contacts
+    .filter((contact) => contact.isDayOfContact)
+    .map((contact) => ({
+      id: contact.id,
+      name: contact.name,
+      phone: contact.phone,
+      email: contact.email,
+      photoData: contact.photoData,
+    }));
+
+  const vendorEntries = filterEntriesByTab(entries, "vendors");
+  const dayOfEntries = filterEntriesByTab(entries, "day-of");
+
   return {
     entries,
-    guestCount: guests.length,
-    contactCount: contacts.length,
-    assignmentCount: assignments,
+    vendorEntries,
+    dayOfEntries,
+    guests: guestRecords,
+    guestReport,
+    dayOfContacts,
+    tabCounts: {
+      guests: guestRecords.length,
+      vendors: vendorEntries.length,
+      "day-of": dayOfEntries.length,
+    },
   };
 }

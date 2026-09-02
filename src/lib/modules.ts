@@ -64,11 +64,11 @@ export const MODULES: ModuleDef[] = [
   {
     key: "guests",
     label: "Guests",
-    href: "/guests",
+    href: "/people?tab=guests",
     group: "wedding",
     navTab: "people",
     see: "canSeeGuests",
-    primary: true,
+    hideFromMore: true,
     icon: "guests",
   },
   {

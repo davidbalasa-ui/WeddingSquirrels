@@ -1,15 +1,29 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ModuleIcon } from "@/components/ModuleIcon";
-import { PeopleDirectorySearch } from "@/components/PeopleDirectorySearch";
+import { Suspense } from "react";
+import { GuestList } from "@/components/GuestList";
+import { GuestRsvpReport } from "@/components/GuestRsvpReport";
+import { GuestRsvpSync } from "@/components/GuestRsvpSync";
+import { PeopleEntryList } from "@/components/PeopleEntryList";
+import { PeopleHubTabs, PeopleTabFooterLink } from "@/components/PeopleHubTabs";
 import { V2PageHeader } from "@/components/V2PageHeader";
+import { timelineEditable } from "@/lib/access";
+import { parsePeopleTab, type PeopleTab } from "@/lib/people-directory";
 import { loadPeopleHubData } from "@/lib/people-hub";
 import { requirePageSession } from "@/lib/session";
+
+function defaultTab(session: {
+  canSeeGuests: boolean;
+  canSeeTimeline: boolean;
+}): PeopleTab {
+  if (session.canSeeGuests) return "guests";
+  if (session.canSeeTimeline) return "day-of";
+  return "vendors";
+}
 
 export default async function PeopleHubPage({
   searchParams,
 }: {
-  searchParams: Promise<{ who?: string; done?: string }>;
+  searchParams: Promise<{ who?: string; done?: string; tab?: string }>;
 }) {
   const sp = await searchParams;
   if (sp.who || sp.done) {
@@ -20,71 +34,66 @@ export default async function PeopleHubPage({
   }
 
   const session = await requirePageSession();
+  const tab = parsePeopleTab(sp.tab) ?? defaultTab(session);
   const data = await loadPeopleHubData(session);
-
-  const quickLinks = [
-    session.canSeeGuests
-      ? { key: "guests", label: "Guest list", href: "/people/guests", detail: `${data.guestCount} households` }
-      : null,
-    session.canSeeTimeline
-      ? {
-          key: "contacts",
-          label: "Day-of call list",
-          href: "/day/contacts",
-          detail: `${data.contactCount} on the call sheet`,
-        }
-      : null,
-    session.canSeeTimeline
-      ? {
-          key: "assignments",
-          label: "Responsibilities",
-          href: "/people/responsibilities",
-          detail: `${data.assignmentCount} assignments`,
-        }
-      : null,
-  ].filter(Boolean) as { key: string; label: string; href: string; detail: string }[];
+  const canEditGuests = session.canSeeGuests;
+  const canEditDayOf = timelineEditable(session);
 
   return (
     <>
       <V2PageHeader
         session={session}
         title="People"
-        subtitle="Guest list, day-of contacts, and vendors — each on its own tab"
+        subtitle="Guest list, vendors, and day-of call list in one place"
       />
 
-      {quickLinks.length > 0 ? (
-        <section className="mb-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
-            Lists
-          </p>
-          <div className="card divide-y divide-[var(--line)] overflow-hidden">
-            {quickLinks.map((item) => (
-              <Link
-                key={item.key}
-                href={item.href}
-                className="flex items-center gap-2 px-3 py-2 transition-colors hover:bg-[var(--accent-soft)]/30"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
-                  <ModuleIcon name="people" className="h-4 w-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-semibold leading-snug">{item.label}</span>
-                  <span className="mt-0.5 block text-xs text-muted">{item.detail}</span>
-                </span>
-                <span className="shrink-0 text-sm text-muted" aria-hidden>
-                  ›
-                </span>
-              </Link>
-            ))}
+      <Suspense fallback={null}>
+        <PeopleHubTabs activeTab={tab} counts={data.tabCounts} />
+      </Suspense>
+
+      {tab === "guests" ? (
+        session.canSeeGuests ? (
+          <div className="flex flex-col gap-4">
+            <GuestRsvpReport report={data.guestReport} />
+            {session.isMaster ? <GuestRsvpSync /> : null}
+            <GuestList guests={data.guests} canEdit={canEditGuests} />
           </div>
-        </section>
+        ) : (
+          <div className="card px-3 py-4 text-sm text-muted">Guest list isn’t visible for this PIN.</div>
+        )
       ) : null}
 
-      {data.entries.length > 0 ? (
-        <PeopleDirectorySearch entries={data.entries} />
-      ) : (
-        <div className="card px-3 py-4 text-sm text-muted">No people are visible for this PIN yet.</div>
-      )}
+      {tab === "vendors" ? (
+        <PeopleEntryList
+          entries={data.vendorEntries}
+          emptyLabel="No vendors yet"
+          searchPlaceholder="Search vendors"
+        />
+      ) : null}
+
+      {tab === "day-of" ? (
+        session.canSeeTimeline ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted">
+              Everyone to call on the wedding day — pulled from your guest list and vendors.
+            </p>
+            <PeopleEntryList
+              entries={data.dayOfEntries}
+              emptyLabel="No one on the day-of call list yet"
+              searchPlaceholder="Search day-of contacts"
+            />
+            {canEditDayOf ? (
+              <PeopleTabFooterLink
+                href="/people/responsibilities"
+                label="Day-of responsibilities"
+                detail="Who is handling what on the big day"
+              />
+            ) : null}
+          </div>
+        ) : (
+          <div className="card px-3 py-4 text-sm text-muted">Day-of contacts aren’t visible for this PIN.</div>
+        )
+      ) : null}
     </>
   );
 }

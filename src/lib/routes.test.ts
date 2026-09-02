@@ -37,7 +37,7 @@ test("firstAllowedRoute lands on Today when the PIN can see Home", () => {
 
 test("firstAllowedRoute keeps shared-money and guests-only landings", () => {
   assert.equal(firstAllowedRoute(session({ canSeeBudget: true })), "/money");
-  assert.equal(firstAllowedRoute(session({ canSeeGuests: true })), "/guests");
+  assert.equal(firstAllowedRoute(session({ canSeeGuests: true })), "/people?tab=guests");
   assert.equal(firstAllowedRoute(session()), null);
 });
 

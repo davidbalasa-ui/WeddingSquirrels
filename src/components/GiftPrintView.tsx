@@ -21,7 +21,7 @@ export function GiftPrintView({ rows }: { rows: GiftPrintRow[] }) {
           <button type="button" className="btn-primary" onClick={() => window.print()}>
             Print
           </button>
-          <Link href="/guests" className="btn-secondary">
+          <Link href="/people?tab=guests" className="btn-secondary">
             Back
           </Link>
         </div>

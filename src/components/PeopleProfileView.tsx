@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { PersonAvatar } from "@/components/PersonAvatar";
 import { PeopleDeleteButton } from "@/components/PeopleDeleteButton";
-import { PeopleListEditor } from "@/components/PeopleListEditor";
+import { PeopleMembershipEditor } from "@/components/PeopleMembershipEditor";
 import { PeopleRoleEditor } from "@/components/PeopleRoleEditor";
 import { formatMoney } from "@/lib/money";
 import type { PeopleProfile } from "@/lib/people-profile";
@@ -56,10 +56,12 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
       </section>
 
       <section className="card flex flex-col gap-3 px-3 py-3">
-        <PeopleListEditor
+        <PeopleMembershipEditor
           profileId={profile.profileId}
-          currentList={profile.list}
-          canEdit={profile.canEditList}
+          primaryList={profile.primaryList}
+          isDayOfContact={profile.isDayOfContact}
+          canEditPrimaryList={profile.canEditPrimaryList}
+          canEditDayOf={profile.canEditDayOf}
         />
         <PeopleDeleteButton
           profileId={profile.profileId}

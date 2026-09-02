@@ -31,7 +31,7 @@ import {
   type TimelineSchedule,
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
-import { parseProfileId, type PeopleList, isPeopleList } from "@/lib/people-directory";
+import { parseProfileId, type PeoplePrimaryList, isPeoplePrimaryList } from "@/lib/people-directory";
 import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
@@ -2352,7 +2352,8 @@ export async function createContact(formData: FormData): Promise<void> {
       phone: phone || null,
       email: email || null,
       photoData,
-      directoryList: "day-of",
+      directoryList: "vendors",
+      isDayOfContact: formData.get("isDayOfContact") === "on",
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });
@@ -2458,7 +2459,8 @@ async function createContactFromSource(input: {
   email?: string | null;
   photoData?: string | null;
   directoryLabel?: string | null;
-  directoryList: PeopleList;
+  directoryList?: PeoplePrimaryList;
+  isDayOfContact?: boolean;
 }) {
   const last = await prisma.contact.findFirst({ orderBy: { sortOrder: "desc" } });
   return prisma.contact.create({
@@ -2468,7 +2470,8 @@ async function createContactFromSource(input: {
       email: input.email ?? null,
       photoData: input.photoData ?? null,
       directoryLabel: input.directoryLabel?.trim() || null,
-      directoryList: input.directoryList,
+      directoryList: input.directoryList ?? "vendors",
+      isDayOfContact: input.isDayOfContact ?? false,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });
@@ -2515,12 +2518,12 @@ async function deletePersonRecord(personId: string) {
   ]);
 }
 
-export async function saveDirectoryList(
+export async function savePrimaryList(
   profileId: string,
-  list: PeopleList,
+  list: PeoplePrimaryList,
 ): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "invalid" | "not_found" | "protected" }> {
   if (!(await requirePeopleEditor())) return { ok: false, reason: "forbidden" };
-  if (!isPeopleList(list)) return { ok: false, reason: "invalid" };
+  if (!isPeoplePrimaryList(list)) return { ok: false, reason: "invalid" };
 
   const parsed = parseProfileId(profileId);
   if (!parsed) return { ok: false, reason: "invalid" };
@@ -2533,7 +2536,8 @@ export async function saveDirectoryList(
     await createContactFromSource({
       name: guestPerson.name,
       directoryLabel: guestPerson.directoryLabel,
-      directoryList: list,
+      directoryList: "vendors",
+      isDayOfContact: guestPerson.isDayOfContact,
     });
     await deleteGuestPersonRecord(parsed.id);
     revalidatePeople();
@@ -2579,6 +2583,35 @@ export async function saveDirectoryList(
 
   revalidatePeople();
   return { ok: true };
+}
+
+export async function setDayOfContact(
+  profileId: string,
+  on: boolean,
+): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "invalid" | "not_found" }> {
+  if (!(await requirePeopleEditor())) return { ok: false, reason: "forbidden" };
+
+  const parsed = parseProfileId(profileId);
+  if (!parsed) return { ok: false, reason: "invalid" };
+
+  if (parsed.kind === "person") {
+    await prisma.person.update({ where: { id: parsed.id }, data: { isDayOfContact: on } });
+  } else if (parsed.kind === "contact") {
+    await prisma.contact.update({ where: { id: parsed.id }, data: { isDayOfContact: on } });
+  } else {
+    await prisma.guestPerson.update({ where: { id: parsed.id }, data: { isDayOfContact: on } });
+  }
+
+  revalidatePeople(profileId);
+  return { ok: true };
+}
+
+/** @deprecated Use savePrimaryList */
+export async function saveDirectoryList(
+  profileId: string,
+  list: PeoplePrimaryList,
+): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "invalid" | "not_found" | "protected" }> {
+  return savePrimaryList(profileId, list);
 }
 
 export async function deleteDirectoryEntry(

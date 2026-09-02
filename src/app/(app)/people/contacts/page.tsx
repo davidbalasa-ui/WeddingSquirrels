@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function PeopleContactsAliasPage() {
-  redirect("/day/contacts");
+export default function PeopleContactsRedirectPage() {
+  redirect("/people?tab=day-of");
 }

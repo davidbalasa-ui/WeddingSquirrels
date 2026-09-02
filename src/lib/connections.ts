@@ -112,7 +112,7 @@ export function buildProfileRelatedLinks(input: {
   const links: ProfileRelatedLink[] = [];
 
   if (input.guestInfo) {
-    links.push({ label: "Guest list", href: "/guests", detail: "RSVP and household details" });
+    links.push({ label: "Guest list", href: "/people?tab=guests", detail: "RSVP and household details" });
   }
   if (input.stayLabel) {
     links.push({ label: "Stay", href: "/stay", detail: input.stayLabel });
