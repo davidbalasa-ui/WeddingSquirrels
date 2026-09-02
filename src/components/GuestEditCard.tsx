@@ -17,7 +17,13 @@ function toEditablePeople(people: GuestPersonRecord[]): EditablePerson[] {
   return people.map((person) => ({ ...person, clientKey: person.id }));
 }
 
-export function GuestEditCard({ guest }: { guest: GuestRecord }) {
+export function GuestEditCard({
+  guest,
+  editing = true,
+}: {
+  guest: GuestRecord;
+  editing?: boolean;
+}) {
   const router = useRouter();
   const [people, setPeople] = useState<EditablePerson[]>(() => toEditablePeople(guest.people));
   const [street, setStreet] = useState(guest.street ?? "");
@@ -106,6 +112,7 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
           <span className="mb-1 block text-xs text-muted">Street</span>
           <input
             value={street}
+            readOnly={!editing}
             onChange={(event) => setStreet(event.target.value)}
             className="field-input"
             placeholder="Street address"
@@ -116,6 +123,7 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
             <span className="mb-1 block text-xs text-muted">City</span>
             <input
               value={city}
+              readOnly={!editing}
               onChange={(event) => setCity(event.target.value)}
               className="field-input"
             />
@@ -124,6 +132,7 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
             <span className="mb-1 block text-xs text-muted">State</span>
             <input
               value={state}
+              readOnly={!editing}
               onChange={(event) => setState(event.target.value)}
               className="field-input"
             />
@@ -133,6 +142,7 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
           <span className="mb-1 block text-xs text-muted">ZIP</span>
           <input
             value={zip}
+            readOnly={!editing}
             onChange={(event) => setZip(event.target.value)}
             className="field-input"
           />
@@ -151,7 +161,7 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
               <legend className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
                 {index === 0 ? "Person 1" : `Person ${index + 1}`}
               </legend>
-              {people.length > 1 ? (
+              {editing && people.length > 1 ? (
                 <button
                   type="button"
                   className="text-xs font-semibold text-muted hover:text-[var(--danger)]"
@@ -165,6 +175,7 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
               <span className="mb-1 block text-xs text-muted">Name</span>
               <input
                 required={index === 0}
+                readOnly={!editing}
                 value={person.name}
                 onChange={(event) => updatePerson(person.clientKey, { name: event.target.value })}
                 className="field-input"
@@ -175,6 +186,7 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
                 <span className="mb-1 block text-xs text-muted">Table #</span>
                 <input
                   inputMode="numeric"
+                  readOnly={!editing}
                   value={person.tableNumber ?? ""}
                   placeholder="—"
                   onChange={(event) => {
@@ -189,6 +201,7 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
               <label className="block text-sm">
                 <span className="mb-1 block text-xs text-muted">Seat / spot</span>
                 <input
+                  readOnly={!editing}
                   value={person.tableSpot ?? ""}
                   placeholder="e.g. 3 or head"
                   onChange={(event) =>
@@ -201,16 +214,20 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
           </fieldset>
         ))}
 
-        <button type="button" className="text-sm font-semibold text-[var(--accent)]" onClick={addPerson}>
-          + Add person
-        </button>
+        {editing ? (
+          <>
+            <button type="button" className="text-sm font-semibold text-[var(--accent)]" onClick={addPerson}>
+              + Add person
+            </button>
 
-        <button type="button" disabled={saving} className="btn-primary" onClick={savePeople}>
-          {saving ? "Saving…" : "Save guests"}
-        </button>
+            <button type="button" disabled={saving} className="btn-primary" onClick={savePeople}>
+              {saving ? "Saving…" : "Save guests"}
+            </button>
+          </>
+        ) : null}
       </div>
 
-      <GuestGifts guestId={guest.id} gifts={guest.gifts} />
+      <GuestGifts guestId={guest.id} gifts={guest.gifts} editing={editing} />
     </div>
   );
 }
@@ -218,9 +235,11 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
 function GuestGifts({
   guestId,
   gifts,
+  editing,
 }: {
   guestId: string;
   gifts: GuestGiftRecord[];
+  editing: boolean;
 }) {
   const [rows, setRows] = useState(gifts);
   const [adding, setAdding] = useState(false);
@@ -250,14 +269,16 @@ function GuestGifts({
     <div className="border-t border-line py-3">
       <div className="mb-1 flex items-center justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Gifts</p>
-        <button
-          type="button"
-          disabled={adding}
-          className="text-xs font-semibold text-[var(--accent)] disabled:opacity-60"
-          onClick={() => void addGift()}
-        >
-          {adding ? "Adding…" : "+ Add gift"}
-        </button>
+        {editing ? (
+          <button
+            type="button"
+            disabled={adding}
+            className="text-xs font-semibold text-[var(--accent)] disabled:opacity-60"
+            onClick={() => void addGift()}
+          >
+            {adding ? "Adding…" : "+ Add gift"}
+          </button>
+        ) : null}
       </div>
       {rows.length === 0 ? (
         <p className="py-1 text-xs text-muted">Tap Add gift to record an item for thank-you notes.</p>
@@ -267,6 +288,7 @@ function GuestGifts({
             <GiftRow
               key={gift.id}
               gift={gift}
+              editing={editing}
               autoFocus={focusGiftId === gift.id}
               onRemoved={() => setRows((prev) => prev.filter((item) => item.id !== gift.id))}
             />
@@ -279,10 +301,12 @@ function GuestGifts({
 
 function GiftRow({
   gift,
+  editing,
   autoFocus,
   onRemoved,
 }: {
   gift: GuestGiftRecord;
+  editing: boolean;
   autoFocus?: boolean;
   onRemoved: () => void;
 }) {
@@ -292,6 +316,7 @@ function GiftRow({
   const lastSaved = useRef(gift.description);
 
   async function commit() {
+    if (!editing) return;
     if (value.trim() === lastSaved.current.trim()) return;
     const result = await saveGuestGift(gift.id, value);
     if (!result.ok) return;
@@ -324,6 +349,7 @@ function GiftRow({
     <div className="flex items-center gap-2">
       <input
         value={value}
+        readOnly={!editing}
         autoFocus={autoFocus}
         placeholder="Gift, card, or cash note"
         enterKeyHint="done"
@@ -337,22 +363,34 @@ function GiftRow({
       />
       <div className="flex shrink-0 flex-col gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
         <label className="flex items-center gap-1">
-          <input type="checkbox" checked={thankYouWritten} onChange={() => void toggleThankYou("written")} />
+          <input
+            type="checkbox"
+            disabled={!editing}
+            checked={thankYouWritten}
+            onChange={() => void toggleThankYou("written")}
+          />
           Written
         </label>
         <label className="flex items-center gap-1">
-          <input type="checkbox" checked={thankYouSent} onChange={() => void toggleThankYou("sent")} />
+          <input
+            type="checkbox"
+            disabled={!editing}
+            checked={thankYouSent}
+            onChange={() => void toggleThankYou("sent")}
+          />
           Sent
         </label>
       </div>
-      <button
-        type="button"
-        aria-label="Remove gift"
-        className="shrink-0 rounded-full px-2 py-1 text-xs font-semibold text-muted hover:bg-white hover:text-[var(--danger)]"
-        onClick={() => void remove()}
-      >
-        Remove
-      </button>
+      {editing ? (
+        <button
+          type="button"
+          aria-label="Remove gift"
+          className="shrink-0 rounded-full px-2 py-1 text-xs font-semibold text-muted hover:bg-white hover:text-[var(--danger)]"
+          onClick={() => void remove()}
+        >
+          Remove
+        </button>
+      ) : null}
     </div>
   );
 }
