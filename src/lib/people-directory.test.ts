@@ -3,7 +3,7 @@ import { test } from "node:test";
 import {
   buildDirectoryEntries,
   classifyNameGroup,
-  filterDirectoryByKind,
+  filterDirectoryByList,
   filterDirectoryEntries,
   groupDirectoryEntries,
   isDayOfContactName,
@@ -11,6 +11,7 @@ import {
   normalizePersonName,
   parseProfileId,
   profileIdForPerson,
+  resolveDirectoryList,
   vendorSubtitle,
 } from "./people-directory";
 
@@ -23,7 +24,7 @@ test("isDayOfContactName matches bridal party and family roster names", () => {
   assert.equal(isDayOfContactName("Avalon Green"), false);
 });
 
-test("filterDirectoryByKind separates day-of, guests, and vendors", () => {
+test("filterDirectoryByList separates day-of, guests, and vendors", () => {
   const entries = buildDirectoryEntries({
     persons: [
       { id: "andi", name: "Andi", directoryLabel: "Best man" },
@@ -33,7 +34,16 @@ test("filterDirectoryByKind separates day-of, guests, and vendors", () => {
       {
         id: "c1",
         name: "Avalon Green · Planner",
+        directoryList: "vendors",
         phone: null,
+        email: null,
+        photoData: null,
+      },
+      {
+        id: "c2",
+        name: "Marie Wiewiora",
+        directoryList: "day-of",
+        phone: "555",
         email: null,
         photoData: null,
       },
@@ -41,9 +51,24 @@ test("filterDirectoryByKind separates day-of, guests, and vendors", () => {
     guestPeople: [{ id: "guest-1", name: "Random Guest", householdLabel: "Random · City" }],
   });
 
-  assert.ok(filterDirectoryByKind(entries, "day-of").some((entry) => entry.name === "Andi"));
-  assert.ok(filterDirectoryByKind(entries, "vendors").some((entry) => entry.name.includes("Avalon")));
-  assert.ok(filterDirectoryByKind(entries, "guests").some((entry) => entry.name === "Random Guest"));
+  assert.ok(filterDirectoryByList(entries, "day-of").some((entry) => entry.name === "Andi"));
+  assert.ok(filterDirectoryByList(entries, "day-of").some((entry) => entry.name === "Marie Wiewiora"));
+  assert.ok(filterDirectoryByList(entries, "vendors").some((entry) => entry.name.includes("Avalon")));
+  assert.ok(filterDirectoryByList(entries, "guests").some((entry) => entry.name === "Random Guest"));
+  assert.equal(filterDirectoryByList(entries, "guests").some((entry) => entry.name === "Shelly"), false);
+});
+
+test("resolveDirectoryList honors explicit list assignments", () => {
+  assert.equal(
+    resolveDirectoryList({ kind: "contact", directoryList: "day-of", name: "Avalon" }),
+    "day-of",
+  );
+  assert.equal(
+    resolveDirectoryList({ kind: "person", directoryList: "vendors", name: "Someone" }),
+    "vendors",
+  );
+  assert.equal(resolveDirectoryList({ kind: "person", directoryList: null, name: "Andi" }), "day-of");
+  assert.equal(resolveDirectoryList({ kind: "person", directoryList: null, name: "Random" }), null);
 });
 
 test("normalizePersonName strips punctuation and casing", () => {
@@ -73,7 +98,7 @@ test("classifyNameGroup maps rehearsal dinner sections into party and family", (
 
 test("buildDirectoryEntries prefers person records over duplicate guest names", () => {
   const entries = buildDirectoryEntries({
-    persons: [{ id: "shelly", name: "Shelly" }],
+    persons: [{ id: "shelly", name: "Shelly", directoryList: "day-of" }],
     contacts: [],
     guestPeople: [{ id: "guest-1", name: "Shelly", householdLabel: "Shelly · Orlando" }],
   });
@@ -88,6 +113,7 @@ test("buildDirectoryEntries keeps vendors as contacts", () => {
       {
         id: "c1",
         name: "Avalon Green · Planner",
+        directoryList: "vendors",
         phone: "555",
         email: null,
         photoData: null,
@@ -96,16 +122,18 @@ test("buildDirectoryEntries keeps vendors as contacts", () => {
     guestPeople: [],
   });
   assert.equal(entries[0]?.group, "vendor");
+  assert.equal(entries[0]?.list, "vendors");
   assert.equal(entries[0]?.phone, "555");
 });
 
 test("filterDirectoryEntries searches names and subtitles", () => {
   const entries = buildDirectoryEntries({
-    persons: [{ id: "bri", name: "Bri" }],
+    persons: [{ id: "bri", name: "Bri", directoryList: "day-of" }],
     contacts: [
       {
         id: "c1",
         name: "Avalon Green · Planner",
+        directoryList: "vendors",
         phone: null,
         email: null,
         photoData: null,
@@ -120,13 +148,14 @@ test("filterDirectoryEntries searches names and subtitles", () => {
 test("groupDirectoryEntries filters by group", () => {
   const entries = buildDirectoryEntries({
     persons: [
-      { id: "bri", name: "Bri" },
-      { id: "shelly", name: "Shelly" },
+      { id: "bri", name: "Bri", directoryList: "day-of" },
+      { id: "shelly", name: "Shelly", directoryList: "day-of" },
     ],
     contacts: [
       {
         id: "c1",
         name: "Avalon Green · Planner",
+        directoryList: "vendors",
         phone: null,
         email: null,
         photoData: null,

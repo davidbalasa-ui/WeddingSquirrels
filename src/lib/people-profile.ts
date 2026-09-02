@@ -11,7 +11,9 @@ import {
   profileIdForContact,
   profileIdForGuestPerson,
   profileIdForPerson,
+  resolveDirectoryList,
   vendorSubtitle,
+  type PeopleList,
 } from "@/lib/people-directory";
 import {
   budgetContractsForContact,
@@ -45,7 +47,10 @@ export type PeopleProfile = {
   email: string | null;
   roles: string[];
   directoryLabel: string | null;
+  list: PeopleList;
   canEditLabel: boolean;
+  canEditList: boolean;
+  canDelete: boolean;
   openTasks: ProfileTaskRow[];
   assignments: ProfileAssignmentRow[];
   guestInfo: {
@@ -151,13 +156,20 @@ export async function loadPeopleProfile(
   ]);
 
   const guestRecords = guests.map((guest) => mapGuestRecord(guest));
+  const editable = timelineEditable(session);
 
   if (parsed.kind === "contact") {
     const contact = await prisma.contact.findUnique({ where: { id: parsed.id } });
     if (!contact) return null;
     const budgetContracts = budgetContractsForContact(contact, budgetItems);
     const directoryLabel = contact.directoryLabel?.trim() || null;
-    const roles = directoryLabel ? [directoryLabel] : ["Vendor"];
+    const list =
+      resolveDirectoryList({
+        kind: "contact",
+        directoryList: contact.directoryList,
+        name: contact.name,
+      }) ?? "vendors";
+    const roles = directoryLabel ? [directoryLabel] : list === "vendors" ? ["Vendor"] : ["Day-of contact"];
     return {
       profileId: profileIdForContact(contact.id),
       name: contact.name,
@@ -167,7 +179,10 @@ export async function loadPeopleProfile(
       email: contact.email,
       roles,
       directoryLabel,
-      canEditLabel: timelineEditable(session),
+      list,
+      canEditLabel: editable,
+      canEditList: editable,
+      canDelete: editable,
       openTasks: [],
       assignments: [],
       guestInfo: null,
@@ -217,6 +232,12 @@ export async function loadPeopleProfile(
     const directoryLabel = person.directoryLabel?.trim() || null;
     const defaultRoles = personRoles(person, personAssignments.length);
     const roles = directoryLabel ? [directoryLabel] : defaultRoles;
+    const list =
+      resolveDirectoryList({
+        kind: "person",
+        directoryList: person.directoryList,
+        name: person.name,
+      }) ?? "day-of";
     const guestInfo = guestPerson
       ? {
           household: guestHouseholdLabel({
@@ -240,7 +261,10 @@ export async function loadPeopleProfile(
       email: null,
       roles,
       directoryLabel,
-      canEditLabel: timelineEditable(session),
+      list,
+      canEditLabel: editable,
+      canEditList: editable,
+      canDelete: editable && !["david", "haley"].includes(person.id),
       openTasks,
       assignments: personAssignments,
       guestInfo,
@@ -268,6 +292,15 @@ export async function loadPeopleProfile(
     : null;
 
   const stayLabel = stayLabelForName(guestPerson.person.name, staySlots);
+  const guestDirectoryLabel = guestPerson.person.directoryLabel?.trim() || null;
+  const { party, family } = mealGuestsByGroup();
+  const group = classifyNameGroup(
+    guestPerson.person.name,
+    party.map((guest) => guest.name),
+    family.map((guest) => guest.name),
+  );
+  const defaultRole = group === "party" ? "Wedding party" : "Guest";
+  const roles = guestDirectoryLabel ? [guestDirectoryLabel] : [defaultRole];
 
   return {
     profileId: profileIdForGuestPerson(guestPerson.person.id),
@@ -281,9 +314,12 @@ export async function loadPeopleProfile(
     photoSrc: null,
     phone: null,
     email: null,
-    roles: ["Guest"],
-    directoryLabel: null,
-    canEditLabel: false,
+    roles,
+    directoryLabel: guestDirectoryLabel,
+    list: "guests",
+    canEditLabel: editable,
+    canEditList: editable,
+    canDelete: editable,
     openTasks: [],
     assignments: [],
     guestInfo: {

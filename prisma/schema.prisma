@@ -19,6 +19,8 @@ model Person {
   id            String         @id
   name          String
   directoryLabel String?
+  /// Which People tab this person appears on: guests | day-of | vendors
+  directoryList String?
   sortOrder     Int            @default(0)
   assignees     TaskAssignee[]
   budgets       BudgetItem[]   @relation("BudgetOwner")
@@ -186,6 +188,7 @@ model GuestPerson {
   guestId     String
   guest       Guest   @relation(fields: [guestId], references: [id], onDelete: Cascade)
   name        String
+  directoryLabel String?
   tableNumber Int?
   tableSpot   String?
   sortOrder   Int     @default(0)
@@ -390,6 +393,8 @@ model Contact {
   id        String   @id @default(cuid())
   name      String
   directoryLabel String?
+  /// Which People tab this contact appears on: guests | day-of | vendors
+  directoryList String?
   phone     String?
   email     String?
   /// "data:image/jpeg;base64,..." downscaled to ~400px on the client

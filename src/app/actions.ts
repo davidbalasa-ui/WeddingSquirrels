@@ -31,7 +31,7 @@ import {
   type TimelineSchedule,
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
-import { parseProfileId } from "@/lib/people-directory";
+import { parseProfileId, type PeopleList, isPeopleList } from "@/lib/people-directory";
 import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
@@ -2352,6 +2352,7 @@ export async function createContact(formData: FormData): Promise<void> {
       phone: phone || null,
       email: email || null,
       photoData,
+      directoryList: "day-of",
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });
@@ -2387,7 +2388,7 @@ export async function saveContact(formData: FormData): Promise<void> {
 }
 
 export async function saveDirectoryLabel(profileId: string, label: string): Promise<void> {
-  if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");
+  if (!(await requirePeopleEditor())) throw new Error("FORBIDDEN");
 
   const parsed = parseProfileId(profileId);
   if (!parsed) return;
@@ -2403,13 +2404,222 @@ export async function saveDirectoryLabel(profileId: string, label: string): Prom
       where: { id: parsed.id },
       data: { directoryLabel: trimmed || null },
     });
+  } else if (parsed.kind === "guest") {
+    await prisma.guestPerson.update({
+      where: { id: parsed.id },
+      data: { directoryLabel: trimmed || null },
+    });
   } else {
     return;
   }
 
+  revalidatePeople(profileId);
+}
+
+function revalidatePeople(profileId?: string) {
   revalidatePath("/people");
-  revalidatePath(`/people/${encodeURIComponent(profileId)}`);
+  if (profileId) revalidatePath(`/people/${encodeURIComponent(profileId)}`);
+  revalidatePath("/guests");
   revalidateDayData();
+}
+
+async function requirePeopleEditor() {
+  try {
+    const session = await requireSession();
+    if (!session.canSeePeople) return null;
+    if (session.isMaster || timelineEditable(session)) return session;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function createGuestHouseholdForName(name: string, directoryLabel?: string | null) {
+  const maxSort = await prisma.guest.aggregate({ _max: { sortOrder: true } });
+  return prisma.guest.create({
+    data: {
+      nameLine1: name,
+      sortOrder: (maxSort._max.sortOrder ?? 0) + 1,
+      invitedCount: 1,
+      people: {
+        create: {
+          name,
+          directoryLabel: directoryLabel?.trim() || null,
+          sortOrder: 0,
+        },
+      },
+    },
+  });
+}
+
+async function createContactFromSource(input: {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  photoData?: string | null;
+  directoryLabel?: string | null;
+  directoryList: PeopleList;
+}) {
+  const last = await prisma.contact.findFirst({ orderBy: { sortOrder: "desc" } });
+  return prisma.contact.create({
+    data: {
+      name: input.name,
+      phone: input.phone ?? null,
+      email: input.email ?? null,
+      photoData: input.photoData ?? null,
+      directoryLabel: input.directoryLabel?.trim() || null,
+      directoryList: input.directoryList,
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
+}
+
+async function deleteGuestPersonRecord(guestPersonId: string) {
+  const guestPerson = await prisma.guestPerson.findUnique({
+    where: { id: guestPersonId },
+    include: { guest: { include: { people: true } } },
+  });
+  if (!guestPerson) return;
+
+  const household = guestPerson.guest;
+  if (household.people.length <= 1) {
+    await prisma.guest.delete({ where: { id: household.id } });
+    return;
+  }
+
+  const remaining = household.people
+    .filter((person) => person.id !== guestPersonId)
+    .map((person) => ({
+      name: person.name,
+      tableNumber: person.tableNumber,
+      tableSpot: person.tableSpot,
+    }));
+  const legacy = syncLegacyGuestNames(remaining);
+  await prisma.$transaction([
+    prisma.guestPerson.delete({ where: { id: guestPersonId } }),
+    prisma.guest.update({ where: { id: household.id }, data: legacy }),
+  ]);
+}
+
+async function deletePersonRecord(personId: string) {
+  if (personId === "david" || personId === "haley") {
+    throw new Error("PROTECTED_PERSON");
+  }
+
+  await prisma.$transaction([
+    prisma.budgetItem.updateMany({ where: { ownerId: personId }, data: { ownerId: null } }),
+    prisma.budgetItem.updateMany({ where: { paidById: personId }, data: { paidById: null } }),
+    prisma.budgetPayment.updateMany({ where: { paidById: personId }, data: { paidById: null } }),
+    prisma.pinAccount.updateMany({ where: { linkedPersonId: personId }, data: { linkedPersonId: null } }),
+    prisma.person.delete({ where: { id: personId } }),
+  ]);
+}
+
+export async function saveDirectoryList(
+  profileId: string,
+  list: PeopleList,
+): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "invalid" | "not_found" | "protected" }> {
+  if (!(await requirePeopleEditor())) return { ok: false, reason: "forbidden" };
+  if (!isPeopleList(list)) return { ok: false, reason: "invalid" };
+
+  const parsed = parseProfileId(profileId);
+  if (!parsed) return { ok: false, reason: "invalid" };
+
+  if (parsed.kind === "guest") {
+    if (list === "guests") return { ok: true };
+    const guestPerson = await prisma.guestPerson.findUnique({ where: { id: parsed.id } });
+    if (!guestPerson) return { ok: false, reason: "not_found" };
+
+    await createContactFromSource({
+      name: guestPerson.name,
+      directoryLabel: guestPerson.directoryLabel,
+      directoryList: list,
+    });
+    await deleteGuestPersonRecord(parsed.id);
+    revalidatePeople();
+    return { ok: true };
+  }
+
+  if (parsed.kind === "contact") {
+    const contact = await prisma.contact.findUnique({ where: { id: parsed.id } });
+    if (!contact) return { ok: false, reason: "not_found" };
+
+    if (list === "guests") {
+      await createGuestHouseholdForName(contact.name, contact.directoryLabel);
+      await prisma.contact.delete({ where: { id: parsed.id } });
+    } else {
+      await prisma.contact.update({
+        where: { id: parsed.id },
+        data: { directoryList: list },
+      });
+    }
+    revalidatePeople();
+    return { ok: true };
+  }
+
+  const person = await prisma.person.findUnique({ where: { id: parsed.id } });
+  if (!person) return { ok: false, reason: "not_found" };
+
+  if (list === "guests") {
+    try {
+      await createGuestHouseholdForName(person.name, person.directoryLabel);
+      await deletePersonRecord(parsed.id);
+    } catch (error) {
+      if (error instanceof Error && error.message === "PROTECTED_PERSON") {
+        return { ok: false, reason: "protected" };
+      }
+      throw error;
+    }
+  } else {
+    await prisma.person.update({
+      where: { id: parsed.id },
+      data: { directoryList: list },
+    });
+  }
+
+  revalidatePeople();
+  return { ok: true };
+}
+
+export async function deleteDirectoryEntry(
+  profileId: string,
+): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "invalid" | "not_found" | "protected" }> {
+  if (!(await requirePeopleEditor())) return { ok: false, reason: "forbidden" };
+
+  const parsed = parseProfileId(profileId);
+  if (!parsed) return { ok: false, reason: "invalid" };
+
+  if (parsed.kind === "contact") {
+    try {
+      await prisma.contact.delete({ where: { id: parsed.id } });
+    } catch {
+      return { ok: false, reason: "not_found" };
+    }
+    revalidatePeople();
+    return { ok: true };
+  }
+
+  if (parsed.kind === "guest") {
+    try {
+      await deleteGuestPersonRecord(parsed.id);
+    } catch {
+      return { ok: false, reason: "not_found" };
+    }
+    revalidatePeople();
+    return { ok: true };
+  }
+
+  try {
+    await deletePersonRecord(parsed.id);
+  } catch (error) {
+    if (error instanceof Error && error.message === "PROTECTED_PERSON") {
+      return { ok: false, reason: "protected" };
+    }
+    return { ok: false, reason: "not_found" };
+  }
+
+  revalidatePeople();
+  return { ok: true };
 }
 
 export async function deleteContact(contactId: string): Promise<void> {

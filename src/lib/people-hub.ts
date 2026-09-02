@@ -21,7 +21,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
   const [persons, contacts, guests, assignments] = await Promise.all([
     prisma.person.findMany({
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, directoryLabel: true },
+      select: { id: true, name: true, directoryLabel: true, directoryList: true },
     }),
     session.canSeeTimeline
       ? prisma.contact.findMany({
@@ -30,6 +30,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
             id: true,
             name: true,
             directoryLabel: true,
+            directoryList: true,
             phone: true,
             email: true,
             photoData: true,
@@ -50,6 +51,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
       id: person.id,
       name: person.name,
       householdLabel: householdLabel(mapped),
+      directoryLabel: person.directoryLabel ?? null,
     }));
   });
 

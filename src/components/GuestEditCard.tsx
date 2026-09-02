@@ -46,6 +46,7 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
         id: "",
         clientKey: `new-${Date.now()}-${prev.length}`,
         name: "",
+        directoryLabel: null,
         tableNumber: null,
         tableSpot: null,
       },

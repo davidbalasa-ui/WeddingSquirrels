@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { PersonAvatar } from "@/components/PersonAvatar";
+import { PeopleDeleteButton } from "@/components/PeopleDeleteButton";
+import { PeopleListEditor } from "@/components/PeopleListEditor";
 import { PeopleRoleEditor } from "@/components/PeopleRoleEditor";
 import { formatMoney } from "@/lib/money";
 import type { PeopleProfile } from "@/lib/people-profile";
@@ -51,6 +53,19 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
             canEdit={profile.canEditLabel}
           />
         </div>
+      </section>
+
+      <section className="card flex flex-col gap-3 px-3 py-3">
+        <PeopleListEditor
+          profileId={profile.profileId}
+          currentList={profile.list}
+          canEdit={profile.canEditList}
+        />
+        <PeopleDeleteButton
+          profileId={profile.profileId}
+          name={profile.name}
+          canDelete={profile.canDelete}
+        />
       </section>
 
       {profile.phone || profile.email ? (
