@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type {
   PeopleAttendanceFilter,
@@ -52,13 +53,18 @@ export function PeopleHubFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  function pushParams(patch: Record<string, string | null>) {
+  function hrefFor(patch: Record<string, string | null>) {
     const next = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(patch)) {
       if (value == null) next.delete(key);
       else next.set(key, value);
     }
-    router.push(`${pathname}?${next.toString()}`);
+    const query = next.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  }
+
+  function pushParams(patch: Record<string, string | null>) {
+    router.push(hrefFor(patch));
   }
 
   return (
@@ -69,20 +75,19 @@ export function PeopleHubFilters({
           const count = counts[filter.key];
           if (filter.key === "all" && count === 0) return null;
           return (
-            <button
+            <Link
               key={filter.key}
-              type="button"
+              href={hrefFor({ tab: filter.key })}
               className="filter-pill shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold"
               style={{
                 borderColor: active ? "var(--accent)" : "var(--line)",
                 background: active ? "var(--accent-soft)" : "transparent",
                 color: active ? "var(--accent)" : "var(--muted)",
               }}
-              onClick={() => pushParams({ tab: filter.key })}
             >
               {filter.label}
               <span className="ml-1.5 text-xs opacity-70">({count})</span>
-            </button>
+            </Link>
           );
         })}
       </div>
@@ -119,17 +124,16 @@ export function PeopleHubFilters({
               </option>
             ))}
           </select>
-          <button
-            type="button"
+          <Link
+            href={hrefFor({ view: activeView === "table" ? null : "table" })}
             className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${
               activeView === "table"
                 ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]"
                 : "border-line text-muted"
             }`}
-            onClick={() => pushParams({ view: activeView === "table" ? null : "table" })}
           >
             {activeView === "table" ? "List" : "Tables"}
-          </button>
+          </Link>
         </div>
       ) : null}
     </div>

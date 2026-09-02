@@ -96,9 +96,7 @@ export function GuestPersonCard({
     <>
       <article
         className={`card px-3 py-2.5 transition-[border-color,box-shadow] ${
-          cardEditing
-            ? "border-2 border-[var(--gold)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--gold)_28%,transparent)]"
-            : ""
+          cardEditing ? "is-editing" : ""
         }`}
         aria-busy={pending || undefined}
       >
