@@ -2,64 +2,57 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import {
-  groupGuestsByTable,
-  guestAddressLine,
-  guestNameLines,
-  guestSeatingSummary,
-  rsvpStatusLabel,
-} from "@/lib/guest-gifts";
+import { groupGuestsByTable } from "@/lib/guest-gifts";
 import type { GuestRecord } from "@/lib/guests";
-import { normalizePersonName } from "@/lib/people-directory";
-import { sortGuestRecords } from "@/lib/people-sort";
-import type { PeopleSort } from "@/lib/people-directory";
-import { GuestHouseholdCard } from "@/components/GuestHouseholdCard";
+import type {
+  PeopleAttendanceFilter,
+  PeopleRoleFilter,
+  PeopleView,
+} from "@/lib/people-directory";
+import {
+  filterGuestPeople,
+  flattenGuestPeople,
+  sortGuestPeople,
+  type UploadedPhotoOption,
+} from "@/lib/people-sort";
+import { GuestPersonCard } from "@/components/GuestPersonCard";
 import { PersonAvatar } from "@/components/PersonAvatar";
-
-type Mode = "list" | "table";
-
-function householdTitle(guest: GuestRecord) {
-  const names = guestNameLines({
-    nameLine1: guest.people[0]?.name ?? "",
-    nameLine2: guest.people[1]?.name ?? null,
-    people: guest.people,
-  });
-  return names.join(" · ") || "Guest";
-}
-
-function matchesGuestQuery(guest: GuestRecord, query: string) {
-  const needle = normalizePersonName(query);
-  if (!needle) return true;
-  const haystack = normalizePersonName(
-    [
-      householdTitle(guest),
-      guestAddressLine(guest),
-      guestSeatingSummary({ people: guest.people }),
-      rsvpStatusLabel(guest.rsvpStatus),
-      ...guest.people.map((person) => person.name),
-    ]
-      .filter(Boolean)
-      .join(" "),
-  );
-  return haystack.includes(needle);
-}
 
 export function GuestList({
   guests,
   canEdit,
-  sort = "name",
+  role = "all",
+  attendance = "all",
+  view = "list",
+  photos = [],
 }: {
   guests: GuestRecord[];
   canEdit: boolean;
-  sort?: PeopleSort;
+  role?: PeopleRoleFilter;
+  attendance?: PeopleAttendanceFilter;
+  view?: PeopleView;
+  photos?: UploadedPhotoOption[];
 }) {
-  const [mode, setMode] = useState<Mode>("list");
   const [query, setQuery] = useState("");
 
-  const filtered = useMemo(
-    () => sortGuestRecords(guests.filter((guest) => matchesGuestQuery(guest, query)), sort),
-    [guests, query, sort],
+  const filteredPeople = useMemo(
+    () =>
+      sortGuestPeople(
+        filterGuestPeople(flattenGuestPeople(guests), { role, attendance, query }),
+        "name",
+      ),
+    [guests, role, attendance, query],
   );
+
+  const guestsForTable = useMemo(() => {
+    const matchingIds = new Set(filteredPeople.map((item) => item.person.id));
+    return guests
+      .map((guest) => ({
+        ...guest,
+        people: guest.people.filter((person) => matchingIds.has(person.id)),
+      }))
+      .filter((guest) => guest.people.length > 0);
+  }, [guests, filteredPeople]);
 
   return (
     <section>
@@ -72,26 +65,6 @@ export function GuestList({
           className="min-w-0 flex-1 rounded-xl border border-line bg-[var(--card)] px-3 py-2.5 text-sm outline-none ring-[var(--accent)] focus:ring-2"
           aria-label="Search guests"
         />
-        <div className="flex shrink-0 gap-1 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5">
-          <button
-            type="button"
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-              mode === "list" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
-            }`}
-            onClick={() => setMode("list")}
-          >
-            List
-          </button>
-          <button
-            type="button"
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-              mode === "table" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-muted"
-            }`}
-            onClick={() => setMode("table")}
-          >
-            Tables
-          </button>
-        </div>
       </div>
 
       <div className="mb-3 flex justify-end print-hide">
@@ -102,14 +75,22 @@ export function GuestList({
 
       {guests.length === 0 ? (
         <div className="card px-3 py-4 text-sm text-muted">No guests yet.</div>
-      ) : mode === "table" ? (
-        <GuestTableView guests={filtered} query={query} />
-      ) : filtered.length === 0 ? (
-        <div className="card px-3 py-4 text-sm text-muted">No guests matching your search.</div>
+      ) : view === "table" ? (
+        <GuestTableView guests={guestsForTable} query={query} />
+      ) : filteredPeople.length === 0 ? (
+        <div className="card px-3 py-4 text-sm text-muted">
+          {query ? "No guests matching your search." : "No guests matching those filters."}
+        </div>
       ) : (
-        <div className="card divide-y divide-[var(--line)] overflow-hidden">
-          {filtered.map((guest) => (
-            <GuestHouseholdCard key={guest.id} guest={guest} canEdit={canEdit} />
+        <div className="flex flex-col gap-3">
+          {filteredPeople.map(({ person, guest }) => (
+            <GuestPersonCard
+              key={person.id}
+              person={person}
+              guest={guest}
+              canEdit={canEdit}
+              photos={photos}
+            />
           ))}
         </div>
       )}

@@ -203,8 +203,11 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
     guests: guestRecords,
     guestReport,
     tabCounts: {
-      all: guestRecords.length + vendorEntries.length + dayOfContacts.length,
-      guests: guestRecords.length,
+      all:
+        guestRecords.reduce((sum, guest) => sum + guest.people.length, 0) +
+        vendorEntries.length +
+        dayOfContacts.length,
+      guests: guestRecords.reduce((sum, guest) => sum + guest.people.length, 0),
       vendors: vendorEntries.length,
       "day-of": dayOfContacts.length,
     },

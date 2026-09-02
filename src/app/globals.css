@@ -85,6 +85,13 @@ a {
   box-shadow: var(--shadow);
 }
 
+.card.is-editing {
+  border-color: var(--gold);
+  box-shadow:
+    var(--shadow),
+    0 0 0 3px color-mix(in_srgb, var(--gold) 32%, transparent);
+}
+
 .pin-key {
   aspect-ratio: 1;
   border-radius: 999px;

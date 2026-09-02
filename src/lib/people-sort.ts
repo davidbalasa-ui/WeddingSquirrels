@@ -1,8 +1,24 @@
 import type { GuestRecord } from "@/lib/guests";
 import { parseRsvpStatus } from "@/lib/guest-gifts";
 import { resolveGuestPersonRole } from "@/lib/guest-person-role";
-import type { DirectoryEntry, PeopleSort } from "@/lib/people-directory";
+import { normalizePersonName } from "@/lib/people-directory";
+import type {
+  DirectoryEntry,
+  PeopleAttendanceFilter,
+  PeopleRoleFilter,
+  PeopleSort,
+} from "@/lib/people-directory";
 import { tableSeatingLabel } from "@/lib/guest-seating-chart";
+
+export type GuestPersonListItem = {
+  person: GuestRecord["people"][number];
+  guest: GuestRecord;
+};
+
+export type UploadedPhotoOption = {
+  src: string;
+  label: string;
+};
 
 const RSVP_RANK: Record<string, number> = {
   pending: 0,
@@ -44,6 +60,99 @@ export function sortGuestRecords(guests: GuestRecord[], sort: PeopleSort): Guest
     }
     return String(left).localeCompare(String(right));
   });
+}
+
+export function flattenGuestPeople(guests: GuestRecord[]): GuestPersonListItem[] {
+  return guests.flatMap((guest) => guest.people.map((person) => ({ person, guest })));
+}
+
+function personMatchesQuery(item: GuestPersonListItem, query: string): boolean {
+  const needle = normalizePersonName(query);
+  if (!needle) return true;
+  const haystack = normalizePersonName(
+    [
+      item.person.name,
+      item.person.directoryLabel,
+      item.person.rsvpStatus,
+      item.guest.phone,
+      item.guest.street,
+      item.guest.city,
+      item.guest.state,
+      item.guest.zip,
+      item.person.tableNumber != null ? `table ${item.person.tableNumber}` : "",
+      item.person.tableSpot,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+  return haystack.includes(needle);
+}
+
+export function filterGuestPeople(
+  items: GuestPersonListItem[],
+  opts: {
+    role?: PeopleRoleFilter;
+    attendance?: PeopleAttendanceFilter;
+    query?: string;
+  } = {},
+): GuestPersonListItem[] {
+  const role = opts.role ?? "all";
+  const attendance = opts.attendance ?? "all";
+  const query = opts.query ?? "";
+  return items.filter((item) => {
+    if (role !== "all") {
+      const personRole = resolveGuestPersonRole({ directoryLabel: item.person.directoryLabel });
+      if (personRole !== role) return false;
+    }
+    if (attendance !== "all") {
+      if (parseRsvpStatus(item.person.rsvpStatus) !== attendance) return false;
+    }
+    return personMatchesQuery(item, query);
+  });
+}
+
+function personSortKey(item: GuestPersonListItem, sort: PeopleSort): string | number {
+  switch (sort) {
+    case "role":
+      return resolveGuestPersonRole({ directoryLabel: item.person.directoryLabel });
+    case "rsvp":
+      return RSVP_RANK[parseRsvpStatus(item.person.rsvpStatus)] ?? 0;
+    case "table":
+      return item.person.tableNumber ?? Number.POSITIVE_INFINITY;
+    case "name":
+    default:
+      return item.person.name.toLowerCase();
+  }
+}
+
+export function sortGuestPeople(items: GuestPersonListItem[], sort: PeopleSort = "name"): GuestPersonListItem[] {
+  return [...items].sort((a, b) => {
+    const left = personSortKey(a, sort);
+    const right = personSortKey(b, sort);
+    if (typeof left === "number" && typeof right === "number") {
+      return left - right || a.person.name.localeCompare(b.person.name);
+    }
+    return String(left).localeCompare(String(right)) || a.person.name.localeCompare(b.person.name);
+  });
+}
+
+export function collectUploadedPhotos(input: {
+  guests: GuestRecord[];
+  extraPhotos?: Array<{ src: string | null | undefined; label: string }>;
+}): UploadedPhotoOption[] {
+  const seen = new Set<string>();
+  const photos: UploadedPhotoOption[] = [];
+  function add(src: string | null | undefined, label: string) {
+    const value = src?.trim();
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    photos.push({ src: value, label });
+  }
+  for (const guest of input.guests) {
+    for (const person of guest.people) add(person.photoData, person.name);
+  }
+  for (const extra of input.extraPhotos ?? []) add(extra.src, extra.label);
+  return photos;
 }
 
 function entryRoleRank(entry: DirectoryEntry): string {

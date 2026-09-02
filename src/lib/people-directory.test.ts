@@ -9,6 +9,9 @@ import {
   isDayOfContactName,
   namesMatch,
   normalizePersonName,
+  parsePeopleAttendanceFilter,
+  parsePeopleRoleFilter,
+  parsePeopleView,
   parseProfileId,
   profileIdForContact,
   profileIdForGuestPerson,
@@ -171,4 +174,13 @@ test("groupDirectoryEntries filters by group", () => {
 test("namesMatch equates first names of sufficient length", () => {
   assert.equal(namesMatch("Kurt Huizenga", "Kurt"), true);
   assert.equal(normalizePersonName("Denise  Bordeaux"), "denise bordeaux");
+});
+
+test("parsePeopleRoleFilter and parsePeopleAttendanceFilter accept combo values", () => {
+  assert.equal(parsePeopleRoleFilter("family"), "family");
+  assert.equal(parsePeopleRoleFilter("nope"), null);
+  assert.equal(parsePeopleAttendanceFilter("not_attending"), "not_attending");
+  assert.equal(parsePeopleAttendanceFilter("maybe"), null);
+  assert.equal(parsePeopleView("table"), "table");
+  assert.equal(parsePeopleView("cards"), null);
 });
