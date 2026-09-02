@@ -3,13 +3,19 @@ import { Suspense } from "react";
 import { ContactsPanel } from "@/components/ContactsPanel";
 import { GuestList } from "@/components/GuestList";
 import { GuestRsvpReport } from "@/components/GuestRsvpReport";
-import { GuestRsvpSync } from "@/components/GuestRsvpSync";
 import { PeopleHubFilters } from "@/components/PeopleHubFilters";
 import { PeopleTabFooterLink } from "@/components/PeopleHubTabs";
 import { VendorEntryList } from "@/components/VendorEntryList";
 import { V2PageHeader } from "@/components/V2PageHeader";
 import { moneyEditable, timelineEditable } from "@/lib/access";
-import { parsePeopleSort, parsePeopleTab, type PeopleTab } from "@/lib/people-directory";
+import {
+  parsePeopleAttendanceFilter,
+  parsePeopleRoleFilter,
+  parsePeopleTab,
+  parsePeopleView,
+  type PeopleTab,
+} from "@/lib/people-directory";
+import { collectUploadedPhotos } from "@/lib/people-sort";
 import { loadPeopleHubData } from "@/lib/people-hub";
 import { requirePageSession } from "@/lib/session";
 
@@ -25,7 +31,14 @@ function defaultFilter(session: {
 export default async function PeopleHubPage({
   searchParams,
 }: {
-  searchParams: Promise<{ who?: string; done?: string; tab?: string; sort?: string }>;
+  searchParams: Promise<{
+    who?: string;
+    done?: string;
+    tab?: string;
+    role?: string;
+    rsvp?: string;
+    view?: string;
+  }>;
 }) {
   const sp = await searchParams;
   if (sp.who || sp.done) {
@@ -37,12 +50,13 @@ export default async function PeopleHubPage({
 
   const session = await requirePageSession();
   const filter = parsePeopleTab(sp.tab) ?? defaultFilter(session);
-  const sort = parsePeopleSort(sp.sort) ?? "name";
+  const role = parsePeopleRoleFilter(sp.role) ?? "all";
+  const attendance = parsePeopleAttendanceFilter(sp.rsvp) ?? "all";
+  const view = parsePeopleView(sp.view) ?? "list";
   const data = await loadPeopleHubData(session);
   const canEditGuests = session.canSeeGuests;
   const canEditDayOf = timelineEditable(session);
   const canEditMoney = moneyEditable(session);
-  const showSort = filter === "guests" || filter === "vendors" || filter === "all";
 
   return (
     <>
@@ -50,18 +64,18 @@ export default async function PeopleHubPage({
         session={session}
         title="People"
         subtitle="One master list — filter and sort guests, vendors, and day-of contacts"
-      />
-
-      <Suspense fallback={null}>
-        <PeopleHubFilters
-          activeFilter={filter}
-          activeSort={sort}
-          counts={data.tabCounts}
-          showSort={showSort}
-        />
-      </Suspense>
-
-      {session.isMaster && session.canSeeGuests ? <GuestRsvpSync /> : null}
+      >
+        <Suspense fallback={null}>
+          <PeopleHubFilters
+            activeFilter={filter}
+            counts={data.tabCounts}
+            activeRole={role}
+            activeAttendance={attendance}
+            activeView={view}
+            showGuestFilters={filter === "guests" || filter === "all"}
+          />
+        </Suspense>
+      </V2PageHeader>
 
       {filter === "all" || filter === "guests" ? (
         session.canSeeGuests ? (
@@ -70,7 +84,20 @@ export default async function PeopleHubPage({
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Guests</p>
             ) : null}
             <GuestRsvpReport report={data.guestReport} />
-            <GuestList guests={data.guests} canEdit={canEditGuests} sort={sort} />
+            <GuestList
+              guests={data.guests}
+              canEdit={canEditGuests}
+              role={role}
+              attendance={attendance}
+              view={view}
+              photos={collectUploadedPhotos({
+                guests: data.guests,
+                extraPhotos: [
+                  ...data.dayOfContacts.map((c) => ({ src: c.photoData, label: c.name })),
+                  ...data.vendorEntries.map((e) => ({ src: e.photoSrc, label: e.name })),
+                ],
+              })}
+            />
           </div>
         ) : filter === "guests" ? (
           <div className="card px-3 py-4 text-sm text-muted">Guest list isn’t visible for this PIN.</div>
@@ -86,7 +113,7 @@ export default async function PeopleHubPage({
             entries={data.vendorEntries}
             vendorBudgets={data.vendorBudgets}
             canEditMoney={canEditMoney}
-            sort={sort}
+            sort="name"
             emptyLabel="No vendors yet"
             searchPlaceholder="Search vendors"
           />

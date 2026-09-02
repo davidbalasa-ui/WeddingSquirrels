@@ -5,10 +5,16 @@ export function V2PageHeader({
   session,
   title,
   subtitle,
+  children,
 }: {
   session: SessionAccount;
   title: string;
   subtitle?: string;
+  children?: React.ReactNode;
 }) {
-  return <AppHeader session={session} title={title} subtitle={subtitle} />;
+  return (
+    <AppHeader session={session} title={title} subtitle={subtitle}>
+      {children}
+    </AppHeader>
+  );
 }

@@ -7,10 +7,12 @@ export function AppHeader({
   session,
   title,
   subtitle,
+  children,
 }: {
   session: SessionAccount;
   title: string;
   subtitle?: string;
+  children?: React.ReactNode;
 }) {
   const days = differenceInCalendarDays(weddingDate(), new Date());
 
@@ -40,6 +42,7 @@ export function AppHeader({
           </form>
         </div>
       </div>
+      {children ? <div className="-mb-1 mt-2.5">{children}</div> : null}
     </header>
   );
 }
