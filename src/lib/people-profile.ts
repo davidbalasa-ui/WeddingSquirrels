@@ -49,7 +49,10 @@ export type PeopleProfile = {
   roles: string[];
   directoryLabel: string | null;
   primaryList: PeoplePrimaryList;
+  /** Saved day-of flag from the database (drives the editor checkbox). */
   isDayOfContact: boolean;
+  /** Whether they appear on the day-of call list (includes roster inference). */
+  showsOnDayOfCallList: boolean;
   canEditLabel: boolean;
   canEditPrimaryList: boolean;
   canEditDayOf: boolean;
@@ -170,7 +173,8 @@ export async function loadPeopleProfile(
       contact.directoryList === "guests" || contact.directoryList === "vendors"
         ? contact.directoryList
         : "vendors";
-    const isDayOfContact = resolveIsDayOfContact({
+    const isDayOfContact = contact.isDayOfContact;
+    const showsOnDayOfCallList = resolveIsDayOfContact({
       isDayOfContact: contact.isDayOfContact,
       name: contact.name,
       kind: "contact",
@@ -188,6 +192,7 @@ export async function loadPeopleProfile(
       directoryLabel,
       primaryList,
       isDayOfContact,
+      showsOnDayOfCallList,
       canEditLabel: editable,
       canEditPrimaryList: editable,
       canEditDayOf: editable,
@@ -245,7 +250,8 @@ export async function loadPeopleProfile(
       person.directoryList === "guests" || person.directoryList === "vendors"
         ? person.directoryList
         : "vendors";
-    const isDayOfContact = resolveIsDayOfContact({
+    const isDayOfContact = person.isDayOfContact;
+    const showsOnDayOfCallList = resolveIsDayOfContact({
       isDayOfContact: person.isDayOfContact,
       name: person.name,
       kind: "person",
@@ -276,6 +282,7 @@ export async function loadPeopleProfile(
       directoryLabel,
       primaryList,
       isDayOfContact,
+      showsOnDayOfCallList,
       canEditLabel: editable,
       canEditPrimaryList: editable,
       canEditDayOf: editable,
@@ -316,7 +323,8 @@ export async function loadPeopleProfile(
   );
   const defaultRole = group === "party" ? "Wedding party" : "Guest";
   const roles = guestDirectoryLabel ? [guestDirectoryLabel] : [defaultRole];
-  const isDayOfContact = resolveIsDayOfContact({
+  const isDayOfContact = guestPerson.person.isDayOfContact;
+  const showsOnDayOfCallList = resolveIsDayOfContact({
     isDayOfContact: guestPerson.person.isDayOfContact,
     name: guestPerson.person.name,
     kind: "guest",
@@ -338,6 +346,7 @@ export async function loadPeopleProfile(
     directoryLabel: guestDirectoryLabel,
     primaryList: "guests",
     isDayOfContact,
+    showsOnDayOfCallList,
     canEditLabel: editable,
     canEditPrimaryList: false,
     canEditDayOf: editable,
