@@ -15,6 +15,7 @@ export default async function MoneyDuePage() {
         ledger={data.ledger}
         sources={data.fundingSources}
         canEdit={false}
+        canEditFunding={false}
       />
       <MoneyDueList title="All due payments" items={data.overdueItems.length > 0 ? data.overdueItems : data.dueItems} />
       <div className="mt-6">
