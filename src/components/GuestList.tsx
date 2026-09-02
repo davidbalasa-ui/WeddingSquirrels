@@ -11,7 +11,6 @@ import {
 } from "@/lib/guest-gifts";
 import type { GuestRecord } from "@/lib/guests";
 import { normalizePersonName, profileIdForGuestPerson } from "@/lib/people-directory";
-import { DayOfCallListToggle } from "@/components/DayOfCallListToggle";
 import { GuestEditCard } from "@/components/GuestEditCard";
 import { GuestRsvpControls } from "@/components/GuestRsvpControls";
 import { PersonAvatar } from "@/components/PersonAvatar";
@@ -47,11 +46,9 @@ function matchesGuestQuery(guest: GuestRecord, query: string) {
 export function GuestList({
   guests,
   canEdit,
-  canEditDayOf,
 }: {
   guests: GuestRecord[];
   canEdit: boolean;
-  canEditDayOf?: boolean;
 }) {
   const [mode, setMode] = useState<Mode>("list");
   const [query, setQuery] = useState("");
@@ -119,7 +116,6 @@ export function GuestList({
               : null;
             const open = openId === guest.id;
 
-            const dayOfPeople = guest.people.filter((person) => person.id);
             const details = [
               address || null,
               canEdit ? null : `RSVP · ${rsvpStatusLabel(guest.rsvpStatus)}`,
@@ -190,25 +186,6 @@ export function GuestList({
                 {canEdit ? (
                   <div className="mt-2">
                     <GuestRsvpControls guest={guest} people={guest.people} compact inline />
-                  </div>
-                ) : null}
-
-                {canEditDayOf && dayOfPeople.length > 0 ? (
-                  <div className="mt-2 pl-10">
-                    {dayOfPeople.length > 1 ? (
-                      <p className="mb-1 text-xs font-semibold text-muted">Day-of call list</p>
-                    ) : null}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                      {dayOfPeople.map((person) => (
-                        <DayOfCallListToggle
-                          key={person.id}
-                          profileId={profileIdForGuestPerson(person.id)}
-                          checked={person.isDayOfContact}
-                          compact
-                          personLabel={dayOfPeople.length > 1 ? person.name : undefined}
-                        />
-                      ))}
-                    </div>
                   </div>
                 ) : null}
 

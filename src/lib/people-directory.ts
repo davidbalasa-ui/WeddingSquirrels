@@ -75,6 +75,7 @@ export function resolvePrimaryList(input: {
   kind: "person" | "contact" | "guest";
   directoryList?: string | null;
 }): PeoplePrimaryList | null {
+  if (input.directoryList === "day-of") return null;
   if (input.directoryList === "guests") return "guests";
   if (input.directoryList === "vendors") return "vendors";
   if (input.kind === "guest") return "guests";
