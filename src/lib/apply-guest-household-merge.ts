@@ -101,22 +101,30 @@ export async function applySafeGuestHouseholdMerges(db: Db): Promise<GuestMergeA
               sortOrder: person.sortOrder,
             },
           });
-        } else if (loser.people.some((row) => row.id === person.id)) {
-          await tx.guestPerson.update({
-            where: { id: person.id },
-            data: {
-              guestId: winner.id,
-              name: person.name,
-              directoryLabel: person.directoryLabel,
-              isDayOfContact: person.isDayOfContact,
-              rsvpStatus: person.rsvpStatus,
-              photoData: person.photoData,
-              tableNumber: person.tableNumber,
-              tableSpot: person.tableSpot,
-              sortOrder: person.sortOrder,
-            },
-          });
         }
+      }
+
+      for (const personId of built.loserPersonIdsToMove) {
+        const person = built.people.find((row) => row.id === personId);
+        if (!person) continue;
+        await tx.guestPerson.update({
+          where: { id: personId },
+          data: {
+            guestId: winner.id,
+            name: person.name,
+            directoryLabel: person.directoryLabel,
+            isDayOfContact: person.isDayOfContact,
+            rsvpStatus: person.rsvpStatus,
+            photoData: person.photoData,
+            tableNumber: person.tableNumber,
+            tableSpot: person.tableSpot,
+            sortOrder: person.sortOrder,
+          },
+        });
+      }
+
+      for (const personId of built.loserPersonIdsToDelete) {
+        await tx.guestPerson.delete({ where: { id: personId } });
       }
 
       for (const gift of loser.gifts) {
@@ -134,15 +142,11 @@ export async function applySafeGuestHouseholdMerges(db: Db): Promise<GuestMergeA
         data: built.household,
       });
 
-      const remainingLoserPeople = await tx.guestPerson.count({ where: { guestId: loser.id } });
-      if (remainingLoserPeople === 0) {
-        await tx.guest.delete({ where: { id: loser.id } });
-      }
+      await tx.guest.delete({ where: { id: loser.id } });
     });
 
     merged += 1;
     report.push(`Merged ${plan.label}`);
-    // Keep in-memory view consistent for later pairs in this pass
     winner.people = built.people;
     winner.gifts = built.gifts;
     Object.assign(winner, built.household);

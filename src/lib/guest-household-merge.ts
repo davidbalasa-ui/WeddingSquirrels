@@ -1,6 +1,6 @@
 import { householdRsvpFromPeople } from "@/lib/guest-rsvp-import";
 import { parseRsvpStatus, syncLegacyGuestNames } from "@/lib/guest-gifts";
-import { namesMatch, normalizePersonName } from "@/lib/people-directory";
+import { normalizePersonName } from "@/lib/people-directory";
 
 export type MergeGuestPerson = {
   id: string;
@@ -63,39 +63,36 @@ function addressLine(guest: MergeGuestHousehold) {
     .join(" · ");
 }
 
+function normalizeAddressKey(guest: MergeGuestHousehold) {
+  return addressLine(guest)
+    .toLowerCase()
+    .replace(/[.,#]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizePhoneKey(value: string | null | undefined) {
+  return (value ?? "").replace(/\D/g, "");
+}
+
 function householdLabel(guest: MergeGuestHousehold) {
   const names = guest.people.map((person) => person.name).filter(Boolean);
   return names.slice(0, 3).join(" · ") || guest.id;
 }
 
-function sharedPersonCount(a: MergeGuestHousehold, b: MergeGuestHousehold) {
+function exactSharedPersonCount(a: MergeGuestHousehold, b: MergeGuestHousehold) {
   let count = 0;
   for (const left of a.people) {
-    if (b.people.some((right) => namesMatch(left.name, right.name))) count += 1;
+    const leftKey = normalizePersonName(left.name);
+    if (!leftKey) continue;
+    if (b.people.some((right) => normalizePersonName(right.name) === leftKey)) count += 1;
   }
   return count;
 }
 
-/** Strong overlap: 2+ shared people, or 1 shared unique adult and shared last-name density. */
+/** Strong overlap: require exact full-name matches (not first-name fuzzy). */
 export function householdsShouldCluster(a: MergeGuestHousehold, b: MergeGuestHousehold) {
-  const shared = sharedPersonCount(a, b);
-  if (shared >= 2) return true;
-  if (shared < 1) return false;
-
-  const aLast = new Set(
-    a.people
-      .map((person) => normalizePersonName(person.name).split(" ").at(-1) ?? "")
-      .filter((token) => token.length > 2),
-  );
-  const bLast = new Set(
-    b.people
-      .map((person) => normalizePersonName(person.name).split(" ").at(-1) ?? "")
-      .filter((token) => token.length > 2),
-  );
-  for (const last of aLast) {
-    if (bLast.has(last)) return true;
-  }
-  return false;
+  return exactSharedPersonCount(a, b) >= 1;
 }
 
 function nonempty(value: string | null | undefined) {
@@ -107,12 +104,14 @@ export function detectHouseholdConflicts(
   loser: MergeGuestHousehold,
 ): string[] {
   const reasons: string[] = [];
-  const winnerAddress = addressLine(winner);
-  const loserAddress = addressLine(loser);
+  const winnerAddress = normalizeAddressKey(winner);
+  const loserAddress = normalizeAddressKey(loser);
   if (winnerAddress && loserAddress && winnerAddress !== loserAddress) {
     reasons.push("different mailing addresses");
   }
-  if (nonempty(winner.phone) && nonempty(loser.phone) && winner.phone!.trim() !== loser.phone!.trim()) {
+  const winnerPhone = normalizePhoneKey(winner.phone);
+  const loserPhone = normalizePhoneKey(loser.phone);
+  if (winnerPhone && loserPhone && winnerPhone !== loserPhone) {
     reasons.push("different phone numbers");
   }
   return reasons;
@@ -200,21 +199,25 @@ export function buildMergedHouseholdFields(winner: MergeGuestHousehold, loser: M
   for (const person of winner.people) {
     peopleByKey.set(normalizePersonName(person.name), person);
   }
+
+  const loserPersonIdsToDelete: string[] = [];
+  const loserPersonIdsToMove: string[] = [];
+
   for (const person of loser.people) {
     const key = normalizePersonName(person.name);
-    const existing = [...peopleByKey.entries()].find(([existingKey]) =>
-      namesMatch(existingKey, key),
-    );
-    if (existing) {
-      const [existingKey, winnerPerson] = existing;
+    const existingKey = [...peopleByKey.keys()].find((candidate) => candidate === key);
+    if (existingKey) {
+      const winnerPerson = peopleByKey.get(existingKey)!;
       peopleByKey.set(existingKey, {
         ...winnerPerson,
         ...mergePersonFields(winnerPerson, person),
         id: winnerPerson.id,
         sortOrder: winnerPerson.sortOrder,
       });
+      loserPersonIdsToDelete.push(person.id);
     } else {
       peopleByKey.set(key, person);
+      loserPersonIdsToMove.push(person.id);
     }
   }
 
@@ -238,6 +241,8 @@ export function buildMergedHouseholdFields(winner: MergeGuestHousehold, loser: M
   return {
     people,
     gifts,
+    loserPersonIdsToDelete,
+    loserPersonIdsToMove,
     household: {
       phone: preferNonempty(winner.phone, loser.phone),
       street: preferNonempty(winner.street, loser.street),

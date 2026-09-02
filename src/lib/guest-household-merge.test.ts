@@ -112,6 +112,33 @@ test("buildMergedHouseholdFields unions people gifts and address", () => {
   assert.equal(built.gifts.length, 1);
 });
 
+test("buildMergedHouseholdFields marks loser duplicates for delete", () => {
+  const winner = household("couple", ["Benjamin Balasa", "Hannah Balasa"], {
+    street: "123 Main",
+    city: "Chicago",
+    state: "IL",
+    zip: "60601",
+  });
+  const loser = household("family", ["Benjamin Balasa", "Hannah Balasa", "Isaac Balasa"]);
+  const built = buildMergedHouseholdFields(winner, loser);
+  assert.equal(built.people.length, 3);
+  assert.deepEqual(built.loserPersonIdsToDelete.sort(), ["family-p0", "family-p1"]);
+  assert.deepEqual(built.loserPersonIdsToMove, ["family-p2"]);
+});
+
+test("empty address vs filled address is not a conflict", () => {
+  const family = household("family", ["Benjamin Balasa", "Hannah Balasa", "Isaac Balasa"]);
+  const couple = household("couple", ["Benjamin Balasa", "Hannah Balasa"], {
+    street: "123 Main",
+    city: "Chicago",
+    state: "IL",
+    zip: "60601",
+  });
+  const analysis = analyzeHouseholdMerges([family, couple]);
+  assert.equal(analysis.conflicts.length, 0);
+  assert.equal(analysis.merges.length, 1);
+});
+
 test("planPhotoCopies only fills empty slots", () => {
   const plan = planPhotoCopies(
     [
