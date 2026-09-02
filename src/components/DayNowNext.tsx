@@ -171,7 +171,8 @@ export function DayNowNext({
   const hasContent = snapshot.now || snapshot.next || snapshot.upcoming.length > 0;
   const nowBlock = snapshot.now;
   const nextBlock = snapshot.next;
-  const showNowNextCard = nowBlock || (nextBlock && nextBlock.id !== nowBlock?.id);
+  const nowId = nowBlock?.id ?? null;
+  const showNowNextCard = Boolean(nowBlock) || Boolean(nextBlock && nextBlock.id !== nowId);
   const nextEmphasis: "now" | "next" = nowBlock ? "next" : "now";
 
   return (
@@ -247,7 +248,7 @@ export function DayNowNext({
       {showNowNextCard ? (
         <section className="card divide-y divide-[var(--line)] overflow-hidden">
           {nowBlock ? <BlockRow block={nowBlock} emphasis="now" /> : null}
-          {nextBlock && nextBlock.id !== nowBlock?.id ? (
+          {nextBlock && nextBlock.id !== nowId ? (
             <BlockRow block={nextBlock} emphasis={nextEmphasis} />
           ) : null}
         </section>
