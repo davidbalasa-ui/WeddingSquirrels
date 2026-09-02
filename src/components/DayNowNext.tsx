@@ -202,7 +202,7 @@ export function DayNowNext({
               </button>
             ) : null
           ) : (
-            <Link href="/day/contacts" className="text-xs font-semibold text-[var(--accent)]">
+            <Link href="/people?tab=day-of" className="text-xs font-semibold text-[var(--accent)]">
               All contacts
             </Link>
           )}

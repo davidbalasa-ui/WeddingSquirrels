@@ -313,7 +313,7 @@ export function buildPulseStats(input: {
       id: "rsvp-attending",
       label: "Attending",
       value: String(input.guestSummary.attending),
-      href: "/guests",
+      href: "/people?tab=guests",
     });
   }
 

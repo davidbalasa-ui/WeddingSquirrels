@@ -10,6 +10,7 @@ export type GuestPersonRecord = {
   id: string;
   name: string;
   directoryLabel: string | null;
+  isDayOfContact: boolean;
   tableNumber: number | null;
   tableSpot: string | null;
 };
@@ -39,6 +40,7 @@ export function synthesizeGuestPeople(guest: Guest): GuestPersonRecord[] {
       id: `${guest.id}-p1`,
       name: guest.nameLine1.trim(),
       directoryLabel: null,
+      isDayOfContact: false,
       tableNumber: guest.person1TableNumber,
       tableSpot: guest.person1TableSpot,
     });
@@ -48,6 +50,7 @@ export function synthesizeGuestPeople(guest: Guest): GuestPersonRecord[] {
       id: `${guest.id}-p2`,
       name: guest.nameLine2.trim(),
       directoryLabel: null,
+      isDayOfContact: false,
       tableNumber: guest.person2TableNumber,
       tableSpot: guest.person2TableSpot,
     });
@@ -62,6 +65,7 @@ export function mapGuestRecord(guest: GuestWithRelations): GuestRecord {
           id: person.id,
           name: person.name,
           directoryLabel: person.directoryLabel ?? null,
+          isDayOfContact: person.isDayOfContact,
           tableNumber: person.tableNumber,
           tableSpot: person.tableSpot,
         }))

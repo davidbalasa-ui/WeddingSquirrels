@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function PeopleGuestsAliasPage() {
-  redirect("/guests");
+export default function PeopleGuestsRedirectPage() {
+  redirect("/people?tab=guests");
 }

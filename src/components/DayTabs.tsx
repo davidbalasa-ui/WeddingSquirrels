@@ -12,7 +12,7 @@ export function DayTabs({ showNowTab = false }: { showNowTab?: boolean }) {
   const tabs = [
     ...(showNowTab ? [{ href: "/day/now", label: "Now" }] : []),
     { href: timelineHref, label: "Timeline" },
-    { href: "/day/contacts", label: "Contacts" },
+    { href: "/people?tab=day-of", label: "Contacts" },
     { href: "/day/assignments", label: "Assignments" },
   ];
 
@@ -22,6 +22,8 @@ export function DayTabs({ showNowTab = false }: { showNowTab?: boolean }) {
         const active =
           tab.href === "/day/now"
             ? pathname === "/day/now"
+            : tab.href === "/people?tab=day-of"
+              ? pathname === "/people" && searchParams.get("tab") === "day-of"
             : tab.href === timelineHref
               ? pathname === "/day" && (!showNowTab || viewTimeline)
               : pathname.startsWith(tab.href);

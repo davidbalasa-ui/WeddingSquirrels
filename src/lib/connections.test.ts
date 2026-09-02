@@ -66,6 +66,6 @@ test("buildProfileRelatedLinks surfaces guest, stay, meal, and money destination
     budgetContracts: [{ id: "b1", name: "Photographer", remaining: 500, href: moneyContractHref("b1") }],
   });
   assert.equal(links.length, 5);
-  assert.equal(links[0]?.href, "/guests");
+  assert.equal(links[0]?.href, "/people?tab=guests");
   assert.equal(links.at(-1)?.label, "Money");
 });

@@ -11,9 +11,10 @@ import {
   profileIdForContact,
   profileIdForGuestPerson,
   profileIdForPerson,
-  resolveDirectoryList,
+  resolveIsDayOfContact,
+  resolvePrimaryList,
   vendorSubtitle,
-  type PeopleList,
+  type PeoplePrimaryList,
 } from "@/lib/people-directory";
 import {
   budgetContractsForContact,
@@ -47,9 +48,11 @@ export type PeopleProfile = {
   email: string | null;
   roles: string[];
   directoryLabel: string | null;
-  list: PeopleList;
+  primaryList: PeoplePrimaryList;
+  isDayOfContact: boolean;
   canEditLabel: boolean;
-  canEditList: boolean;
+  canEditPrimaryList: boolean;
+  canEditDayOf: boolean;
   canDelete: boolean;
   openTasks: ProfileTaskRow[];
   assignments: ProfileAssignmentRow[];
@@ -163,13 +166,14 @@ export async function loadPeopleProfile(
     if (!contact) return null;
     const budgetContracts = budgetContractsForContact(contact, budgetItems);
     const directoryLabel = contact.directoryLabel?.trim() || null;
-    const list =
-      resolveDirectoryList({
-        kind: "contact",
-        directoryList: contact.directoryList,
-        name: contact.name,
-      }) ?? "vendors";
-    const roles = directoryLabel ? [directoryLabel] : list === "vendors" ? ["Vendor"] : ["Day-of contact"];
+    const primaryList = resolvePrimaryList({ kind: "contact", directoryList: contact.directoryList });
+    const isDayOfContact = resolveIsDayOfContact({
+      isDayOfContact: contact.isDayOfContact,
+      name: contact.name,
+      kind: "contact",
+      directoryList: contact.directoryList,
+    });
+    const roles = directoryLabel ? [directoryLabel] : primaryList === "vendors" ? ["Vendor"] : ["Guest"];
     return {
       profileId: profileIdForContact(contact.id),
       name: contact.name,
@@ -179,9 +183,11 @@ export async function loadPeopleProfile(
       email: contact.email,
       roles,
       directoryLabel,
-      list,
+      primaryList,
+      isDayOfContact,
       canEditLabel: editable,
-      canEditList: editable,
+      canEditPrimaryList: editable,
+      canEditDayOf: editable,
       canDelete: editable,
       openTasks: [],
       assignments: [],
@@ -232,12 +238,13 @@ export async function loadPeopleProfile(
     const directoryLabel = person.directoryLabel?.trim() || null;
     const defaultRoles = personRoles(person, personAssignments.length);
     const roles = directoryLabel ? [directoryLabel] : defaultRoles;
-    const list =
-      resolveDirectoryList({
-        kind: "person",
-        directoryList: person.directoryList,
-        name: person.name,
-      }) ?? "day-of";
+    const primaryList = resolvePrimaryList({ kind: "person", directoryList: person.directoryList });
+    const isDayOfContact = resolveIsDayOfContact({
+      isDayOfContact: person.isDayOfContact,
+      name: person.name,
+      kind: "person",
+      directoryList: person.directoryList,
+    });
     const guestInfo = guestPerson
       ? {
           household: guestHouseholdLabel({
@@ -261,9 +268,11 @@ export async function loadPeopleProfile(
       email: null,
       roles,
       directoryLabel,
-      list,
+      primaryList,
+      isDayOfContact,
       canEditLabel: editable,
-      canEditList: editable,
+      canEditPrimaryList: editable,
+      canEditDayOf: editable,
       canDelete: editable && !["david", "haley"].includes(person.id),
       openTasks,
       assignments: personAssignments,
@@ -301,6 +310,11 @@ export async function loadPeopleProfile(
   );
   const defaultRole = group === "party" ? "Wedding party" : "Guest";
   const roles = guestDirectoryLabel ? [guestDirectoryLabel] : [defaultRole];
+  const isDayOfContact = resolveIsDayOfContact({
+    isDayOfContact: guestPerson.person.isDayOfContact,
+    name: guestPerson.person.name,
+    kind: "guest",
+  });
 
   return {
     profileId: profileIdForGuestPerson(guestPerson.person.id),
@@ -316,9 +330,11 @@ export async function loadPeopleProfile(
     email: null,
     roles,
     directoryLabel: guestDirectoryLabel,
-    list: "guests",
+    primaryList: "guests",
+    isDayOfContact,
     canEditLabel: editable,
-    canEditList: editable,
+    canEditPrimaryList: false,
+    canEditDayOf: editable,
     canDelete: editable,
     openTasks: [],
     assignments: [],
