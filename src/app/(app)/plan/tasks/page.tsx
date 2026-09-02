@@ -46,9 +46,9 @@ export default async function PlanTasksPage({
       {visibleOrgCards.length > 0 ? (
         <section className="mb-6">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
-            Wedding week
+            Wedding week · {visibleOrgCards.length}
           </p>
-          <div className="flex flex-col gap-3">
+          <div className="card divide-y divide-[var(--line)] overflow-hidden">
             {visibleOrgCards.map((task) => (
               <TaskCard key={task.id} task={task} />
             ))}
@@ -58,16 +58,16 @@ export default async function PlanTasksPage({
 
       <section>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
-          Decisions
+          Decisions · {visibleTasks.length}
         </p>
         {visibleTasks.length > 0 ? (
-          <div className="flex flex-col gap-3">
+          <div className="card divide-y divide-[var(--line)] overflow-hidden">
             {visibleTasks.map((task) => (
               <TaskCard key={task.id} task={task} />
             ))}
           </div>
         ) : (
-          <div className="card p-5 text-sm text-muted">
+          <div className="card px-3 py-4 text-sm text-muted">
             {showDone ? "No task cards yet." : "Everything is done."}
           </div>
         )}

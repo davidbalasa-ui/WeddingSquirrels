@@ -115,7 +115,7 @@ function ItemFields({
   );
 }
 
-function ShoppingItemCard({
+function ShoppingItemRow({
   item,
   tasks,
 }: {
@@ -129,17 +129,18 @@ function ShoppingItemCard({
     (item.ownerId === "david" ? "David" : item.ownerId === "haley" ? "Haley" : "Both");
 
   return (
-    <article className={`card overflow-hidden ${item.purchased ? "opacity-70" : ""}`}>
-      <div className="flex items-start gap-3 p-4">
+    <article className={item.purchased ? "opacity-70" : ""}>
+      <div className="flex items-start gap-1.5 px-3 py-2">
         <button
           type="button"
           aria-label={item.purchased ? "Mark not purchased" : "Mark purchased"}
           disabled={pending}
           onClick={() => startTransition(() => toggleShoppingPurchased(item.id))}
-          className="step-check mt-0.5 shrink-0"
+          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-line text-[11px] leading-none"
           style={{
             background: item.purchased ? "var(--accent)" : "transparent",
-            color: item.purchased ? "white" : "var(--muted)",
+            color: item.purchased ? "white" : "transparent",
+            borderColor: item.purchased ? "var(--accent)" : undefined,
           }}
         >
           {item.purchased ? "✓" : ""}
@@ -154,38 +155,35 @@ function ShoppingItemCard({
           <p className={`text-[15px] font-semibold leading-snug ${item.purchased ? "line-through" : ""}`}>
             {item.name}
             {item.quantity ? (
-              <span className="ml-2 text-sm font-medium text-muted">× {item.quantity}</span>
+              <span className="ml-1 text-sm font-medium text-muted">× {item.quantity}</span>
             ) : null}
           </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted">
-            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 font-semibold text-[var(--accent)]">
-              {ownerLabel}
-            </span>
-            {item.task ? (
-              <span className="font-semibold text-[var(--accent)]">{item.task.title}</span>
-            ) : null}
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+            <span className="font-semibold text-[var(--accent)]">{ownerLabel}</span>
+            {item.task ? <span>{item.task.title}</span> : null}
           </div>
-          {item.note ? (
-            <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted">{item.note}</p>
+          {item.note && !open ? (
+            <p className="mt-0.5 line-clamp-1 text-sm leading-snug text-muted">{item.note}</p>
           ) : null}
         </button>
 
-        <span className="mt-0.5 shrink-0 text-lg text-muted" aria-hidden>
-          {open ? "−" : "+"}
-        </span>
-      </div>
-
-      {item.task && !open ? (
-        <div className="border-t border-line px-4 py-2">
-          <Link
-            href={`/work/${item.task.id}`}
-            className="text-sm font-semibold text-[var(--accent)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            Open decision →
-          </Link>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {item.task && !open ? (
+            <Link
+              href={`/work/${item.task.id}`}
+              className="text-sm text-muted"
+              aria-label="Open decision"
+              onClick={(e) => e.stopPropagation()}
+            >
+              ›
+            </Link>
+          ) : (
+            <span className="text-sm text-muted" aria-hidden>
+              {open ? "−" : "+"}
+            </span>
+          )}
         </div>
-      ) : null}
+      </div>
 
       {open ? (
         <form
@@ -193,16 +191,16 @@ function ShoppingItemCard({
             await saveShoppingItem(fd);
             setOpen(false);
           }}
-          className="flex flex-col gap-3 border-t border-line p-4"
+          className="flex flex-col gap-3 border-t border-line px-3 pb-3 pt-2"
         >
           <input type="hidden" name="id" value={item.id} />
           <ItemFields item={item} tasks={tasks} />
-          <label className="flex min-h-[48px] items-center gap-3 rounded-xl border border-line px-3 py-3">
+          <label className="flex min-h-[44px] items-center gap-3 rounded-xl border border-line px-3 py-2">
             <input
               type="checkbox"
               name="purchased"
               defaultChecked={item.purchased}
-              className="h-6 w-6 accent-[var(--accent)]"
+              className="h-5 w-5 accent-[var(--accent)]"
             />
             <span className="text-sm font-semibold">Purchased</span>
           </label>
@@ -246,7 +244,6 @@ export function ShoppingListBoard({
 
   const toBuy = items.filter((i) => !i.purchased);
   const purchased = items.filter((i) => i.purchased);
-  const visible = showPurchased ? items : toBuy;
 
   const filters = [
     { id: "all", label: "All" },
@@ -256,8 +253,8 @@ export function ShoppingListBoard({
   ];
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="mb-1 flex items-center justify-between gap-3">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted">
           {toBuy.length} to buy · {purchased.length} purchased
         </p>
@@ -280,7 +277,7 @@ export function ShoppingListBoard({
         </button>
       </div>
 
-      <section className="card mb-1 p-3">
+      <section className="card p-3">
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
           Filter by owner
         </p>
@@ -318,14 +315,14 @@ export function ShoppingListBoard({
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-[18px] border border-dashed border-line bg-[color-mix(in_srgb,var(--bg-elevated)_70%,transparent)] px-4 py-4 text-sm font-semibold text-[var(--accent)]"
+          className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-[color-mix(in_srgb,var(--bg-elevated)_70%,transparent)] px-3 py-2 text-sm font-semibold text-[var(--accent)]"
         >
           <StarIcon size={16} />
           Add shopping item
         </button>
       ) : (
-        <article className="card p-4">
-          <div className="mb-3 flex items-center justify-between">
+        <section className="card overflow-hidden border border-line">
+          <div className="flex items-center justify-between border-b border-line px-3 py-2">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
               New item
             </p>
@@ -343,39 +340,47 @@ export function ShoppingListBoard({
               await createShoppingItem(fd);
               setAdding(false);
             }}
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-3 px-3 py-3"
           >
             <ItemFields tasks={tasks} autoFocus />
             <button type="submit" className="btn-primary">
               Add to list
             </button>
           </form>
-        </article>
+        </section>
       )}
 
-      <div className="flex flex-col gap-3">
-        {visible.length === 0 ? (
-          <div className="card p-6 text-center text-sm text-muted">
-            {showPurchased ? "No shopping items yet." : "Nothing to buy — add an item above."}
-          </div>
-        ) : (
-          <>
+      {toBuy.length === 0 && !showPurchased ? (
+        <div className="card px-3 py-4 text-center text-sm text-muted">
+          Nothing to buy — add an item above.
+        </div>
+      ) : toBuy.length > 0 ? (
+        <section>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+            To buy · {toBuy.length}
+          </p>
+          <div className="card divide-y divide-[var(--line)] overflow-hidden">
             {toBuy.map((item) => (
-              <ShoppingItemCard key={item.id} item={item} tasks={tasks} />
+              <ShoppingItemRow key={item.id} item={item} tasks={tasks} />
             ))}
-            {showPurchased && purchased.length > 0 ? (
-              <section className="mt-2 flex flex-col gap-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-                  Purchased
-                </p>
-                {purchased.map((item) => (
-                  <ShoppingItemCard key={item.id} item={item} tasks={tasks} />
-                ))}
-              </section>
-            ) : null}
-          </>
-        )}
-      </div>
+          </div>
+        </section>
+      ) : null}
+
+      {showPurchased && purchased.length > 0 ? (
+        <section>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+            Purchased · {purchased.length}
+          </p>
+          <div className="card divide-y divide-[var(--line)] overflow-hidden">
+            {purchased.map((item) => (
+              <ShoppingItemRow key={item.id} item={item} tasks={tasks} />
+            ))}
+          </div>
+        </section>
+      ) : showPurchased && toBuy.length === 0 && purchased.length === 0 ? (
+        <div className="card px-3 py-4 text-center text-sm text-muted">No shopping items yet.</div>
+      ) : null}
     </div>
   );
 }
