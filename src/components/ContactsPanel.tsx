@@ -35,7 +35,7 @@ function ContactRow({
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-semibold leading-snug">{contact.name}</p>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
-          {contact.phone ? (
+          {contact.phone && phoneHref ? (
             <a href={phoneHref} className="font-semibold text-[var(--accent)] hover:underline">
               {contact.phone}
             </a>
