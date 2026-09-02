@@ -1726,6 +1726,37 @@ export async function saveGuestPersonPhoto(
   return { ok: true, id: guestPersonId };
 }
 
+export async function deleteGuestPerson(guestPersonId: string): Promise<GuestPersonWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  if (!guestPersonId) return { ok: false, reason: "invalid" };
+
+  const person = await prisma.guestPerson.findUnique({ where: { id: guestPersonId } });
+  if (!person) return { ok: false, reason: "not_found" };
+
+  await deleteGuestPersonRecord(guestPersonId);
+  revalidateGuests();
+  revalidatePeople(profileIdForGuestPerson(guestPersonId));
+  return { ok: true, id: guestPersonId };
+}
+
+export async function removeUploadedPhoto(src: string): Promise<GuestPersonWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  const trimmed = src.trim();
+  if (!trimmed) return { ok: false, reason: "invalid" };
+
+  await prisma.guestPerson.updateMany({
+    where: { photoData: trimmed },
+    data: { photoData: null },
+  });
+  await prisma.contact.updateMany({
+    where: { photoData: trimmed },
+    data: { photoData: null },
+  });
+  revalidateGuests();
+  revalidatePeople();
+  return { ok: true, id: "photo" };
+}
+
 export async function cycleGuestPersonRole(guestPersonId: string): Promise<GuestPersonWriteResult> {
   if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
   if (!guestPersonId) return { ok: false, reason: "invalid" };

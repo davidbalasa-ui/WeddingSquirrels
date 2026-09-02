@@ -136,3 +136,21 @@ test("collectUploadedPhotos de-duplicates data URLs and keeps labels", () => {
   assert.equal(photos[0]?.label, "Alex");
   assert.equal(photos[1]?.label, "Vendor");
 });
+
+test("collectUploadedPhotos keeps every unique extra photo for the master list", () => {
+  const extras = [
+    { src: "data:image/jpeg;base64,ONE", label: "Andi" },
+    { src: "data:image/jpeg;base64,TWO", label: "Marie" },
+    { src: "data:image/jpeg;base64,THREE", label: "Kurt" },
+    { src: "data:image/jpeg;base64,FOUR", label: "Shelly" },
+    { src: "data:image/jpeg;base64,FIVE", label: "Avalon" },
+    { src: "data:image/jpeg;base64,SIX", label: "Wendy" },
+    { src: "data:image/jpeg;base64,SEVEN", label: "John" },
+  ];
+  const photos = collectUploadedPhotos({ guests: [], extraPhotos: extras });
+  assert.equal(photos.length, 7);
+  assert.deepEqual(
+    photos.map((photo) => photo.label),
+    extras.map((photo) => photo.label),
+  );
+});

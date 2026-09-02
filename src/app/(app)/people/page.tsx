@@ -15,7 +15,6 @@ import {
   parsePeopleView,
   type PeopleTab,
 } from "@/lib/people-directory";
-import { collectUploadedPhotos } from "@/lib/people-sort";
 import { loadPeopleHubData } from "@/lib/people-hub";
 import { requirePageSession } from "@/lib/session";
 
@@ -90,13 +89,7 @@ export default async function PeopleHubPage({
               role={role}
               attendance={attendance}
               view={view}
-              photos={collectUploadedPhotos({
-                guests: data.guests,
-                extraPhotos: [
-                  ...data.dayOfContacts.map((c) => ({ src: c.photoData, label: c.name })),
-                  ...data.vendorEntries.map((e) => ({ src: e.photoSrc, label: e.name })),
-                ],
-              })}
+              photos={data.uploadedPhotos}
             />
           </div>
         ) : filter === "guests" ? (

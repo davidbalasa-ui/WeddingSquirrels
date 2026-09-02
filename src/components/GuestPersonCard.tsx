@@ -1,9 +1,12 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   cycleGuestPersonRsvp,
   cycleGuestPersonRole,
+  deleteGuestPerson,
+  removeUploadedPhoto,
   saveGuestPersonName,
   saveGuestPersonPhoto,
   saveGuestPhone,
@@ -33,6 +36,7 @@ export function GuestPersonCard({
   canEdit: boolean;
   photos: UploadedPhotoOption[];
 }) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -82,6 +86,29 @@ export function GuestPersonCard({
     startTransition(async () => {
       const dataUrl = await fileToResizedDataUrl(file);
       await saveGuestPersonPhoto(person.id, dataUrl);
+    });
+  }
+
+  function handleRemoveFromLibrary(src: string) {
+    startTransition(async () => {
+      await removeUploadedPhoto(src);
+      router.refresh();
+    });
+  }
+
+  function handleClearCurrentPhoto() {
+    setPhotoPickerOpen(false);
+    startTransition(async () => {
+      await saveGuestPersonPhoto(person.id, null, true);
+      router.refresh();
+    });
+  }
+
+  function handleDeletePerson() {
+    if (!window.confirm(`Delete ${person.name}? This cannot be undone.`)) return;
+    startTransition(async () => {
+      const result = await deleteGuestPerson(person.id);
+      if (result.ok) router.refresh();
     });
   }
 
@@ -214,6 +241,16 @@ export function GuestPersonCard({
             className={`h-[25px] w-[25px] transition-transform ${expanded ? "rotate-180" : ""}`}
           />
         </button>
+        {cardEditing ? (
+          <button
+            type="button"
+            className="mx-auto mt-1 text-[11px] font-semibold text-[var(--danger)] underline underline-offset-2 disabled:opacity-60"
+            disabled={pending}
+            onClick={handleDeletePerson}
+          >
+            delete
+          </button>
+        ) : null}
         {expanded ? (
           <div className="mt-2 border-t border-line pt-3">
             <label className="block text-sm">
@@ -245,8 +282,11 @@ export function GuestPersonCard({
         <GuestPhotoPicker
           photos={photos}
           personName={person.name}
+          currentSrc={person.photoData}
           onSelect={handlePhotoSelect}
           onUpload={handlePhotoUpload}
+          onRemoveFromLibrary={handleRemoveFromLibrary}
+          onClearCurrent={handleClearCurrentPhoto}
           onClose={() => setPhotoPickerOpen(false)}
         />
       ) : null}
