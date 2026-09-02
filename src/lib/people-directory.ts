@@ -16,7 +16,7 @@ export type DirectoryEntry = {
   phone: string | null;
   email: string | null;
   sortKey: string;
-  primaryList: PeoplePrimaryList;
+  primaryList: PeoplePrimaryList | null;
   isDayOfContact: boolean;
 };
 
@@ -67,14 +67,16 @@ export function parsePeopleTab(raw: string | null | undefined): PeopleTab | null
   return null;
 }
 
-/** Resolve guest vs vendor primary list. */
+/** Resolve guest vs vendor primary list. Returns null when not explicitly assigned. */
 export function resolvePrimaryList(input: {
   kind: "person" | "contact" | "guest";
   directoryList?: string | null;
-}): PeoplePrimaryList {
+}): PeoplePrimaryList | null {
   if (input.directoryList === "guests") return "guests";
+  if (input.directoryList === "vendors") return "vendors";
   if (input.kind === "guest") return "guests";
-  return "vendors";
+  if (input.kind === "contact") return "vendors";
+  return null;
 }
 
 export function resolveIsDayOfContact(input: {
@@ -93,9 +95,6 @@ export function filterEntriesByTab(entries: DirectoryEntry[], tab: PeopleTab): D
   if (tab === "day-of") return entries.filter((entry) => entry.isDayOfContact);
   return entries.filter((entry) => entry.primaryList === tab);
 }
-
-/** @deprecated Use PeoplePrimaryList */
-export type PeopleList = PeoplePrimaryList;
 
 /** @deprecated Use isPeoplePrimaryList */
 export function isPeopleList(value: string | null | undefined): value is PeoplePrimaryList {

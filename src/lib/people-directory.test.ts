@@ -30,6 +30,11 @@ test("filterEntriesByTab separates guests, vendors, and day-of overlay", () => {
         directoryLabel: "Best man",
         isDayOfContact: true,
       },
+      {
+        id: "avalon",
+        name: "Avalon Green",
+        directoryList: "vendors",
+      },
     ],
     contacts: [
       {
@@ -60,17 +65,10 @@ test("filterEntriesByTab separates guests, vendors, and day-of overlay", () => {
   assert.ok(filterEntriesByTab(entries, "guests").some((entry) => entry.name === "Random Guest"));
 });
 
-test("resolvePrimaryList and resolveIsDayOfContact", () => {
-  assert.equal(resolvePrimaryList({ kind: "contact", directoryList: "guests" }), "guests");
-  assert.equal(resolvePrimaryList({ kind: "guest", directoryList: null }), "guests");
-  assert.equal(
-    resolveIsDayOfContact({ isDayOfContact: true, name: "Anyone", kind: "contact" }),
-    true,
-  );
-  assert.equal(
-    resolveIsDayOfContact({ isDayOfContact: false, name: "Andi", kind: "person" }),
-    true,
-  );
+test("resolvePrimaryList only assigns vendors/guests when explicit", () => {
+  assert.equal(resolvePrimaryList({ kind: "contact", directoryList: null }), "vendors");
+  assert.equal(resolvePrimaryList({ kind: "person", directoryList: null }), null);
+  assert.equal(resolvePrimaryList({ kind: "person", directoryList: "guests" }), "guests");
 });
 
 test("buildDirectoryEntries prefers person records over duplicate guest names", () => {

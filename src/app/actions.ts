@@ -2435,7 +2435,11 @@ async function requirePeopleEditor() {
   }
 }
 
-async function createGuestHouseholdForName(name: string, directoryLabel?: string | null) {
+async function createGuestHouseholdForName(
+  name: string,
+  directoryLabel?: string | null,
+  isDayOfContact?: boolean,
+) {
   const maxSort = await prisma.guest.aggregate({ _max: { sortOrder: true } });
   return prisma.guest.create({
     data: {
@@ -2446,11 +2450,41 @@ async function createGuestHouseholdForName(name: string, directoryLabel?: string
         create: {
           name,
           directoryLabel: directoryLabel?.trim() || null,
+          isDayOfContact: isDayOfContact ?? false,
           sortOrder: 0,
         },
       },
     },
+    include: { people: true },
   });
+}
+
+async function ensureGuestPersonForName(
+  name: string,
+  opts?: { directoryLabel?: string | null; isDayOfContact?: boolean },
+) {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+
+  const existing = await prisma.guestPerson.findFirst({
+    where: { name: { equals: trimmed, mode: "insensitive" } },
+  });
+  if (existing) {
+    if (opts?.isDayOfContact && !existing.isDayOfContact) {
+      await prisma.guestPerson.update({
+        where: { id: existing.id },
+        data: { isDayOfContact: true },
+      });
+    }
+    return existing;
+  }
+
+  const guest = await createGuestHouseholdForName(
+    trimmed,
+    opts?.directoryLabel,
+    opts?.isDayOfContact,
+  );
+  return guest.people[0] ?? null;
 }
 
 async function createContactFromSource(input: {
@@ -2549,7 +2583,10 @@ export async function savePrimaryList(
     if (!contact) return { ok: false, reason: "not_found" };
 
     if (list === "guests") {
-      await createGuestHouseholdForName(contact.name, contact.directoryLabel);
+      await ensureGuestPersonForName(contact.name, {
+        directoryLabel: contact.directoryLabel,
+        isDayOfContact: contact.isDayOfContact,
+      });
       await prisma.contact.delete({ where: { id: parsed.id } });
     } else {
       await prisma.contact.update({
@@ -2565,15 +2602,14 @@ export async function savePrimaryList(
   if (!person) return { ok: false, reason: "not_found" };
 
   if (list === "guests") {
-    try {
-      await createGuestHouseholdForName(person.name, person.directoryLabel);
-      await deletePersonRecord(parsed.id);
-    } catch (error) {
-      if (error instanceof Error && error.message === "PROTECTED_PERSON") {
-        return { ok: false, reason: "protected" };
-      }
-      throw error;
-    }
+    await ensureGuestPersonForName(person.name, {
+      directoryLabel: person.directoryLabel,
+      isDayOfContact: person.isDayOfContact,
+    });
+    await prisma.person.update({
+      where: { id: parsed.id },
+      data: { directoryList: "guests" },
+    });
   } else {
     await prisma.person.update({
       where: { id: parsed.id },

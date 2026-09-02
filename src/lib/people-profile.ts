@@ -166,7 +166,10 @@ export async function loadPeopleProfile(
     if (!contact) return null;
     const budgetContracts = budgetContractsForContact(contact, budgetItems);
     const directoryLabel = contact.directoryLabel?.trim() || null;
-    const primaryList = resolvePrimaryList({ kind: "contact", directoryList: contact.directoryList });
+    const primaryList =
+      contact.directoryList === "guests" || contact.directoryList === "vendors"
+        ? contact.directoryList
+        : "vendors";
     const isDayOfContact = resolveIsDayOfContact({
       isDayOfContact: contact.isDayOfContact,
       name: contact.name,
@@ -238,7 +241,10 @@ export async function loadPeopleProfile(
     const directoryLabel = person.directoryLabel?.trim() || null;
     const defaultRoles = personRoles(person, personAssignments.length);
     const roles = directoryLabel ? [directoryLabel] : defaultRoles;
-    const primaryList = resolvePrimaryList({ kind: "person", directoryList: person.directoryList });
+    const primaryList =
+      person.directoryList === "guests" || person.directoryList === "vendors"
+        ? person.directoryList
+        : "vendors";
     const isDayOfContact = resolveIsDayOfContact({
       isDayOfContact: person.isDayOfContact,
       name: person.name,
