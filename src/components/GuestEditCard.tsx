@@ -71,7 +71,6 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
         name: person.name.trim(),
         tableNumber: person.tableNumber,
         tableSpot: person.tableSpot,
-        isDayOfContact: person.isDayOfContact,
       }))
       .filter((person) => person.name);
     if (payload.length === 0) {
