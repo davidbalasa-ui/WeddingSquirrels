@@ -24,7 +24,7 @@ export type DayNowLiveSource = {
   daysToGo: number | null;
 };
 
-function ContactChip({ contact }: { contact: DayNowBlock["contacts"][number] }) {
+function ContactRow({ contact }: { contact: DayNowBlock["contacts"][number] }) {
   const href = contact.phone
     ? `tel:${contact.phone.replace(/[^\d+]/g, "")}`
     : contact.email
@@ -46,46 +46,46 @@ function ContactChip({ contact }: { contact: DayNowBlock["contacts"][number] }) 
           <span className="block text-xs text-muted">View profile</span>
         )}
       </span>
+      {href ? (
+        <span className="shrink-0 text-sm text-muted" aria-hidden>
+          ›
+        </span>
+      ) : null}
     </>
   );
 
   if (!href) {
-    return (
-      <div className="flex items-center gap-3 rounded-2xl border border-line bg-[var(--card)] px-3 py-2.5">
-        {inner}
-      </div>
-    );
+    return <div className="flex items-center gap-2 py-1.5">{inner}</div>;
   }
 
   return (
-    <a
-      href={href}
-      className="flex items-center gap-3 rounded-2xl border border-line bg-[var(--card)] px-3 py-2.5 transition active:scale-[0.99]"
-    >
+    <a href={href} className="flex items-center gap-2 py-1.5 transition active:opacity-80">
       {inner}
     </a>
   );
 }
 
-function BlockCard({
+function BlockRow({
   block,
   emphasis = "default",
 }: {
   block: DayNowBlock;
-  emphasis?: "hero" | "default";
+  emphasis?: "now" | "next" | "default";
 }) {
-  const isHero = emphasis === "hero";
+  const bgClass =
+    emphasis === "now"
+      ? "bg-[var(--accent-soft)]/55"
+      : emphasis === "next"
+        ? "bg-[var(--accent-soft)]/25"
+        : "";
+
+  const detailLimit = emphasis === "now" ? 4 : emphasis === "next" ? 3 : 2;
+  const visibleDetails = block.detailLines.slice(0, detailLimit);
 
   return (
-    <article
-      className={
-        isHero
-          ? "rounded-[1.35rem] border border-[var(--accent)] bg-[var(--accent-soft)] p-5 shadow-sm"
-          : "rounded-[1.2rem] border border-line bg-[var(--card)] p-4"
-      }
-    >
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <div>
+    <article className={`px-3 py-2 ${bgClass}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
           {block.status === "now" ? (
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
               Happening now
@@ -95,47 +95,36 @@ function BlockCard({
               Up next
             </p>
           ) : null}
-          <p
-            className={
-              isHero
-                ? "font-[family-name:var(--font-display)] text-[1.75rem] leading-tight"
-                : "text-lg font-semibold leading-snug"
-            }
-          >
-            {block.title}
-          </p>
+          <p className="text-[15px] font-semibold leading-snug">{block.title}</p>
+          {block.location ? (
+            <p className="mt-0.5 text-xs font-semibold text-[var(--accent)]">{block.location}</p>
+          ) : null}
         </div>
         <p
-          className={
-            isHero
-              ? "shrink-0 text-right text-sm font-semibold text-[var(--accent)]"
-              : "shrink-0 text-right text-sm font-semibold text-muted"
-          }
+          className={`shrink-0 text-right text-xs font-semibold ${
+            emphasis === "now" ? "text-[var(--accent)]" : "text-muted"
+          }`}
         >
           {block.timeLabel}
         </p>
       </div>
 
-      {block.location ? (
-        <p className="mb-2 text-sm font-medium text-[var(--accent)]">{block.location}</p>
-      ) : null}
-
-      {block.detailLines.length > 0 ? (
-        <ul className="mb-3 space-y-1 text-sm leading-relaxed text-muted">
-          {block.detailLines.slice(0, isHero ? 6 : 4).map((line) => (
-            <li key={line}>{line}</li>
+      {visibleDetails.length > 0 ? (
+        <ul className="mt-1 space-y-0.5 text-sm leading-snug text-muted">
+          {visibleDetails.map((line) => (
+            <li key={line} className="line-clamp-2">{line}</li>
           ))}
         </ul>
       ) : null}
 
       {block.contacts.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
+        <div className="mt-2 border-t border-line/70 pt-1">
+          <p className="pb-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
             Tap to call
           </p>
-          <div className="grid gap-2">
+          <div className="divide-y divide-[var(--line)]">
             {block.contacts.map((contact) => (
-              <ContactChip key={`${contact.source}:${contact.id}`} contact={contact} />
+              <ContactRow key={`${contact.source}:${contact.id}`} contact={contact} />
             ))}
           </div>
         </div>
@@ -180,6 +169,11 @@ export function DayNowNext({
   }, [liveSource]);
 
   const hasContent = snapshot.now || snapshot.next || snapshot.upcoming.length > 0;
+  const nowBlock = snapshot.now;
+  const nextBlock = snapshot.next;
+  const nowId = nowBlock?.id ?? null;
+  const showNowNextCard = Boolean(nowBlock) || Boolean(nextBlock && nextBlock.id !== nowId);
+  const nextEmphasis: "now" | "next" = nowBlock ? "next" : "now";
 
   return (
     <div className="flex flex-col gap-4">
@@ -189,7 +183,7 @@ export function DayNowNext({
             {offline ? "Offline · wedding day" : "Wedding day"}
           </p>
           <p
-            className="font-[family-name:var(--font-display)] text-3xl leading-none"
+            className="font-[family-name:var(--font-display)] text-2xl leading-none"
             aria-live="polite"
             aria-atomic="true"
           >
@@ -230,7 +224,7 @@ export function DayNowNext({
       </div>
 
       {!hasContent ? (
-        <div className="card p-5 text-sm text-muted">
+        <div className="card px-3 py-4 text-sm text-muted">
           No timed moments on the timeline yet.
           {canEdit && !offline ? (
             <>
@@ -245,26 +239,29 @@ export function DayNowNext({
       ) : null}
 
       {snapshot.betweenMoments && snapshot.next ? (
-        <div className="rounded-2xl border border-dashed border-line px-4 py-3 text-sm text-muted">
+        <div className="rounded-xl border border-dashed border-line px-3 py-2 text-sm text-muted">
           Between moments — next up is <span className="font-semibold text-ink">{snapshot.next.title}</span>{" "}
           at {snapshot.next.startAt}.
         </div>
       ) : null}
 
-      {snapshot.now ? <BlockCard block={snapshot.now} emphasis="hero" /> : null}
-
-      {snapshot.next && snapshot.next.id !== snapshot.now?.id ? (
-        <BlockCard block={snapshot.next} emphasis={snapshot.now ? "default" : "hero"} />
+      {showNowNextCard ? (
+        <section className="card divide-y divide-[var(--line)] overflow-hidden">
+          {nowBlock ? <BlockRow block={nowBlock} emphasis="now" /> : null}
+          {nextBlock && nextBlock.id !== nowId ? (
+            <BlockRow block={nextBlock} emphasis={nextEmphasis} />
+          ) : null}
+        </section>
       ) : null}
 
       {snapshot.upcoming.length > 0 ? (
         <section>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
-            Later today
+            Later today · {snapshot.upcoming.length}
           </p>
-          <div className="flex flex-col gap-3">
+          <div className="card divide-y divide-[var(--line)] overflow-hidden">
             {snapshot.upcoming.map((block) => (
-              <BlockCard key={block.id} block={block} />
+              <BlockRow key={block.id} block={block} />
             ))}
           </div>
         </section>
