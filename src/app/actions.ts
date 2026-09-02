@@ -1504,7 +1504,7 @@ async function requireGuestViewer() {
 function revalidateGuests() {
   revalidatePath("/guests");
   revalidatePath("/guests/print");
-  refresh();
+  revalidatePath("/people");
 }
 
 export type GuestRsvpImportWriteResult =
