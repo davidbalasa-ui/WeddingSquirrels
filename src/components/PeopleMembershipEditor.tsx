@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { savePrimaryList, setDayOfContact } from "@/app/actions";
 import type { PeoplePrimaryList } from "@/lib/people-directory";
 
@@ -14,24 +14,31 @@ export function PeopleMembershipEditor({
   profileId,
   primaryList,
   isDayOfContact,
+  showsOnDayOfCallList,
   canEditPrimaryList,
   canEditDayOf,
 }: {
   profileId: string;
   primaryList: PeoplePrimaryList;
   isDayOfContact: boolean;
+  showsOnDayOfCallList: boolean;
   canEditPrimaryList: boolean;
   canEditDayOf: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [dayOfChecked, setDayOfChecked] = useState(isDayOfContact);
+
+  useEffect(() => {
+    setDayOfChecked(isDayOfContact);
+  }, [isDayOfContact]);
 
   if (!canEditPrimaryList && !canEditDayOf) {
     return (
       <div className="text-sm text-muted">
         <p>List · {PRIMARY_OPTIONS.find((option) => option.value === primaryList)?.label}</p>
-        {isDayOfContact ? <p className="mt-1">On day-of call list</p> : null}
+        {showsOnDayOfCallList ? <p className="mt-1">On day-of call list</p> : null}
       </div>
     );
   }
@@ -85,13 +92,16 @@ export function PeopleMembershipEditor({
           <input
             type="checkbox"
             className="h-4 w-4 rounded border-line"
-            checked={isDayOfContact}
+            checked={dayOfChecked}
             disabled={pending}
             onChange={(event) => {
+              const next = event.target.checked;
               setError(null);
+              setDayOfChecked(next);
               startTransition(async () => {
-                const result = await setDayOfContact(profileId, event.target.checked);
+                const result = await setDayOfContact(profileId, next);
                 if (!result.ok) {
+                  setDayOfChecked(isDayOfContact);
                   setError("Could not update day-of call list.");
                   return;
                 }
@@ -101,7 +111,7 @@ export function PeopleMembershipEditor({
           />
           <span>On day-of call list</span>
         </label>
-      ) : isDayOfContact ? (
+      ) : showsOnDayOfCallList ? (
         <p className="text-sm text-muted">On day-of call list</p>
       ) : null}
 
