@@ -74,7 +74,7 @@ a {
   max-width: 100%;
   margin: 0 auto;
   min-height: 100dvh;
-  padding: 0 16px 96px;
+  padding: 0 16px calc(96px + env(safe-area-inset-bottom, 0px));
   overflow-x: clip;
 }
 
@@ -104,7 +104,7 @@ a {
   position: fixed;
   left: 8px;
   right: 8px;
-  bottom: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   margin-inline: auto;
   width: min(560px, calc(100vw - 16px));
   max-width: calc(100vw - 16px);

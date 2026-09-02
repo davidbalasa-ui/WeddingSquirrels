@@ -3,12 +3,10 @@ import type { GuestRsvpReport } from "@/lib/guest-gifts";
 function Stat({
   label,
   value,
-  hint,
   tone = "accent",
 }: {
   label: string;
   value: number;
-  hint?: string;
   tone?: "accent" | "warn" | "muted";
 }) {
   const valueClass =
@@ -21,34 +19,37 @@ function Stat({
     tone === "warn" ? "bg-[var(--warn-soft)]" : "bg-[var(--accent-soft)]";
 
   return (
-    <div className={`rounded-xl ${bgClass} px-3 py-2`}>
-      <p className="text-xs text-muted">{label}</p>
-      <p className={`font-[family-name:var(--font-display)] text-2xl leading-tight ${valueClass}`}>
+    <div className={`rounded-lg ${bgClass} px-2 py-1.5`}>
+      <p className="truncate text-[11px] text-muted">{label}</p>
+      <p className={`font-[family-name:var(--font-display)] text-xl leading-tight ${valueClass}`}>
         {value}
       </p>
-      {hint ? <p className="text-[11px] text-muted">{hint}</p> : null}
     </div>
   );
 }
 
 export function GuestRsvpReport({ report }: { report: GuestRsvpReport }) {
   return (
-    <section className="card mb-3 p-4">
-      <div className="grid grid-cols-3 gap-2 text-sm">
-        <Stat label="Invited" value={report.invited} hint={report.invited === 1 ? "person" : "people"} />
-        <Stat label="Accepted" value={report.accepted} hint={report.accepted === 1 ? "person" : "people"} />
-        <Stat label="Awaiting" value={report.awaiting} hint={report.awaiting === 1 ? "person" : "people"} tone="warn" />
+    <details className="card group overflow-hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1 font-semibold text-ink">RSVP summary</span>
+        <span className="whitespace-nowrap text-[var(--accent)]">{report.accepted} accepted</span>
+        <span className="whitespace-nowrap text-[var(--warn)]">{report.awaiting} awaiting</span>
+        <span
+          aria-hidden
+          className="shrink-0 text-muted transition-transform group-open:rotate-180"
+        >
+          ⌄
+        </span>
+      </summary>
+      <div className="grid grid-cols-3 gap-1.5 border-t border-line p-2.5">
+        <Stat label="Invited people" value={report.invited} />
+        <Stat label="Accepted people" value={report.accepted} />
+        <Stat label="Awaiting people" value={report.awaiting} tone="warn" />
+        <Stat label="Attending households" value={report.attending} />
+        <Stat label="Not attending households" value={report.notAttending} tone="muted" />
+        <Stat label="No-reply households" value={report.pending} />
       </div>
-      <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
-        <Stat label="Attending" value={report.attending} hint={report.attending === 1 ? "household" : "households"} />
-        <Stat
-          label="Not attending"
-          value={report.notAttending}
-          hint={report.notAttending === 1 ? "household" : "households"}
-          tone="muted"
-        />
-        <Stat label="No reply" value={report.pending} hint={report.pending === 1 ? "household" : "households"} />
-      </div>
-    </section>
+    </details>
   );
 }

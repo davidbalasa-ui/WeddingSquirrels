@@ -98,7 +98,7 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
 
   return (
     <div>
-      <div className="flex flex-col gap-3 border-t border-line p-4">
+      <div className="flex flex-col gap-3 py-3">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Mailing address</p>
         <label className="block text-sm">
           <span className="mb-1 block text-xs text-muted">Street</span>
@@ -242,7 +242,7 @@ function GuestGifts({
   }
 
   return (
-    <div className="border-t border-line px-4 py-3">
+    <div className="border-t border-line py-3">
       <div className="mb-1 flex items-center justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Gifts</p>
         <button
