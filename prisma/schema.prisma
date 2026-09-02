@@ -89,6 +89,8 @@ model BudgetItem {
   paidBy     Person?           @relation("BudgetPayer", fields: [paidById], references: [id])
   sortOrder  Int               @default(0)
   note       String?
+  /// "data:image/jpeg;base64,..." receipt image
+  receiptData String?
   tasks      Task[]
   shares     BudgetItemShare[]
   payments   BudgetPayment[]

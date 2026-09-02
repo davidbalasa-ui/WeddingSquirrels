@@ -4,19 +4,20 @@ import { ContactsPanel } from "@/components/ContactsPanel";
 import { GuestList } from "@/components/GuestList";
 import { GuestRsvpReport } from "@/components/GuestRsvpReport";
 import { GuestRsvpSync } from "@/components/GuestRsvpSync";
-import { PeopleEntryList } from "@/components/PeopleEntryList";
-import { PeopleHubTabs, PeopleTabFooterLink } from "@/components/PeopleHubTabs";
+import { PeopleHubFilters } from "@/components/PeopleHubFilters";
+import { PeopleTabFooterLink } from "@/components/PeopleHubTabs";
+import { VendorEntryList } from "@/components/VendorEntryList";
 import { V2PageHeader } from "@/components/V2PageHeader";
-import { timelineEditable } from "@/lib/access";
-import { parsePeopleTab, type PeopleTab } from "@/lib/people-directory";
+import { moneyEditable, timelineEditable } from "@/lib/access";
+import { parsePeopleSort, parsePeopleTab, type PeopleTab } from "@/lib/people-directory";
 import { loadPeopleHubData } from "@/lib/people-hub";
 import { requirePageSession } from "@/lib/session";
 
-function defaultTab(session: {
+function defaultFilter(session: {
   canSeeGuests: boolean;
   canSeeTimeline: boolean;
 }): PeopleTab {
-  if (session.canSeeGuests) return "guests";
+  if (session.canSeeGuests) return "all";
   if (session.canSeeTimeline) return "day-of";
   return "vendors";
 }
@@ -24,7 +25,7 @@ function defaultTab(session: {
 export default async function PeopleHubPage({
   searchParams,
 }: {
-  searchParams: Promise<{ who?: string; done?: string; tab?: string }>;
+  searchParams: Promise<{ who?: string; done?: string; tab?: string; sort?: string }>;
 }) {
   const sp = await searchParams;
   if (sp.who || sp.done) {
@@ -35,51 +36,77 @@ export default async function PeopleHubPage({
   }
 
   const session = await requirePageSession();
-  const tab = parsePeopleTab(sp.tab) ?? defaultTab(session);
+  const filter = parsePeopleTab(sp.tab) ?? defaultFilter(session);
+  const sort = parsePeopleSort(sp.sort) ?? "name";
   const data = await loadPeopleHubData(session);
   const canEditGuests = session.canSeeGuests;
   const canEditDayOf = timelineEditable(session);
+  const canEditMoney = moneyEditable(session);
+  const showSort = filter === "guests" || filter === "vendors" || filter === "all";
 
   return (
     <>
       <V2PageHeader
         session={session}
         title="People"
-        subtitle="Guest list, vendors, and day-of call list in one place"
+        subtitle="One master list — filter and sort guests, vendors, and day-of contacts"
       />
 
       <Suspense fallback={null}>
-        <PeopleHubTabs activeTab={tab} counts={data.tabCounts} />
+        <PeopleHubFilters
+          activeFilter={filter}
+          activeSort={sort}
+          counts={data.tabCounts}
+          showSort={showSort}
+        />
       </Suspense>
 
-      {tab === "guests" ? (
+      {filter === "all" || filter === "guests" ? (
         session.canSeeGuests ? (
           <div className="flex flex-col gap-3">
-            <GuestRsvpReport report={data.guestReport} />
-            {session.isMaster ? <GuestRsvpSync /> : null}
-            <GuestList guests={data.guests} canEdit={canEditGuests} />
+            {filter === "all" ? (
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Guests</p>
+            ) : null}
+            {filter === "guests" ? <GuestRsvpReport report={data.guestReport} /> : null}
+            {filter === "guests" && session.isMaster ? <GuestRsvpSync /> : null}
+            <GuestList guests={data.guests} canEdit={canEditGuests} sort={sort} />
           </div>
-        ) : (
+        ) : filter === "guests" ? (
           <div className="card px-3 py-4 text-sm text-muted">Guest list isn’t visible for this PIN.</div>
-        )
+        ) : null
       ) : null}
 
-      {tab === "vendors" ? (
-        <PeopleEntryList
-          entries={data.vendorEntries}
-          emptyLabel="No vendors yet"
-          searchPlaceholder="Search vendors"
-        />
+      {filter === "all" || filter === "vendors" ? (
+        <div className={filter === "all" ? "mt-4 flex flex-col gap-3" : ""}>
+          {filter === "all" ? (
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Vendors</p>
+          ) : null}
+          <VendorEntryList
+            entries={data.vendorEntries}
+            vendorBudgets={data.vendorBudgets}
+            canEditMoney={canEditMoney}
+            sort={sort}
+            emptyLabel="No vendors yet"
+            searchPlaceholder="Search vendors"
+          />
+        </div>
       ) : null}
 
-      {tab === "day-of" ? (
+      {filter === "all" || filter === "day-of" ? (
         session.canSeeTimeline ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted">
-              People to call on the big day — add a photo, phone number, and email for each contact.
-            </p>
+          <div className={filter === "all" ? "mt-4 flex flex-col gap-3" : ""}>
+            {filter === "all" ? (
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+                Day-of contacts
+              </p>
+            ) : null}
+            {filter === "day-of" ? (
+              <p className="text-sm text-muted">
+                People to call on the big day — add a photo, phone number, and email for each contact.
+              </p>
+            ) : null}
             <ContactsPanel contacts={data.dayOfContacts} canEdit={canEditDayOf} dayOfMode />
-            {canEditDayOf ? (
+            {filter === "day-of" && canEditDayOf ? (
               <PeopleTabFooterLink
                 href="/people/responsibilities"
                 label="Day-of responsibilities"
@@ -87,9 +114,9 @@ export default async function PeopleHubPage({
               />
             ) : null}
           </div>
-        ) : (
+        ) : filter === "day-of" ? (
           <div className="card px-3 py-4 text-sm text-muted">Day-of contacts aren’t visible for this PIN.</div>
-        )
+        ) : null
       ) : null}
     </>
   );

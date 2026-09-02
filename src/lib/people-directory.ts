@@ -4,7 +4,9 @@ export type PeopleGroup = "party" | "family" | "vendor";
 /** Guest list or vendor list — the two primary roles. */
 export type PeoplePrimaryList = "guests" | "vendors";
 /** Tabs on the unified People page. */
-export type PeopleTab = "guests" | "vendors" | "day-of";
+export type PeopleTab = "guests" | "vendors" | "day-of" | "all";
+
+export type PeopleSort = "name" | "role" | "rsvp" | "table";
 
 export type DirectoryEntry = {
   profileId: string;
@@ -66,7 +68,12 @@ export function isPeoplePrimaryList(value: string | null | undefined): value is 
 }
 
 export function parsePeopleTab(raw: string | null | undefined): PeopleTab | null {
-  if (raw === "guests" || raw === "vendors" || raw === "day-of") return raw;
+  if (raw === "guests" || raw === "vendors" || raw === "day-of" || raw === "all") return raw;
+  return null;
+}
+
+export function parsePeopleSort(raw: string | null | undefined): PeopleSort | null {
+  if (raw === "name" || raw === "role" || raw === "rsvp" || raw === "table") return raw;
   return null;
 }
 

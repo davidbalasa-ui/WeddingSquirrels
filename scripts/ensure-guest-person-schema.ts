@@ -20,6 +20,9 @@ async function main() {
   await prisma.$executeRawUnsafe(
     `UPDATE "GuestGift" SET "thankYouSent" = "thanked" WHERE "thankYouSent" = false AND "thanked" = true`,
   );
+  await prisma.$executeRawUnsafe(
+    `ALTER TABLE "BudgetItem" ADD COLUMN IF NOT EXISTS "receiptData" TEXT`,
+  );
 
   console.log("Guest person schema columns ensured.");
 }

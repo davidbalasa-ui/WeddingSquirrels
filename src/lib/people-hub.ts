@@ -2,12 +2,23 @@ import { prisma } from "@/lib/db";
 import { guestAddressLine, rsvpStatusLabel, summarizeGuestRsvp, type GuestRsvpReport } from "@/lib/guest-gifts";
 import { guestInclude, mapGuestRecord, type GuestRecord } from "@/lib/guests";
 import {
+  budgetContractsForContact,
+  type ProfileBudgetContract,
+} from "@/lib/connections";
+import {
   buildDirectoryEntries,
   filterEntriesByTab,
   resolveIsDayOfContact,
   type DirectoryEntry,
   type PeopleTab,
 } from "@/lib/people-directory";
+import type { SessionAccount } from "@/lib/types";
+
+export type VendorBudgetRecord = ProfileBudgetContract & {
+  price: number;
+  amountPaid: number;
+  receiptData: string | null;
+};
 
 export type DayOfContactRecord = {
   id: string;
@@ -16,11 +27,11 @@ export type DayOfContactRecord = {
   email: string | null;
   photoData: string | null;
 };
-import type { SessionAccount } from "@/lib/types";
 
 export type PeopleHubData = {
   entries: DirectoryEntry[];
   vendorEntries: DirectoryEntry[];
+  vendorBudgets: Record<string, VendorBudgetRecord[]>;
   dayOfContacts: DayOfContactRecord[];
   guests: GuestRecord[];
   guestReport: GuestRsvpReport;
@@ -35,7 +46,7 @@ function householdLabel(guest: ReturnType<typeof mapGuestRecord>) {
 }
 
 export async function loadPeopleHubData(session: SessionAccount): Promise<PeopleHubData> {
-  const [persons, contacts, guests] = await Promise.all([
+  const [persons, contacts, guests, budgetItems] = await Promise.all([
     prisma.person.findMany({
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: {
@@ -63,6 +74,20 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
       : Promise.resolve([]),
     session.canSeeGuests
       ? prisma.guest.findMany({ orderBy: { sortOrder: "asc" }, include: guestInclude() })
+      : Promise.resolve([]),
+    session.canSeeBudget
+      ? prisma.budgetItem.findMany({
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            amountPaid: true,
+            ownerId: true,
+            paidById: true,
+            receiptData: true,
+          },
+        })
       : Promise.resolve([]),
   ]);
 
@@ -125,13 +150,35 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
       photoData: contact.photoData,
     }));
 
+  const vendorBudgets: Record<string, VendorBudgetRecord[]> = {};
+  for (const entry of vendorEntries) {
+    const contactId = entry.profileId.startsWith("contact:")
+      ? entry.profileId.slice("contact:".length)
+      : null;
+    if (!contactId) continue;
+    const contact = contacts.find((row) => row.id === contactId);
+    if (!contact) continue;
+    const contracts = budgetContractsForContact(contact, budgetItems).map((contract) => {
+      const item = budgetItems.find((row) => row.id === contract.id);
+      return {
+        ...contract,
+        price: item?.price ?? 0,
+        amountPaid: item?.amountPaid ?? 0,
+        receiptData: item?.receiptData ?? null,
+      };
+    });
+    if (contracts.length > 0) vendorBudgets[entry.profileId] = contracts;
+  }
+
   return {
     entries,
     vendorEntries,
+    vendorBudgets,
     dayOfContacts,
     guests: guestRecords,
     guestReport,
     tabCounts: {
+      all: guestRecords.length + vendorEntries.length + dayOfContacts.length,
       guests: guestRecords.length,
       vendors: vendorEntries.length,
       "day-of": dayOfContacts.length,

@@ -415,6 +415,65 @@ export async function saveBudgetItem(formData: FormData): Promise<void> {
 
   revalidatePath("/money");
   revalidatePath("/money/print");
+  revalidatePath("/people");
+}
+
+export async function saveBudgetAmounts(
+  budgetItemId: string,
+  price: number,
+  amountPaid: number,
+): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "not_found" }> {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !moneyEditable(session)) return { ok: false, reason: "forbidden" };
+  if (!budgetItemId) return { ok: false, reason: "not_found" };
+
+  try {
+    await prisma.budgetItem.update({
+      where: { id: budgetItemId },
+      data: {
+        price: clampMoney(price),
+        amountPaid: clampMoney(amountPaid),
+      },
+    });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+
+  revalidatePath("/money");
+  revalidatePath("/money/print");
+  revalidatePath("/people");
+  return { ok: true };
+}
+
+export async function saveBudgetReceipt(
+  budgetItemId: string,
+  receiptData: string | null,
+  clearReceipt = false,
+): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "not_found" | "invalid" }> {
+  const session = await requireSession();
+  if (!session.canSeeBudget || !moneyEditable(session)) return { ok: false, reason: "forbidden" };
+  if (!budgetItemId) return { ok: false, reason: "not_found" };
+
+  let nextReceipt: string | null = null;
+  try {
+    if (clearReceipt) nextReceipt = null;
+    else if (receiptData) nextReceipt = parseContactPhoto(receiptData);
+  } catch {
+    return { ok: false, reason: "invalid" };
+  }
+
+  try {
+    await prisma.budgetItem.update({
+      where: { id: budgetItemId },
+      data: { receiptData: nextReceipt },
+    });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+
+  revalidatePath("/money");
+  revalidatePath("/people");
+  return { ok: true };
 }
 
 export async function createBudgetItem(formData: FormData): Promise<void> {

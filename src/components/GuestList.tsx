@@ -11,6 +11,8 @@ import {
 } from "@/lib/guest-gifts";
 import type { GuestRecord } from "@/lib/guests";
 import { normalizePersonName } from "@/lib/people-directory";
+import { sortGuestRecords } from "@/lib/people-sort";
+import type { PeopleSort } from "@/lib/people-directory";
 import { GuestHouseholdCard } from "@/components/GuestHouseholdCard";
 import { PersonAvatar } from "@/components/PersonAvatar";
 
@@ -45,16 +47,18 @@ function matchesGuestQuery(guest: GuestRecord, query: string) {
 export function GuestList({
   guests,
   canEdit,
+  sort = "name",
 }: {
   guests: GuestRecord[];
   canEdit: boolean;
+  sort?: PeopleSort;
 }) {
   const [mode, setMode] = useState<Mode>("list");
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(
-    () => guests.filter((guest) => matchesGuestQuery(guest, query)),
-    [guests, query],
+    () => sortGuestRecords(guests.filter((guest) => matchesGuestQuery(guest, query)), sort),
+    [guests, query, sort],
   );
 
   return (
