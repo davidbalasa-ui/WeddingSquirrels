@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useTransition } from "react";
-import { saveStepNotes, saveTaskWorkspace, toggleTaskDone, type TaskFormState } from "@/app/actions";
+import { saveStepNotes, saveTaskWorkspace, toggleTaskDone, renameTask, type TaskFormState } from "@/app/actions";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
 import { AssigneeFields } from "@/components/AssigneeFields";
 import { assigneeDisplayNames } from "@/lib/people";
@@ -44,28 +44,33 @@ export function TaskWorkspaceForm({
 
       <EscalatePriorityButton taskId={task.id} escalated={escalated} />
 
-      <section className="card p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">What is this</p>
-        <p className="mt-2 text-sm leading-relaxed text-ink">
-          {task.summary || "A decision you need to make and finish."}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted">
-          <span>{ownerNames || "Unassigned"}</span>
-          {label ? (
-            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 font-semibold text-[var(--accent)]">
-              {label}
-            </span>
-          ) : null}
-          {childTotal > 0 ? (
-            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 font-semibold text-[var(--accent)]">
-              {childDone}/{childTotal} steps done
-            </span>
-          ) : null}
-        </div>
-      </section>
-
       <form action={saveAction} className="card flex flex-col gap-4 p-4">
         <input type="hidden" name="id" value={task.id} />
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+            Decision title
+          </span>
+          <input
+            name="title"
+            required
+            defaultValue={task.title}
+            className="field-input text-[15px] font-semibold"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+            What is this
+          </span>
+          <textarea
+            name="summary"
+            defaultValue={task.summary || ""}
+            rows={2}
+            placeholder="Short context for what this decision is about…"
+            className="field-input text-[15px] leading-relaxed resize-y"
+          />
+        </label>
 
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
@@ -79,6 +84,20 @@ export function TaskWorkspaceForm({
             className="field-input text-[15px] leading-relaxed"
           />
         </label>
+
+        <div className="flex flex-wrap gap-2 text-xs text-muted">
+          <span>{ownerNames || "Unassigned"}</span>
+          {label ? (
+            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 font-semibold text-[var(--accent)]">
+              {label}
+            </span>
+          ) : null}
+          {childTotal > 0 ? (
+            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 font-semibold text-[var(--accent)]">
+              {childDone}/{childTotal} steps done
+            </span>
+          ) : null}
+        </div>
 
         {canManageOwners ? (
           <AssigneeFields people={people} selectedIds={selectedIds} allowNew />
@@ -177,9 +196,15 @@ export function TaskWorkspaceForm({
                     {stepDone ? "✓" : ""}
                   </button>
                   <div className="min-w-0 flex-1">
-                    <p className={`text-[15px] font-semibold leading-snug ${stepDone ? "line-through" : ""}`}>
-                      {step.title}
-                    </p>
+                    <input
+                      defaultValue={step.title}
+                      className="w-full border-0 bg-transparent p-0 text-[15px] font-semibold leading-snug outline-none focus:underline"
+                      onBlur={(event) => {
+                        const next = event.target.value.trim();
+                        if (!next || next === step.title) return;
+                        startTransition(() => renameTask(step.id, next));
+                      }}
+                    />
                     <form action={saveStepNotes} className="mt-2">
                       <input type="hidden" name="id" value={step.id} />
                       <textarea

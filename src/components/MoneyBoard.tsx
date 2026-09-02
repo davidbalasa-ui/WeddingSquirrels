@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   createBudgetItem,
@@ -80,6 +80,7 @@ export function MoneyBoard({
   hideSummary?: boolean;
   profileHrefByContractId?: Record<string, string>;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const highlightContractId = searchParams.get("contract");
   const highlightRef = useRef<HTMLDivElement | null>(null);
@@ -121,6 +122,7 @@ export function MoneyBoard({
                       action={async (fd) => {
                         await saveBudgetItem(fd);
                         setEditingBudgetId(null);
+                        router.refresh();
                       }}
                       className="flex flex-col gap-3"
                     >
@@ -192,6 +194,7 @@ export function MoneyBoard({
                           startTransition(async () => {
                             await deleteBudgetItem(item.id);
                             setEditingBudgetId(null);
+                            router.refresh();
                           })
                         }
                       >
@@ -253,7 +256,10 @@ export function MoneyBoard({
                         onMarkPaid={
                           canEdit
                             ? (paymentId) =>
-                                startTransition(() => markBudgetPaymentPaid(paymentId))
+                                startTransition(async () => {
+                                  await markBudgetPaymentPaid(paymentId);
+                                  router.refresh();
+                                })
                             : undefined
                         }
                       />
@@ -285,6 +291,7 @@ export function MoneyBoard({
                 action={async (fd) => {
                   await createBudgetItem(fd);
                   setAddingBudget(false);
+                  router.refresh();
                 }}
                 className="flex flex-col gap-3"
               >
@@ -366,6 +373,7 @@ export function MoneyBoard({
                       action={async (fd) => {
                         await saveMinorExpense(fd);
                         setEditingMinorId(null);
+                        router.refresh();
                       }}
                       className="flex flex-col gap-3"
                     >

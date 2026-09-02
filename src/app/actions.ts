@@ -147,6 +147,7 @@ export async function saveTaskWorkspace(
   }
 
   const id = String(formData.get("id") || "");
+  const title = String(formData.get("title") || "").trim();
   const planNotes = String(formData.get("planNotes") || "");
   const summary = String(formData.get("summary") || "");
   const amountNeededRaw = String(formData.get("amountNeeded") || "").trim();
@@ -179,8 +180,9 @@ export async function saveTaskWorkspace(
     await prisma.task.update({
       where: { id },
       data: {
+        ...(title ? { title } : {}),
         planNotes,
-        summary: summary || task.summary,
+        summary,
         dueDate: parseDueDate(dueDateRaw),
         amountNeeded: Number.isFinite(amountNeeded as number) ? amountNeeded : null,
         amountSpent: Number.isFinite(amountSpent) ? amountSpent : 0,
@@ -442,6 +444,31 @@ export async function deleteBudgetItem(id: string): Promise<void> {
 export async function markBudgetPaymentPaid(paymentId: string): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
+
+  if (paymentId.includes(":")) {
+    const colonIndex = paymentId.indexOf(":");
+    const contractId = paymentId.slice(0, colonIndex);
+    const syntheticKey = paymentId.slice(colonIndex + 1);
+    if (syntheticKey === "paid") return;
+
+    const contract = await prisma.budgetItem.findUnique({
+      where: { id: contractId },
+      select: { id: true, price: true },
+    });
+    if (!contract) return;
+
+    await prisma.budgetItem.update({
+      where: { id: contractId },
+      data: { amountPaid: contract.price },
+    });
+
+    revalidatePath("/money");
+    revalidatePath("/money/print");
+    revalidatePath("/money/due");
+    revalidatePath("/today");
+    return;
+  }
+
   if (!(await supportsBudgetPayments())) return;
 
   const payment = await prisma.budgetPayment.findUnique({
@@ -513,7 +540,7 @@ function parseFundingStatus(raw: string): "available" | "expected" {
 export async function saveFundingSource(formData: FormData): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
-  if (!(await supportsBudgetFundingSources())) return;
+  if (!(await supportsBudgetFundingSources())) throw new Error("FUNDING_UNAVAILABLE");
 
   const id = String(formData.get("id") || "");
   const label = String(formData.get("label") || "").trim();
@@ -540,7 +567,7 @@ export async function saveFundingSource(formData: FormData): Promise<void> {
 export async function createFundingSource(formData: FormData): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
-  if (!(await supportsBudgetFundingSources())) return;
+  if (!(await supportsBudgetFundingSources())) throw new Error("FUNDING_UNAVAILABLE");
 
   const label = String(formData.get("label") || "").trim();
   const amount = clampMoney(parseMoney(String(formData.get("amount") || "")) ?? 0);
@@ -566,7 +593,7 @@ export async function createFundingSource(formData: FormData): Promise<void> {
 export async function deleteFundingSource(id: string): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
-  if (!(await supportsBudgetFundingSources())) return;
+  if (!(await supportsBudgetFundingSources())) throw new Error("FUNDING_UNAVAILABLE");
 
   await prisma.budgetFundingSource.delete({ where: { id } });
   revalidatePath("/money");
@@ -875,6 +902,8 @@ export async function setTaskShares(taskId: string, pinAccountIds: string[]) {
 function revalidateRequests() {
   revalidatePath("/requests");
   revalidatePath("/today");
+  revalidatePath("/", "layout");
+  refresh();
 }
 
 export async function createRequest(formData: FormData): Promise<void> {
@@ -938,6 +967,7 @@ export async function saveRequest(formData: FormData): Promise<void> {
   const title = String(formData.get("title") || "").trim();
   const noteRaw = formData.get("note");
   const note = noteRaw == null ? undefined : String(noteRaw).trim();
+  const hasTaskField = formData.has("taskId");
   const taskIdRaw = String(formData.get("taskId") || "").trim();
 
   if (!id || !title) return;
@@ -948,7 +978,7 @@ export async function saveRequest(formData: FormData): Promise<void> {
   }
 
   let taskId: string | null = null;
-  if (taskIdRaw) {
+  if (hasTaskField && taskIdRaw) {
     const task = await prisma.task.findFirst({
       where: { id: taskIdRaw, parentId: null },
       select: { id: true },
@@ -962,7 +992,7 @@ export async function saveRequest(formData: FormData): Promise<void> {
     data: {
       title,
       ...(note !== undefined ? { note: note || null } : {}),
-      taskId,
+      ...(hasTaskField ? { taskId } : {}),
     },
   });
 
@@ -1271,6 +1301,10 @@ export async function saveGuestPeople(input: {
     tableNumber?: number | null;
     tableSpot?: string | null;
   }>;
+  street?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
 }): Promise<{ ok: true; id: string } | { ok: false; reason: "forbidden" | "not_found" | "invalid" }> {
   if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
   if (!input.guestId) return { ok: false, reason: "invalid" };
@@ -1340,6 +1374,10 @@ export async function saveGuestPeople(input: {
       where: { id: input.guestId },
       data: {
         ...legacy,
+        street: input.street?.trim() || null,
+        city: input.city?.trim() || null,
+        state: input.state?.trim() || null,
+        zip: input.zip?.trim() || null,
         invitedCount,
         acceptedCount,
       },

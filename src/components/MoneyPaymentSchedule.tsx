@@ -55,7 +55,7 @@ export function MoneyPaymentSchedule({
                 <p className="font-semibold text-[var(--accent)]">
                   {paid ? formatMoney(payment.amount) : formatMoney(remaining)}
                 </p>
-                {!paid && canEdit && onMarkPaid && !payment.id.includes(":") ? (
+                {!paid && canEdit && onMarkPaid ? (
                   <button
                     type="button"
                     className="mt-1 text-xs font-semibold text-[var(--accent)]"
