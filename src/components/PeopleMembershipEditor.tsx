@@ -59,6 +59,10 @@ export function PeopleMembershipEditor({
                   }
                   return;
                 }
+                if (result.profileId !== profileId) {
+                  router.push(`/people/${encodeURIComponent(result.profileId)}`);
+                  return;
+                }
                 router.refresh();
               });
             }}

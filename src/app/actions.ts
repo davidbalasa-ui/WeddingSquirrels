@@ -31,7 +31,14 @@ import {
   type TimelineSchedule,
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
-import { parseProfileId, type PeoplePrimaryList, isPeoplePrimaryList } from "@/lib/people-directory";
+import {
+  parseProfileId,
+  profileIdForContact,
+  profileIdForGuestPerson,
+  profileIdForPerson,
+  type PeoplePrimaryList,
+  isPeoplePrimaryList,
+} from "@/lib/people-directory";
 import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
@@ -2555,7 +2562,9 @@ async function deletePersonRecord(personId: string) {
 export async function savePrimaryList(
   profileId: string,
   list: PeoplePrimaryList,
-): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "invalid" | "not_found" | "protected" }> {
+): Promise<
+  { ok: true; profileId: string } | { ok: false; reason: "forbidden" | "invalid" | "not_found" | "protected" }
+> {
   if (!(await requirePeopleEditor())) return { ok: false, reason: "forbidden" };
   if (!isPeoplePrimaryList(list)) return { ok: false, reason: "invalid" };
 
@@ -2563,44 +2572,56 @@ export async function savePrimaryList(
   if (!parsed) return { ok: false, reason: "invalid" };
 
   if (parsed.kind === "guest") {
-    if (list === "guests") return { ok: true };
+    const currentProfileId = profileIdForGuestPerson(parsed.id);
+    if (list === "guests") return { ok: true, profileId: currentProfileId };
+
     const guestPerson = await prisma.guestPerson.findUnique({ where: { id: parsed.id } });
     if (!guestPerson) return { ok: false, reason: "not_found" };
 
-    await createContactFromSource({
+    const contact = await createContactFromSource({
       name: guestPerson.name,
       directoryLabel: guestPerson.directoryLabel,
       directoryList: "vendors",
       isDayOfContact: guestPerson.isDayOfContact,
     });
     await deleteGuestPersonRecord(parsed.id);
-    revalidatePeople();
-    return { ok: true };
+    const nextProfileId = profileIdForContact(contact.id);
+    revalidatePeople(profileId);
+    revalidatePeople(nextProfileId);
+    return { ok: true, profileId: nextProfileId };
   }
 
   if (parsed.kind === "contact") {
     const contact = await prisma.contact.findUnique({ where: { id: parsed.id } });
     if (!contact) return { ok: false, reason: "not_found" };
 
+    const currentProfileId = profileIdForContact(contact.id);
     if (list === "guests") {
-      await ensureGuestPersonForName(contact.name, {
+      const guestPerson = await ensureGuestPersonForName(contact.name, {
         directoryLabel: contact.directoryLabel,
         isDayOfContact: contact.isDayOfContact,
       });
+      if (!guestPerson) return { ok: false, reason: "not_found" };
+
       await prisma.contact.delete({ where: { id: parsed.id } });
-    } else {
-      await prisma.contact.update({
-        where: { id: parsed.id },
-        data: { directoryList: list },
-      });
+      const nextProfileId = profileIdForGuestPerson(guestPerson.id);
+      revalidatePeople(profileId);
+      revalidatePeople(nextProfileId);
+      return { ok: true, profileId: nextProfileId };
     }
-    revalidatePeople();
-    return { ok: true };
+
+    await prisma.contact.update({
+      where: { id: parsed.id },
+      data: { directoryList: list },
+    });
+    revalidatePeople(currentProfileId);
+    return { ok: true, profileId: currentProfileId };
   }
 
   const person = await prisma.person.findUnique({ where: { id: parsed.id } });
   if (!person) return { ok: false, reason: "not_found" };
 
+  const currentProfileId = profileIdForPerson(person.id);
   if (list === "guests") {
     await ensureGuestPersonForName(person.name, {
       directoryLabel: person.directoryLabel,
@@ -2617,8 +2638,8 @@ export async function savePrimaryList(
     });
   }
 
-  revalidatePeople();
-  return { ok: true };
+  revalidatePeople(currentProfileId);
+  return { ok: true, profileId: currentProfileId };
 }
 
 export async function setDayOfContact(
