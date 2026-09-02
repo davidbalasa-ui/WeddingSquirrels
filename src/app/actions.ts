@@ -442,6 +442,31 @@ export async function deleteBudgetItem(id: string): Promise<void> {
 export async function markBudgetPaymentPaid(paymentId: string): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
+
+  if (paymentId.includes(":")) {
+    const colonIndex = paymentId.indexOf(":");
+    const contractId = paymentId.slice(0, colonIndex);
+    const syntheticKey = paymentId.slice(colonIndex + 1);
+    if (syntheticKey === "paid") return;
+
+    const contract = await prisma.budgetItem.findUnique({
+      where: { id: contractId },
+      select: { id: true, price: true },
+    });
+    if (!contract) return;
+
+    await prisma.budgetItem.update({
+      where: { id: contractId },
+      data: { amountPaid: contract.price },
+    });
+
+    revalidatePath("/money");
+    revalidatePath("/money/print");
+    revalidatePath("/money/due");
+    revalidatePath("/today");
+    return;
+  }
+
   if (!(await supportsBudgetPayments())) return;
 
   const payment = await prisma.budgetPayment.findUnique({
@@ -513,7 +538,7 @@ function parseFundingStatus(raw: string): "available" | "expected" {
 export async function saveFundingSource(formData: FormData): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
-  if (!(await supportsBudgetFundingSources())) return;
+  if (!(await supportsBudgetFundingSources())) throw new Error("FUNDING_UNAVAILABLE");
 
   const id = String(formData.get("id") || "");
   const label = String(formData.get("label") || "").trim();
@@ -540,7 +565,7 @@ export async function saveFundingSource(formData: FormData): Promise<void> {
 export async function createFundingSource(formData: FormData): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
-  if (!(await supportsBudgetFundingSources())) return;
+  if (!(await supportsBudgetFundingSources())) throw new Error("FUNDING_UNAVAILABLE");
 
   const label = String(formData.get("label") || "").trim();
   const amount = clampMoney(parseMoney(String(formData.get("amount") || "")) ?? 0);
@@ -566,7 +591,7 @@ export async function createFundingSource(formData: FormData): Promise<void> {
 export async function deleteFundingSource(id: string): Promise<void> {
   const session = await requireSession();
   if (!session.canSeeBudget || !moneyEditable(session)) throw new Error("FORBIDDEN");
-  if (!(await supportsBudgetFundingSources())) return;
+  if (!(await supportsBudgetFundingSources())) throw new Error("FUNDING_UNAVAILABLE");
 
   await prisma.budgetFundingSource.delete({ where: { id } });
   revalidatePath("/money");

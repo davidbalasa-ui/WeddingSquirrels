@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import {
   createFundingSource,
   deleteFundingSource,
@@ -16,10 +17,12 @@ export function MoneyFundingSummary({
   ledger,
   sources,
   canEdit,
+  canEditFunding,
 }: {
   ledger: MoneyLedgerSummary;
   sources: FundingSourceSnapshot[];
   canEdit: boolean;
+  canEditFunding: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -41,7 +44,7 @@ export function MoneyFundingSummary({
                 : ""}
             </p>
           </div>
-          {canEdit ? (
+          {canEditFunding ? (
             <button
               type="button"
               className="btn-secondary shrink-0 px-3 py-2 text-sm"
@@ -94,7 +97,11 @@ function FundingEditor({
   onClose: () => void;
   canEdit: boolean;
 }) {
+  const router = useRouter();
   const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [revision, setRevision] = useState(0);
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -106,6 +113,20 @@ function FundingEditor({
       document.body.style.touchAction = previousTouchAction;
     };
   }, []);
+
+  function runFundingAction(action: () => Promise<void>, onSuccess?: () => void) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await action();
+        router.refresh();
+        setRevision((value) => value + 1);
+        onSuccess?.();
+      } catch {
+        setError("Couldn't save funding — try again.");
+      }
+    });
+  }
 
   return (
     <div className="overlay-backdrop" role="presentation" onClick={onClose}>
@@ -135,7 +156,9 @@ function FundingEditor({
           </button>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3">
+        {error ? <p className="mt-3 text-sm text-[var(--danger)]">{error}</p> : null}
+
+        <div className="mt-4 flex flex-col gap-3" key={revision}>
           {sources.length === 0 ? (
             <p className="text-sm text-muted">
               No funding sources yet. Add one below to build your total budget.
@@ -145,10 +168,12 @@ function FundingEditor({
           {sources.map((source) => (
             <form
               key={source.id}
-              action={async (fd) => {
-                await saveFundingSource(fd);
-              }}
               className="rounded-2xl border border-line p-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const fd = new FormData(event.currentTarget);
+                runFundingAction(() => saveFundingSource(fd));
+              }}
             >
               <input type="hidden" name="id" value={source.id} />
               <div className="grid gap-2">
@@ -192,9 +217,9 @@ function FundingEditor({
                   <button
                     type="button"
                     className="text-sm font-semibold text-[var(--danger)] underline"
-                    onClick={async () => {
-                      await deleteFundingSource(source.id);
-                    }}
+                    onClick={() =>
+                      runFundingAction(() => deleteFundingSource(source.id), onClose)
+                    }
                   >
                     Remove
                   </button>
@@ -206,11 +231,12 @@ function FundingEditor({
           {canEdit ? (
             adding ? (
               <form
-                action={async (fd) => {
-                  await createFundingSource(fd);
-                  setAdding(false);
-                }}
                 className="rounded-2xl border border-dashed border-line p-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const fd = new FormData(event.currentTarget);
+                  runFundingAction(() => createFundingSource(fd), () => setAdding(false));
+                }}
               >
                 <div className="grid gap-2">
                   <input

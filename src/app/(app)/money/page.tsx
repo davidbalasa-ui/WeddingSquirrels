@@ -42,6 +42,7 @@ export default async function MoneyPage() {
         ledger={data.ledger}
         sources={data.fundingSources}
         canEdit={canEdit}
+        canEditFunding={data.canEditFunding}
       />
       <MoneyDueList
         title={data.overdueItems.length > 0 ? "Overdue payments" : "Due next"}

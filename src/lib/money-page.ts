@@ -22,6 +22,7 @@ export type MoneyPageData = {
   ledger: MoneyLedgerSummary;
   dueItems: MoneyDueItem[];
   overdueItems: MoneyDueItem[];
+  canEditFunding: boolean;
 };
 
 export async function loadVisibleBudgetContracts(
@@ -118,6 +119,7 @@ export async function loadFundingSources(): Promise<FundingSourceSnapshot[]> {
 
 export async function loadMoneyPageData(session: SessionAccount): Promise<MoneyPageData> {
   const canEdit = moneyEditable(session);
+  const canEditFunding = canEdit && (await supportsBudgetFundingSources());
   const [contracts, minor, fundingSources] = await Promise.all([
     loadVisibleBudgetContracts(session),
     loadMinorExpenses(canEdit),
@@ -137,6 +139,7 @@ export async function loadMoneyPageData(session: SessionAccount): Promise<MoneyP
     ledger,
     dueItems,
     overdueItems,
+    canEditFunding,
   };
 }
 

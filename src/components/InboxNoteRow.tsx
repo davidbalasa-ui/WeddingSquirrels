@@ -34,12 +34,25 @@ export function InboxNoteRow({
 }) {
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   const dateLine = inboxDateLine(item.dueDate, item.done);
   const canEditWho = canManageOwners(session) && item.kind !== "buy" ? session.canSeeTasks : session.canSeeShop;
 
-  function handleCheckbox() {
+  function runMutation(action: () => Promise<void>, onSuccess?: () => void) {
+    setMutationError(null);
     startTransition(async () => {
+      try {
+        await action();
+        onSuccess?.();
+      } catch {
+        setMutationError("Couldn't save — try again.");
+      }
+    });
+  }
+
+  function handleCheckbox() {
+    runMutation(async () => {
       if (item.kind === "buy") await toggleShoppingPurchased(item.sourceId);
       else await toggleTaskDone(item.sourceId);
     });
@@ -87,6 +100,7 @@ export function InboxNoteRow({
               {dateLine}
             </p>
           ) : null}
+          {mutationError ? <p className="mt-1 text-xs text-[var(--danger)]">{mutationError}</p> : null}
         </div>
       </div>
 
@@ -98,7 +112,7 @@ export function InboxNoteRow({
           pending={pending}
           onCancel={() => setEditing(false)}
           onSave={(next) => {
-            startTransition(async () => {
+            runMutation(async () => {
               if (item.kind === "buy") {
                 await renameShoppingItem(item.sourceId, next.title);
                 if (canEditWho) {
@@ -120,7 +134,7 @@ export function InboxNoteRow({
             item.kind === "buy"
               ? () => {
                   if (!window.confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
-                  startTransition(async () => {
+                  runMutation(async () => {
                     await deleteShoppingItem(item.sourceId);
                     setEditing(false);
                   });
@@ -289,6 +303,7 @@ export function InboxPackageHeader({
 }) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const dateLine = inboxDateLine(item.dueDate, item.done);
 
@@ -301,15 +316,21 @@ export function InboxPackageHeader({
             {dateLine}
           </p>
         ) : null}
+        {error ? <p className="mt-1 text-xs text-[var(--danger)]">{error}</p> : null}
         {adding ? (
           <form
             className="mt-1 flex gap-2"
             onSubmit={(event) => {
               event.preventDefault();
+              setError(null);
               startTransition(async () => {
-                await createInboxChild(item.sourceId, title);
-                setTitle("");
-                setAdding(false);
+                try {
+                  await createInboxChild(item.sourceId, title);
+                  setTitle("");
+                  setAdding(false);
+                } catch {
+                  setError("Couldn't add item — try again.");
+                }
               });
             }}
           >
