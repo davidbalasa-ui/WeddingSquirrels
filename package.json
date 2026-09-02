@@ -19,6 +19,7 @@
     "db:day-of": "tsx scripts/ensure-day-of.ts",
     "db:budget-payments": "tsx scripts/ensure-budget-payments.ts",
     "db:budget-funding": "tsx scripts/ensure-budget-funding.ts",
+    "db:directory-label": "tsx scripts/ensure-directory-label.ts",
     "icons": "node scripts/generate-icons.mjs",
     "db:reset": "tsx scripts/db-reset.ts",
     "postinstall": "bash scripts/prisma-generate.sh"
