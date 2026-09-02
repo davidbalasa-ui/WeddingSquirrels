@@ -97,7 +97,7 @@ export function GuestPersonCard({
       <article
         className={`card px-3 py-2.5 transition-[border-color,box-shadow] ${
           cardEditing
-            ? "border-[var(--gold)] ring-1 ring-[var(--gold)]/30 shadow-[0_0_0_1px_color-mix(in_srgb,var(--gold)_20%,transparent)]"
+            ? "border-2 border-[var(--gold)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--gold)_28%,transparent)]"
             : ""
         }`}
         aria-busy={pending || undefined}
@@ -148,7 +148,7 @@ export function GuestPersonCard({
             <button
               type="button"
               className={`relative z-10 ml-auto shrink-0 rounded-full p-1 transition-colors ${
-                editing ? "text-[var(--gold)]" : "text-[var(--ink)]/40"
+                editing ? "text-[var(--gold)]" : "text-muted"
               }`}
               onClick={() => {
                 setEditing((value) => {
@@ -204,7 +204,8 @@ export function GuestPersonCard({
           </div>
         </div>
 
-        <button>
+
+        <button
           type="button"
           className="mx-auto mt-1 flex h-[25px] w-[25px] items-center justify-center text-muted"
           onClick={() => setExpanded((value) => !value)}
@@ -215,7 +216,6 @@ export function GuestPersonCard({
             className={`h-[25px] w-[25px] transition-transform ${expanded ? "rotate-180" : ""}`}
           />
         </button>
-
         {expanded ? (
           <div className="mt-2 border-t border-line pt-3">
             <label className="block text-sm">
@@ -237,7 +237,7 @@ export function GuestPersonCard({
             </label>
 
             <div className="mt-3 border-t border-line pt-3">
-              <GuestEditCard guest={guest} editing={cardEditing} />
+              <GuestEditCard guest={guest} editing={cardEditing} personId={person.id} />
             </div>
           </div>
         ) : null}

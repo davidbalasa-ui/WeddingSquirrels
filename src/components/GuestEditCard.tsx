@@ -20,9 +20,11 @@ function toEditablePeople(people: GuestPersonRecord[]): EditablePerson[] {
 export function GuestEditCard({
   guest,
   editing = true,
+  personId,
 }: {
   guest: GuestRecord;
   editing?: boolean;
+  personId?: string;
 }) {
   const router = useRouter();
   const [people, setPeople] = useState<EditablePerson[]>(() => toEditablePeople(guest.people));
@@ -155,13 +157,13 @@ export function GuestEditCard({
           </p>
         ) : null}
 
-        {people.map((person, index) => (
+        {(personId ? people.filter((person) => person.id === personId) : people).map((person, index) => (
           <fieldset key={person.clientKey} className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <legend className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-                {index === 0 ? "Person 1" : `Person ${index + 1}`}
+                {personId ? "Seat" : index === 0 ? "Person 1" : `Person ${index + 1}`}
               </legend>
-              {editing && people.length > 1 ? (
+              {editing && !personId && people.length > 1 ? (
                 <button
                   type="button"
                   className="text-xs font-semibold text-muted hover:text-[var(--danger)]"
@@ -216,9 +218,11 @@ export function GuestEditCard({
 
         {editing ? (
           <>
-            <button type="button" className="text-sm font-semibold text-[var(--accent)]" onClick={addPerson}>
-              + Add person
-            </button>
+            {personId ? null : (
+              <button type="button" className="text-sm font-semibold text-[var(--accent)]" onClick={addPerson}>
+                + Add person
+              </button>
+            )}
 
             <button type="button" disabled={saving} className="btn-primary" onClick={savePeople}>
               {saving ? "Saving…" : "Save guests"}
