@@ -112,12 +112,18 @@ export function ContactsPanel({
 
       {contacts.length === 0 ? (
         <div className="card px-3 py-4 text-sm text-muted">
-          No contacts yet{canEdit ? " — add the first person above" : "."}
+          {dayOfMode
+            ? canEdit
+              ? "No one on the call list yet — add the first contact above."
+              : "No one on the call list yet."
+            : canEdit
+              ? "No contacts yet — add the first person above."
+              : "No contacts yet."}
         </div>
       ) : (
         <section>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
-            Contacts · {contacts.length}
+            {dayOfMode ? "Call list" : "Contacts"} · {contacts.length}
           </p>
           <div className="card divide-y divide-[var(--line)] overflow-hidden">
             {contacts.map((contact) =>
