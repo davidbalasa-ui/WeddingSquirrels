@@ -78,13 +78,19 @@ export function GuestRsvpControls({
 
   return (
     <div className={compact ? "" : "border-t border-line px-4 py-3"}>
-      <div className="grid grid-cols-3 gap-1 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5">
+      <div
+        role="radiogroup"
+        aria-label="RSVP status"
+        className="grid w-full grid-cols-3 gap-1 rounded-full border border-line bg-[var(--bg-elevated)] p-0.5"
+      >
         {RSVP_OPTIONS.map((option) => (
           <button
             key={option.id}
             type="button"
+            role="radio"
+            aria-checked={rsvp === option.id}
             disabled={pending}
-            className={`rounded-full px-2 py-1.5 text-xs font-semibold disabled:opacity-60 ${
+            className={`whitespace-nowrap rounded-full px-2 py-1.5 text-xs font-semibold disabled:opacity-60 ${
               rsvp === option.id
                 ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                 : "text-muted"
