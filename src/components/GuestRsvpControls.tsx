@@ -21,10 +21,13 @@ export function GuestRsvpControls({
   guest,
   people,
   compact = false,
+  inline = false,
 }: {
   guest: GuestRecord;
   people: GuestPersonRecord[];
   compact?: boolean;
+  /** Pills only — hides invited/accepted count fields. */
+  inline?: boolean;
 }) {
   const rsvpGuest = {
     nameLine1: people[0]?.name ?? "",
@@ -100,38 +103,40 @@ export function GuestRsvpControls({
           </button>
         ))}
       </div>
-      <div className={`grid grid-cols-2 gap-3 ${compact ? "mt-2" : "mt-3"}`}>
-        <label className="block text-sm">
-          <span className="mb-1 block text-xs text-muted"># invited</span>
-          <input
-            inputMode="numeric"
-            value={invited}
-            disabled={pending}
-            onChange={(event) => setInvited(event.target.value)}
-            onBlur={commitInvited}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-            }}
-            className="field-input"
-            aria-label="Number invited"
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block text-xs text-muted"># accepted</span>
-          <input
-            inputMode="numeric"
-            value={accepted}
-            disabled={pending}
-            onChange={(event) => setAccepted(event.target.value)}
-            onBlur={commitAccepted}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-            }}
-            className="field-input"
-            aria-label="Number accepted"
-          />
-        </label>
-      </div>
+      {inline ? null : (
+        <div className={`grid grid-cols-2 gap-3 ${compact ? "mt-2" : "mt-3"}`}>
+          <label className="block text-sm">
+            <span className="mb-1 block text-xs text-muted"># invited</span>
+            <input
+              inputMode="numeric"
+              value={invited}
+              disabled={pending}
+              onChange={(event) => setInvited(event.target.value)}
+              onBlur={commitInvited}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+              }}
+              className="field-input"
+              aria-label="Number invited"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block text-xs text-muted"># accepted</span>
+            <input
+              inputMode="numeric"
+              value={accepted}
+              disabled={pending}
+              onChange={(event) => setAccepted(event.target.value)}
+              onBlur={commitAccepted}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+              }}
+              className="field-input"
+              aria-label="Number accepted"
+            />
+          </label>
+        </div>
+      )}
       {error ? <p className="mt-2 text-xs font-semibold text-[var(--danger)]">{error}</p> : null}
     </div>
   );
