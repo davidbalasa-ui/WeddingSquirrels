@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { PersonAvatar } from "@/components/PersonAvatar";
+import { PeopleRoleEditor } from "@/components/PeopleRoleEditor";
 import { formatMoney } from "@/lib/money";
 import type { PeopleProfile } from "@/lib/people-profile";
 
@@ -13,7 +16,10 @@ function ContactLink({
   value: string;
 }) {
   return (
-    <a href={href} className="card flex min-h-[3.25rem] items-center justify-between px-4 py-3">
+    <a
+      href={href}
+      className="flex items-center justify-between gap-2 border-b border-line px-3 py-2 transition-colors hover:bg-[var(--accent-soft)]/30 last:border-b-0"
+    >
       <span>
         <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
           {label}
@@ -29,24 +35,26 @@ function ContactLink({
 
 export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
   return (
-    <div className="flex flex-col gap-5">
-      <section className="card flex items-center gap-4 p-5">
-        <PersonAvatar name={profile.name} photoSrc={profile.photoSrc} size="lg" />
-        <div className="min-w-0">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl leading-tight">
+    <div className="flex flex-col gap-4">
+      <section className="card flex items-center gap-3 px-3 py-3">
+        <PersonAvatar name={profile.name} photoSrc={profile.photoSrc} size="md" />
+        <div className="min-w-0 flex-1">
+          <h2 className="font-[family-name:var(--font-display)] text-xl leading-tight">
             {profile.name}
           </h2>
-          {profile.subtitle ? <p className="mt-1 text-sm text-muted">{profile.subtitle}</p> : null}
-          {profile.roles.length > 0 ? (
-            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
-              {profile.roles.join(" · ")}
-            </p>
+          {profile.subtitle && !profile.directoryLabel ? (
+            <p className="mt-0.5 text-sm text-muted">{profile.subtitle}</p>
           ) : null}
+          <PeopleRoleEditor
+            profileId={profile.profileId}
+            label={profile.directoryLabel ?? profile.roles[0] ?? null}
+            canEdit={profile.canEditLabel}
+          />
         </div>
       </section>
 
       {profile.phone || profile.email ? (
-        <section className="flex flex-col gap-2">
+        <section className="card divide-y divide-[var(--line)] overflow-hidden">
           {profile.phone ? (
             <ContactLink href={`tel:${profile.phone}`} label="Phone" value={profile.phone} />
           ) : null}
@@ -63,11 +71,11 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
           </p>
           <div className="divide-y divide-[var(--line)] border-y border-line">
             {profile.openTasks.map((task) => (
-              <Link
-                key={task.id}
-                href={task.href}
-                className="flex min-h-[4rem] items-center justify-between gap-3 py-3 transition-colors hover:bg-[var(--accent-soft)]/30"
-              >
+            <Link
+              key={task.id}
+              href={task.href}
+              className="flex items-center justify-between gap-2 px-3 py-2 transition-colors hover:bg-[var(--accent-soft)]/30"
+            >
                 <span className="min-w-0">
                   <span className="block font-semibold leading-tight">{task.title}</span>
                   {task.dueLabel ? (
@@ -88,12 +96,12 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
             Day-of responsibilities
           </p>
-          <div className="flex flex-col gap-2">
+          <div className="card divide-y divide-[var(--line)] overflow-hidden">
             {profile.assignments.map((assignment) => (
-              <article key={assignment.title} className="card p-4">
-                <p className="font-semibold">{assignment.title}</p>
+              <article key={assignment.title} className="px-3 py-2">
+                <p className="font-semibold leading-snug">{assignment.title}</p>
                 {assignment.notes ? (
-                  <p className="mt-1 whitespace-pre-line text-sm text-muted">{assignment.notes}</p>
+                  <p className="mt-0.5 line-clamp-2 text-sm text-muted">{assignment.notes}</p>
                 ) : null}
               </article>
             ))}
@@ -108,11 +116,11 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
           </p>
           <div className="divide-y divide-[var(--line)] border-y border-line">
             {profile.relatedLinks.map((link) => (
-              <Link
-                key={link.href + link.label}
-                href={link.href}
-                className="flex min-h-[4rem] items-center justify-between gap-3 py-3 transition-colors hover:bg-[var(--accent-soft)]/30"
-              >
+            <Link
+              key={link.href + link.label}
+              href={link.href}
+              className="flex items-center justify-between gap-2 px-3 py-2 transition-colors hover:bg-[var(--accent-soft)]/30"
+            >
                 <span className="min-w-0">
                   <span className="block font-semibold leading-tight">{link.label}</span>
                   <span className="mt-0.5 block text-sm text-muted">{link.detail}</span>
@@ -133,11 +141,11 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
           </p>
           <div className="divide-y divide-[var(--line)] border-y border-line">
             {profile.budgetContracts.map((contract) => (
-              <Link
-                key={contract.id}
-                href={contract.href}
-                className="flex min-h-[4rem] items-center justify-between gap-3 py-3 transition-colors hover:bg-[var(--accent-soft)]/30"
-              >
+            <Link
+              key={contract.id}
+              href={contract.href}
+              className="flex items-center justify-between gap-2 px-3 py-2 transition-colors hover:bg-[var(--accent-soft)]/30"
+            >
                 <span className="min-w-0">
                   <span className="block font-semibold leading-tight">{contract.name}</span>
                   <span className="mt-0.5 block text-sm text-muted">
@@ -158,7 +166,7 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
             Guest details
           </p>
-          <div className="card p-4 text-sm">
+          <div className="card px-3 py-3 text-sm">
             <p className="font-semibold">{profile.guestInfo.household}</p>
             <p className="mt-2 text-muted">RSVP · {profile.guestInfo.rsvpStatus}</p>
             {profile.guestInfo.table ? (
@@ -173,7 +181,7 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
             Wedding weekend
           </p>
-          <div className="card p-4 text-sm">
+          <div className="card px-3 py-3 text-sm">
             {profile.stayLabel ? <p>Staying · {profile.stayLabel}</p> : null}
             {profile.mealStatus ? (
               <p className={profile.stayLabel ? "mt-2 text-muted" : undefined}>
