@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import { importGuestRsvpCsv, syncBundledGuestRsvp } from "@/app/actions";
+import { applyBundledGuestSeating, importGuestRsvpCsv, syncBundledGuestRsvp } from "@/app/actions";
 
 export function GuestRsvpSync() {
   const router = useRouter();
@@ -51,6 +51,27 @@ export function GuestRsvpSync() {
           onClick={() => runSync()}
         >
           {pending ? "Syncing…" : "Sync RSVPs"}
+        </button>
+        <button
+          type="button"
+          className="btn-secondary px-4 py-2 text-sm disabled:opacity-60"
+          disabled={pending}
+          onClick={() => {
+            setMessage(null);
+            startTransition(async () => {
+              const result = await applyBundledGuestSeating();
+              if (!result.ok) {
+                setMessage("Couldn’t apply seating — try again.");
+                return;
+              }
+              setMessage(
+                `Seating applied (${result.updated} updated, ${result.cleared} cleared, ${result.created} added).`,
+              );
+              router.refresh();
+            });
+          }}
+        >
+          {pending ? "Working…" : "Apply seating"}
         </button>
         <button
           type="button"

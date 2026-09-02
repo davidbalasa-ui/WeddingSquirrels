@@ -166,7 +166,7 @@ test("groupGuestsByTable sorts tables and seats", () => {
 
   assert.deepEqual(
     groups.map((group) => group.label),
-    ["Table 2", "Table 5", "Table 10", "No table"],
+    ["South 2", "South 5", "North 5", "No table"],
   );
   assert.deepEqual(
     groups[1]?.rows.map((row) => row.name),

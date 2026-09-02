@@ -1471,6 +1471,17 @@ async function requireGuestRsvpImporter() {
   }
 }
 
+export async function applyBundledGuestSeating(): Promise<
+  | { ok: true; updated: number; cleared: number; created: number }
+  | { ok: false; reason: "forbidden" }
+> {
+  if (!(await requireGuestRsvpImporter())) return { ok: false, reason: "forbidden" };
+  const { applyGuestSeating } = await import("@/lib/apply-guest-seating");
+  const result = await applyGuestSeating(prisma);
+  revalidateGuests();
+  return { ok: true, ...result };
+}
+
 export async function syncBundledGuestRsvp(): Promise<GuestRsvpImportWriteResult> {
   if (!(await requireGuestRsvpImporter())) return { ok: false, reason: "forbidden" };
 
