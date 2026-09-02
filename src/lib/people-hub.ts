@@ -4,15 +4,24 @@ import { guestInclude, mapGuestRecord, type GuestRecord } from "@/lib/guests";
 import {
   buildDirectoryEntries,
   filterEntriesByTab,
+  resolveIsDayOfContact,
   type DirectoryEntry,
   type PeopleTab,
 } from "@/lib/people-directory";
+
+export type DayOfContactRecord = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  photoData: string | null;
+};
 import type { SessionAccount } from "@/lib/types";
 
 export type PeopleHubData = {
   entries: DirectoryEntry[];
   vendorEntries: DirectoryEntry[];
-  dayOfEntries: DirectoryEntry[];
+  dayOfContacts: DayOfContactRecord[];
   guests: GuestRecord[];
   guestReport: GuestRsvpReport;
   tabCounts: Record<PeopleTab, number>;
@@ -100,18 +109,31 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
   );
 
   const vendorEntries = filterEntriesByTab(entries, "vendors");
-  const dayOfEntries = filterEntriesByTab(entries, "day-of");
+  const dayOfContacts = contacts
+    .filter((contact) =>
+      resolveIsDayOfContact({
+        isDayOfContact: contact.isDayOfContact,
+        directoryList: contact.directoryList,
+      }),
+    )
+    .map((contact) => ({
+      id: contact.id,
+      name: contact.name,
+      phone: contact.phone,
+      email: contact.email,
+      photoData: contact.photoData,
+    }));
 
   return {
     entries,
     vendorEntries,
-    dayOfEntries,
+    dayOfContacts,
     guests: guestRecords,
     guestReport,
     tabCounts: {
       guests: guestRecords.length,
       vendors: vendorEntries.length,
-      "day-of": dayOfEntries.length,
+      "day-of": dayOfContacts.length,
     },
   };
 }

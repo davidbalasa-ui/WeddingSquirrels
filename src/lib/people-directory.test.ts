@@ -100,6 +100,7 @@ test("day-of tab only includes guests or vendors with the checkbox on", () => {
 
 test("resolvePrimaryList only assigns vendors/guests when explicit", () => {
   assert.equal(resolvePrimaryList({ kind: "contact", directoryList: null }), "vendors");
+  assert.equal(resolvePrimaryList({ kind: "contact", directoryList: "day-of" }), null);
   assert.equal(resolvePrimaryList({ kind: "person", directoryList: null }), null);
   assert.equal(resolvePrimaryList({ kind: "person", directoryList: "guests" }), "guests");
 });

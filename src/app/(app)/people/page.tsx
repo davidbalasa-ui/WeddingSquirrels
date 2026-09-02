@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { ContactsPanel } from "@/components/ContactsPanel";
 import { GuestList } from "@/components/GuestList";
 import { GuestRsvpReport } from "@/components/GuestRsvpReport";
 import { GuestRsvpSync } from "@/components/GuestRsvpSync";
@@ -56,7 +57,7 @@ export default async function PeopleHubPage({
           <div className="flex flex-col gap-3">
             <GuestRsvpReport report={data.guestReport} />
             {session.isMaster ? <GuestRsvpSync /> : null}
-            <GuestList guests={data.guests} canEdit={canEditGuests} canEditDayOf={canEditDayOf} />
+            <GuestList guests={data.guests} canEdit={canEditGuests} />
           </div>
         ) : (
           <div className="card px-3 py-4 text-sm text-muted">Guest list isn’t visible for this PIN.</div>
@@ -68,7 +69,6 @@ export default async function PeopleHubPage({
           entries={data.vendorEntries}
           emptyLabel="No vendors yet"
           searchPlaceholder="Search vendors"
-          canEditDayOf={canEditDayOf}
         />
       ) : null}
 
@@ -76,14 +76,9 @@ export default async function PeopleHubPage({
         session.canSeeTimeline ? (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
-              Everyone checked “On day-of call list” on Guest list or Vendors.
+              People to call on the big day — add a photo, phone number, and email for each contact.
             </p>
-            <PeopleEntryList
-              entries={data.dayOfEntries}
-              emptyLabel="No one on the day-of call list yet"
-              searchPlaceholder="Search day-of contacts"
-              canEditDayOf={canEditDayOf}
-            />
+            <ContactsPanel contacts={data.dayOfContacts} canEdit={canEditDayOf} dayOfMode />
             {canEditDayOf ? (
               <PeopleTabFooterLink
                 href="/people/responsibilities"

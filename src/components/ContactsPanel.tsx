@@ -75,9 +75,12 @@ function ContactRow({
 export function ContactsPanel({
   contacts,
   canEdit,
+  dayOfMode = false,
 }: {
   contacts: ContactView[];
   canEdit: boolean;
+  /** New contacts are added to the day-of call list with photo support. */
+  dayOfMode?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<ContactView | "new" | null>(null);
@@ -91,7 +94,7 @@ export function ContactsPanel({
           className="btn-primary w-full"
           onClick={() => setEditing((current) => (current === "new" ? null : "new"))}
         >
-          Add person
+          {dayOfMode ? "Add day-of contact" : "Add person"}
         </button>
       ) : null}
 
@@ -100,6 +103,7 @@ export function ContactsPanel({
           <ContactForm
             key="new"
             contact={null}
+            dayOfMode={dayOfMode}
             onDone={() => setEditing(null)}
             onCancel={() => setEditing(null)}
           />
@@ -118,12 +122,13 @@ export function ContactsPanel({
           <div className="card divide-y divide-[var(--line)] overflow-hidden">
             {contacts.map((contact) =>
               editing !== "new" && editing?.id === contact.id ? (
-                <ContactForm
-                  key={contact.id}
-                  contact={contact}
-                  onDone={() => setEditing(null)}
-                  onCancel={() => setEditing(null)}
-                />
+                  <ContactForm
+                    key={contact.id}
+                    contact={contact}
+                    dayOfMode={dayOfMode}
+                    onDone={() => setEditing(null)}
+                    onCancel={() => setEditing(null)}
+                  />
               ) : (
                 <ContactRow
                   key={contact.id}
@@ -150,10 +155,12 @@ export function ContactsPanel({
 
 function ContactForm({
   contact,
+  dayOfMode = false,
   onDone,
   onCancel,
 }: {
   contact: ContactView | null;
+  dayOfMode?: boolean;
   onDone: () => void;
   onCancel: () => void;
 }) {
@@ -196,8 +203,10 @@ function ContactForm({
       }}
     >
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
-        {contact ? "Edit person" : "New person"}
+        {contact ? "Edit person" : dayOfMode ? "New day-of contact" : "New person"}
       </p>
+
+      {dayOfMode && !contact ? <input type="hidden" name="isDayOfContact" value="on" /> : null}
 
       {photoData ? (
         <div className="flex items-center gap-3">

@@ -2359,19 +2359,21 @@ export async function createContact(formData: FormData): Promise<void> {
   if (!name) return;
 
   const last = await prisma.contact.findFirst({ orderBy: { sortOrder: "desc" } });
+  const onDayOf = formData.get("isDayOfContact") === "on";
   await prisma.contact.create({
     data: {
       name,
       phone: phone || null,
       email: email || null,
       photoData,
-      directoryList: "vendors",
-      isDayOfContact: formData.get("isDayOfContact") === "on",
+      directoryList: onDayOf ? "day-of" : "vendors",
+      isDayOfContact: onDayOf,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });
 
   revalidateDayData();
+  revalidatePeople();
 }
 
 export async function saveContact(formData: FormData): Promise<void> {
@@ -2399,6 +2401,7 @@ export async function saveContact(formData: FormData): Promise<void> {
   });
 
   revalidateDayData();
+  revalidatePeople();
 }
 
 export async function saveDirectoryLabel(profileId: string, label: string): Promise<void> {
@@ -2762,6 +2765,7 @@ export async function deleteContact(contactId: string): Promise<void> {
     return;
   }
   revalidateDayData();
+  revalidatePeople();
 }
 
 /* ------------------------------ Day-of task assignments ------------------------------ */
