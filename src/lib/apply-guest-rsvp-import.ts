@@ -84,6 +84,33 @@ async function upsertHousehold(
           });
         }
       }
+    } else {
+      const keepIds = new Set<string>();
+      for (let index = 0; index < people.length; index += 1) {
+        const next = people[index];
+        const existing = existingPeople[index];
+        if (existing) {
+          await client.guestPerson.update({
+            where: { id: existing.id },
+            data: { name: next.name, sortOrder: next.sortOrder },
+          });
+          keepIds.add(existing.id);
+        } else {
+          const created = await client.guestPerson.create({
+            data: {
+              guestId: guest.id,
+              name: next.name,
+              sortOrder: next.sortOrder,
+            },
+          });
+          keepIds.add(created.id);
+        }
+      }
+      for (const existing of existingPeople) {
+        if (!keepIds.has(existing.id)) {
+          await client.guestPerson.delete({ where: { id: existing.id } });
+        }
+      }
     }
 
     return "updated";

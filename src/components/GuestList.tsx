@@ -117,6 +117,14 @@ export function GuestList({
   );
 }
 
+function personPhotoForRow(guests: GuestRecord[], personId: string): string | null {
+  for (const guest of guests) {
+    const person = guest.people.find((row) => row.id === personId);
+    if (person?.photoData) return person.photoData;
+  }
+  return null;
+}
+
 function GuestTableView({ guests, query }: { guests: GuestRecord[]; query: string }) {
   const groups = groupGuestsByTable(guests);
 
@@ -148,7 +156,11 @@ function GuestTableView({ guests, query }: { guests: GuestRecord[]; query: strin
           <div className="card divide-y divide-[var(--line)] overflow-hidden">
             {group.rows.map((row) => (
               <article key={row.personId} className="flex items-center gap-2 px-3 py-2">
-                <PersonAvatar name={row.name} size="sm" />
+                <PersonAvatar
+                  name={row.name}
+                  photoSrc={personPhotoForRow(guests, row.personId)}
+                  size="sm"
+                />
                 <p className="min-w-0 flex-1 text-[15px] font-semibold leading-snug">{row.name}</p>
                 {row.tableSpot ? (
                   <p className="shrink-0 text-xs font-semibold text-[var(--accent)]">

@@ -136,6 +136,17 @@ test("findBestGuestMatch prefers the household with more overlapping names", () 
   assert.equal(findBestGuestMatch(household, [otherGuest, hammondGuest]), hammondGuest);
 });
 
+test("groupCsvRowsByHousehold keeps full Olaffson household", () => {
+  const rows = parseGuestRsvpCsv(readFileSync(new URL("../../data/guest-rsvp.csv", import.meta.url), "utf8"));
+  const olaffson = groupCsvRowsByHousehold(rows).find((household) =>
+    household.party.includes("Agust Olaffson"),
+  );
+  assert.ok(olaffson);
+  assert.equal(olaffson.people.length, 5);
+  assert.ok(olaffson.people.some((person) => person.displayName.includes("Finn")));
+  assert.ok(olaffson.people.some((person) => person.displayName.includes("Siggi")));
+});
+
 test("parseGuestRsvpCsv reads quoted party names", () => {
   const csv = readFileSync(
     "/home/ubuntu/.cursor/projects/workspace/uploads/rsvp_03ab.csv",

@@ -8,6 +8,7 @@ import {
 import {
   buildDirectoryEntries,
   filterEntriesByTab,
+  namesMatch,
   resolveIsDayOfContact,
   type DirectoryEntry,
   type PeopleTab,
@@ -43,6 +44,22 @@ function householdLabel(guest: ReturnType<typeof mapGuestRecord>) {
   const city = guest.city?.trim();
   if (people && city) return `${people} · ${city}`;
   return people || city || "Guest household";
+}
+
+function attachContactPhotos(
+  guests: GuestRecord[],
+  contacts: Array<{ name: string; photoData: string | null }>,
+): GuestRecord[] {
+  if (contacts.length === 0) return guests;
+  return guests.map((guest) => ({
+    ...guest,
+    people: guest.people.map((person) => {
+      if (person.photoData) return person;
+      const contact = contacts.find((row) => namesMatch(row.name, person.name));
+      if (!contact?.photoData) return person;
+      return { ...person, photoData: contact.photoData };
+    }),
+  }));
 }
 
 export async function loadPeopleHubData(session: SessionAccount): Promise<PeopleHubData> {
@@ -91,7 +108,10 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
       : Promise.resolve([]),
   ]);
 
-  const guestRecords = guests.map((guest) => mapGuestRecord(guest));
+  const guestRecords = attachContactPhotos(
+    guests.map((guest) => mapGuestRecord(guest)),
+    contacts,
+  );
   const guestPeople = guests.flatMap((guest) => {
     const mapped = mapGuestRecord(guest);
     const address = guestAddressLine(mapped) || null;

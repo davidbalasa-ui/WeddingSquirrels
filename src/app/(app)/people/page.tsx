@@ -17,7 +17,7 @@ function defaultFilter(session: {
   canSeeGuests: boolean;
   canSeeTimeline: boolean;
 }): PeopleTab {
-  if (session.canSeeGuests) return "all";
+  if (session.canSeeGuests) return "guests";
   if (session.canSeeTimeline) return "day-of";
   return "vendors";
 }
