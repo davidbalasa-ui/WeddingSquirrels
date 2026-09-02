@@ -169,8 +169,10 @@ export function DayNowNext({
   }, [liveSource]);
 
   const hasContent = snapshot.now || snapshot.next || snapshot.upcoming.length > 0;
-  const showNowNextCard = snapshot.now || (snapshot.next && snapshot.next.id !== snapshot.now?.id);
-  const nextEmphasis: "now" | "next" = snapshot.now ? "next" : "now";
+  const nowBlock = snapshot.now;
+  const nextBlock = snapshot.next;
+  const showNowNextCard = nowBlock || (nextBlock && nextBlock.id !== nowBlock?.id);
+  const nextEmphasis: "now" | "next" = nowBlock ? "next" : "now";
 
   return (
     <div className="flex flex-col gap-4">
@@ -244,9 +246,9 @@ export function DayNowNext({
 
       {showNowNextCard ? (
         <section className="card divide-y divide-[var(--line)] overflow-hidden">
-          {snapshot.now ? <BlockRow block={snapshot.now} emphasis="now" /> : null}
-          {snapshot.next && snapshot.next.id !== snapshot.now?.id ? (
-            <BlockRow block={snapshot.next} emphasis={nextEmphasis} />
+          {nowBlock ? <BlockRow block={nowBlock} emphasis="now" /> : null}
+          {nextBlock && nextBlock.id !== nowBlock?.id ? (
+            <BlockRow block={nextBlock} emphasis={nextEmphasis} />
           ) : null}
         </section>
       ) : null}
