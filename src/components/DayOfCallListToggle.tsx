@@ -9,11 +9,14 @@ export function DayOfCallListToggle({
   checked,
   disabled,
   compact,
+  personLabel,
 }: {
   profileId: string;
   checked: boolean;
   disabled?: boolean;
   compact?: boolean;
+  /** Compact list rows: show a short name instead of repeating the full call-list phrase. */
+  personLabel?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -24,18 +27,22 @@ export function DayOfCallListToggle({
     setValue(checked);
   }, [checked]);
 
+  const visibleLabel = personLabel ?? "On day-of call list";
+  const checkboxLabel = personLabel ? `On day-of call list, ${personLabel}` : "On day-of call list";
+
   return (
     <div className={compact ? undefined : "flex flex-col gap-1"}>
       <label
-        className={`flex items-center gap-2 text-sm ${disabled ? "text-muted" : ""}`}
+        className={`flex items-center gap-2 ${compact ? "text-xs" : "text-sm"} ${disabled ? "text-muted" : ""}`}
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
         <input
           type="checkbox"
-          className="h-4 w-4 rounded border-line"
+          className="h-4 w-4 shrink-0 rounded border-line"
           checked={value}
           disabled={disabled || pending}
+          aria-label={checkboxLabel}
           onChange={(event) => {
             const next = event.target.checked;
             setError(null);
@@ -51,7 +58,7 @@ export function DayOfCallListToggle({
             });
           }}
         />
-        <span>On day-of call list</span>
+        <span className="whitespace-nowrap">{visibleLabel}</span>
       </label>
       {error ? <p className="text-xs text-[var(--danger)]">{error}</p> : null}
       {pending ? <p className="text-xs text-muted">Saving…</p> : null}
