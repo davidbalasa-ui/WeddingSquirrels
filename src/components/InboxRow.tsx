@@ -11,6 +11,7 @@ import {
   deleteRequest,
   deleteShoppingItem,
   renameRequest,
+  saveRequest,
   renameShoppingItem,
   renameTask,
   reopenRequest,
@@ -45,6 +46,7 @@ function formatTime(iso: string) {
 export function InboxRow({
   item,
   session,
+  tasks,
   expanded,
   onToggleExpand,
   onAskSomeone,
@@ -245,7 +247,7 @@ export function InboxRow({
               </button>
               {menuOpen ? (
                 <div className="absolute right-0 top-full z-20 mt-0.5 min-w-[10rem] border border-line bg-[var(--bg-elevated)] py-1 shadow-lg">
-                  {item.kind !== "ask" ? (
+                  {item.kind !== "ask" || askPerms?.edit ? (
                     <button
                       type="button"
                       className="block w-full px-3 py-2 text-left text-sm font-semibold hover:bg-[var(--surface)]"
@@ -338,13 +340,48 @@ export function InboxRow({
           <div className="mt-2 border-t border-line pt-2">
             <AskThread messages={item.askData.messages} sessionId={session.id} />
 
-            {item.linkedTaskId && item.linkedTaskTitle && session.canSeeTasks ? (
+            {item.linkedTaskId && item.linkedTaskTitle && session.canSeeTasks && !askPerms?.edit ? (
               <Link
                 href={`/work/${item.linkedTaskId}`}
                 className="mt-2 block text-sm font-semibold text-[var(--accent)]"
               >
                 Related: {item.linkedTaskTitle}
               </Link>
+            ) : null}
+
+            {askPerms?.edit ? (
+              <form action={saveRequest} className="mt-2 flex flex-col gap-2">
+                <input type="hidden" name="id" value={item.sourceId} />
+                <input
+                  name="title"
+                  required
+                  defaultValue={item.title}
+                  className="field-input text-sm"
+                  aria-label="Ask title"
+                />
+                <textarea
+                  name="note"
+                  rows={2}
+                  defaultValue={item.askData.note ?? ""}
+                  placeholder="Details…"
+                  className="field-input resize-y text-sm"
+                />
+                {session.canSeeTasks ? (
+                  <select name="taskId" defaultValue={item.linkedTaskId ?? ""} className="field-input text-sm">
+                    <option value="">No related decision</option>
+                    {tasks.map((task) => (
+                      <option key={task.id} value={task.id}>
+                        {task.title}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input type="hidden" name="taskId" value={item.linkedTaskId ?? ""} />
+                )}
+                <button type="submit" className="btn-secondary self-start min-h-[44px]">
+                  Save
+                </button>
+              </form>
             ) : null}
 
             {item.declined && item.askData.declineNote ? (

@@ -875,6 +875,8 @@ export async function setTaskShares(taskId: string, pinAccountIds: string[]) {
 function revalidateRequests() {
   revalidatePath("/requests");
   revalidatePath("/today");
+  revalidatePath("/", "layout");
+  refresh();
 }
 
 export async function createRequest(formData: FormData): Promise<void> {
@@ -938,6 +940,7 @@ export async function saveRequest(formData: FormData): Promise<void> {
   const title = String(formData.get("title") || "").trim();
   const noteRaw = formData.get("note");
   const note = noteRaw == null ? undefined : String(noteRaw).trim();
+  const hasTaskField = formData.has("taskId");
   const taskIdRaw = String(formData.get("taskId") || "").trim();
 
   if (!id || !title) return;
@@ -948,7 +951,7 @@ export async function saveRequest(formData: FormData): Promise<void> {
   }
 
   let taskId: string | null = null;
-  if (taskIdRaw) {
+  if (hasTaskField && taskIdRaw) {
     const task = await prisma.task.findFirst({
       where: { id: taskIdRaw, parentId: null },
       select: { id: true },
@@ -962,7 +965,7 @@ export async function saveRequest(formData: FormData): Promise<void> {
     data: {
       title,
       ...(note !== undefined ? { note: note || null } : {}),
-      taskId,
+      ...(hasTaskField ? { taskId } : {}),
     },
   });
 
