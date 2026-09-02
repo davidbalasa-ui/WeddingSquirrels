@@ -78,7 +78,9 @@ export function GuestList({
       ) : view === "table" ? (
         <GuestTableView guests={guestsForTable} query={query} />
       ) : filteredPeople.length === 0 ? (
-        <div className="card px-3 py-4 text-sm text-muted">No guests matching your search.</div>
+        <div className="card px-3 py-4 text-sm text-muted">
+          {query ? "No guests matching your search." : "No guests matching those filters."}
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
           {filteredPeople.map(({ person, guest }) => (

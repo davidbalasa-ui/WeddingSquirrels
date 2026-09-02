@@ -102,7 +102,6 @@ export function GuestPersonCard({
         }`}
         aria-busy={pending || undefined}
       >
-        {/* Row 1: avatar, centered name, feather */}
         <div className="relative flex items-center">
           <div className="relative z-10 shrink-0">
             {cardEditing ? (
@@ -170,7 +169,6 @@ export function GuestPersonCard({
           )}
         </div>
 
-        {/* Row 2: role | attendance */}
         <div className="mt-2 grid grid-cols-2 divide-x divide-[var(--line)] border-y border-[var(--line)]">
           <div className="flex items-center justify-center px-2 py-2">
             {cardEditing ? (
@@ -206,8 +204,7 @@ export function GuestPersonCard({
           </div>
         </div>
 
-        {/* Expand toggle */}
-        <button
+        <button>
           type="button"
           className="mx-auto mt-1 flex h-[25px] w-[25px] items-center justify-center text-muted"
           onClick={() => setExpanded((value) => !value)}
@@ -219,7 +216,6 @@ export function GuestPersonCard({
           />
         </button>
 
-        {/* Extended options */}
         {expanded ? (
           <div className="mt-2 border-t border-line pt-3">
             <label className="block text-sm">
