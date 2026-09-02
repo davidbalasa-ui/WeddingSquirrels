@@ -77,6 +77,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
       householdLabel: householdLabel(mapped),
       directoryLabel: person.directoryLabel ?? null,
       isDayOfContact: person.isDayOfContact,
+      photoData: person.photoData ?? null,
       address,
       rsvpLabel,
       tableLabel:

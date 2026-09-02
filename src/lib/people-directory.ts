@@ -220,6 +220,7 @@ export type RawPeopleDirectoryInput = {
     householdLabel: string;
     directoryLabel?: string | null;
     isDayOfContact?: boolean | null;
+    photoData?: string | null;
     address?: string | null;
     rsvpLabel?: string | null;
     tableLabel?: string | null;
@@ -280,7 +281,7 @@ export function buildDirectoryEntries(input: RawPeopleDirectoryInput): Directory
       profileId: profileIdForGuestPerson(guest.id),
       name: guest.name,
       subtitle: guest.householdLabel,
-      photoSrc: null,
+      photoSrc: guest.photoData?.trim() || null,
       group,
       roles,
       phone: null,

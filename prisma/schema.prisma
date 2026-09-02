@@ -168,6 +168,7 @@ model Guest {
   id                 String        @id @default(cuid())
   nameLine1          String
   nameLine2          String?
+  phone              String?
   street             String?
   city               String?
   state              String?
@@ -191,6 +192,10 @@ model GuestPerson {
   name        String
   directoryLabel String?
   isDayOfContact Boolean @default(false)
+  /// pending | attending | not_attending
+  rsvpStatus  String  @default("pending")
+  /// "data:image/jpeg;base64,..." downscaled on the client
+  photoData   String?
   tableNumber Int?
   tableSpot   String?
   sortOrder   Int     @default(0)
@@ -204,6 +209,8 @@ model GuestGift {
   guest       Guest    @relation(fields: [guestId], references: [id], onDelete: Cascade)
   description String   @default("")
   thanked     Boolean  @default(false)
+  thankYouWritten Boolean @default(false)
+  thankYouSent    Boolean @default(false)
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

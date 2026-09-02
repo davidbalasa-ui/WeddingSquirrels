@@ -22,6 +22,7 @@
     "db:directory-label": "tsx scripts/ensure-directory-label.ts",
     "db:directory-list": "tsx scripts/ensure-directory-list.ts",
     "db:directory-schema": "tsx scripts/ensure-directory-schema.ts",
+    "db:guest-person-schema": "tsx scripts/ensure-guest-person-schema.ts",
     "icons": "node scripts/generate-icons.mjs",
     "db:reset": "tsx scripts/db-reset.ts",
     "postinstall": "bash scripts/prisma-generate.sh"

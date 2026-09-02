@@ -10,9 +10,8 @@ import {
   rsvpStatusLabel,
 } from "@/lib/guest-gifts";
 import type { GuestRecord } from "@/lib/guests";
-import { normalizePersonName, profileIdForGuestPerson } from "@/lib/people-directory";
-import { GuestEditCard } from "@/components/GuestEditCard";
-import { GuestRsvpControls } from "@/components/GuestRsvpControls";
+import { normalizePersonName } from "@/lib/people-directory";
+import { GuestHouseholdCard } from "@/components/GuestHouseholdCard";
 import { PersonAvatar } from "@/components/PersonAvatar";
 
 type Mode = "list" | "table";
@@ -52,7 +51,6 @@ export function GuestList({
 }) {
   const [mode, setMode] = useState<Mode>("list");
   const [query, setQuery] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
 
   const filtered = useMemo(
     () => guests.filter((guest) => matchesGuestQuery(guest, query)),
@@ -106,97 +104,9 @@ export function GuestList({
         <div className="card px-3 py-4 text-sm text-muted">No guests matching your search.</div>
       ) : (
         <div className="card divide-y divide-[var(--line)] overflow-hidden">
-          {filtered.map((guest) => {
-            const title = householdTitle(guest);
-            const address = guestAddressLine(guest);
-            const seating = guestSeatingSummary({ people: guest.people });
-            const profileId = guest.people.find((person) => person.id)?.id;
-            const profileHref = profileId
-              ? `/people/${encodeURIComponent(profileIdForGuestPerson(profileId))}`
-              : null;
-            const open = openId === guest.id;
-
-            const details = [
-              address || null,
-              canEdit ? null : `RSVP · ${rsvpStatusLabel(guest.rsvpStatus)}`,
-              seating || null,
-            ].filter((line, index, lines): line is string => Boolean(line) && lines.indexOf(line) === index);
-
-            return (
-              <article key={guest.id} className="px-3 py-2">
-                <div className="flex items-start gap-2">
-                  <PersonAvatar name={title} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    {profileHref ? (
-                      <Link
-                        href={profileHref}
-                        className="block transition-colors hover:text-[var(--accent)]"
-                      >
-                        <span className="block text-[15px] font-semibold leading-snug">{title}</span>
-                        {details.map((line) => (
-                          <span
-                            key={line}
-                            className={`mt-0.5 text-xs text-muted ${
-                              line === seating ? "line-clamp-2" : "block truncate"
-                            }`}
-                          >
-                            {line}
-                          </span>
-                        ))}
-                      </Link>
-                    ) : (
-                      <>
-                        <span className="block text-[15px] font-semibold leading-snug">{title}</span>
-                        {details.map((line) => (
-                          <span
-                            key={line}
-                            className={`mt-0.5 text-xs text-muted ${
-                              line === seating ? "line-clamp-2" : "block truncate"
-                            }`}
-                          >
-                            {line}
-                          </span>
-                        ))}
-                      </>
-                    )}
-
-                    {canEdit ? (
-                      <button
-                        type="button"
-                        className="mt-2 text-xs font-semibold text-[var(--accent)]"
-                        onClick={() => setOpenId((current) => (current === guest.id ? null : guest.id))}
-                        aria-expanded={open}
-                      >
-                        {open ? "Hide address & gifts" : "Edit address & gifts"}
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {profileHref ? (
-                    <Link
-                      href={profileHref}
-                      className="shrink-0 pt-0.5 text-sm text-muted"
-                      aria-label={`Open ${title}`}
-                    >
-                      ›
-                    </Link>
-                  ) : null}
-                </div>
-
-                {canEdit ? (
-                  <div className="mt-2">
-                    <GuestRsvpControls guest={guest} people={guest.people} compact inline />
-                  </div>
-                ) : null}
-
-                {open ? (
-                  <div className="mt-2 border-t border-line">
-                    <GuestEditCard guest={guest} />
-                  </div>
-                ) : null}
-              </article>
-            );
-          })}
+          {filtered.map((guest) => (
+            <GuestHouseholdCard key={guest.id} guest={guest} canEdit={canEdit} />
+          ))}
         </div>
       )}
     </section>

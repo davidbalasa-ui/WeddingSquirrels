@@ -42,7 +42,14 @@ import {
 import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
-import { applyRsvpChange, effectiveInvitedCount, syncLegacyGuestNames } from "@/lib/guest-gifts";
+import { applyRsvpChange, effectiveInvitedCount, parseRsvpStatus, syncLegacyGuestNames, type RsvpStatus } from "@/lib/guest-gifts";
+import { householdRsvpFromPeople } from "@/lib/guest-rsvp-import";
+import {
+  directoryLabelForRole,
+  isDayOfRole,
+  nextGuestPersonRole,
+  resolveGuestPersonRole,
+} from "@/lib/guest-person-role";
 import { firstAllowedRoute } from "@/lib/routes";
 import { isStaySectionId, isStaySlotId } from "@/lib/stay";
 import {
@@ -1491,6 +1498,221 @@ export async function saveGuestRsvp(input: {
   });
   revalidateGuests();
   return { ok: true, id: existing.id };
+}
+
+export type GuestPersonWriteResult =
+  | { ok: true; id: string; profileId?: string }
+  | { ok: false; reason: "forbidden" | "not_found" | "invalid" };
+
+const RSVP_CYCLE: RsvpStatus[] = ["pending", "attending", "not_attending"];
+
+async function syncHouseholdRsvpFromPeople(guestId: string) {
+  const guest = await prisma.guest.findUnique({
+    where: { id: guestId },
+    include: { people: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (!guest) return;
+
+  const people = guest.people.length > 0
+    ? guest.people
+    : synthesizeGuestPeopleFromLegacy(guest);
+  const summary = householdRsvpFromPeople(
+    people.map((person) => ({ rsvp: parseRsvpStatus(person.rsvpStatus) })),
+  );
+  const legacy = syncLegacyGuestNames(
+    people.map((person) => ({
+      name: person.name,
+      tableNumber: person.tableNumber,
+      tableSpot: person.tableSpot,
+    })),
+  );
+
+  await prisma.guest.update({
+    where: { id: guestId },
+    data: {
+      ...legacy,
+      rsvpStatus: summary.rsvpStatus,
+      invitedCount: summary.invitedCount,
+      acceptedCount: summary.acceptedCount,
+    },
+  });
+}
+
+function synthesizeGuestPeopleFromLegacy(guest: {
+  nameLine1: string;
+  nameLine2: string | null;
+  person1TableNumber: number | null;
+  person1TableSpot: string | null;
+  person2TableNumber: number | null;
+  person2TableSpot: string | null;
+  rsvpStatus: string;
+}) {
+  const people: Array<{
+    name: string;
+    rsvpStatus: string;
+    tableNumber: number | null;
+    tableSpot: string | null;
+  }> = [];
+  if (guest.nameLine1.trim()) {
+    people.push({
+      name: guest.nameLine1.trim(),
+      rsvpStatus: guest.rsvpStatus,
+      tableNumber: guest.person1TableNumber,
+      tableSpot: guest.person1TableSpot,
+    });
+  }
+  if (guest.nameLine2?.trim()) {
+    people.push({
+      name: guest.nameLine2.trim(),
+      rsvpStatus: guest.rsvpStatus,
+      tableNumber: guest.person2TableNumber,
+      tableSpot: guest.person2TableSpot,
+    });
+  }
+  return people;
+}
+
+export async function cycleGuestPersonRsvp(guestPersonId: string): Promise<GuestPersonWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  if (!guestPersonId) return { ok: false, reason: "invalid" };
+
+  const person = await prisma.guestPerson.findUnique({ where: { id: guestPersonId } });
+  if (!person) return { ok: false, reason: "not_found" };
+
+  const current = parseRsvpStatus(person.rsvpStatus);
+  const next = RSVP_CYCLE[(RSVP_CYCLE.indexOf(current) + 1) % RSVP_CYCLE.length];
+  await prisma.guestPerson.update({
+    where: { id: guestPersonId },
+    data: { rsvpStatus: next },
+  });
+  await syncHouseholdRsvpFromPeople(person.guestId);
+  revalidateGuests();
+  return { ok: true, id: guestPersonId };
+}
+
+export async function saveGuestPersonName(
+  guestPersonId: string,
+  name: string,
+): Promise<GuestPersonWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  const trimmed = name.trim();
+  if (!guestPersonId || !trimmed) return { ok: false, reason: "invalid" };
+
+  const person = await prisma.guestPerson.findUnique({ where: { id: guestPersonId } });
+  if (!person) return { ok: false, reason: "not_found" };
+
+  await prisma.guestPerson.update({
+    where: { id: guestPersonId },
+    data: { name: trimmed },
+  });
+  const household = await prisma.guest.findUnique({
+    where: { id: person.guestId },
+    include: { people: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (household) {
+    const legacy = syncLegacyGuestNames(
+      household.people.map((row) => ({
+        name: row.id === guestPersonId ? trimmed : row.name,
+        tableNumber: row.tableNumber,
+        tableSpot: row.tableSpot,
+      })),
+    );
+    await prisma.guest.update({ where: { id: person.guestId }, data: legacy });
+  }
+  revalidateGuests();
+  return { ok: true, id: guestPersonId };
+}
+
+export async function saveGuestPersonPhoto(
+  guestPersonId: string,
+  photoData: string | null,
+  clearPhoto = false,
+): Promise<GuestPersonWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  if (!guestPersonId) return { ok: false, reason: "invalid" };
+
+  const person = await prisma.guestPerson.findUnique({ where: { id: guestPersonId } });
+  if (!person) return { ok: false, reason: "not_found" };
+
+  let nextPhoto: string | null = person.photoData;
+  try {
+    if (clearPhoto) nextPhoto = null;
+    else if (photoData) nextPhoto = parseContactPhoto(photoData);
+  } catch {
+    return { ok: false, reason: "invalid" };
+  }
+
+  await prisma.guestPerson.update({
+    where: { id: guestPersonId },
+    data: { photoData: nextPhoto },
+  });
+  revalidateGuests();
+  return { ok: true, id: guestPersonId };
+}
+
+export async function cycleGuestPersonRole(guestPersonId: string): Promise<GuestPersonWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  if (!guestPersonId) return { ok: false, reason: "invalid" };
+
+  const guestPerson = await prisma.guestPerson.findUnique({ where: { id: guestPersonId } });
+  if (!guestPerson) return { ok: false, reason: "not_found" };
+
+  const currentRole = resolveGuestPersonRole({ directoryLabel: guestPerson.directoryLabel });
+  const nextRole = nextGuestPersonRole(currentRole);
+
+  if (nextRole === "vendor") {
+    const profileId = profileIdForGuestPerson(guestPersonId);
+    const result = await savePrimaryList(profileId, "vendors");
+    if (!result.ok) return { ok: false, reason: result.reason === "protected" ? "invalid" : result.reason };
+    return { ok: true, id: guestPersonId, profileId: result.profileId };
+  }
+
+  const directoryLabel = directoryLabelForRole(nextRole);
+  const isDayOfContact = isDayOfRole(nextRole);
+  await prisma.guestPerson.update({
+    where: { id: guestPersonId },
+    data: { directoryLabel, isDayOfContact },
+  });
+  revalidateGuests();
+  revalidatePeople(profileIdForGuestPerson(guestPersonId));
+  return { ok: true, id: guestPersonId };
+}
+
+export async function saveGuestPhone(guestId: string, phone: string): Promise<GuestPersonWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  if (!guestId) return { ok: false, reason: "invalid" };
+
+  try {
+    await prisma.guest.update({
+      where: { id: guestId },
+      data: { phone: phone.trim() || null },
+    });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+  revalidateGuests();
+  return { ok: true, id: guestId };
+}
+
+export async function setGuestGiftThankYou(
+  giftId: string,
+  field: "written" | "sent",
+  value: boolean,
+): Promise<GuestGiftWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+
+  const data =
+    field === "written"
+      ? { thankYouWritten: value }
+      : { thankYouSent: value, thanked: value };
+
+  try {
+    await prisma.guestGift.update({ where: { id: giftId }, data });
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+  revalidateGuests();
+  return { ok: true, id: giftId };
 }
 
 async function requireGuestViewer() {

@@ -7,7 +7,7 @@ import {
   deleteGuestGift,
   saveGuestPeople,
   saveGuestGift,
-  setGuestGiftThanked,
+  setGuestGiftThankYou,
 } from "@/app/actions";
 import type { GuestGiftRecord, GuestPersonRecord, GuestRecord } from "@/lib/guests";
 
@@ -48,6 +48,8 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
         name: "",
         directoryLabel: null,
         isDayOfContact: false,
+        rsvpStatus: "pending",
+        photoData: null,
         tableNumber: null,
         tableSpot: null,
       },
@@ -234,7 +236,10 @@ function GuestGifts({
     try {
       const result = await addGuestGift(guestId);
       if (!result.ok) return;
-      setRows((prev) => [...prev, { id: result.id, description: "", thanked: false }]);
+      setRows((prev) => [
+        ...prev,
+        { id: result.id, description: "", thanked: false, thankYouWritten: false, thankYouSent: false },
+      ]);
       setFocusGiftId(result.id);
     } finally {
       setAdding(false);
@@ -282,7 +287,8 @@ function GiftRow({
   onRemoved: () => void;
 }) {
   const [value, setValue] = useState(gift.description);
-  const [thanked, setThanked] = useState(gift.thanked);
+  const [thankYouWritten, setThankYouWritten] = useState(gift.thankYouWritten);
+  const [thankYouSent, setThankYouSent] = useState(gift.thankYouSent);
   const lastSaved = useRef(gift.description);
 
   async function commit() {
@@ -302,11 +308,16 @@ function GiftRow({
     if (result.ok) onRemoved();
   }
 
-  async function toggleThanked() {
-    const next = !thanked;
-    setThanked(next);
-    const result = await setGuestGiftThanked(gift.id, next);
-    if (!result.ok) setThanked(!next);
+  async function toggleThankYou(field: "written" | "sent") {
+    const nextWritten = field === "written" ? !thankYouWritten : thankYouWritten;
+    const nextSent = field === "sent" ? !thankYouSent : thankYouSent;
+    if (field === "written") setThankYouWritten(nextWritten);
+    else setThankYouSent(nextSent);
+    const result = await setGuestGiftThankYou(gift.id, field, field === "written" ? nextWritten : nextSent);
+    if (!result.ok) {
+      if (field === "written") setThankYouWritten(!nextWritten);
+      else setThankYouSent(!nextSent);
+    }
   }
 
   return (
@@ -324,10 +335,16 @@ function GiftRow({
         }}
         className="min-h-11 min-w-0 flex-1 rounded-xl border border-line bg-white px-2.5 py-2 text-[15px] leading-5 outline-none placeholder:text-muted focus:border-[var(--accent)]"
       />
-      <label className="flex shrink-0 items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
-        <input type="checkbox" checked={thanked} onChange={() => void toggleThanked()} />
-        Thanked
-      </label>
+      <div className="flex shrink-0 flex-col gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+        <label className="flex items-center gap-1">
+          <input type="checkbox" checked={thankYouWritten} onChange={() => void toggleThankYou("written")} />
+          Written
+        </label>
+        <label className="flex items-center gap-1">
+          <input type="checkbox" checked={thankYouSent} onChange={() => void toggleThankYou("sent")} />
+          Sent
+        </label>
+      </div>
       <button
         type="button"
         aria-label="Remove gift"

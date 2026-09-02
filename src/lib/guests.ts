@@ -4,6 +4,8 @@ export type GuestGiftRecord = {
   id: string;
   description: string;
   thanked: boolean;
+  thankYouWritten: boolean;
+  thankYouSent: boolean;
 };
 
 export type GuestPersonRecord = {
@@ -11,12 +13,15 @@ export type GuestPersonRecord = {
   name: string;
   directoryLabel: string | null;
   isDayOfContact: boolean;
+  rsvpStatus: string;
+  photoData: string | null;
   tableNumber: number | null;
   tableSpot: string | null;
 };
 
 export type GuestRecord = {
   id: string;
+  phone: string | null;
   street: string | null;
   city: string | null;
   state: string | null;
@@ -41,6 +46,8 @@ export function synthesizeGuestPeople(guest: Guest): GuestPersonRecord[] {
       name: guest.nameLine1.trim(),
       directoryLabel: null,
       isDayOfContact: false,
+      rsvpStatus: "pending",
+      photoData: null,
       tableNumber: guest.person1TableNumber,
       tableSpot: guest.person1TableSpot,
     });
@@ -51,6 +58,8 @@ export function synthesizeGuestPeople(guest: Guest): GuestPersonRecord[] {
       name: guest.nameLine2.trim(),
       directoryLabel: null,
       isDayOfContact: false,
+      rsvpStatus: "pending",
+      photoData: null,
       tableNumber: guest.person2TableNumber,
       tableSpot: guest.person2TableSpot,
     });
@@ -66,6 +75,8 @@ export function mapGuestRecord(guest: GuestWithRelations): GuestRecord {
           name: person.name,
           directoryLabel: person.directoryLabel ?? null,
           isDayOfContact: person.isDayOfContact,
+          rsvpStatus: person.rsvpStatus ?? "pending",
+          photoData: person.photoData ?? null,
           tableNumber: person.tableNumber,
           tableSpot: person.tableSpot,
         }))
@@ -73,6 +84,7 @@ export function mapGuestRecord(guest: GuestWithRelations): GuestRecord {
 
   return {
     id: guest.id,
+    phone: guest.phone ?? null,
     street: guest.street,
     city: guest.city,
     state: guest.state,
@@ -85,6 +97,8 @@ export function mapGuestRecord(guest: GuestWithRelations): GuestRecord {
       id: gift.id,
       description: gift.description,
       thanked: gift.thanked,
+      thankYouWritten: gift.thankYouWritten ?? false,
+      thankYouSent: gift.thankYouSent ?? gift.thanked,
     })),
   };
 }
