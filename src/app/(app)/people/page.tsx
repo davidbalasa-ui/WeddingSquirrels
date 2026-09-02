@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ModuleIcon } from "@/components/ModuleIcon";
 import { PeopleDirectorySearch } from "@/components/PeopleDirectorySearch";
-import { PeopleSectionGrid } from "@/components/PeopleSectionGrid";
 import { V2PageHeader } from "@/components/V2PageHeader";
 import { loadPeopleHubData } from "@/lib/people-hub";
 import { requirePageSession } from "@/lib/session";
@@ -30,9 +29,9 @@ export default async function PeopleHubPage({
     session.canSeeTimeline
       ? {
           key: "contacts",
-          label: "Day-of contacts",
-          href: "/people/contacts",
-          detail: `${data.contactCount} contacts`,
+          label: "Day-of call list",
+          href: "/day/contacts",
+          detail: `${data.contactCount} on the call sheet`,
         }
       : null,
     session.canSeeTimeline
@@ -53,30 +52,26 @@ export default async function PeopleHubPage({
         subtitle="Faces, roles, and who to reach"
       />
 
-      <PeopleSectionGrid sections={data.sections} />
-
       {quickLinks.length > 0 ? (
-        <section className="mb-6">
+        <section className="mb-4">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
             Lists
           </p>
-          <div className="divide-y divide-[var(--line)] border-y border-line">
+          <div className="card divide-y divide-[var(--line)] overflow-hidden">
             {quickLinks.map((item) => (
               <Link
                 key={item.key}
                 href={item.href}
-                className="flex min-h-[4.5rem] items-center gap-3 py-3 transition-colors hover:bg-[var(--accent-soft)]/30"
+                className="flex items-center gap-2 px-3 py-2 transition-colors hover:bg-[var(--accent-soft)]/30"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
-                  <ModuleIcon name="people" className="h-5 w-5" />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
+                  <ModuleIcon name="people" className="h-4 w-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block font-[family-name:var(--font-display)] text-lg leading-tight">
-                    {item.label}
-                  </span>
-                  <span className="mt-0.5 block text-sm text-muted">{item.detail}</span>
+                  <span className="block text-[15px] font-semibold leading-snug">{item.label}</span>
+                  <span className="mt-0.5 block text-xs text-muted">{item.detail}</span>
                 </span>
-                <span className="text-lg text-muted" aria-hidden>
+                <span className="shrink-0 text-sm text-muted" aria-hidden>
                   ›
                 </span>
               </Link>
@@ -85,8 +80,10 @@ export default async function PeopleHubPage({
         </section>
       ) : null}
 
-      {data.entries.length > 0 ? <PeopleDirectorySearch entries={data.entries} /> : (
-        <div className="card p-5 text-sm text-muted">No people are visible for this PIN yet.</div>
+      {data.entries.length > 0 ? (
+        <PeopleDirectorySearch entries={data.entries} />
+      ) : (
+        <div className="card px-3 py-4 text-sm text-muted">No people are visible for this PIN yet.</div>
       )}
     </>
   );

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { timelineEditable } from "@/lib/access";
 import { guestInclude, mapGuestRecord } from "@/lib/guests";
 import { MEAL_SECTIONS } from "@/lib/meals";
 import {
@@ -43,6 +44,8 @@ export type PeopleProfile = {
   phone: string | null;
   email: string | null;
   roles: string[];
+  directoryLabel: string | null;
+  canEditLabel: boolean;
   openTasks: ProfileTaskRow[];
   assignments: ProfileAssignmentRow[];
   guestInfo: {
@@ -153,14 +156,18 @@ export async function loadPeopleProfile(
     const contact = await prisma.contact.findUnique({ where: { id: parsed.id } });
     if (!contact) return null;
     const budgetContracts = budgetContractsForContact(contact, budgetItems);
+    const directoryLabel = contact.directoryLabel?.trim() || null;
+    const roles = directoryLabel ? [directoryLabel] : ["Vendor"];
     return {
       profileId: profileIdForContact(contact.id),
       name: contact.name,
-      subtitle: vendorSubtitle(contact.name),
+      subtitle: directoryLabel || vendorSubtitle(contact.name),
       photoSrc: contact.photoData,
       phone: contact.phone,
       email: contact.email,
-      roles: ["Vendor"],
+      roles,
+      directoryLabel,
+      canEditLabel: timelineEditable(session),
       openTasks: [],
       assignments: [],
       guestInfo: null,
@@ -207,6 +214,9 @@ export async function loadPeopleProfile(
       ? mealSectionTitle(mealGuest.sectionId) ?? "Rehearsal dinner"
       : null;
     const budgetContracts = budgetContractsForPerson(person, budgetItems);
+    const directoryLabel = person.directoryLabel?.trim() || null;
+    const defaultRoles = personRoles(person, personAssignments.length);
+    const roles = directoryLabel ? [directoryLabel] : defaultRoles;
     const guestInfo = guestPerson
       ? {
           household: guestHouseholdLabel({
@@ -228,7 +238,9 @@ export async function loadPeopleProfile(
       photoSrc: null,
       phone: null,
       email: null,
-      roles: personRoles(person, personAssignments.length),
+      roles,
+      directoryLabel,
+      canEditLabel: timelineEditable(session),
       openTasks,
       assignments: personAssignments,
       guestInfo,
@@ -270,6 +282,8 @@ export async function loadPeopleProfile(
     phone: null,
     email: null,
     roles: ["Guest"],
+    directoryLabel: null,
+    canEditLabel: false,
     openTasks: [],
     assignments: [],
     guestInfo: {

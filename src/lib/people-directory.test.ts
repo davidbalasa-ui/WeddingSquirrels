@@ -3,14 +3,48 @@ import { test } from "node:test";
 import {
   buildDirectoryEntries,
   classifyNameGroup,
+  filterDirectoryByKind,
   filterDirectoryEntries,
   groupDirectoryEntries,
+  isDayOfContactName,
   namesMatch,
   normalizePersonName,
   parseProfileId,
   profileIdForPerson,
   vendorSubtitle,
 } from "./people-directory";
+
+test("isDayOfContactName matches bridal party and family roster names", () => {
+  assert.equal(isDayOfContactName("Andi"), true);
+  assert.equal(isDayOfContactName("Andi Cartwright"), true);
+  assert.equal(isDayOfContactName("Marie Wiewiora"), true);
+  assert.equal(isDayOfContactName("Kurt Huizenga"), true);
+  assert.equal(isDayOfContactName("Shelly"), true);
+  assert.equal(isDayOfContactName("Avalon Green"), false);
+});
+
+test("filterDirectoryByKind separates day-of, guests, and vendors", () => {
+  const entries = buildDirectoryEntries({
+    persons: [
+      { id: "andi", name: "Andi", directoryLabel: "Best man" },
+      { id: "shelly", name: "Shelly" },
+    ],
+    contacts: [
+      {
+        id: "c1",
+        name: "Avalon Green · Planner",
+        phone: null,
+        email: null,
+        photoData: null,
+      },
+    ],
+    guestPeople: [{ id: "guest-1", name: "Random Guest", householdLabel: "Random · City" }],
+  });
+
+  assert.ok(filterDirectoryByKind(entries, "day-of").some((entry) => entry.name === "Andi"));
+  assert.ok(filterDirectoryByKind(entries, "vendors").some((entry) => entry.name.includes("Avalon")));
+  assert.ok(filterDirectoryByKind(entries, "guests").some((entry) => entry.name === "Random Guest"));
+});
 
 test("normalizePersonName strips punctuation and casing", () => {
   assert.equal(normalizePersonName("Avalon Green · Planner"), "avalon green planner");

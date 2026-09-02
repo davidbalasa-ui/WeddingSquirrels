@@ -31,6 +31,7 @@ import {
   type TimelineSchedule,
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
+import { parseProfileId } from "@/lib/people-directory";
 import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
@@ -2382,6 +2383,32 @@ export async function saveContact(formData: FormData): Promise<void> {
     },
   });
 
+  revalidateDayData();
+}
+
+export async function saveDirectoryLabel(profileId: string, label: string): Promise<void> {
+  if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");
+
+  const parsed = parseProfileId(profileId);
+  if (!parsed) return;
+
+  const trimmed = label.trim();
+  if (parsed.kind === "person") {
+    await prisma.person.update({
+      where: { id: parsed.id },
+      data: { directoryLabel: trimmed || null },
+    });
+  } else if (parsed.kind === "contact") {
+    await prisma.contact.update({
+      where: { id: parsed.id },
+      data: { directoryLabel: trimmed || null },
+    });
+  } else {
+    return;
+  }
+
+  revalidatePath("/people");
+  revalidatePath(`/people/${encodeURIComponent(profileId)}`);
   revalidateDayData();
 }
 

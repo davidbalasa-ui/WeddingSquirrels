@@ -1,23 +1,9 @@
 import { prisma } from "@/lib/db";
 import { guestInclude, mapGuestRecord } from "@/lib/guests";
-import {
-  buildDirectoryEntries,
-  groupDirectoryEntries,
-  type DirectoryEntry,
-  type PeopleGroup,
-} from "@/lib/people-directory";
+import { buildDirectoryEntries, type DirectoryEntry } from "@/lib/people-directory";
 import type { SessionAccount } from "@/lib/types";
 
-export type PeopleSectionPreview = {
-  key: PeopleGroup;
-  label: string;
-  detail: string;
-  href: string;
-  faces: { profileId: string; name: string; photoSrc: string | null }[];
-};
-
 export type PeopleHubData = {
-  sections: PeopleSectionPreview[];
   entries: DirectoryEntry[];
   guestCount: number;
   contactCount: number;
@@ -35,12 +21,19 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
   const [persons, contacts, guests, assignments] = await Promise.all([
     prisma.person.findMany({
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true },
+      select: { id: true, name: true, directoryLabel: true },
     }),
     session.canSeeTimeline
       ? prisma.contact.findMany({
           orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-          select: { id: true, name: true, phone: true, email: true, photoData: true },
+          select: {
+            id: true,
+            name: true,
+            directoryLabel: true,
+            phone: true,
+            email: true,
+            photoData: true,
+          },
         })
       : Promise.resolve([]),
     session.canSeeGuests
@@ -66,32 +59,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
     guestPeople,
   });
 
-  const sectionDefs: { key: PeopleGroup; label: string; href: string }[] = [
-    { key: "party", label: "Wedding party", href: "/people/party" },
-    { key: "family", label: "Family & guests", href: "/people/family" },
-    { key: "vendor", label: "Vendors", href: "/people/vendors" },
-  ];
-
-  const sections = sectionDefs
-    .map((section) => {
-      const groupEntries = groupDirectoryEntries(entries, section.key);
-      if (groupEntries.length === 0) return null;
-      return {
-        key: section.key,
-        label: section.label,
-        href: section.href,
-        detail: `${groupEntries.length} ${groupEntries.length === 1 ? "person" : "people"}`,
-        faces: groupEntries.slice(0, 4).map((entry) => ({
-          profileId: entry.profileId,
-          name: entry.name,
-          photoSrc: entry.photoSrc,
-        })),
-      };
-    })
-    .filter((section): section is PeopleSectionPreview => section !== null);
-
   return {
-    sections,
     entries,
     guestCount: guests.length,
     contactCount: contacts.length,
