@@ -38,7 +38,7 @@ export function PeopleMembershipEditor({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" aria-busy={pending || undefined}>
       {canEditPrimaryList ? (
         <label className="text-sm">
           <span className="mb-1 block text-xs text-muted">Primary list</span>
@@ -62,9 +62,7 @@ export function PeopleMembershipEditor({
                 }
                 if (result.profileId !== profileId) {
                   router.push(`/people/${encodeURIComponent(result.profileId)}`);
-                  return;
                 }
-                router.refresh();
               });
             }}
           >
@@ -88,7 +86,9 @@ export function PeopleMembershipEditor({
       ) : null}
 
       {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
-      {pending ? <p className="text-xs text-muted">Saving…</p> : null}
+      <span className="sr-only" role="status" aria-live="polite">
+        {pending ? "Saving primary list" : ""}
+      </span>
     </div>
   );
 }
