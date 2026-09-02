@@ -9,6 +9,7 @@ export type GuestGiftRecord = {
 export type GuestPersonRecord = {
   id: string;
   name: string;
+  directoryLabel: string | null;
   tableNumber: number | null;
   tableSpot: string | null;
 };
@@ -37,6 +38,7 @@ export function synthesizeGuestPeople(guest: Guest): GuestPersonRecord[] {
     people.push({
       id: `${guest.id}-p1`,
       name: guest.nameLine1.trim(),
+      directoryLabel: null,
       tableNumber: guest.person1TableNumber,
       tableSpot: guest.person1TableSpot,
     });
@@ -45,6 +47,7 @@ export function synthesizeGuestPeople(guest: Guest): GuestPersonRecord[] {
     people.push({
       id: `${guest.id}-p2`,
       name: guest.nameLine2.trim(),
+      directoryLabel: null,
       tableNumber: guest.person2TableNumber,
       tableSpot: guest.person2TableSpot,
     });
@@ -58,6 +61,7 @@ export function mapGuestRecord(guest: GuestWithRelations): GuestRecord {
       ? guest.people.map((person) => ({
           id: person.id,
           name: person.name,
+          directoryLabel: person.directoryLabel ?? null,
           tableNumber: person.tableNumber,
           tableSpot: person.tableSpot,
         }))

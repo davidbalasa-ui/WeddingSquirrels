@@ -1,7 +1,7 @@
 import { MEAL_SECTIONS } from "@/lib/meals";
 
 export type PeopleGroup = "party" | "family" | "vendor";
-export type PeopleFilter = "all" | "day-of" | "guests" | "vendors";
+export type PeopleList = "guests" | "day-of" | "vendors";
 
 export type DirectoryEntry = {
   profileId: string;
@@ -13,7 +13,8 @@ export type DirectoryEntry = {
   phone: string | null;
   email: string | null;
   sortKey: string;
-  filters: PeopleFilter[];
+  /** Which People tab this entry appears on */
+  list: PeopleList;
 };
 
 export const PARTY_SECTION_IDS = new Set(["party", "officiant", "ceremony"]);
@@ -54,17 +55,26 @@ export function isDayOfContactName(name: string): boolean {
   return roster.some((candidate) => namesMatch(candidate, name));
 }
 
-export function directoryEntryFilters(entry: Pick<DirectoryEntry, "name" | "group" | "roles">): PeopleFilter[] {
-  const filters: PeopleFilter[] = ["all"];
-  if (isDayOfContactName(entry.name)) filters.push("day-of");
-  if (entry.roles.some((role) => role === "Guest")) filters.push("guests");
-  if (entry.group === "vendor") filters.push("vendors");
-  return filters;
+export function isPeopleList(value: string | null | undefined): value is PeopleList {
+  return value === "guests" || value === "day-of" || value === "vendors";
 }
 
-export function filterDirectoryByKind(entries: DirectoryEntry[], filter: PeopleFilter): DirectoryEntry[] {
-  if (filter === "all") return entries;
-  return entries.filter((entry) => entry.filters.includes(filter));
+/** Resolve which tab an entry belongs on. Explicit directoryList wins; otherwise legacy inference. */
+export function resolveDirectoryList(input: {
+  kind: "person" | "contact" | "guest";
+  directoryList?: string | null;
+  name: string;
+}): PeopleList | null {
+  if (isPeopleList(input.directoryList)) return input.directoryList;
+
+  if (input.kind === "guest") return "guests";
+  if (input.kind === "contact") return "vendors";
+  if (input.kind === "person" && isDayOfContactName(input.name)) return "day-of";
+  return null;
+}
+
+export function filterDirectoryByList(entries: DirectoryEntry[], list: PeopleList): DirectoryEntry[] {
+  return entries.filter((entry) => entry.list === list);
 }
 
 /** Stable slug for name comparisons across Person, Guest, Contact, and stay text. */
@@ -153,16 +163,17 @@ export function directoryEntrySort(a: DirectoryEntry, b: DirectoryEntry): number
 }
 
 export type RawPeopleDirectoryInput = {
-  persons: { id: string; name: string; directoryLabel?: string | null }[];
+  persons: { id: string; name: string; directoryLabel?: string | null; directoryList?: string | null }[];
   contacts: {
     id: string;
     name: string;
     directoryLabel?: string | null;
+    directoryList?: string | null;
     phone: string | null;
     email: string | null;
     photoData: string | null;
   }[];
-  guestPeople: { id: string; name: string; householdLabel: string }[];
+  guestPeople: { id: string; name: string; householdLabel: string; directoryLabel?: string | null }[];
 };
 
 export function buildDirectoryEntries(input: RawPeopleDirectoryInput): DirectoryEntry[] {
@@ -173,48 +184,66 @@ export function buildDirectoryEntries(input: RawPeopleDirectoryInput): Directory
   const familyNames = family.map((guest) => guest.name);
 
   for (const contact of input.contacts) {
+    const list = resolveDirectoryList({
+      kind: "contact",
+      directoryList: contact.directoryList,
+      name: contact.name,
+    });
+    if (!list) continue;
+
     const roles = contact.directoryLabel?.trim()
       ? [contact.directoryLabel.trim()]
-      : ["Vendor"];
+      : list === "vendors"
+        ? ["Vendor"]
+        : ["Day-of contact"];
     const entry: DirectoryEntry = {
       profileId: profileIdForContact(contact.id),
       name: contact.name,
       subtitle: contact.directoryLabel?.trim() || vendorSubtitle(contact.name),
       photoSrc: contact.photoData,
-      group: "vendor",
+      group: list === "vendors" ? "vendor" : "family",
       roles,
       phone: contact.phone,
       email: contact.email,
       sortKey: normalizePersonName(contact.name),
-      filters: [],
+      list,
     };
-    entry.filters = directoryEntryFilters(entry);
     entries.push(entry);
     claimed.add(normalizePersonName(contact.name));
   }
 
   for (const person of input.persons) {
+    const list = resolveDirectoryList({
+      kind: "person",
+      directoryList: person.directoryList,
+      name: person.name,
+    });
+    if (!list) continue;
+
     const group = classifyNameGroup(person.name, partyNames, familyNames);
     const defaultRoles =
       group === "party"
         ? ["Wedding party"]
         : ["david", "haley"].includes(person.id)
           ? ["Couple"]
-          : ["Family & helpers"];
+          : list === "vendors"
+            ? ["Vendor"]
+            : list === "day-of"
+              ? ["Day-of contact"]
+              : ["Guest"];
     const roles = person.directoryLabel?.trim() ? [person.directoryLabel.trim()] : defaultRoles;
     const entry: DirectoryEntry = {
       profileId: profileIdForPerson(person.id),
       name: person.name,
       subtitle: person.directoryLabel?.trim() || roles[0] || null,
       photoSrc: null,
-      group,
+      group: list === "vendors" ? "vendor" : group,
       roles,
       phone: null,
       email: null,
       sortKey: normalizePersonName(person.name),
-      filters: [],
+      list,
     };
-    entry.filters = directoryEntryFilters(entry);
     entries.push(entry);
     claimed.add(normalizePersonName(person.name));
   }
@@ -223,7 +252,8 @@ export function buildDirectoryEntries(input: RawPeopleDirectoryInput): Directory
     const key = normalizePersonName(guest.name);
     if ([...claimed].some((name) => namesMatch(name, guest.name))) continue;
     const group = classifyNameGroup(guest.name, partyNames, familyNames);
-    const roles = group === "party" ? ["Wedding party"] : ["Guest"];
+    const defaultRole = group === "party" ? "Wedding party" : "Guest";
+    const roles = guest.directoryLabel?.trim() ? [guest.directoryLabel.trim()] : [defaultRole];
     const entry: DirectoryEntry = {
       profileId: profileIdForGuestPerson(guest.id),
       name: guest.name,
@@ -234,9 +264,8 @@ export function buildDirectoryEntries(input: RawPeopleDirectoryInput): Directory
       phone: null,
       email: null,
       sortKey: key,
-      filters: [],
+      list: "guests",
     };
-    entry.filters = directoryEntryFilters(entry);
     entries.push(entry);
     claimed.add(key);
   }
@@ -258,3 +287,11 @@ export function filterDirectoryEntries(entries: DirectoryEntry[], query: string)
 export function groupDirectoryEntries(entries: DirectoryEntry[], group: PeopleGroup) {
   return entries.filter((entry) => entry.group === group);
 }
+
+/** @deprecated Use filterDirectoryByList */
+export function filterDirectoryByKind(entries: DirectoryEntry[], list: PeopleList): DirectoryEntry[] {
+  return filterDirectoryByList(entries, list);
+}
+
+/** @deprecated Use PeopleList */
+export type PeopleFilter = PeopleList;

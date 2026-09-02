@@ -1,6 +1,7 @@
 import { AppHeader } from "@/components/AppHeader";
 import { ContactsPanel } from "@/components/ContactsPanel";
 import { DayTabs } from "@/components/DayTabs";
+import { isDayOfContactName } from "@/lib/people-directory";
 import { timelineEditable } from "@/lib/access";
 import { loadDayOfContext } from "@/lib/day-of-page";
 import { prisma } from "@/lib/db";
@@ -15,6 +16,10 @@ export default async function DayContactsPage() {
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 
+  const dayOfContacts = contacts.filter(
+    (contact) => contact.directoryList === "day-of" || (!contact.directoryList && isDayOfContactName(contact.name)),
+  );
+
   return (
     <>
       <AppHeader
@@ -25,7 +30,7 @@ export default async function DayContactsPage() {
       <DayTabs showNowTab={context.showNowTab} />
       <ContactsPanel
         canEdit={canEdit}
-        contacts={contacts.map((contact) => ({
+        contacts={dayOfContacts.map((contact) => ({
           id: contact.id,
           name: contact.name,
           phone: contact.phone,

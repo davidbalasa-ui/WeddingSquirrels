@@ -49,7 +49,7 @@ export default async function PeopleHubPage({
       <V2PageHeader
         session={session}
         title="People"
-        subtitle="Faces, roles, and who to reach"
+        subtitle="Guest list, day-of contacts, and vendors — each on its own tab"
       />
 
       {quickLinks.length > 0 ? (

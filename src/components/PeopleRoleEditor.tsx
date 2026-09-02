@@ -66,7 +66,7 @@ export function PeopleRoleEditor({
       }}
     >
       <label className="text-sm">
-        <span className="mb-1 block text-xs text-muted">Role label</span>
+        <span className="mb-1 block text-xs text-muted">Role (job / relationship)</span>
         <input
           name="directoryLabel"
           value={draft}
