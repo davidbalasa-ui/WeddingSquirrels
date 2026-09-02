@@ -147,6 +147,7 @@ export async function saveTaskWorkspace(
   }
 
   const id = String(formData.get("id") || "");
+  const title = String(formData.get("title") || "").trim();
   const planNotes = String(formData.get("planNotes") || "");
   const summary = String(formData.get("summary") || "");
   const amountNeededRaw = String(formData.get("amountNeeded") || "").trim();
@@ -179,8 +180,9 @@ export async function saveTaskWorkspace(
     await prisma.task.update({
       where: { id },
       data: {
+        ...(title ? { title } : {}),
         planNotes,
-        summary: summary || task.summary,
+        summary,
         dueDate: parseDueDate(dueDateRaw),
         amountNeeded: Number.isFinite(amountNeeded as number) ? amountNeeded : null,
         amountSpent: Number.isFinite(amountSpent) ? amountSpent : 0,
@@ -1299,6 +1301,10 @@ export async function saveGuestPeople(input: {
     tableNumber?: number | null;
     tableSpot?: string | null;
   }>;
+  street?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
 }): Promise<{ ok: true; id: string } | { ok: false; reason: "forbidden" | "not_found" | "invalid" }> {
   if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
   if (!input.guestId) return { ok: false, reason: "invalid" };
@@ -1368,6 +1374,10 @@ export async function saveGuestPeople(input: {
       where: { id: input.guestId },
       data: {
         ...legacy,
+        street: input.street?.trim() || null,
+        city: input.city?.trim() || null,
+        state: input.state?.trim() || null,
+        zip: input.zip?.trim() || null,
         invitedCount,
         acceptedCount,
       },

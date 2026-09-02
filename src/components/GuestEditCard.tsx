@@ -20,14 +20,22 @@ function toEditablePeople(people: GuestPersonRecord[]): EditablePerson[] {
 export function GuestEditCard({ guest }: { guest: GuestRecord }) {
   const router = useRouter();
   const [people, setPeople] = useState<EditablePerson[]>(() => toEditablePeople(guest.people));
+  const [street, setStreet] = useState(guest.street ?? "");
+  const [city, setCity] = useState(guest.city ?? "");
+  const [state, setState] = useState(guest.state ?? "");
+  const [zip, setZip] = useState(guest.zip ?? "");
   const [saving, startSave] = useTransition();
   const [banner, setBanner] = useState<string | null>(null);
   const [prevGuest, setPrevGuest] = useState(guest);
   if (guest !== prevGuest) {
     setPrevGuest(guest);
     setPeople(toEditablePeople(guest.people));
+    setStreet(guest.street ?? "");
+    setCity(guest.city ?? "");
+    setState(guest.state ?? "");
+    setZip(guest.zip ?? "");
   }
-  const address = [guest.street, [guest.city, guest.state].filter(Boolean).join(", "), guest.zip]
+  const addressLine = [street, [city, state].filter(Boolean).join(", "), zip]
     .filter(Boolean)
     .join(" · ");
 
@@ -70,7 +78,14 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
 
     setBanner(null);
     startSave(async () => {
-      const result = await saveGuestPeople({ guestId: guest.id, people: payload });
+      const result = await saveGuestPeople({
+        guestId: guest.id,
+        people: payload,
+        street,
+        city,
+        state,
+        zip,
+      });
       if (!result.ok) {
         setBanner("Couldn’t save guests — try again.");
         return;
@@ -81,11 +96,45 @@ export function GuestEditCard({ guest }: { guest: GuestRecord }) {
 
   return (
     <div>
-      {address ? (
-        <p className="border-t border-line px-3 py-2 text-sm text-muted">{address}</p>
-      ) : null}
-
       <div className="flex flex-col gap-3 border-t border-line p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Mailing address</p>
+        <label className="block text-sm">
+          <span className="mb-1 block text-xs text-muted">Street</span>
+          <input
+            value={street}
+            onChange={(event) => setStreet(event.target.value)}
+            className="field-input"
+            placeholder="Street address"
+          />
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block text-sm">
+            <span className="mb-1 block text-xs text-muted">City</span>
+            <input
+              value={city}
+              onChange={(event) => setCity(event.target.value)}
+              className="field-input"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block text-xs text-muted">State</span>
+            <input
+              value={state}
+              onChange={(event) => setState(event.target.value)}
+              className="field-input"
+            />
+          </label>
+        </div>
+        <label className="block text-sm">
+          <span className="mb-1 block text-xs text-muted">ZIP</span>
+          <input
+            value={zip}
+            onChange={(event) => setZip(event.target.value)}
+            className="field-input"
+          />
+        </label>
+        {addressLine ? <p className="text-xs text-muted">Preview: {addressLine}</p> : null}
+
         {banner ? (
           <p className="rounded-xl border border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_8%,white)] px-3 py-2 text-sm text-[var(--danger)]">
             {banner}
