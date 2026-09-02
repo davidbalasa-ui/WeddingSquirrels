@@ -15,6 +15,58 @@ export type AssignmentView = {
   assignees: { personId: string; personName: string }[];
 };
 
+function AssignmentRow({
+  assignment,
+  canEdit,
+  onEdit,
+  onDelete,
+  pending,
+}: {
+  assignment: AssignmentView;
+  canEdit: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  pending: boolean;
+}) {
+  const assigneeLabel =
+    assignment.assignees.length > 0
+      ? assignment.assignees.map((a) => a.personName).join(" · ")
+      : "No one assigned";
+
+  return (
+    <article className="px-3 py-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-semibold leading-snug">{assignment.title}</p>
+          {assignment.notes ? (
+            <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-muted">{assignment.notes}</p>
+          ) : null}
+          <p className="mt-0.5 text-xs text-muted">{assigneeLabel}</p>
+        </div>
+        {canEdit ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              className="text-xs font-semibold text-[var(--accent)]"
+              onClick={onEdit}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className="text-xs font-semibold text-[var(--danger)]"
+              disabled={pending}
+              onClick={onDelete}
+            >
+              Delete
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
 export function AssignmentPanel({
   assignments,
   people,
@@ -41,83 +93,55 @@ export function AssignmentPanel({
       ) : null}
 
       {editing === "new" ? (
-        <AssignmentForm
-          key="new"
-          assignment={null}
-          people={people}
-          onDone={() => setEditing(null)}
-          onCancel={() => setEditing(null)}
-        />
+        <section className="card overflow-hidden">
+          <AssignmentForm
+            key="new"
+            assignment={null}
+            people={people}
+            onDone={() => setEditing(null)}
+            onCancel={() => setEditing(null)}
+          />
+        </section>
       ) : null}
 
       {assignments.length === 0 ? (
-        <div className="card p-5 text-sm text-muted">
+        <div className="card px-3 py-4 text-sm text-muted">
           No assignments yet{canEdit ? " — add the first one above" : "."}
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {assignments.map((assignment) =>
-            editing !== "new" && editing?.id === assignment.id ? (
-              <AssignmentForm
-                key={assignment.id}
-                assignment={assignment}
-                people={people}
-                onDone={() => setEditing(null)}
-                onCancel={() => setEditing(null)}
-              />
-            ) : (
-              <article key={assignment.id} className="card p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold leading-snug">{assignment.title}</p>
-                    {assignment.notes ? (
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-muted">{assignment.notes}</p>
-                    ) : null}
-                  </div>
-                  {canEdit ? (
-                    <div className="flex shrink-0 flex-col items-end gap-2">
-                      <button
-                        type="button"
-                        className="text-sm font-semibold text-[var(--accent)]"
-                        onClick={() => setEditing(assignment)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="text-sm font-semibold text-[var(--danger)]"
-                        disabled={pending}
-                        onClick={() => {
-                          if (!window.confirm(`Delete "${assignment.title}"?`)) return;
-                          startTransition(async () => {
-                            await deleteDayAssignment(assignment.id);
-                            router.refresh();
-                          });
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-                {assignment.assignees.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {assignment.assignees.map((assignee) => (
-                      <span
-                        key={assignee.personId}
-                        className="rounded-full border border-line px-2.5 py-1 text-xs font-semibold text-muted"
-                      >
-                        {assignee.personName}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs text-muted">No one assigned yet</p>
-                )}
-              </article>
-            ),
-          )}
-        </div>
+        <section>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+            Assignments · {assignments.length}
+          </p>
+          <div className="card divide-y divide-[var(--line)] overflow-hidden">
+            {assignments.map((assignment) =>
+              editing !== "new" && editing?.id === assignment.id ? (
+                <AssignmentForm
+                  key={assignment.id}
+                  assignment={assignment}
+                  people={people}
+                  onDone={() => setEditing(null)}
+                  onCancel={() => setEditing(null)}
+                />
+              ) : (
+                <AssignmentRow
+                  key={assignment.id}
+                  assignment={assignment}
+                  canEdit={canEdit}
+                  pending={pending}
+                  onEdit={() => setEditing(assignment)}
+                  onDelete={() => {
+                    if (!window.confirm(`Delete "${assignment.title}"?`)) return;
+                    startTransition(async () => {
+                      await deleteDayAssignment(assignment.id);
+                      router.refresh();
+                    });
+                  }}
+                />
+              ),
+            )}
+          </div>
+        </section>
       )}
     </div>
   );
@@ -138,9 +162,11 @@ function AssignmentForm({
   const [pending, startTransition] = useTransition();
   const preselected = new Set(assignment?.assignees.map((a) => a.personId) ?? []);
 
+  const formClass = "flex flex-col gap-3 px-3 py-3";
+
   return (
     <form
-      className="card flex flex-col gap-3 p-4"
+      className={formClass}
       action={async (formData) => {
         startTransition(async () => {
           if (assignment) formData.set("id", assignment.id);
