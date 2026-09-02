@@ -6,14 +6,20 @@ import type { UploadedPhotoOption } from "@/lib/people-sort";
 export function GuestPhotoPicker({
   photos,
   personName,
+  currentSrc,
   onSelect,
   onUpload,
+  onRemoveFromLibrary,
+  onClearCurrent,
   onClose,
 }: {
   photos: UploadedPhotoOption[];
   personName: string;
+  currentSrc?: string | null;
   onSelect: (src: string) => void;
   onUpload: (file: File) => void;
+  onRemoveFromLibrary: (src: string) => void;
+  onClearCurrent?: () => void;
   onClose: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -58,27 +64,46 @@ export function GuestPhotoPicker({
         {photos.length > 0 ? (
           <div className="mb-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-              Uploaded photos
+              Master photo list ({photos.length})
             </p>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-              {photos.map((photo) => (
-                <button
-                  key={photo.src}
-                  type="button"
-                  className="flex flex-col items-center gap-1 rounded-xl p-1 hover:bg-[var(--bg-elevated)]"
-                  onClick={() => onSelect(photo.src)}
-                >
-                  <img
-                    src={photo.src}
-                    alt={photo.label}
-                    className="h-14 w-14 rounded-full object-cover"
-                  />
-                  <span className="max-w-full truncate text-[10px] text-muted">{photo.label}</span>
-                </button>
-              ))}
+              {photos.map((photo) => {
+                const selected = currentSrc === photo.src;
+                return (
+                  <div key={photo.src} className="flex flex-col items-center gap-1">
+                    <button
+                      type="button"
+                      className={`rounded-full p-0.5 ${
+                        selected ? "ring-2 ring-[var(--accent)]" : "hover:bg-[var(--bg-elevated)]"
+                      }`}
+                      onClick={() => onSelect(photo.src)}
+                      aria-label={`Use photo of ${photo.label}`}
+                    >
+                      <img
+                        src={photo.src}
+                        alt={photo.label}
+                        className="h-14 w-14 rounded-full object-cover"
+                      />
+                    </button>
+                    <span className="max-w-full truncate text-[10px] text-muted">{photo.label}</span>
+                    <button
+                      type="button"
+                      className="text-[10px] font-semibold text-[var(--danger)] underline underline-offset-2"
+                      onClick={() => {
+                        if (!window.confirm(`Remove ${photo.label}'s image from the master list?`)) return;
+                        onRemoveFromLibrary(photo.src);
+                      }}
+                    >
+                      remove
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        ) : null}
+        ) : (
+          <p className="mb-4 text-sm text-muted">No photos in the master list yet.</p>
+        )}
 
         <div className="flex flex-col gap-2">
           <input
@@ -118,6 +143,18 @@ export function GuestPhotoPicker({
           >
             Take picture
           </button>
+          {currentSrc ? (
+            <button
+              type="button"
+              className="text-sm font-semibold text-[var(--danger)] underline underline-offset-2"
+              onClick={() => {
+                if (!window.confirm(`Remove the photo from ${personName}?`)) return;
+                onClearCurrent?.();
+              }}
+            >
+              Remove photo
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

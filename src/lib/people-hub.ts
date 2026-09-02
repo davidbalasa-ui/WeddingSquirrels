@@ -14,6 +14,7 @@ import {
   type DirectoryEntry,
   type PeopleTab,
 } from "@/lib/people-directory";
+import { collectUploadedPhotos, type UploadedPhotoOption } from "@/lib/people-sort";
 import type { SessionAccount } from "@/lib/types";
 
 export type VendorBudgetRecord = ProfileBudgetContract & {
@@ -37,6 +38,7 @@ export type PeopleHubData = {
   dayOfContacts: DayOfContactRecord[];
   guests: GuestRecord[];
   guestReport: GuestRsvpReport;
+  uploadedPhotos: UploadedPhotoOption[];
   tabCounts: Record<PeopleTab, number>;
 };
 
@@ -202,6 +204,13 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
     dayOfContacts,
     guests: guestRecords,
     guestReport,
+    uploadedPhotos: collectUploadedPhotos({
+      guests: guestRecords,
+      extraPhotos: [
+        ...contacts.map((contact) => ({ src: contact.photoData, label: contact.name })),
+        ...entries.map((entry) => ({ src: entry.photoSrc, label: entry.name })),
+      ],
+    }),
     tabCounts: {
       all:
         guestRecords.reduce((sum, guest) => sum + guest.people.length, 0) +
