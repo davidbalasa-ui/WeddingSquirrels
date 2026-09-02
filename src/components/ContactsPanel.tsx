@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { createContact, deleteContact, saveContact } from "@/app/actions";
+import { PersonAvatar } from "@/components/PersonAvatar";
 import { fileToResizedDataUrl } from "@/lib/resize-image";
 
 export type ContactView = {
@@ -13,13 +14,62 @@ export type ContactView = {
   photoData: string | null;
 };
 
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
+function ContactRow({
+  contact,
+  canEdit,
+  onEdit,
+  onDelete,
+  pending,
+}: {
+  contact: ContactView;
+  canEdit: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  pending: boolean;
+}) {
+  const phoneHref = contact.phone ? `tel:${contact.phone.replace(/[^\d+]/g, "")}` : null;
+
+  return (
+    <article className="flex items-center gap-2 px-3 py-2">
+      <PersonAvatar name={contact.name} photoSrc={contact.photoData} size="sm" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-semibold leading-snug">{contact.name}</p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+          {contact.phone && phoneHref ? (
+            <a href={phoneHref} className="font-semibold text-[var(--accent)] hover:underline">
+              {contact.phone}
+            </a>
+          ) : null}
+          {contact.email ? (
+            <a href={`mailto:${contact.email}`} className="hover:underline">{contact.email}</a>
+          ) : null}
+        </div>
+      </div>
+      {canEdit ? (
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            className="text-xs font-semibold text-[var(--accent)]"
+            onClick={onEdit}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className="text-xs font-semibold text-[var(--danger)]"
+            disabled={pending}
+            onClick={onDelete}
+          >
+            Delete
+          </button>
+        </div>
+      ) : phoneHref ? (
+        <a href={phoneHref} className="shrink-0 text-sm text-muted" aria-label="Call">
+          ›
+        </a>
+      ) : null}
+    </article>
+  );
 }
 
 export function ContactsPanel({
@@ -46,87 +96,53 @@ export function ContactsPanel({
       ) : null}
 
       {editing === "new" ? (
-        <ContactForm
-          key="new"
-          contact={null}
-          onDone={() => setEditing(null)}
-          onCancel={() => setEditing(null)}
-        />
+        <section className="card overflow-hidden">
+          <ContactForm
+            key="new"
+            contact={null}
+            onDone={() => setEditing(null)}
+            onCancel={() => setEditing(null)}
+          />
+        </section>
       ) : null}
 
       {contacts.length === 0 ? (
-        <div className="card p-5 text-sm text-muted">
+        <div className="card px-3 py-4 text-sm text-muted">
           No contacts yet{canEdit ? " — add the first person above" : "."}
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {contacts.map((contact) =>
-            editing !== "new" && editing?.id === contact.id ? (
-              <ContactForm
-                key={contact.id}
-                contact={contact}
-                onDone={() => setEditing(null)}
-                onCancel={() => setEditing(null)}
-              />
-            ) : (
-              <article key={contact.id} className="card flex items-center gap-3 p-4">
-                {contact.photoData ? (
-                  <img
-                    src={contact.photoData}
-                    alt={contact.name}
-                    className="h-14 w-14 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] font-[family-name:var(--font-display)] text-lg text-[var(--accent)]">
-                    {initials(contact.name)}
-                  </span>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold leading-snug">{contact.name}</p>
-                  {contact.phone ? (
-                    <p className="mt-0.5 text-sm text-muted">
-                      <a href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`} className="hover:underline">
-                        {contact.phone}
-                      </a>
-                    </p>
-                  ) : null}
-                  {contact.email ? (
-                    <p className="mt-0.5 text-sm text-muted">
-                      <a href={`mailto:${contact.email}`} className="hover:underline">
-                        {contact.email}
-                      </a>
-                    </p>
-                  ) : null}
-                </div>
-                {canEdit ? (
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    <button
-                      type="button"
-                      className="text-sm font-semibold text-[var(--accent)]"
-                      onClick={() => setEditing(contact)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="text-sm font-semibold text-[var(--danger)]"
-                      disabled={pending}
-                      onClick={() => {
-                        if (!window.confirm(`Delete ${contact.name}?`)) return;
-                        startTransition(async () => {
-                          await deleteContact(contact.id);
-                          router.refresh();
-                        });
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ) : null}
-              </article>
-            ),
-          )}
-        </div>
+        <section>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+            Contacts · {contacts.length}
+          </p>
+          <div className="card divide-y divide-[var(--line)] overflow-hidden">
+            {contacts.map((contact) =>
+              editing !== "new" && editing?.id === contact.id ? (
+                <ContactForm
+                  key={contact.id}
+                  contact={contact}
+                  onDone={() => setEditing(null)}
+                  onCancel={() => setEditing(null)}
+                />
+              ) : (
+                <ContactRow
+                  key={contact.id}
+                  contact={contact}
+                  canEdit={canEdit}
+                  pending={pending}
+                  onEdit={() => setEditing(contact)}
+                  onDelete={() => {
+                    if (!window.confirm(`Delete ${contact.name}?`)) return;
+                    startTransition(async () => {
+                      await deleteContact(contact.id);
+                      router.refresh();
+                    });
+                  }}
+                />
+              ),
+            )}
+          </div>
+        </section>
       )}
     </div>
   );
@@ -164,7 +180,7 @@ function ContactForm({
 
   return (
     <form
-      className="card flex flex-col gap-3 p-4"
+      className="flex flex-col gap-3 px-3 py-3"
       action={async (formData) => {
         startTransition(async () => {
           if (photoData) formData.set("photoData", photoData);
@@ -188,7 +204,7 @@ function ContactForm({
           <img
             src={photoData}
             alt="Contact preview"
-            className="h-16 w-16 rounded-full object-cover"
+            className="h-12 w-12 rounded-full object-cover"
           />
           <div className="flex flex-col gap-1">
             <button
