@@ -38,6 +38,7 @@ export type IdentityMatchReport = {
     review: number;
     unmatched: number;
     duplicatePersonGroups: number;
+    firstNameOnlyPersons: number;
   };
 };
 
@@ -204,6 +205,7 @@ export function buildIdentityMatchReport(input: {
   ];
 
   const duplicatePersonCandidates = findDuplicatePersonCandidates(input.persons);
+  const firstNameOnlyPersons = input.persons.filter((person) => !isFullIdentityName(person.name));
 
   return {
     persons: input.persons.map((person) => ({
@@ -221,6 +223,7 @@ export function buildIdentityMatchReport(input: {
       review: matches.filter((row) => row.verdict === "REVIEW").length,
       unmatched: matches.filter((row) => row.verdict === "UNMATCHED").length,
       duplicatePersonGroups: duplicatePersonCandidates.length,
+      firstNameOnlyPersons: firstNameOnlyPersons.length,
     },
   };
 }
@@ -230,11 +233,13 @@ export function formatIdentityMatchReport(report: IdentityMatchReport): string {
     "Identity match report (READ-ONLY — no backfill)",
     `Persons ${report.counts.persons} · GuestPerson ${report.counts.guestPeople} · Contact ${report.counts.contacts} · MealGuest ${report.counts.mealGuests}`,
     `SAFE ${report.counts.safe} · REVIEW ${report.counts.review} · UNMATCHED ${report.counts.unmatched} · duplicate Person groups ${report.counts.duplicatePersonGroups}`,
+    `First-name-only Person records ${report.counts.firstNameOnlyPersons} (cannot be SAFE targets)`,
     "",
     "Persons",
   ];
   for (const person of report.persons) {
-    lines.push(`  ${person.id} | ${person.name} | ${person.normalized}`);
+    const flag = isFullIdentityName(person.name) ? "" : " [FIRST-NAME-ONLY]";
+    lines.push(`  ${person.id} | ${person.name} | ${person.normalized}${flag}`);
   }
 
   lines.push("", "Duplicate Person candidates");

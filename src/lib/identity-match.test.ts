@@ -93,4 +93,5 @@ test("report counts every source row and does not invent writes", () => {
   assert.equal(report.counts.review, 2);
   assert.equal(report.counts.unmatched, 1);
   assert.equal(report.matches.length, 4);
+  assert.equal(report.counts.firstNameOnlyPersons, 2);
 });
