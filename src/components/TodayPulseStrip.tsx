@@ -5,19 +5,28 @@ export function TodayPulseStrip({ stats }: { stats: TodayPulseStat[] }) {
   if (stats.length === 0) return null;
 
   return (
-    <section className="mb-5">
-      <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Pulse</p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {stats.map((stat) => (
+    <section className="mb-8">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+        Wedding pulse
+      </p>
+      <div className="mt-3 flex flex-col">
+        {stats.map((stat, index) => (
           <Link
             key={stat.id}
             href={stat.href}
-            className="card flex min-h-[4.5rem] flex-col justify-center px-3 py-2 transition-colors hover:bg-[var(--accent-soft)]/40"
+            className={`flex min-h-14 items-baseline justify-between gap-4 py-2.5 ${
+              index === 0 ? "border-t border-[var(--line)]" : ""
+            } border-b border-[var(--line)] transition-colors hover:bg-[var(--accent-soft)]/25`}
           >
-            <p className="font-[family-name:var(--font-display)] text-xl leading-none text-[var(--accent)]">
-              {stat.value}
-            </p>
-            <p className="mt-1 text-xs font-semibold text-muted">{stat.label}</p>
+            <span className="text-sm font-semibold uppercase tracking-[0.08em] text-muted">
+              {stat.label}
+            </span>
+            <span className="text-right">
+              <span className="font-[family-name:var(--font-display)] text-xl leading-none text-[var(--accent)]">
+                {stat.value}
+              </span>
+              {stat.detail ? <span className="ml-2 text-xs text-muted">{stat.detail}</span> : null}
+            </span>
           </Link>
         ))}
       </div>
