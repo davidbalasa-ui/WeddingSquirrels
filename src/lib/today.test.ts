@@ -405,7 +405,7 @@ test("null-personId legacy rows do not gain inferred identity", () => {
 test("buildPulseStats respects module visibility", () => {
   const stats = buildPulseStats({
     items: [taskItem("t1"), taskItem("t2", { done: true })],
-    budget: { remaining: 1200 },
+    budget: { remaining: 1200, committed: 4000, paid: 2800 },
     rsvp: { accepted: 42, invited: 80 },
     session: masterSession(),
   });
@@ -414,6 +414,14 @@ test("buildPulseStats respects module visibility", () => {
   assert.equal(stats[0]?.id, "rsvp");
   assert.equal(stats[0]?.value, "42 / 80");
   assert.equal(stats[2]?.href, "/money");
+
+  const emptyMoney = buildPulseStats({
+    items: [],
+    budget: { remaining: 0, committed: 0, paid: 0 },
+    rsvp: null,
+    session: masterSession(),
+  });
+  assert.equal(emptyMoney.some((stat) => stat.id === "budget-remaining"), false);
 });
 
 test("shouldShowWeddingWeek is true only within seven days", () => {

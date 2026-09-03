@@ -458,7 +458,11 @@ export function buildPulseStats(input: {
     });
   }
 
-  if (input.budget && input.session.canSeeBudget) {
+  if (
+    input.budget &&
+    input.session.canSeeBudget &&
+    ((input.budget.committed ?? 0) > 0 || (input.budget.paid ?? 0) > 0)
+  ) {
     stats.push({
       id: "budget-remaining",
       label: "Money",
