@@ -7,8 +7,8 @@ import {
 } from "@/lib/connections";
 import {
   buildDirectoryEntries,
+  countPeopleHubTabs,
   filterEntriesByTab,
-  namesMatch,
   normalizePersonName,
   resolveIsDayOfContact,
   type DirectoryEntry,
@@ -49,18 +49,19 @@ function householdLabel(guest: ReturnType<typeof mapGuestRecord>) {
 
 function attachContactPhotos(
   guests: GuestRecord[],
-  contacts: Array<{ name: string; photoData: string | null }>,
+  contacts: Array<{ name: string; photoData: string | null; personId?: string | null }>,
 ): GuestRecord[] {
   if (contacts.length === 0) return guests;
   return guests.map((guest) => ({
     ...guest,
     people: guest.people.map((person) => {
       if (person.photoData) return person;
-      const contact = contacts.find(
-        (row) =>
-          row.photoData?.trim() &&
-          normalizePersonName(row.name) === normalizePersonName(person.name),
-      );
+      const contact = contacts.find((row) => {
+        if (!row.photoData?.trim()) return false;
+        if (person.personId && row.personId === person.personId) return true;
+        if (person.personId || row.personId) return false;
+        return normalizePersonName(row.name) === normalizePersonName(person.name);
+      });
       if (!contact?.photoData) return person;
       return { ...person, photoData: contact.photoData };
     }),
@@ -91,6 +92,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
             phone: true,
             email: true,
             photoData: true,
+            personId: true,
           },
         })
       : Promise.resolve([]),
@@ -136,6 +138,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
             ? `Table ${person.tableNumber} · ${person.tableSpot.trim()}`
             : `Table ${person.tableNumber}`
           : null,
+      personId: person.personId,
     }));
   });
 
@@ -177,11 +180,9 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
 
   const vendorBudgets: Record<string, VendorBudgetRecord[]> = {};
   for (const entry of vendorEntries) {
-    const contactId = entry.profileId.startsWith("contact:")
-      ? entry.profileId.slice("contact:".length)
+    const contact = entry.contactId
+      ? contacts.find((row) => row.id === entry.contactId)
       : null;
-    if (!contactId) continue;
-    const contact = contacts.find((row) => row.id === contactId);
     if (!contact) continue;
     const contracts = budgetContractsForContact(contact, budgetItems).map((contract) => {
       const item = budgetItems.find((row) => row.id === contract.id);
@@ -202,14 +203,10 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
     dayOfContacts,
     guests: guestRecords,
     guestReport,
-    tabCounts: {
-      all:
-        guestRecords.reduce((sum, guest) => sum + guest.people.length, 0) +
-        vendorEntries.length +
-        dayOfContacts.length,
-      guests: guestRecords.reduce((sum, guest) => sum + guest.people.length, 0),
-      vendors: vendorEntries.length,
-      "day-of": dayOfContacts.length,
-    },
+    tabCounts: countPeopleHubTabs({
+      entries,
+      guestPersonCount: guestRecords.reduce((sum, guest) => sum + guest.people.length, 0),
+      dayOfContactCount: dayOfContacts.length,
+    }),
   };
 }

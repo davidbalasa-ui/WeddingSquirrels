@@ -29,6 +29,7 @@ const sampleGuest = (names: string[], rsvp = "pending"): GuestRecord => ({
     photoData: null,
     tableNumber: index + 1,
     tableSpot: null,
+    personId: null,
   })),
 });
 
@@ -61,6 +62,7 @@ const household = (
     photoData: person.photo ?? null,
     tableNumber: index + 1,
     tableSpot: null,
+    personId: null,
   })),
 });
 

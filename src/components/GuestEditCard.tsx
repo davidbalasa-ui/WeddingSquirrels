@@ -60,6 +60,7 @@ export function GuestEditCard({
         photoData: null,
         tableNumber: null,
         tableSpot: null,
+        personId: null,
       },
     ]);
   }

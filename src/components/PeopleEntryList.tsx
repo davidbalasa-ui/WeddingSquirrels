@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { PersonAvatar } from "@/components/PersonAvatar";
 import {
   filterDirectoryEntries,
-  sourceListLabel,
+  sourceListsLabel,
   type DirectoryEntry,
 } from "@/lib/people-directory";
 
@@ -41,7 +41,7 @@ export function PeopleEntryList({
       ) : (
         <div className="card divide-y divide-[var(--line)] overflow-hidden">
           {filtered.map((entry) => {
-            const source = sourceListLabel(entry.primaryList);
+            const source = sourceListsLabel(entry.lists);
             const contactLine = [entry.phone, entry.email].filter(Boolean).join(" · ");
             const details = [
               source,

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PeopleProfileView } from "@/components/PeopleProfileView";
 import { V2PageHeader } from "@/components/V2PageHeader";
 import { parseProfileId } from "@/lib/people-directory";
@@ -18,6 +18,9 @@ export default async function PeopleProfilePage({
   const session = await requirePageSession();
   const profile = await loadPeopleProfile(session, profileId);
   if (!profile) notFound();
+  if (profile.profileId !== profileId) {
+    redirect(`/people/${encodeURIComponent(profile.profileId)}`);
+  }
 
   return (
     <>
