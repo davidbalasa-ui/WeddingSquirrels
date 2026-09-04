@@ -62,7 +62,7 @@ export function findProfileIdForBudgetName(
 }
 
 export function moneyContractHref(contractId: string) {
-  return `/money?contract=${encodeURIComponent(contractId)}`;
+  return `/money/${encodeURIComponent(contractId)}`;
 }
 
 export function profileHref(profileId: string) {

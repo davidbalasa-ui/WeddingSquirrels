@@ -1,29 +1,56 @@
-import { prisma, supportsBudgetFundingSources, supportsBudgetPayments } from "@/lib/db";
+import { prisma, supportsBudgetPayments } from "@/lib/db";
 import { moneyEditable } from "@/lib/access";
-import type { SessionAccount } from "@/lib/types";
 import {
   buildMoneyDueItems,
-  buildMoneyLedgerSummary,
+  buildMoneyHistoryItems,
   buildMoneySummary,
+  filterVisibleBudgetItems,
   sortContractsByUrgency,
   type BudgetContractSnapshot,
-  type FundingSourceSnapshot,
+  type BudgetPaymentSnapshot,
   type MinorExpenseSnapshot,
   type MoneyDueItem,
-  type MoneyLedgerSummary,
+  type MoneyHistoryItem,
   type MoneySummary,
 } from "@/lib/money";
+import type { SessionAccount } from "@/lib/types";
 
 export type MoneyPageData = {
   contracts: BudgetContractSnapshot[];
   minor: MinorExpenseSnapshot[];
-  fundingSources: FundingSourceSnapshot[];
   summary: MoneySummary;
-  ledger: MoneyLedgerSummary;
   dueItems: MoneyDueItem[];
   overdueItems: MoneyDueItem[];
-  canEditFunding: boolean;
+  historyItems: MoneyHistoryItem[];
+  personNames: Record<string, string>;
+  canEdit: boolean;
 };
+
+function mapPayments(
+  payments: Array<{
+    id: string;
+    label: string | null;
+    amount: number;
+    dueDate: Date | null;
+    paidAmount: number;
+    paidAt: Date | null;
+    paidById: string | null;
+    note: string | null;
+    sortOrder: number;
+  }>,
+): BudgetPaymentSnapshot[] {
+  return payments.map((payment) => ({
+    id: payment.id,
+    label: payment.label,
+    amount: payment.amount,
+    dueDate: payment.dueDate,
+    paidAmount: payment.paidAmount,
+    paidAt: payment.paidAt,
+    paidById: payment.paidById,
+    note: payment.note,
+    sortOrder: payment.sortOrder,
+  }));
+}
 
 export async function loadVisibleBudgetContracts(
   session: SessionAccount,
@@ -31,25 +58,17 @@ export async function loadVisibleBudgetContracts(
   if (!session.canSeeBudget) return [];
 
   const includePayments = await supportsBudgetPayments();
-
   const allItems = await prisma.budgetItem.findMany({
     orderBy: { sortOrder: "asc" },
     include: {
       shares: { select: { pinAccountId: true } },
-      ...(includePayments
-        ? { payments: { orderBy: { sortOrder: "asc" } } }
-        : {}),
+      payments: includePayments
+        ? { orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }] }
+        : false,
     },
   });
 
-  const visible =
-    session.isMaster || moneyEditable(session)
-      ? allItems
-      : allItems.filter(
-          (item) =>
-            (session.linkedPersonId != null && item.ownerId === session.linkedPersonId) ||
-            item.shares.some((share) => share.pinAccountId === session.id),
-        );
+  const visible = filterVisibleBudgetItems(session, allItems);
 
   return visible.map((item) => ({
     id: item.id,
@@ -61,20 +80,18 @@ export async function loadVisibleBudgetContracts(
     payByDate: item.payByDate,
     note: item.note,
     sortOrder: item.sortOrder,
-    payments: includePayments
-      ? item.payments.map((payment) => ({
-          id: payment.id,
-          label: payment.label,
-          amount: payment.amount,
-          dueDate: payment.dueDate,
-          paidAmount: payment.paidAmount,
-          paidAt: payment.paidAt,
-          paidById: payment.paidById,
-          note: payment.note,
-          sortOrder: payment.sortOrder,
-        }))
+    payments: includePayments && "payments" in item && item.payments
+      ? mapPayments(item.payments)
       : [],
   }));
+}
+
+export async function loadVisibleBudgetContract(
+  session: SessionAccount,
+  contractId: string,
+): Promise<BudgetContractSnapshot | null> {
+  const contracts = await loadVisibleBudgetContracts(session);
+  return contracts.find((contract) => contract.id === contractId) ?? null;
 }
 
 export async function loadMinorExpenses(canEdit: boolean): Promise<MinorExpenseSnapshot[]> {
@@ -100,46 +117,36 @@ export async function loadMinorExpenses(canEdit: boolean): Promise<MinorExpenseS
   return rows;
 }
 
-export async function loadFundingSources(): Promise<FundingSourceSnapshot[]> {
-  if (!(await supportsBudgetFundingSources())) return [];
-
-  const rows = await prisma.budgetFundingSource.findMany({
+export async function loadPersonNames(): Promise<Record<string, string>> {
+  const people = await prisma.person.findMany({
+    select: { id: true, name: true },
     orderBy: { sortOrder: "asc" },
   });
-
-  return rows.map((row) => ({
-    id: row.id,
-    label: row.label,
-    amount: row.amount,
-    status: row.status === "expected" ? "expected" : "available",
-    note: row.note,
-    sortOrder: row.sortOrder,
-  }));
+  return Object.fromEntries(people.map((person) => [person.id, person.name]));
 }
 
 export async function loadMoneyPageData(session: SessionAccount): Promise<MoneyPageData> {
   const canEdit = moneyEditable(session);
-  const canEditFunding = canEdit && (await supportsBudgetFundingSources());
-  const [contracts, minor, fundingSources] = await Promise.all([
+  const [contracts, minor, personNames] = await Promise.all([
     loadVisibleBudgetContracts(session),
     loadMinorExpenses(canEdit),
-    loadFundingSources(),
+    loadPersonNames(),
   ]);
   const sortedContracts = sortContractsByUrgency(contracts);
-  const summary = buildMoneySummary(sortedContracts, { minor });
-  const ledger = buildMoneyLedgerSummary(fundingSources, sortedContracts, minor);
-  const dueItems = buildMoneyDueItems(sortedContracts).slice(0, 6);
+  const summary = buildMoneySummary(sortedContracts);
+  const dueItems = buildMoneyDueItems(sortedContracts);
   const overdueItems = buildMoneyDueItems(sortedContracts, { overdueOnly: true });
+  const historyItems = buildMoneyHistoryItems(sortedContracts);
 
   return {
     contracts: sortedContracts,
     minor,
-    fundingSources,
     summary,
-    ledger,
     dueItems,
     overdueItems,
-    canEditFunding,
+    historyItems,
+    personNames,
+    canEdit,
   };
 }
 
@@ -148,8 +155,11 @@ export async function syncBudgetItemAmountPaid(budgetItemId: string) {
 
   const payments = await prisma.budgetPayment.findMany({
     where: { budgetItemId },
-    orderBy: [{ sortOrder: "asc" }, { dueDate: "asc" }],
+    orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }],
   });
+
+  if (payments.length === 0) return;
+
   const amountPaid = payments.reduce((sum, payment) => sum + payment.paidAmount, 0);
   const nextDue =
     payments.find((payment) => payment.paidAmount + 0.001 < payment.amount)?.dueDate ?? null;

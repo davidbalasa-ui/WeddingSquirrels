@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { EmptyState } from "@/components/EmptyState";
-import { moneyContractHref } from "@/lib/connections";
 import { dueDateLabel, formatMoney, type MoneyDueItem } from "@/lib/money";
+import { moneyContractHref } from "@/lib/connections";
 
 export function MoneyDueList({
   title,
@@ -14,58 +13,51 @@ export function MoneyDueList({
   showAllHref?: string;
   emptyTitle?: string;
 }) {
-  if (items.length === 0) {
-    return (
-      <section className="mb-6">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{title}</p>
-        <EmptyState
-          title={emptyTitle ?? "No payments due right now"}
-          detail="Installments and balances will show up here when something is coming due."
-          actionHref={showAllHref}
-          actionLabel={showAllHref ? "View payment schedule" : undefined}
-        />
-      </section>
-    );
-  }
-
   return (
-    <section className="mb-6">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{title}</p>
+    <section className="mb-8">
+      <div className="mb-2 flex items-end justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">{title}</p>
         {showAllHref ? (
-          <Link href={showAllHref} className="text-xs font-semibold text-[var(--accent)]">
-            View all
+          <Link href={showAllHref} className="text-sm font-semibold text-[var(--accent)]">
+            All due
           </Link>
         ) : null}
       </div>
-      <div className="divide-y divide-[var(--line)] border-y border-line">
-        {items.map((item) => (
-          <Link
-            key={item.id}
-            href={moneyContractHref(item.contractId)}
-            className="flex min-h-[4.5rem] items-center gap-3 py-3 transition-colors hover:bg-[var(--accent-soft)]/30"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block font-[family-name:var(--font-display)] text-lg leading-tight">
-                {item.contractName}
+
+      {items.length === 0 ? (
+        <p className="border-t border-[var(--line)] py-6 text-base text-muted">
+          {emptyTitle ?? "Nothing is due right now."}
+        </p>
+      ) : (
+        <div className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
+          {items.map((item) => (
+            <Link
+              key={item.id}
+              href={moneyContractHref(item.contractId)}
+              className="flex min-h-[4.75rem] items-center gap-3 py-3.5 transition-colors hover:bg-[var(--accent-soft)]/25"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block font-[family-name:var(--font-display)] text-[1.45rem] leading-[1.1] tracking-tight">
+                  {item.contractName}
+                </span>
+                <span className="mt-1 block text-[0.95rem] leading-snug text-muted">
+                  {item.kind === "legacy" ? item.label : `${item.label} · ${formatMoney(item.amount)}`}
+                </span>
+                <span
+                  className={`mt-1 block text-sm font-semibold ${
+                    item.overdue ? "text-[var(--warn)]" : "text-[var(--accent)]"
+                  }`}
+                >
+                  {dueDateLabel(item.dueDate)}
+                </span>
               </span>
-              <span className="mt-0.5 block text-sm text-muted">
-                {item.label} · {formatMoney(item.amount)}
+              <span className="shrink-0 text-lg font-semibold text-[var(--accent)]" aria-hidden>
+                →
               </span>
-              <span
-                className={`mt-1 block text-xs font-semibold ${
-                  item.overdue ? "text-[var(--warn)]" : "text-[var(--accent)]"
-                }`}
-              >
-                {dueDateLabel(item.dueDate)}
-              </span>
-            </span>
-            <span className="text-lg text-muted" aria-hidden>
-              ›
-            </span>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

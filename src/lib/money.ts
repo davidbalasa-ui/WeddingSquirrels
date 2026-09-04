@@ -1,8 +1,13 @@
 import { addDays, startOfDay } from "date-fns";
+import type { SessionAccount } from "@/lib/types";
+
+export const MONEY_EPSILON = 0.001;
+export const MONEY_DUE_SOON_DAYS = 14;
+export const LEGACY_PAID_LABEL = "Paid so far";
 
 export type BudgetPaymentSnapshot = {
   id: string;
-  label: string;
+  label: string | null;
   amount: number;
   dueDate: Date | null;
   paidAmount: number;
@@ -66,6 +71,8 @@ export type MoneyLedgerSummary = {
   cashOnHand: number;
 };
 
+export type MoneyDueKind = "legacy" | "payment";
+
 export type MoneyDueItem = {
   id: string;
   contractId: string;
@@ -74,12 +81,22 @@ export type MoneyDueItem = {
   amount: number;
   dueDate: Date;
   overdue: boolean;
+  kind: MoneyDueKind;
   ownerId: string | null;
   paidById: string | null;
 };
 
-const EPSILON = 0.001;
-const DUE_SOON_DAYS = 14;
+export type MoneyHistoryItem = {
+  id: string;
+  contractId: string;
+  contractName: string;
+  label: string;
+  amount: number;
+  paidAt: Date | null;
+  dueDate: Date | null;
+};
+
+export type BudgetShareRef = { pinAccountId: string };
 
 export function formatMoney(amount: number, opts?: { maximumFractionDigits?: number }) {
   return amount.toLocaleString(undefined, {
@@ -89,12 +106,28 @@ export function formatMoney(amount: number, opts?: { maximumFractionDigits?: num
   });
 }
 
+export function clampNonNegativeMoney(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, value);
+}
+
+export function hasExplicitSchedule(
+  contract: { payments?: BudgetPaymentSnapshot[] },
+): boolean {
+  return (contract.payments?.length ?? 0) > 0;
+}
+
+export function paymentDisplayLabel(payment: Pick<BudgetPaymentSnapshot, "label">) {
+  const label = payment.label?.trim();
+  return label || "Payment";
+}
+
 export function paymentRemaining(payment: Pick<BudgetPaymentSnapshot, "amount" | "paidAmount">) {
   return Math.max(0, payment.amount - payment.paidAmount);
 }
 
 export function paymentIsPaid(payment: Pick<BudgetPaymentSnapshot, "amount" | "paidAmount">) {
-  return paymentRemaining(payment) <= EPSILON;
+  return paymentRemaining(payment) <= MONEY_EPSILON;
 }
 
 export function paymentIsOverdue(
@@ -108,7 +141,7 @@ export function paymentIsOverdue(
 export function paymentIsDueSoon(
   payment: Pick<BudgetPaymentSnapshot, "amount" | "paidAmount" | "dueDate">,
   today = startOfDay(new Date()),
-  withinDays = DUE_SOON_DAYS,
+  withinDays = MONEY_DUE_SOON_DAYS,
 ) {
   if (paymentIsPaid(payment) || !payment.dueDate) return false;
   const due = startOfDay(payment.dueDate);
@@ -116,97 +149,124 @@ export function paymentIsDueSoon(
   return due <= addDays(today, withinDays);
 }
 
-export function synthesizePaymentsFromLegacy(
-  item: Pick<BudgetContractSnapshot, "id" | "price" | "amountPaid" | "payByDate">,
-): BudgetPaymentSnapshot[] {
-  const remaining = Math.max(0, item.price - item.amountPaid);
-  const rows: BudgetPaymentSnapshot[] = [];
-
-  if (item.amountPaid > EPSILON) {
-    rows.push({
-      id: `${item.id}:paid`,
-      label: "Paid so far",
-      amount: item.amountPaid,
-      dueDate: null,
-      paidAmount: item.amountPaid,
-      paidAt: null,
-      paidById: null,
-      note: null,
-      sortOrder: 0,
-    });
-  }
-
-  if (remaining > EPSILON) {
-    rows.push({
-      id: `${item.id}:balance`,
-      label: item.amountPaid > EPSILON ? "Balance" : "Payment",
-      amount: remaining,
-      dueDate: item.payByDate,
-      paidAmount: 0,
-      paidAt: null,
-      paidById: null,
-      note: null,
-      sortOrder: rows.length,
-    });
-  } else if (item.price > EPSILON && item.amountPaid <= EPSILON) {
-    rows.push({
-      id: `${item.id}:payment`,
-      label: "Payment",
-      amount: item.price,
-      dueDate: item.payByDate,
-      paidAmount: 0,
-      paidAt: null,
-      paidById: null,
-      note: null,
-      sortOrder: 0,
-    });
-  }
-
-  return rows;
+export function sortPayments<T extends Pick<BudgetPaymentSnapshot, "dueDate" | "sortOrder">>(
+  payments: T[],
+): T[] {
+  return [...payments].sort((a, b) => {
+    const aDue = a.dueDate ? startOfDay(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
+    const bDue = b.dueDate ? startOfDay(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
+    return aDue - bDue || a.sortOrder - b.sortOrder;
+  });
 }
 
-export function resolveContractPayments(contract: BudgetContractSnapshot): BudgetPaymentSnapshot[] {
-  if (contract.payments.length > 0) {
-    return [...contract.payments].sort((a, b) => a.sortOrder - b.sortOrder);
+type ContractMoneyFields = Pick<BudgetContractSnapshot, "amountPaid"> & {
+  payments?: BudgetPaymentSnapshot[];
+};
+
+export function contractPaidTotal(contract: ContractMoneyFields) {
+  const payments = contract.payments ?? [];
+  if (payments.length > 0) {
+    return payments.reduce((sum, payment) => sum + payment.paidAmount, 0);
   }
-  return synthesizePaymentsFromLegacy(contract);
+  return contract.amountPaid;
 }
 
-export function contractRemaining(contract: Pick<BudgetContractSnapshot, "price" | "amountPaid">) {
-  return Math.max(0, contract.price - contract.amountPaid);
+export function contractRemaining(
+  contract: Pick<BudgetContractSnapshot, "price" | "amountPaid"> & { payments?: BudgetPaymentSnapshot[] },
+) {
+  return Math.max(0, contract.price - contractPaidTotal(contract));
 }
 
-export function contractIsPaid(contract: Pick<BudgetContractSnapshot, "price" | "amountPaid">) {
-  return contractRemaining(contract) <= EPSILON;
+export function contractIsPaid(
+  contract: Pick<BudgetContractSnapshot, "price" | "amountPaid"> & { payments?: BudgetPaymentSnapshot[] },
+) {
+  return contractRemaining(contract) <= MONEY_EPSILON;
+}
+
+export function scheduledPaymentTotal(contract: Pick<BudgetContractSnapshot, "payments">) {
+  return contract.payments.reduce((sum, payment) => sum + payment.amount, 0);
+}
+
+export function completedPayments(contract: Pick<BudgetContractSnapshot, "payments">) {
+  return sortPayments(contract.payments.filter((payment) => paymentIsPaid(payment)));
+}
+
+export function openPayments(contract: Pick<BudgetContractSnapshot, "payments">) {
+  return sortPayments(contract.payments.filter((payment) => !paymentIsPaid(payment)));
+}
+
+export function summariesFromPayments(
+  price: number,
+  payments: BudgetPaymentSnapshot[],
+  today = startOfDay(new Date()),
+) {
+  const paid = payments.reduce((sum, payment) => sum + payment.paidAmount, 0);
+  const remaining = Math.max(0, price - paid);
+  const next = sortPayments(payments.filter((payment) => !paymentIsPaid(payment)))[0] ?? null;
+  return {
+    paid,
+    remaining,
+    nextDue: next?.dueDate ?? null,
+    overdue: next ? paymentIsOverdue(next, today) : false,
+    scheduledTotal: payments.reduce((sum, payment) => sum + payment.amount, 0),
+  };
+}
+
+function legacyDueItem(
+  contract: BudgetContractSnapshot,
+  today: Date,
+): MoneyDueItem | null {
+  const remaining = contractRemaining(contract);
+  if (remaining <= MONEY_EPSILON || !contract.payByDate) return null;
+  return {
+    id: `legacy:${contract.id}`,
+    contractId: contract.id,
+    contractName: contract.name,
+    label: `${formatMoney(remaining)} remaining`,
+    amount: remaining,
+    dueDate: contract.payByDate,
+    overdue: startOfDay(contract.payByDate) < today,
+    kind: "legacy",
+    ownerId: contract.ownerId,
+    paidById: contract.paidById,
+  };
+}
+
+function explicitDueItems(contract: BudgetContractSnapshot, today: Date): MoneyDueItem[] {
+  return sortPayments(contract.payments)
+    .filter((payment) => !paymentIsPaid(payment) && payment.dueDate)
+    .map((payment) => ({
+      id: `payment:${contract.id}:${payment.id}`,
+      contractId: contract.id,
+      contractName: contract.name,
+      label: paymentDisplayLabel(payment),
+      amount: paymentRemaining(payment),
+      dueDate: payment.dueDate as Date,
+      overdue: paymentIsOverdue(payment, today),
+      kind: "payment" as const,
+      ownerId: contract.ownerId,
+      paidById: contract.paidById,
+    }));
+}
+
+/** Never mixes legacy remaining with explicit installment rows. */
+export function obligationsForContract(
+  contract: BudgetContractSnapshot,
+  today = startOfDay(new Date()),
+): MoneyDueItem[] {
+  if (hasExplicitSchedule(contract)) return explicitDueItems(contract, today);
+  const legacy = legacyDueItem(contract, today);
+  return legacy ? [legacy] : [];
 }
 
 export function nextUnpaidPayment(
   contract: BudgetContractSnapshot,
   today = startOfDay(new Date()),
 ): MoneyDueItem | null {
-  const payments = resolveContractPayments(contract);
-  const unpaid = payments
-    .filter((payment) => !paymentIsPaid(payment))
-    .sort((a, b) => {
-      const aDue = a.dueDate ? startOfDay(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
-      const bDue = b.dueDate ? startOfDay(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
-      return aDue - bDue || a.sortOrder - b.sortOrder;
-    });
-
-  const next = unpaid[0];
-  if (!next) return null;
-
-  return {
-    id: `${contract.id}:${next.id}`,
-    contractId: contract.id,
-    contractName: contract.name,
-    label: next.label,
-    amount: paymentRemaining(next),
-    dueDate: next.dueDate ?? today,
-    overdue: paymentIsOverdue(next, today),
-    ownerId: contract.ownerId,
-    paidById: contract.paidById,
-  };
+  const items = obligationsForContract(contract, today).sort(
+    (a, b) => Number(b.overdue) - Number(a.overdue) || a.dueDate.getTime() - b.dueDate.getTime(),
+  );
+  return items[0] ?? null;
 }
 
 export function buildMoneyDueItems(
@@ -217,24 +277,14 @@ export function buildMoneyDueItems(
   const items: MoneyDueItem[] = [];
 
   for (const contract of contracts) {
-    for (const payment of resolveContractPayments(contract)) {
-      if (paymentIsPaid(payment) || !payment.dueDate) continue;
-      const overdue = paymentIsOverdue(payment, today);
-      const dueSoon = paymentIsDueSoon(payment, today);
-      if (opts?.overdueOnly && !overdue) continue;
-      if (opts?.dueSoonOnly && !(dueSoon || overdue)) continue;
-
-      items.push({
-        id: `${contract.id}:${payment.id}`,
-        contractId: contract.id,
-        contractName: contract.name,
-        label: payment.label,
-        amount: paymentRemaining(payment),
-        dueDate: payment.dueDate,
-        overdue,
-        ownerId: contract.ownerId,
-        paidById: contract.paidById,
-      });
+    for (const item of obligationsForContract(contract, today)) {
+      const dueSoon = paymentIsDueSoon(
+        { amount: item.amount, paidAmount: 0, dueDate: item.dueDate },
+        today,
+      );
+      if (opts?.overdueOnly && !item.overdue) continue;
+      if (opts?.dueSoonOnly && !(dueSoon || item.overdue)) continue;
+      items.push(item);
     }
   }
 
@@ -246,16 +296,52 @@ export function buildMoneyDueItems(
   );
 }
 
+export function buildMoneyHistoryItems(
+  contracts: BudgetContractSnapshot[],
+): MoneyHistoryItem[] {
+  const items: MoneyHistoryItem[] = [];
+  for (const contract of contracts) {
+    if (!hasExplicitSchedule(contract)) {
+      if (contract.amountPaid > MONEY_EPSILON) {
+        items.push({
+          id: `legacy-paid:${contract.id}`,
+          contractId: contract.id,
+          contractName: contract.name,
+          label: LEGACY_PAID_LABEL,
+          amount: contract.amountPaid,
+          paidAt: null,
+          dueDate: null,
+        });
+      }
+      continue;
+    }
+    for (const payment of completedPayments(contract)) {
+      items.push({
+        id: `payment:${contract.id}:${payment.id}`,
+        contractId: contract.id,
+        contractName: contract.name,
+        label: paymentDisplayLabel(payment),
+        amount: payment.paidAmount,
+        paidAt: payment.paidAt,
+        dueDate: payment.dueDate,
+      });
+    }
+  }
+
+  return items.sort((a, b) => {
+    const aTime = (a.paidAt ?? a.dueDate)?.getTime() ?? 0;
+    const bTime = (b.paidAt ?? b.dueDate)?.getTime() ?? 0;
+    return bTime - aTime || a.contractName.localeCompare(b.contractName);
+  });
+}
+
 export function buildMoneySummary(
   contracts: BudgetContractSnapshot[],
-  opts?: { now?: Date; minor?: MinorExpenseSnapshot[] },
+  opts?: { now?: Date },
 ): MoneySummary {
   const today = startOfDay(opts?.now ?? new Date());
-  const minor = opts?.minor ?? [];
-  const minorCommitted = minor.reduce((sum, row) => sum + (row.amountNeeded ?? row.amountSpent), 0);
-  const minorPaid = minor.reduce((sum, row) => sum + row.amountSpent, 0);
-  const committed = contracts.reduce((sum, contract) => sum + contract.price, 0) + minorCommitted;
-  const paid = contracts.reduce((sum, contract) => sum + contract.amountPaid, 0) + minorPaid;
+  const committed = contracts.reduce((sum, contract) => sum + contract.price, 0);
+  const paid = contracts.reduce((sum, contract) => sum + contractPaidTotal(contract), 0);
   const dueItems = buildMoneyDueItems(contracts, { now: today });
 
   let dueSoonCount = 0;
@@ -298,7 +384,7 @@ export function buildMoneyLedgerSummary(
   const projectedBudget = availableFunding + expectedFunding;
 
   const contractCommitted = contracts.reduce((sum, contract) => sum + contract.price, 0);
-  const contractPaid = contracts.reduce((sum, contract) => sum + contract.amountPaid, 0);
+  const contractPaid = contracts.reduce((sum, contract) => sum + contractPaidTotal(contract), 0);
   const minorCommitted = minor.reduce((sum, row) => sum + (row.amountNeeded ?? row.amountSpent), 0);
   const minorPaid = minor.reduce((sum, row) => sum + row.amountSpent, 0);
 
@@ -318,20 +404,26 @@ export function buildMoneyLedgerSummary(
   };
 }
 
-export function nextUnpaidPaymentLabel(contract: BudgetContractSnapshot, today = startOfDay(new Date())) {
+export function nextDueStateLabel(contract: BudgetContractSnapshot, today = startOfDay(new Date())) {
+  if (contractIsPaid(contract)) return "Paid";
   const next = nextUnpaidPayment(contract, today);
-  if (!next) return null;
-  return `${next.label} · ${formatMoney(next.amount)} · ${dueDateLabel(next.dueDate, today)}`;
+  if (!next) {
+    const remaining = contractRemaining(contract);
+    return remaining > MONEY_EPSILON ? `${formatMoney(remaining)} remaining` : "Paid";
+  }
+  if (next.overdue) return `Overdue · ${shortDueDate(next.dueDate)}`;
+  return `Next payment ${shortDueDate(next.dueDate)}`;
 }
 
 export function sortContractsByUrgency(contracts: BudgetContractSnapshot[], now = new Date()) {
+  const today = startOfDay(now);
   return [...contracts].sort((a, b) => {
     const aPaid = contractIsPaid(a) ? 1 : 0;
     const bPaid = contractIsPaid(b) ? 1 : 0;
     if (aPaid !== bPaid) return aPaid - bPaid;
 
-    const aNext = nextUnpaidPayment(a, startOfDay(now));
-    const bNext = nextUnpaidPayment(b, startOfDay(now));
+    const aNext = nextUnpaidPayment(a, today);
+    const bNext = nextUnpaidPayment(b, today);
     if (aNext && bNext) {
       if (aNext.overdue !== bNext.overdue) return aNext.overdue ? -1 : 1;
       return aNext.dueDate.getTime() - bNext.dueDate.getTime();
@@ -352,8 +444,42 @@ export function dueDateLabel(date: Date, today = startOfDay(new Date())) {
   return due.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export function personMoneyLabel(id: string | null) {
+export function shortDueDate(date: Date) {
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+export function personMoneyLabel(id: string | null, names?: Record<string, string>) {
+  if (id && names?.[id]) return names[id];
   if (id === "david") return "David";
   if (id === "haley") return "Haley";
-  return "Both";
+  return id ? "Someone" : "Both";
+}
+
+export function canSeeBudgetItem(
+  session: SessionAccount,
+  item: { ownerId: string | null; shares: BudgetShareRef[] },
+) {
+  if (!session.canSeeBudget) return false;
+  if (session.isMaster || session.canEditBudget) return true;
+  if (session.linkedPersonId != null && item.ownerId === session.linkedPersonId) return true;
+  return item.shares.some((share) => share.pinAccountId === session.id);
+}
+
+export function filterVisibleBudgetItems<T extends { ownerId: string | null; shares: BudgetShareRef[] }>(
+  session: SessionAccount,
+  items: T[],
+): T[] {
+  if (!session.canSeeBudget) return [];
+  if (session.isMaster || session.canEditBudget) return items;
+  return items.filter((item) => canSeeBudgetItem(session, item));
+}
+
+export function syncedLegacyFields(payments: BudgetPaymentSnapshot[]) {
+  if (payments.length === 0) return null;
+  const amountPaid = payments.reduce((sum, payment) => sum + clampNonNegativeMoney(payment.paidAmount), 0);
+  const nextUnpaid = sortPayments(payments).find((payment) => !paymentIsPaid(payment));
+  return {
+    amountPaid,
+    payByDate: nextUnpaid?.dueDate ?? null,
+  };
 }

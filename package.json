@@ -17,6 +17,7 @@
     "db:masters": "tsx scripts/ensure-masters.ts",
     "db:known-people": "tsx scripts/ensure-known-people.ts",
     "db:day-of": "tsx scripts/ensure-day-of.ts",
+    "db:budget-payment-schema": "tsx scripts/ensure-budget-payment-schema.ts",
     "db:budget-payments": "tsx scripts/ensure-budget-payments.ts",
     "db:budget-funding": "tsx scripts/ensure-budget-funding.ts",
     "db:directory-label": "tsx scripts/ensure-directory-label.ts",

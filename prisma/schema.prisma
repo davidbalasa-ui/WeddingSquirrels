@@ -105,7 +105,8 @@ model BudgetPayment {
   id           String     @id @default(cuid())
   budgetItemId String
   budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id], onDelete: Cascade)
-  label        String
+  /// Optional human label such as Deposit, Second payment, Final payment.
+  label        String?
   amount       Float
   dueDate      DateTime?
   paidAmount   Float      @default(0)

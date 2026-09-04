@@ -1,62 +1,51 @@
-import { Suspense } from "react";
-import { MoneyBoard } from "@/components/MoneyBoard";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { MoneyAddContract } from "@/components/MoneyAddContract";
+import { MoneyContractList } from "@/components/MoneyContractList";
 import { MoneyDueList } from "@/components/MoneyDueList";
-import { MoneyFundingSummary } from "@/components/MoneyFundingSummary";
-import { PageLoading } from "@/components/PageLoading";
-import { V2PageHeader } from "@/components/V2PageHeader";
-import { moneyEditable } from "@/lib/access";
-import { findProfileIdForBudgetName, profileHref } from "@/lib/connections";
-import { prisma } from "@/lib/db";
+import { MoneyHero } from "@/components/MoneyHero";
+import { MoneyMinorList } from "@/components/MoneyMinorList";
+import { MoneyPosition } from "@/components/MoneyPosition";
 import { loadMoneyPageData } from "@/lib/money-page";
 import { requirePageSession } from "@/lib/session";
 
-export default async function MoneyPage() {
+export default async function MoneyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ contract?: string }>;
+}) {
   const session = await requirePageSession({ need: "canSeeBudget" });
-  const canEdit = moneyEditable(session);
+  const params = await searchParams;
+  if (params.contract) redirect(`/money/${params.contract}`);
+
   const data = await loadMoneyPageData(session);
-
-  const [persons, contacts] = await Promise.all([
-    prisma.person.findMany({ select: { id: true, name: true }, orderBy: { sortOrder: "asc" } }),
-    session.canSeeTimeline
-      ? prisma.contact.findMany({ select: { id: true, name: true }, orderBy: { sortOrder: "asc" } })
-      : Promise.resolve([]),
-  ]);
-
-  const profileHrefByContractId = Object.fromEntries(
-    data.contracts
-      .map((contract) => {
-        const profileId = findProfileIdForBudgetName(contract.name, contacts, persons);
-        return profileId ? [contract.id, profileHref(profileId)] : null;
-      })
-      .filter((entry): entry is [string, string] => entry !== null),
-  );
+  const comingDue = data.dueItems.slice(0, 6);
 
   return (
     <>
-      <V2PageHeader
-        session={session}
-        title="Money"
-        subtitle={`${data.summary.overdueCount} overdue · ${data.summary.dueSoonCount} due soon`}
-      />
-      <MoneyFundingSummary
-        ledger={data.ledger}
-        sources={data.fundingSources}
-        canEdit={canEdit}
-        canEditFunding={data.canEditFunding}
-      />
+      <MoneyHero session={session} />
+      <MoneyPosition summary={data.summary} />
       <MoneyDueList
-        title={data.overdueItems.length > 0 ? "Overdue payments" : "Due next"}
-        items={data.overdueItems.length > 0 ? data.overdueItems : data.dueItems}
+        title="Coming due"
+        items={comingDue}
         showAllHref="/money/due"
+        emptyTitle="Nothing coming due."
       />
-      <Suspense fallback={<PageLoading label="Loading budget" />}>
-        <MoneyBoard
-          items={data.contracts}
-          minor={data.minor}
-          canEdit={canEdit}
-          profileHrefByContractId={profileHrefByContractId}
-        />
-      </Suspense>
+      {data.historyItems.length > 0 ? (
+        <p className="mb-8 text-sm">
+          <Link href="/money/history" className="font-semibold text-[var(--accent)]">
+            Payment history
+          </Link>
+        </p>
+      ) : null}
+      <section className="mb-4">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+          Contracts
+        </p>
+        <MoneyContractList contracts={data.contracts} />
+        <MoneyAddContract canEdit={data.canEdit} />
+      </section>
+      <MoneyMinorList minor={data.minor} canEdit={data.canEdit} />
     </>
   );
 }
