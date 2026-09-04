@@ -16,6 +16,12 @@ export type DayOfPageContext = {
   showNowTab: boolean;
 };
 
+export async function loadWeddingTimelineBlocks() {
+  return sortTimelineBlocks(
+    await prisma.timelineBlock.findMany({ where: { schedule: "wedding" } }),
+  );
+}
+
 export async function loadDayOfContext(): Promise<DayOfPageContext> {
   const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
   const now = new Date();
