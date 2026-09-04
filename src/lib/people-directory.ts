@@ -16,6 +16,9 @@ export type PeopleView = "list" | "table";
 
 export type DirectoryEntry = {
   profileId: string;
+  personId: string | null;
+  contactId: string | null;
+  guestPersonId: string | null;
   name: string;
   subtitle: string | null;
   photoSrc: string | null;
@@ -28,6 +31,7 @@ export type DirectoryEntry = {
   tableLabel: string | null;
   sortKey: string;
   primaryList: PeoplePrimaryList | null;
+  lists: PeoplePrimaryList[];
   isDayOfContact: boolean;
 };
 
@@ -121,19 +125,53 @@ export function resolveIsDayOfContact(input: {
 }
 
 export function filterEntriesByTab(entries: DirectoryEntry[], tab: PeopleTab): DirectoryEntry[] {
+  if (tab === "all") return entries;
   if (tab === "day-of") {
-    return entries.filter(
-      (entry) =>
-        entry.isDayOfContact && (entry.primaryList === "guests" || entry.primaryList === "vendors"),
-    );
+    return entries.filter((entry) => entry.isDayOfContact && entry.lists.length > 0);
   }
-  return entries.filter((entry) => entry.primaryList === tab);
+  return entries.filter((entry) => entry.lists.includes(tab));
 }
 
 export function sourceListLabel(list: PeoplePrimaryList | null): string | null {
   if (list === "guests") return "Guest list";
   if (list === "vendors") return "Vendors";
   return null;
+}
+
+export function sourceListsLabel(lists: PeoplePrimaryList[]): string | null {
+  const labels = lists.map((list) => sourceListLabel(list)).filter((label): label is string => Boolean(label));
+  return labels.length ? [...new Set(labels)].join(" · ") : null;
+}
+
+/** Canonical People URL. personId wins whenever the Person row is known to exist. */
+export function canonicalProfileIdForSource(input: {
+  kind: "person" | "contact" | "guest";
+  id: string;
+  personId?: string | null;
+}): string {
+  if (input.kind === "person") return profileIdForPerson(input.id);
+  if (input.personId) return profileIdForPerson(input.personId);
+  return input.kind === "contact" ? profileIdForContact(input.id) : profileIdForGuestPerson(input.id);
+}
+
+export function rowsLinkedToPerson<T extends { personId?: string | null }>(
+  rows: T[],
+  personId: string,
+): T[] {
+  return rows.filter((row) => row.personId === personId);
+}
+
+export function countPeopleHubTabs(input: {
+  entries: DirectoryEntry[];
+  guestPersonCount: number;
+  dayOfContactCount: number;
+}): Record<PeopleTab, number> {
+  return {
+    all: input.entries.length,
+    guests: input.guestPersonCount,
+    vendors: filterEntriesByTab(input.entries, "vendors").length,
+    "day-of": input.dayOfContactCount,
+  };
 }
 
 /** @deprecated Use isPeoplePrimaryList */
@@ -240,6 +278,7 @@ export type RawPeopleDirectoryInput = {
     directoryLabel?: string | null;
     directoryList?: string | null;
     isDayOfContact?: boolean | null;
+    personId?: string | null;
     phone: string | null;
     email: string | null;
     photoData: string | null;
@@ -250,6 +289,7 @@ export type RawPeopleDirectoryInput = {
     householdLabel: string;
     directoryLabel?: string | null;
     isDayOfContact?: boolean | null;
+    personId?: string | null;
     photoData?: string | null;
     address?: string | null;
     rsvpLabel?: string | null;
@@ -257,111 +297,304 @@ export type RawPeopleDirectoryInput = {
   }[];
 };
 
-export function buildDirectoryEntries(input: RawPeopleDirectoryInput): DirectoryEntry[] {
-  const entries: DirectoryEntry[] = [];
-  const claimed = new Set<string>();
-  const { party, family } = mealGuestsByGroup();
-  const partyNames = party.map((guest) => guest.name);
-  const familyNames = family.map((guest) => guest.name);
+type DirectoryPerson = RawPeopleDirectoryInput["persons"][number];
+type DirectoryContact = RawPeopleDirectoryInput["contacts"][number];
+type DirectoryGuestPerson = RawPeopleDirectoryInput["guestPeople"][number];
 
-  function claim(name: string) {
-    claimed.add(normalizePersonName(name));
+type LinkedDirectoryGroup = {
+  personId: string;
+  person?: DirectoryPerson;
+  contacts: DirectoryContact[];
+  guests: DirectoryGuestPerson[];
+};
+
+function uniqueRoles(roles: Array<string | null | undefined>): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const role of roles) {
+    const trimmed = role?.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    result.push(trimmed);
   }
+  return result;
+}
 
-  function isClaimed(name: string) {
-    return [...claimed].some((existing) => namesMatch(existing, name));
+function personDefaultRoles(
+  person: DirectoryPerson,
+  primaryList: PeoplePrimaryList | null,
+  partyNames: string[],
+  familyNames: string[],
+): string[] {
+  const group = classifyNameGroup(person.name, partyNames, familyNames);
+  if (group === "party") return ["Wedding party"];
+  if (["david", "haley"].includes(person.id)) return ["Couple"];
+  if (primaryList === "vendors") return ["Vendor"];
+  return ["Guest"];
+}
+
+function withIdentityIds(
+  entry: Omit<DirectoryEntry, "personId" | "contactId" | "guestPersonId" | "lists"> & {
+    personId?: string | null;
+    contactId?: string | null;
+    guestPersonId?: string | null;
+    lists?: PeoplePrimaryList[];
+  },
+): DirectoryEntry {
+  const lists = entry.lists ?? (entry.primaryList ? [entry.primaryList] : []);
+  return {
+    ...entry,
+    personId: entry.personId ?? null,
+    contactId: entry.contactId ?? null,
+    guestPersonId: entry.guestPersonId ?? null,
+    lists,
+  };
+}
+
+function buildContactDirectoryEntry(contact: DirectoryContact): DirectoryEntry {
+  const primaryList = resolvePrimaryList({ kind: "contact", directoryList: contact.directoryList });
+  const isDayOfContact = resolveIsDayOfContact({
+    isDayOfContact: contact.isDayOfContact,
+    directoryList: contact.directoryList,
+  });
+  const roles = contact.directoryLabel?.trim()
+    ? [contact.directoryLabel.trim()]
+    : primaryList === "vendors"
+      ? ["Vendor"]
+      : ["Guest"];
+  return withIdentityIds({
+    profileId: profileIdForContact(contact.id),
+    contactId: contact.id,
+    name: contact.name,
+    subtitle: contact.directoryLabel?.trim() || vendorSubtitle(contact.name),
+    photoSrc: contact.photoData,
+    group: primaryList === "vendors" ? "vendor" : "family",
+    roles,
+    phone: contact.phone,
+    email: contact.email,
+    address: null,
+    rsvpLabel: null,
+    tableLabel: null,
+    sortKey: normalizePersonName(contact.name),
+    primaryList,
+    lists: primaryList ? [primaryList] : [],
+    isDayOfContact,
+  });
+}
+
+function buildGuestDirectoryEntry(
+  guest: DirectoryGuestPerson,
+  partyNames: string[],
+  familyNames: string[],
+): DirectoryEntry {
+  const group = classifyNameGroup(guest.name, partyNames, familyNames);
+  const defaultRole = group === "party" ? "Wedding party" : "Guest";
+  const roles = guest.directoryLabel?.trim() ? [guest.directoryLabel.trim()] : [defaultRole];
+  return withIdentityIds({
+    profileId: profileIdForGuestPerson(guest.id),
+    guestPersonId: guest.id,
+    name: guest.name,
+    subtitle: guest.householdLabel,
+    photoSrc: guest.photoData?.trim() || null,
+    group,
+    roles,
+    phone: null,
+    email: null,
+    address: guest.address?.trim() || null,
+    rsvpLabel: guest.rsvpLabel?.trim() || null,
+    tableLabel: guest.tableLabel?.trim() || null,
+    sortKey: normalizePersonName(guest.name),
+    primaryList: "guests",
+    lists: ["guests"],
+    isDayOfContact: resolveIsDayOfContact({ isDayOfContact: guest.isDayOfContact }),
+  });
+}
+
+function buildPersonDirectoryEntry(
+  person: DirectoryPerson,
+  partyNames: string[],
+  familyNames: string[],
+): DirectoryEntry | null {
+  const primaryList = resolvePrimaryList({ kind: "person", directoryList: person.directoryList });
+  if (!primaryList) return null;
+  const isDayOfContact = resolveIsDayOfContact({
+    isDayOfContact: person.isDayOfContact,
+    directoryList: person.directoryList,
+  });
+  const group = classifyNameGroup(person.name, partyNames, familyNames);
+  const defaultRoles = personDefaultRoles(person, primaryList, partyNames, familyNames);
+  const roles = person.directoryLabel?.trim() ? [person.directoryLabel.trim()] : defaultRoles;
+  return withIdentityIds({
+    profileId: profileIdForPerson(person.id),
+    personId: person.id,
+    name: person.name,
+    subtitle: person.directoryLabel?.trim() || roles[0] || null,
+    photoSrc: null,
+    group: primaryList === "vendors" ? "vendor" : group,
+    roles,
+    phone: null,
+    email: null,
+    address: null,
+    rsvpLabel: null,
+    tableLabel: null,
+    sortKey: normalizePersonName(person.name),
+    primaryList,
+    lists: [primaryList],
+    isDayOfContact,
+  });
+}
+
+function buildLinkedDirectoryEntry(
+  group: LinkedDirectoryGroup,
+  partyNames: string[],
+  familyNames: string[],
+): DirectoryEntry {
+  const contact = group.contacts[0];
+  const guest = group.guests[0];
+  const personList = group.person
+    ? resolvePrimaryList({ kind: "person", directoryList: group.person.directoryList })
+    : null;
+  const contactList = contact
+    ? resolvePrimaryList({ kind: "contact", directoryList: contact.directoryList })
+    : null;
+  const lists: PeoplePrimaryList[] = [];
+  if (group.guests.length || personList === "guests") lists.push("guests");
+  if (contactList === "vendors" || personList === "vendors") lists.push("vendors");
+  const primaryList = personList ?? (lists.includes("guests") && !lists.includes("vendors") ? "guests" : lists[0] ?? null);
+  const name = group.person?.name ?? contact?.name ?? guest?.name ?? group.personId;
+  const groupKind = lists.includes("vendors") && !lists.includes("guests")
+    ? "vendor"
+    : classifyNameGroup(name, partyNames, familyNames);
+  const roles = uniqueRoles([
+    group.person?.directoryLabel,
+    contact?.directoryLabel,
+    guest?.directoryLabel,
+    group.person ? personDefaultRoles(group.person, personList, partyNames, familyNames)[0] : null,
+    group.guests.length ? "Guest" : null,
+    lists.includes("vendors") ? "Vendor" : null,
+    groupKind === "party" ? "Wedding party" : null,
+  ]);
+  const isDayOfContact =
+    resolveIsDayOfContact({
+      isDayOfContact: group.person?.isDayOfContact,
+      directoryList: group.person?.directoryList,
+    }) ||
+    resolveIsDayOfContact({
+      isDayOfContact: contact?.isDayOfContact,
+      directoryList: contact?.directoryList,
+    }) ||
+    resolveIsDayOfContact({ isDayOfContact: guest?.isDayOfContact });
+
+  return withIdentityIds({
+    profileId: group.person
+      ? profileIdForPerson(group.person.id)
+      : contact
+        ? profileIdForContact(contact.id)
+        : guest
+          ? profileIdForGuestPerson(guest.id)
+          : profileIdForPerson(group.personId),
+    personId: group.person ? group.person.id : null,
+    contactId: contact?.id ?? null,
+    guestPersonId: guest?.id ?? null,
+    name,
+    subtitle:
+      group.person?.directoryLabel?.trim() ||
+      contact?.directoryLabel?.trim() ||
+      vendorSubtitle(contact?.name ?? "") ||
+      guest?.householdLabel ||
+      roles[0] ||
+      null,
+    photoSrc: contact?.photoData?.trim() || guest?.photoData?.trim() || null,
+    group: lists.includes("vendors") && !lists.includes("guests") ? "vendor" : groupKind,
+    roles: roles.length ? roles : ["Guest"],
+    phone: contact?.phone ?? null,
+    email: contact?.email ?? null,
+    address: guest?.address?.trim() || null,
+    rsvpLabel: guest?.rsvpLabel?.trim() || null,
+    tableLabel: guest?.tableLabel?.trim() || null,
+    sortKey: normalizePersonName(name),
+    primaryList,
+    lists,
+    isDayOfContact,
+  });
+}
+
+export function buildDirectoryEntries(input: RawPeopleDirectoryInput): DirectoryEntry[] {
+  const { party, family } = mealGuestsByGroup();
+  const partyNames = party.map((row) => row.name);
+  const familyNames = family.map((row) => row.name);
+  const personById = new Map(input.persons.map((person) => [person.id, person]));
+  const groups = new Map<string, LinkedDirectoryGroup>();
+  const linkedContactIds = new Set<string>();
+  const linkedGuestIds = new Set<string>();
+
+  function ensureGroup(personId: string): LinkedDirectoryGroup {
+    const existing = groups.get(personId);
+    if (existing) return existing;
+    const created: LinkedDirectoryGroup = {
+      personId,
+      person: personById.get(personId),
+      contacts: [],
+      guests: [],
+    };
+    groups.set(personId, created);
+    return created;
   }
 
   for (const contact of input.contacts) {
-    const primaryList = resolvePrimaryList({ kind: "contact", directoryList: contact.directoryList });
-    const isDayOfContact = resolveIsDayOfContact({
-      isDayOfContact: contact.isDayOfContact,
-      directoryList: contact.directoryList,
-    });
-    const roles = contact.directoryLabel?.trim()
-      ? [contact.directoryLabel.trim()]
-      : primaryList === "vendors"
-        ? ["Vendor"]
-        : ["Guest"];
-    entries.push({
-      profileId: profileIdForContact(contact.id),
-      name: contact.name,
-      subtitle: contact.directoryLabel?.trim() || vendorSubtitle(contact.name),
-      photoSrc: contact.photoData,
-      group: primaryList === "vendors" ? "vendor" : "family",
-      roles,
-      phone: contact.phone,
-      email: contact.email,
-      address: null,
-      rsvpLabel: null,
-      tableLabel: null,
-      sortKey: normalizePersonName(contact.name),
-      primaryList,
-      isDayOfContact,
-    });
-    claim(contact.name);
+    if (!contact.personId) continue;
+    ensureGroup(contact.personId).contacts.push(contact);
+    linkedContactIds.add(contact.id);
+  }
+  for (const guest of input.guestPeople) {
+    if (!guest.personId) continue;
+    ensureGroup(guest.personId).guests.push(guest);
+    linkedGuestIds.add(guest.id);
+  }
+  for (const person of input.persons) {
+    if (resolvePrimaryList({ kind: "person", directoryList: person.directoryList })) {
+      ensureGroup(person.id).person = person;
+    }
+  }
+
+  const entries: DirectoryEntry[] = [];
+  const unlinkedClaimed = new Set<string>();
+
+  function claimUnlinked(name: string) {
+    unlinkedClaimed.add(normalizePersonName(name));
+  }
+  function isUnlinkedClaimed(name: string) {
+    return [...unlinkedClaimed].some((existing) => namesMatch(existing, name));
+  }
+
+  const emittedPersonIds = new Set<string>();
+  for (const group of groups.values()) {
+    const listed = group.person
+      ? resolvePrimaryList({ kind: "person", directoryList: group.person.directoryList })
+      : null;
+    if (!group.contacts.length && !group.guests.length && !listed) continue;
+    entries.push(buildLinkedDirectoryEntry(group, partyNames, familyNames));
+    emittedPersonIds.add(group.personId);
+  }
+
+  for (const contact of input.contacts) {
+    if (linkedContactIds.has(contact.id)) continue;
+    entries.push(buildContactDirectoryEntry(contact));
+    claimUnlinked(contact.name);
   }
 
   for (const guest of input.guestPeople) {
-    if (isClaimed(guest.name)) continue;
-    const group = classifyNameGroup(guest.name, partyNames, familyNames);
-    const defaultRole = group === "party" ? "Wedding party" : "Guest";
-    const roles = guest.directoryLabel?.trim() ? [guest.directoryLabel.trim()] : [defaultRole];
-    entries.push({
-      profileId: profileIdForGuestPerson(guest.id),
-      name: guest.name,
-      subtitle: guest.householdLabel,
-      photoSrc: guest.photoData?.trim() || null,
-      group,
-      roles,
-      phone: null,
-      email: null,
-      address: guest.address?.trim() || null,
-      rsvpLabel: guest.rsvpLabel?.trim() || null,
-      tableLabel: guest.tableLabel?.trim() || null,
-      sortKey: normalizePersonName(guest.name),
-      primaryList: "guests",
-      isDayOfContact: resolveIsDayOfContact({ isDayOfContact: guest.isDayOfContact }),
-    });
-    claim(guest.name);
+    if (linkedGuestIds.has(guest.id)) continue;
+    if (isUnlinkedClaimed(guest.name)) continue;
+    entries.push(buildGuestDirectoryEntry(guest, partyNames, familyNames));
+    claimUnlinked(guest.name);
   }
 
   for (const person of input.persons) {
-    const primaryList = resolvePrimaryList({ kind: "person", directoryList: person.directoryList });
-    if (!primaryList) continue;
-    if (isClaimed(person.name)) continue;
-
-    const isDayOfContact = resolveIsDayOfContact({
-      isDayOfContact: person.isDayOfContact,
-      directoryList: person.directoryList,
-    });
-    const group = classifyNameGroup(person.name, partyNames, familyNames);
-    const defaultRoles =
-      group === "party"
-        ? ["Wedding party"]
-        : ["david", "haley"].includes(person.id)
-          ? ["Couple"]
-          : primaryList === "vendors"
-            ? ["Vendor"]
-            : ["Guest"];
-    const roles = person.directoryLabel?.trim() ? [person.directoryLabel.trim()] : defaultRoles;
-    entries.push({
-      profileId: profileIdForPerson(person.id),
-      name: person.name,
-      subtitle: person.directoryLabel?.trim() || roles[0] || null,
-      photoSrc: null,
-      group: primaryList === "vendors" ? "vendor" : group,
-      roles,
-      phone: null,
-      email: null,
-      address: null,
-      rsvpLabel: null,
-      tableLabel: null,
-      sortKey: normalizePersonName(person.name),
-      primaryList,
-      isDayOfContact,
-    });
-    claim(person.name);
+    if (emittedPersonIds.has(person.id)) continue;
+    const entry = buildPersonDirectoryEntry(person, partyNames, familyNames);
+    if (!entry) continue;
+    entries.push(entry);
   }
 
   return entries.sort(directoryEntrySort);

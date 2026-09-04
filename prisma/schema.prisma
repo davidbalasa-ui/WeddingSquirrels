@@ -30,6 +30,9 @@ model Person {
   shoppingItems ShoppingItem[]
   pinAccounts   PinAccount[]
   dayAssignments DayAssignmentAssignee[]
+  guestPeople   GuestPerson[]
+  contacts      Contact[]
+  mealGuests    MealGuest[]
 }
 
 model Task {
@@ -201,8 +204,12 @@ model GuestPerson {
   tableNumber Int?
   tableSpot   String?
   sortOrder   Int     @default(0)
+  /// Canonical human. Null until Phase 1B backfill.
+  personId    String?
+  person      Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
 
   @@index([guestId, sortOrder])
+  @@index([personId])
 }
 
 model GuestGift {
@@ -345,8 +352,12 @@ model MealGuest {
   sortOrder Int          @default(0)
   choices   MealChoice[]
   updatedAt DateTime     @updatedAt
+  /// Canonical human. Null until Phase 1B backfill.
+  personId  String?
+  person    Person?      @relation(fields: [personId], references: [id], onDelete: SetNull)
 
   @@index([sectionId, sortOrder])
+  @@index([personId])
 }
 
 model MealChoice {
@@ -414,8 +425,12 @@ model Contact {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  /// Canonical human when this contact is a person. Null for org-only rows.
+  personId  String?
+  person    Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
 
   @@index([sortOrder])
+  @@index([personId])
 }
 
 model DayAssignment {

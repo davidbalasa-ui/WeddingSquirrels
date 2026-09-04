@@ -17,6 +17,7 @@ export type GuestPersonRecord = {
   photoData: string | null;
   tableNumber: number | null;
   tableSpot: string | null;
+  personId: string | null;
 };
 
 export type GuestRecord = {
@@ -50,6 +51,7 @@ export function synthesizeGuestPeople(guest: Guest): GuestPersonRecord[] {
       photoData: null,
       tableNumber: guest.person1TableNumber,
       tableSpot: guest.person1TableSpot,
+      personId: null,
     });
   }
   if (guest.nameLine2?.trim()) {
@@ -62,6 +64,7 @@ export function synthesizeGuestPeople(guest: Guest): GuestPersonRecord[] {
       photoData: null,
       tableNumber: guest.person2TableNumber,
       tableSpot: guest.person2TableSpot,
+      personId: null,
     });
   }
   return people;
@@ -79,6 +82,7 @@ export function mapGuestRecord(guest: GuestWithRelations): GuestRecord {
           photoData: person.photoData ?? null,
           tableNumber: person.tableNumber,
           tableSpot: person.tableSpot,
+          personId: person.personId ?? null,
         }))
       : synthesizeGuestPeople(guest);
 

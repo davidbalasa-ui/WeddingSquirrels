@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { ContactsPanel } from "@/components/ContactsPanel";
 import { GuestList } from "@/components/GuestList";
 import { GuestRsvpReport } from "@/components/GuestRsvpReport";
+import { PeopleEntryList } from "@/components/PeopleEntryList";
 import { PeopleHubFilters } from "@/components/PeopleHubFilters";
 import { PeopleTabFooterLink } from "@/components/PeopleHubTabs";
 import { VendorEntryList } from "@/components/VendorEntryList";
@@ -72,17 +73,25 @@ export default async function PeopleHubPage({
             activeRole={role}
             activeAttendance={attendance}
             activeView={view}
-            showGuestFilters={filter === "guests" || filter === "all"}
+            showGuestFilters={filter === "guests"}
           />
         </Suspense>
       </V2PageHeader>
 
-      {filter === "all" || filter === "guests" ? (
+      {filter === "all" ? (
+        <div className="flex flex-col gap-3">
+          {session.canSeeGuests ? <GuestRsvpReport report={data.guestReport} /> : null}
+          <PeopleEntryList
+            entries={data.entries}
+            emptyLabel="No people yet"
+            searchPlaceholder="Search people"
+          />
+        </div>
+      ) : null}
+
+      {filter === "guests" ? (
         session.canSeeGuests ? (
           <div className="flex flex-col gap-3">
-            {filter === "all" ? (
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Guests</p>
-            ) : null}
             <GuestRsvpReport report={data.guestReport} />
             <GuestList
               guests={data.guests}
@@ -104,37 +113,25 @@ export default async function PeopleHubPage({
         ) : null
       ) : null}
 
-      {filter === "all" || filter === "vendors" ? (
-        <div className={filter === "all" ? "mt-4 flex flex-col gap-3" : ""}>
-          {filter === "all" ? (
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Vendors</p>
-          ) : null}
-          <VendorEntryList
-            entries={data.vendorEntries}
-            vendorBudgets={data.vendorBudgets}
-            canEditMoney={canEditMoney}
-            sort="name"
-            emptyLabel="No vendors yet"
-            searchPlaceholder="Search vendors"
-          />
-        </div>
+      {filter === "vendors" ? (
+        <VendorEntryList
+          entries={data.vendorEntries}
+          vendorBudgets={data.vendorBudgets}
+          canEditMoney={canEditMoney}
+          sort="name"
+          emptyLabel="No vendors yet"
+          searchPlaceholder="Search vendors"
+        />
       ) : null}
 
-      {filter === "all" || filter === "day-of" ? (
+      {filter === "day-of" ? (
         session.canSeeTimeline ? (
-          <div className={filter === "all" ? "mt-4 flex flex-col gap-3" : ""}>
-            {filter === "all" ? (
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
-                Day-of contacts
-              </p>
-            ) : null}
-            {filter === "day-of" ? (
-              <p className="text-sm text-muted">
-                People to call on the big day — add a photo, phone number, and email for each contact.
-              </p>
-            ) : null}
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted">
+              People to call on the big day — add a photo, phone number, and email for each contact.
+            </p>
             <ContactsPanel contacts={data.dayOfContacts} canEdit={canEditDayOf} dayOfMode />
-            {filter === "day-of" && canEditDayOf ? (
+            {canEditDayOf ? (
               <PeopleTabFooterLink
                 href="/people/responsibilities"
                 label="Day-of responsibilities"
@@ -142,9 +139,9 @@ export default async function PeopleHubPage({
               />
             ) : null}
           </div>
-        ) : filter === "day-of" ? (
+        ) : (
           <div className="card px-3 py-4 text-sm text-muted">Day-of contacts aren’t visible for this PIN.</div>
-        ) : null
+        )
       ) : null}
     </>
   );

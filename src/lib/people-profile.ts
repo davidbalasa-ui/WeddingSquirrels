@@ -13,6 +13,7 @@ import {
   profileIdForPerson,
   resolveIsDayOfContact,
   resolvePrimaryList,
+  rowsLinkedToPerson,
   vendorSubtitle,
   type PeoplePrimaryList,
 } from "@/lib/people-directory";
@@ -80,6 +81,37 @@ function stayLabelForName(name: string, slots: { sectionId: string; label: strin
     return `${section.title} · ${slot.label}`;
   }
   return null;
+}
+
+/** Exact full-name stay match for canonical Person profiles. Does not use namesMatch. */
+export function stayLabelForExactName(
+  name: string,
+  slots: { sectionId: string; label: string; occupant: string }[],
+) {
+  const key = normalizePersonName(name);
+  if (!key) return null;
+  for (const slot of slots) {
+    if (normalizePersonName(slot.occupant) !== key) continue;
+    const section = STAY_SECTIONS.find((row) => row.id === slot.sectionId);
+    if (!section) return slot.label;
+    return `${section.title} · ${slot.label}`;
+  }
+  return null;
+}
+
+export function linkedIdentityForPerson<
+  TGuest extends { personId?: string | null },
+  TContact extends { personId?: string | null },
+  TMeal extends { personId?: string | null },
+>(
+  personId: string,
+  rows: { guestPeople: TGuest[]; contacts: TContact[]; mealGuests: TMeal[] },
+) {
+  return {
+    guestPeople: rowsLinkedToPerson(rows.guestPeople, personId),
+    contacts: rowsLinkedToPerson(rows.contacts, personId),
+    mealGuests: rowsLinkedToPerson(rows.mealGuests, personId),
+  };
 }
 
 function personRoles(person: { id: string; name: string }, assignmentCount: number): string[] {
@@ -153,17 +185,156 @@ export async function loadPeopleProfile(
           },
         })
       : Promise.resolve([]),
-    session.canSeeTimeline
-      ? prisma.contact.findMany({ select: { id: true, name: true }, orderBy: { sortOrder: "asc" } })
+    session.canSeeTimeline || session.canSeeGuests
+      ? prisma.contact.findMany({
+          select: {
+            id: true,
+            name: true,
+            directoryLabel: true,
+            directoryList: true,
+            isDayOfContact: true,
+            phone: true,
+            email: true,
+            photoData: true,
+            personId: true,
+          },
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        })
       : Promise.resolve([]),
   ]);
 
   const guestRecords = guests.map((guest) => mapGuestRecord(guest));
   const editable = timelineEditable(session);
+  const guestPeople = guestRecords.flatMap((guest) =>
+    guest.people.map((person) => ({ guest, person })),
+  );
+
+  async function profileForPerson(person: {
+    id: string;
+    name: string;
+    directoryLabel: string | null;
+    directoryList: string | null;
+    isDayOfContact: boolean;
+  }): Promise<PeopleProfile> {
+    const linked = linkedIdentityForPerson(person.id, {
+      guestPeople: guestPeople.map((row) => ({ ...row, personId: row.person.personId })),
+      contacts,
+      mealGuests,
+    });
+    const linkedGuest = linked.guestPeople[0];
+    const linkedContact = linked.contacts[0];
+    const linkedMeal = linked.mealGuests[0];
+
+    const openTasks = session.canSeeTasks
+      ? (await listTasks(session, { personId: person.id })).slice(0, 8).map((task) => ({
+          id: task.id,
+          title: task.title,
+          dueLabel: dueLabel(task.dueDate, task.status),
+          href: `/work/${task.id}`,
+        }))
+      : [];
+
+    const personAssignments = assignments
+      .filter((assignment) => assignment.assignees.some((row) => row.personId === person.id))
+      .map((assignment) => ({
+        title: assignment.title,
+        notes: assignment.notes,
+      }));
+
+    const mealStatus = linkedMeal
+      ? mealSectionTitle(linkedMeal.sectionId) ?? "Rehearsal dinner"
+      : null;
+    const personBudget = budgetContractsForPerson(person, budgetItems);
+    const contactBudget = linkedContact ? budgetContractsForContact(linkedContact, budgetItems) : [];
+    const budgetById = new Map(personBudget.concat(contactBudget).map((row) => [row.id, row]));
+    const budgetContracts = [...budgetById.values()];
+    const directoryLabel =
+      person.directoryLabel?.trim() || linkedContact?.directoryLabel?.trim() || linkedGuest?.person.directoryLabel?.trim() || null;
+    const defaultRoles = personRoles(person, personAssignments.length);
+    const roles = [
+      ...new Set(
+        [
+          directoryLabel,
+          linkedGuest ? "Guest" : null,
+          linkedContact ? "Vendor" : null,
+          ...(directoryLabel ? [] : defaultRoles),
+        ].filter((role): role is string => Boolean(role)),
+      ),
+    ];
+    const personList = resolvePrimaryList({ kind: "person", directoryList: person.directoryList });
+    const primaryList: PeoplePrimaryList =
+      personList ??
+      (linkedGuest && !linkedContact ? "guests" : linkedContact ? "vendors" : "vendors");
+    const isDayOfContact =
+      resolveIsDayOfContact({
+        isDayOfContact: person.isDayOfContact,
+        directoryList: person.directoryList,
+      }) ||
+      resolveIsDayOfContact({
+        isDayOfContact: linkedContact?.isDayOfContact,
+        directoryList: linkedContact?.directoryList,
+      }) ||
+      resolveIsDayOfContact({ isDayOfContact: linkedGuest?.person.isDayOfContact });
+    const guestInfo = linkedGuest
+      ? {
+          household: guestHouseholdLabel({
+            nameLine1: linkedGuest.guest.people[0]?.name ?? person.name,
+            nameLine2: linkedGuest.guest.people[1]?.name ?? null,
+            street: linkedGuest.guest.street,
+            city: linkedGuest.guest.city,
+          }),
+          rsvpStatus: linkedGuest.person.rsvpStatus,
+          table: tableLabel(linkedGuest.person.tableNumber, linkedGuest.person.tableSpot),
+        }
+      : null;
+    const stayLabel = stayLabelForExactName(person.name, staySlots);
+
+    return {
+      profileId: profileIdForPerson(person.id),
+      name: person.name,
+      subtitle:
+        directoryLabel ||
+        vendorSubtitle(linkedContact?.name ?? "") ||
+        (linkedGuest ? guestHouseholdLabel({
+          nameLine1: linkedGuest.guest.people[0]?.name ?? person.name,
+          nameLine2: linkedGuest.guest.people[1]?.name ?? null,
+          street: linkedGuest.guest.street,
+          city: linkedGuest.guest.city,
+        }) : mealStatus),
+      photoSrc: linkedContact?.photoData?.trim() || linkedGuest?.person.photoData || null,
+      phone: linkedContact?.phone ?? linkedGuest?.guest.phone ?? null,
+      email: linkedContact?.email ?? null,
+      roles: roles.length ? roles : defaultRoles,
+      directoryLabel,
+      primaryList,
+      isDayOfContact,
+      canEditLabel: editable,
+      canEditPrimaryList: editable,
+      canEditDayOf: editable,
+      canDelete: editable && !["david", "haley"].includes(person.id),
+      openTasks,
+      assignments: personAssignments,
+      guestInfo,
+      stayLabel,
+      mealStatus,
+      budgetContracts,
+      relatedLinks: buildProfileRelatedLinks({
+        guestInfo: Boolean(guestInfo),
+        stayLabel,
+        mealStatus,
+        assignments: personAssignments.length,
+        budgetContracts,
+      }),
+    };
+  }
 
   if (parsed.kind === "contact") {
     const contact = await prisma.contact.findUnique({ where: { id: parsed.id } });
     if (!contact) return null;
+    if (contact.personId) {
+      const person = await prisma.person.findUnique({ where: { id: contact.personId } });
+      if (person) return profileForPerson(person);
+    }
     const budgetContracts = budgetContractsForContact(contact, budgetItems);
     const directoryLabel = contact.directoryLabel?.trim() || null;
     const primaryList =
@@ -203,101 +374,19 @@ export async function loadPeopleProfile(
   if (parsed.kind === "person") {
     const person = await prisma.person.findUnique({ where: { id: parsed.id } });
     if (!person) return null;
-
-    const openTasks = session.canSeeTasks
-      ? (await listTasks(session, { personId: person.id })).slice(0, 8).map((task) => ({
-          id: task.id,
-          title: task.title,
-          dueLabel: dueLabel(task.dueDate, task.status),
-          href: `/work/${task.id}`,
-        }))
-      : [];
-
-    const personAssignments = assignments
-      .filter((assignment) =>
-        assignment.assignees.some((row) => row.personId === person.id),
-      )
-      .map((assignment) => ({
-        title: assignment.title,
-        notes: assignment.notes,
-      }));
-
-    const guestPerson = guestRecords
-      .flatMap((guest) =>
-        guest.people.map((row) => ({
-          guest,
-          person: row,
-        })),
-      )
-      .find((row) => namesMatch(row.person.name, person.name));
-
-    const mealGuest = mealGuests.find((row) => namesMatch(row.name, person.name));
-    const mealStatus = mealGuest
-      ? mealSectionTitle(mealGuest.sectionId) ?? "Rehearsal dinner"
-      : null;
-    const budgetContracts = budgetContractsForPerson(person, budgetItems);
-    const directoryLabel = person.directoryLabel?.trim() || null;
-    const defaultRoles = personRoles(person, personAssignments.length);
-    const roles = directoryLabel ? [directoryLabel] : defaultRoles;
-    const primaryList =
-      person.directoryList === "guests" || person.directoryList === "vendors"
-        ? person.directoryList
-        : "vendors";
-    const isDayOfContact = resolveIsDayOfContact({
-      isDayOfContact: person.isDayOfContact,
-      directoryList: person.directoryList,
-    });
-    const guestInfo = guestPerson
-      ? {
-          household: guestHouseholdLabel({
-            nameLine1: guestPerson.guest.people[0]?.name ?? person.name,
-            nameLine2: guestPerson.guest.people[1]?.name ?? null,
-            street: guestPerson.guest.street,
-            city: guestPerson.guest.city,
-          }),
-          rsvpStatus: guestPerson.guest.rsvpStatus,
-          table: tableLabel(guestPerson.person.tableNumber, guestPerson.person.tableSpot),
-        }
-      : null;
-    const stayLabel = stayLabelForName(person.name, staySlots);
-
-    return {
-      profileId: profileIdForPerson(person.id),
-      name: person.name,
-      subtitle: guestPerson ? guestPerson.guest.city : mealStatus,
-      photoSrc: null,
-      phone: null,
-      email: null,
-      roles,
-      directoryLabel,
-      primaryList,
-      isDayOfContact,
-      canEditLabel: editable,
-      canEditPrimaryList: editable,
-      canEditDayOf: editable,
-      canDelete: editable && !["david", "haley"].includes(person.id),
-      openTasks,
-      assignments: personAssignments,
-      guestInfo,
-      stayLabel,
-      mealStatus,
-      budgetContracts,
-      relatedLinks: buildProfileRelatedLinks({
-        guestInfo: Boolean(guestInfo),
-        stayLabel,
-        mealStatus,
-        assignments: personAssignments.length,
-        budgetContracts,
-      }),
-    };
+    return profileForPerson(person);
   }
 
-  const guestPerson = guestRecords
-    .flatMap((guest) => guest.people.map((person) => ({ guest, person })))
-    .find((row) => row.person.id === parsed.id);
+  const guestPerson = guestPeople.find((row) => row.person.id === parsed.id);
   if (!guestPerson) return null;
+  if (guestPerson.person.personId) {
+    const person = await prisma.person.findUnique({ where: { id: guestPerson.person.personId } });
+    if (person) return profileForPerson(person);
+  }
 
-  const mealGuest = mealGuests.find((row) => namesMatch(row.name, guestPerson.person.name));
+  const mealGuest = mealGuests.find(
+    (row) => !row.personId && namesMatch(row.name, guestPerson.person.name),
+  );
   const mealStatus = mealGuest
     ? mealSectionTitle(mealGuest.sectionId) ?? "Rehearsal dinner"
     : null;
