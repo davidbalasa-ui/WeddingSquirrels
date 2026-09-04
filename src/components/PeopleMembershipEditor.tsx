@@ -19,7 +19,7 @@ export function PeopleMembershipEditor({
   canEditDayOf,
 }: {
   profileId: string;
-  primaryList: PeoplePrimaryList;
+  primaryList: PeoplePrimaryList | null;
   isDayOfContact: boolean;
   canEditPrimaryList: boolean;
   canEditDayOf: boolean;
@@ -27,12 +27,13 @@ export function PeopleMembershipEditor({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const currentLabel = PRIMARY_OPTIONS.find((option) => option.value === primaryList)?.label ?? null;
 
   if (!canEditPrimaryList && !canEditDayOf) {
     return (
       <div className="text-sm text-muted">
-        <p>List · {PRIMARY_OPTIONS.find((option) => option.value === primaryList)?.label}</p>
-        {isDayOfContact ? <p className="mt-1">On day-of call list</p> : null}
+        {currentLabel ? <p>List · {currentLabel}</p> : null}
+        {isDayOfContact ? <p className={currentLabel ? "mt-1" : undefined}>On day-of call list</p> : null}
       </div>
     );
   }
@@ -41,17 +42,17 @@ export function PeopleMembershipEditor({
     <div className="flex flex-col gap-3" aria-busy={pending || undefined}>
       {canEditPrimaryList ? (
         <label className="text-sm">
-          <span className="mb-1 block text-xs text-muted">Primary list</span>
+          <span className="mb-1 block text-xs text-muted">Add a role</span>
           <select
             className="field-input"
-            value={primaryList}
+            value={primaryList ?? ""}
             disabled={pending}
             onChange={(event) => {
-              const next = event.target.value as PeoplePrimaryList;
-              if (next === primaryList) return;
+              const next = event.target.value;
+              if (!next || next === primaryList) return;
               setError(null);
               startTransition(async () => {
-                const result = await savePrimaryList(profileId, next);
+                const result = await savePrimaryList(profileId, next as PeoplePrimaryList);
                 if (!result.ok) {
                   if (result.reason === "protected") {
                     setError("David and Haley can’t be moved off the couple records.");
@@ -66,6 +67,11 @@ export function PeopleMembershipEditor({
               });
             }}
           >
+            {primaryList ? null : (
+              <option value="" disabled>
+                Not assigned yet
+              </option>
+            )}
             {PRIMARY_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -73,11 +79,9 @@ export function PeopleMembershipEditor({
             ))}
           </select>
         </label>
-      ) : (
-        <p className="text-sm text-muted">
-          List · {PRIMARY_OPTIONS.find((option) => option.value === primaryList)?.label ?? primaryList}
-        </p>
-      )}
+      ) : currentLabel ? (
+        <p className="text-sm text-muted">List · {currentLabel}</p>
+      ) : null}
 
       {canEditDayOf || isDayOfContact ? (
         <p className="text-sm text-muted">

@@ -5,9 +5,9 @@ import {
   budgetContractsForContact,
   type ProfileBudgetContract,
 } from "@/lib/connections";
+import { peopleHubTabCounts } from "@/lib/people-experience";
 import {
   buildDirectoryEntries,
-  countPeopleHubTabs,
   filterEntriesByTab,
   normalizePersonName,
   resolveIsDayOfContact,
@@ -32,7 +32,9 @@ export type DayOfContactRecord = {
 
 export type PeopleHubData = {
   entries: DirectoryEntry[];
+  guestEntries: DirectoryEntry[];
   vendorEntries: DirectoryEntry[];
+  dayOfEntries: DirectoryEntry[];
   vendorBudgets: Record<string, VendorBudgetRecord[]>;
   dayOfContacts: DayOfContactRecord[];
   guests: GuestRecord[];
@@ -162,7 +164,9 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
     }),
   );
 
+  const guestEntries = filterEntriesByTab(entries, "guests");
   const vendorEntries = filterEntriesByTab(entries, "vendors");
+  const dayOfEntries = filterEntriesByTab(entries, "day-of");
   const dayOfContacts = contacts
     .filter((contact) =>
       resolveIsDayOfContact({
@@ -198,15 +202,13 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
 
   return {
     entries,
+    guestEntries,
     vendorEntries,
+    dayOfEntries,
     vendorBudgets,
     dayOfContacts,
     guests: guestRecords,
     guestReport,
-    tabCounts: countPeopleHubTabs({
-      entries,
-      guestPersonCount: guestRecords.reduce((sum, guest) => sum + guest.people.length, 0),
-      dayOfContactCount: dayOfContacts.length,
-    }),
+    tabCounts: peopleHubTabCounts(entries),
   };
 }

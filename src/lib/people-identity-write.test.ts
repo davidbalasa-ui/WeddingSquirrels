@@ -7,6 +7,7 @@ import {
   createPersonInStore,
   editContactInStore,
   editGuestPersonInStore,
+  editPersonInStore,
   linkContactInStore,
   linkGuestPersonInStore,
   photoCopyPeerByPersonId,
@@ -257,6 +258,18 @@ test("photo copy only follows personId, never a similar name", () => {
 test("allocatePersonId never reuses an existing Person id", () => {
   assert.equal(allocatePersonId("Wendy Rush", ["wendy_rush"]), "wendy_rush_2");
   assert.equal(allocatePersonId("Wendy Rush", []), "wendy_rush");
+});
+
+test("editing a roleless Person does not create GuestPerson or Contact", () => {
+  const store = emptyStore();
+  addPerson(store, "david", "David");
+  const edited = editPersonInStore(store, "david", { directoryLabel: "Partner", name: "David" });
+  assert.equal(edited?.id, "david");
+  assert.equal(edited?.directoryLabel, "Partner");
+  assert.equal(edited?.directoryList, null);
+  assert.equal(store.guestPeople.length, 0);
+  assert.equal(store.contacts.length, 0);
+  assert.equal(store.persons.length, 1);
 });
 
 test("keeping an unlinked guest on the guest list does not create a Person", () => {
