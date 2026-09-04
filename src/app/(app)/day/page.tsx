@@ -4,9 +4,7 @@ import { DayTabs } from "@/components/DayTabs";
 import { DayTimeline } from "@/components/DayTimeline";
 import { timelineEditable } from "@/lib/access";
 import { isWeddingDay } from "@/lib/day-of-now";
-import { loadDayOfContext } from "@/lib/day-of-page";
-import { prisma } from "@/lib/db";
-import { sortTimelineBlocks } from "@/lib/day-of-time";
+import { loadDayOfContext, loadWeddingTimelineBlocks } from "@/lib/day-of-page";
 import { requirePageSession } from "@/lib/session";
 
 export default async function DayPage({
@@ -20,15 +18,11 @@ export default async function DayPage({
   const editParam = Array.isArray(params.edit) ? params.edit[0] : params.edit;
   const viewParam = Array.isArray(params.view) ? params.view[0] : params.view;
   const startInEdit = canEdit && editParam === "1";
-  const context = await loadDayOfContext();
+  const [context, blocks] = await Promise.all([loadDayOfContext(), loadWeddingTimelineBlocks()]);
 
   if (context.showNowTab && isWeddingDay(context.daysToGo) && viewParam !== "timeline") {
     redirect("/day/now");
   }
-
-  const blocks = sortTimelineBlocks(
-    await prisma.timelineBlock.findMany({ where: { schedule: "wedding" } }),
-  );
 
   return (
     <>

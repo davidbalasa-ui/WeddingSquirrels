@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** @deprecated Calendar month grid removed — milestones live on Today. */
+/** Legacy calendar URL — PLAN destination is /plan/calendar. */
 export default function CalendarPage() {
-  redirect("/today");
+  redirect("/plan/calendar");
 }
