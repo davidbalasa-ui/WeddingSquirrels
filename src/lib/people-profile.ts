@@ -24,6 +24,7 @@ import {
   type ProfileBudgetContract,
   type ProfileRelatedLink,
 } from "@/lib/connections";
+import { giftDescriptions } from "@/lib/guest-gifts";
 import { dueLabel, listTasks } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 import { STAY_SECTIONS } from "@/lib/stay";
@@ -55,13 +56,17 @@ export type PeopleProfile = {
   canEditPrimaryList: boolean;
   canEditDayOf: boolean;
   canDelete: boolean;
+  canSeeTasks: boolean;
   openTasks: ProfileTaskRow[];
+  completedTaskCount: number;
   assignments: ProfileAssignmentRow[];
   guestInfo: {
     household: string;
     rsvpStatus: string;
     table: string | null;
   } | null;
+  gifts: string[];
+  vendorContext: string | null;
   stayLabel: string | null;
   mealStatus: string | null;
   budgetContracts: ProfileBudgetContract[];
@@ -225,14 +230,19 @@ export async function loadPeopleProfile(
     const linkedContact = linked.contacts[0];
     const linkedMeal = linked.mealGuests[0];
 
-    const openTasks = session.canSeeTasks
-      ? (await listTasks(session, { personId: person.id })).slice(0, 8).map((task) => ({
-          id: task.id,
-          title: task.title,
-          dueLabel: dueLabel(task.dueDate, task.status),
-          href: `/work/${task.id}`,
-        }))
+    const visibleTasks = session.canSeeTasks
+      ? await listTasks(session, { personId: person.id, showDone: true })
       : [];
+    const openTasks = visibleTasks
+      .filter((task) => task.status !== "done")
+      .slice(0, 8)
+      .map((task) => ({
+        id: task.id,
+        title: task.title,
+        dueLabel: dueLabel(task.dueDate, task.status),
+        href: `/work/${task.id}`,
+      }));
+    const completedTaskCount = visibleTasks.filter((task) => task.status === "done").length;
 
     const personAssignments = assignments
       .filter((assignment) => assignment.assignees.some((row) => row.personId === person.id))
@@ -288,13 +298,18 @@ export async function loadPeopleProfile(
         }
       : null;
     const stayLabel = stayLabelForExactName(person.name, staySlots);
+    const gifts = linkedGuest ? giftDescriptions(linkedGuest.guest.gifts) : [];
+    const vendorContext =
+      linkedContact?.directoryLabel?.trim() ||
+      vendorSubtitle(linkedContact?.name ?? "") ||
+      null;
 
     return {
       profileId: profileIdForPerson(person.id),
       name: person.name,
       subtitle:
         directoryLabel ||
-        vendorSubtitle(linkedContact?.name ?? "") ||
+        vendorContext ||
         (linkedGuest ? guestHouseholdLabel({
           nameLine1: linkedGuest.guest.people[0]?.name ?? person.name,
           nameLine2: linkedGuest.guest.people[1]?.name ?? null,
@@ -312,9 +327,13 @@ export async function loadPeopleProfile(
       canEditPrimaryList: editable,
       canEditDayOf: editable,
       canDelete: editable && !["david", "haley"].includes(person.id),
+      canSeeTasks: session.canSeeTasks,
       openTasks,
+      completedTaskCount,
       assignments: personAssignments,
       guestInfo,
+      gifts,
+      vendorContext,
       stayLabel,
       mealStatus,
       budgetContracts,
@@ -346,10 +365,11 @@ export async function loadPeopleProfile(
       directoryList: contact.directoryList,
     });
     const roles = directoryLabel ? [directoryLabel] : primaryList === "vendors" ? ["Vendor"] : ["Guest"];
+    const vendorContext = directoryLabel || vendorSubtitle(contact.name);
     return {
       profileId: profileIdForContact(contact.id),
       name: contact.name,
-      subtitle: directoryLabel || vendorSubtitle(contact.name),
+      subtitle: vendorContext,
       photoSrc: contact.photoData,
       phone: contact.phone,
       email: contact.email,
@@ -361,9 +381,13 @@ export async function loadPeopleProfile(
       canEditPrimaryList: editable,
       canEditDayOf: editable,
       canDelete: editable,
+      canSeeTasks: false,
       openTasks: [],
+      completedTaskCount: 0,
       assignments: [],
       guestInfo: null,
+      gifts: [],
+      vendorContext,
       stayLabel: null,
       mealStatus: null,
       budgetContracts,
@@ -425,7 +449,9 @@ export async function loadPeopleProfile(
     canEditPrimaryList: false,
     canEditDayOf: editable,
     canDelete: editable,
+    canSeeTasks: false,
     openTasks: [],
+    completedTaskCount: 0,
     assignments: [],
     guestInfo: {
       household: guestHouseholdLabel({
@@ -437,6 +463,8 @@ export async function loadPeopleProfile(
       rsvpStatus: guestPerson.person.rsvpStatus,
       table: tableLabel(guestPerson.person.tableNumber, guestPerson.person.tableSpot),
     },
+    gifts: giftDescriptions(guestPerson.guest.gifts),
+    vendorContext: null,
     stayLabel,
     mealStatus,
     budgetContracts: [],

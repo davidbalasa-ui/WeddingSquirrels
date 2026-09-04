@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { lockAction } from "@/app/actions";
 import { PeopleProfileView } from "@/components/PeopleProfileView";
-import { V2PageHeader } from "@/components/V2PageHeader";
 import { parseProfileId } from "@/lib/people-directory";
 import { loadPeopleProfile } from "@/lib/people-profile";
 import { requirePageSession } from "@/lib/session";
@@ -24,12 +24,21 @@ export default async function PeopleProfilePage({
 
   return (
     <>
-      <V2PageHeader session={session} title={profile.name} subtitle={profile.roles.join(" · ")} />
-      <PeopleProfileView profile={profile} />
-      <div className="mt-6">
-        <Link href="/people" className="text-sm font-semibold text-[var(--accent)]">
-          ← Back to People
+      <div className="flex items-center justify-between gap-3 pt-5">
+        <Link href="/people" className="min-h-11 text-sm font-semibold text-[var(--accent)]">
+          ← People
         </Link>
+        <form action={lockAction}>
+          <button
+            type="submit"
+            className="min-h-11 px-1 text-xs font-semibold text-muted underline-offset-4 hover:text-ink hover:underline"
+          >
+            Log out
+          </button>
+        </form>
+      </div>
+      <div className="mt-4">
+        <PeopleProfileView profile={profile} />
       </div>
     </>
   );

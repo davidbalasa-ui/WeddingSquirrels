@@ -31,7 +31,7 @@ export function PeopleRoleEditor({
     return (
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
-          {label || "No role label"}
+          {label || "Add a note"}
         </p>
         <button
           type="button"
@@ -71,7 +71,7 @@ export function PeopleRoleEditor({
           name="directoryLabel"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="e.g. Best man, Planner, Couple"
+          placeholder="e.g. Photographer, Planner"
           className="field-input"
           autoFocus
         />
