@@ -3,7 +3,7 @@ import { can, canSeeDinnerTab, canSeeStayTab } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { countFinishedGuests, type MealChoiceMap, type MealCourseView } from "@/lib/meals";
 import { reviewNoteLines, sortTimelineBlocks } from "@/lib/day-of-time";
-import { listTasks, type TaskWithAssignees } from "@/lib/tasks";
+import { listOrgCards, listTasks, type TaskWithAssignees } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 
 export const PLAN_TASK_DUE_SOON_DAYS = 7;
@@ -388,7 +388,9 @@ export function buildPlanDomainSummaries(
 export async function loadPlanPageData(session: SessionAccount, now = new Date()) {
   const [taskRows, timelineBlocks, rehearsal, staySlots, shoppingItems, calendarEvents] =
     await Promise.all([
-      can(session, "canSeeTasks") ? listTasks(session) : Promise.resolve(null),
+      can(session, "canSeeTasks")
+        ? Promise.all([listTasks(session), listOrgCards(session)])
+        : Promise.resolve(null),
       can(session, "canSeeTimeline")
         ? prisma.timelineBlock.findMany({
             where: { schedule: "wedding" },
@@ -426,7 +428,9 @@ export async function loadPlanPageData(session: SessionAccount, now = new Date()
     ]);
 
   const counts: PlanCounts = {
-    ...(taskRows ? { tasks: summarizeVisibleTasks(taskRows, now) } : {}),
+    ...(taskRows
+      ? { tasks: summarizeVisibleTasks([...taskRows[0], ...taskRows[1]], now) }
+      : {}),
     ...(timelineBlocks ? { timeline: summarizeWeddingTimeline(timelineBlocks) } : {}),
     ...(rehearsal
       ? {

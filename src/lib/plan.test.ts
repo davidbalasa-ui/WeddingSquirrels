@@ -116,6 +116,13 @@ test("task summary counts only the visible tasks it is given", () => {
   assert.equal(counts.overdue, 1);
   assert.equal(counts.dueSoon, 1);
   assert.notEqual(counts.open, visible.length + hidden.length);
+
+  const withOrgCards = summarizeVisibleTasks(
+    [...visible, { dueDate: null }, { dueDate: new Date("2026-09-05T12:00:00") }],
+    now,
+  );
+  assert.equal(withOrgCards.open, 4);
+  assert.equal(withOrgCards.dueSoon, 2);
 });
 
 test("overdue and due-soon summaries are deterministic for a fixed now", () => {
