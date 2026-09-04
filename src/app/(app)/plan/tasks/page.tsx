@@ -39,7 +39,7 @@ export default async function PlanTasksPage({
       ? orgCards.filter((task) => (view === "done" ? task.status === "done" : task.status !== "done"))
       : [];
   const summary = summarizeVisibleTasks(
-    tasks.filter((task) => task.status !== "done"),
+    [...tasks, ...orgCards].filter((task) => task.status !== "done"),
     now,
   );
 
