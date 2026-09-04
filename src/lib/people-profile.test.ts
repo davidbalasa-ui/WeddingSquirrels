@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { linkedIdentityForPerson, stayLabelForExactName } from "./people-profile";
+import {
+  canonicalRoleMemberships,
+  classifyCanonicalPrimaryList,
+  linkedIdentityForPerson,
+  stayLabelForExactName,
+} from "./people-profile";
 
 test("linkedIdentityForPerson attaches only personId matches", () => {
   const linked = linkedIdentityForPerson("bri", {
@@ -29,6 +34,61 @@ test("linkedIdentityForPerson attaches only personId matches", () => {
     linked.mealGuests.map((row) => row.id),
     ["meal.other"],
   );
+});
+
+test("Person-only identities are roleless until a real role exists", () => {
+  const david = canonicalRoleMemberships({
+    directoryList: null,
+    hasGuestRole: false,
+    hasContactRole: false,
+    isDayOfContact: false,
+  });
+  assert.equal(david.primaryList, null);
+  assert.equal(david.guest, false);
+  assert.equal(david.vendor, false);
+  assert.equal(david.dayOf, false);
+  assert.equal(
+    classifyCanonicalPrimaryList({
+      directoryList: null,
+      hasGuestRole: false,
+      hasContactRole: false,
+    }),
+    null,
+  );
+});
+
+test("Person + GuestPerson classifies as Guest, not Vendor", () => {
+  const membership = canonicalRoleMemberships({
+    hasGuestRole: true,
+    hasContactRole: false,
+  });
+  assert.equal(membership.primaryList, "guests");
+  assert.equal(membership.guest, true);
+  assert.equal(membership.vendor, false);
+});
+
+test("Person + Contact classifies as Vendor from the Contact role", () => {
+  const membership = canonicalRoleMemberships({
+    hasGuestRole: false,
+    hasContactRole: true,
+    isDayOfContact: true,
+  });
+  assert.equal(membership.primaryList, "vendors");
+  assert.equal(membership.guest, false);
+  assert.equal(membership.vendor, true);
+  assert.equal(membership.dayOf, true);
+});
+
+test("Person + GuestPerson + Contact keeps both role memberships", () => {
+  const membership = canonicalRoleMemberships({
+    hasGuestRole: true,
+    hasContactRole: true,
+    isDayOfContact: false,
+  });
+  assert.equal(membership.guest, true);
+  assert.equal(membership.vendor, true);
+  assert.equal(membership.dayOf, false);
+  assert.equal(membership.primaryList, "guests");
 });
 
 test("stayLabelForExactName does not first-name match", () => {

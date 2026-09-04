@@ -177,6 +177,24 @@ test("linked guest and contact references resolve to the canonical Person", () =
   );
 });
 
+test("Person-only profile does not display fake role metadata", () => {
+  const profile = emptyProfile({
+    profileId: "person:david",
+    name: "David",
+    roles: [],
+    primaryList: null,
+  });
+  assert.deepEqual(profileRoleChips(profile), []);
+  assert.equal(profile.primaryList, null);
+  assert.equal(profile.guestInfo, null);
+  assert.equal(profile.vendorContext, null);
+  assert.equal(profile.isDayOfContact, false);
+  const sections = visibleProfileSections(profile);
+  assert.equal(sections.includes("guest"), false);
+  assert.equal(sections.includes("vendor"), false);
+  assert.equal(sections.includes("day-of"), false);
+});
+
 test("canonical profile includes guest role data without inventing extra roles", () => {
   const profile = emptyProfile({
     guestInfo: { household: "Sarah & Alex · Chicago", rsvpStatus: "attending", table: "Table 4" },

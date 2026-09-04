@@ -110,6 +110,17 @@ export function createPersonInStore(store: IdentityStore, name: string): Identit
   return person;
 }
 
+export function editPersonInStore(
+  store: IdentityStore,
+  personId: string,
+  patch: Partial<Pick<IdentityPerson, "name" | "directoryLabel">>,
+): IdentityPerson | null {
+  const row = store.persons.find((item) => item.id === personId);
+  if (!row) return null;
+  Object.assign(row, patch);
+  return row;
+}
+
 export function editGuestPersonInStore(
   store: IdentityStore,
   guestPersonId: string,

@@ -50,7 +50,7 @@ export type PeopleProfile = {
   email: string | null;
   roles: string[];
   directoryLabel: string | null;
-  primaryList: PeoplePrimaryList;
+  primaryList: PeoplePrimaryList | null;
   isDayOfContact: boolean;
   canEditLabel: boolean;
   canEditPrimaryList: boolean;
@@ -119,17 +119,36 @@ export function linkedIdentityForPerson<
   };
 }
 
-function personRoles(person: { id: string; name: string }, assignmentCount: number): string[] {
-  if (["david", "haley"].includes(person.id)) return ["Couple"];
-  const { party, family } = mealGuestsByGroup();
-  const group = classifyNameGroup(
-    person.name,
-    party.map((guest) => guest.name),
-    family.map((guest) => guest.name),
-  );
-  if (group === "party") return ["Wedding party"];
-  if (assignmentCount > 0) return ["Day-of helper"];
-  return ["Family & helpers"];
+export function classifyCanonicalPrimaryList(input: {
+  directoryList?: string | null;
+  hasGuestRole: boolean;
+  hasContactRole: boolean;
+}): PeoplePrimaryList | null {
+  const explicit = resolvePrimaryList({ kind: "person", directoryList: input.directoryList });
+  if (explicit) return explicit;
+  if (input.hasGuestRole && !input.hasContactRole) return "guests";
+  if (input.hasContactRole && !input.hasGuestRole) return "vendors";
+  if (input.hasGuestRole && input.hasContactRole) return "guests";
+  return null;
+}
+
+export function canonicalRoleMemberships(input: {
+  directoryList?: string | null;
+  hasGuestRole: boolean;
+  hasContactRole: boolean;
+  isDayOfContact?: boolean;
+}): {
+  primaryList: PeoplePrimaryList | null;
+  guest: boolean;
+  vendor: boolean;
+  dayOf: boolean;
+} {
+  return {
+    primaryList: classifyCanonicalPrimaryList(input),
+    guest: input.hasGuestRole,
+    vendor: input.hasContactRole,
+    dayOf: Boolean(input.isDayOfContact),
+  };
 }
 
 function guestHouseholdLabel(guest: {
@@ -260,21 +279,18 @@ export async function loadPeopleProfile(
     const budgetContracts = [...budgetById.values()];
     const directoryLabel =
       person.directoryLabel?.trim() || linkedContact?.directoryLabel?.trim() || linkedGuest?.person.directoryLabel?.trim() || null;
-    const defaultRoles = personRoles(person, personAssignments.length);
     const roles = [
       ...new Set(
-        [
-          directoryLabel,
-          linkedGuest ? "Guest" : null,
-          linkedContact ? "Vendor" : null,
-          ...(directoryLabel ? [] : defaultRoles),
-        ].filter((role): role is string => Boolean(role)),
+        [directoryLabel, linkedGuest ? "Guest" : null, linkedContact ? "Vendor" : null].filter(
+          (role): role is string => Boolean(role),
+        ),
       ),
     ];
-    const personList = resolvePrimaryList({ kind: "person", directoryList: person.directoryList });
-    const primaryList: PeoplePrimaryList =
-      personList ??
-      (linkedGuest && !linkedContact ? "guests" : linkedContact ? "vendors" : "vendors");
+    const primaryList = classifyCanonicalPrimaryList({
+      directoryList: person.directoryList,
+      hasGuestRole: Boolean(linkedGuest),
+      hasContactRole: Boolean(linkedContact),
+    });
     const isDayOfContact =
       resolveIsDayOfContact({
         isDayOfContact: person.isDayOfContact,
@@ -319,7 +335,7 @@ export async function loadPeopleProfile(
       photoSrc: linkedContact?.photoData?.trim() || linkedGuest?.person.photoData || null,
       phone: linkedContact?.phone ?? linkedGuest?.guest.phone ?? null,
       email: linkedContact?.email ?? null,
-      roles: roles.length ? roles : defaultRoles,
+      roles,
       directoryLabel,
       primaryList,
       isDayOfContact,
