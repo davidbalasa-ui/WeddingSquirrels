@@ -9,61 +9,58 @@ export function TodayHero({
   session: SessionAccount;
   hero: TodayHeroData;
 }) {
-  const daysLabel =
-    hero.daysToGo === null
-      ? null
-      : hero.daysToGo < 0
-        ? `${Math.abs(hero.daysToGo)} days ago`
-        : hero.daysToGo === 0
-          ? "Today"
-          : hero.daysToGo === 1
-            ? "Tomorrow"
-            : `${hero.daysToGo} days`;
+  const daysNumber =
+    hero.phase === "future" && hero.daysToGo !== null ? String(hero.daysToGo) : null;
 
   return (
-    <header className="sticky top-0 z-20 -mx-4 mb-4 border-b border-line bg-[color-mix(in_srgb,var(--bg)_88%,transparent)] px-4 py-4 backdrop-blur-md">
+    <header className="mb-8 pt-5">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-            {session.name}
-            {session.isMaster ? " · Master" : ""}
-          </p>
-          <p className="mt-1 text-sm text-muted">{hero.greeting}</p>
-          {hero.coupleNames ? (
-            <h1 className="font-[family-name:var(--font-display)] text-[1.75rem] leading-tight tracking-tight">
-              {hero.coupleNames}
-            </h1>
-          ) : (
-            <h1 className="font-[family-name:var(--font-display)] text-[1.75rem] leading-tight tracking-tight">
-              Today
-            </h1>
-          )}
-          {hero.weddingDateLabel ? (
-            <p className="mt-1 text-sm text-muted">{hero.weddingDateLabel}</p>
-          ) : null}
-        </div>
-
-        <div className="shrink-0 text-right">
-          {daysLabel ? (
-            <>
-              <p className="font-[family-name:var(--font-display)] text-3xl leading-none text-[var(--accent)]">
-                {hero.daysToGo !== null && hero.daysToGo >= 0 ? hero.daysToGo : daysLabel}
-              </p>
-              <p className="text-[11px] text-muted">
-                {hero.daysToGo !== null && hero.daysToGo >= 0 ? "days to go" : "since wedding"}
-              </p>
-            </>
-          ) : null}
-          <form action={lockAction} className="mt-2">
-            <button
-              type="submit"
-              className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-ink hover:bg-[var(--surface)]"
-            >
-              Log out
-            </button>
-          </form>
-        </div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+          {hero.greeting}
+        </p>
+        <form action={lockAction}>
+          <button
+            type="submit"
+            className="min-h-11 px-1 text-xs font-semibold text-muted underline-offset-4 hover:text-ink hover:underline"
+          >
+            Log out
+          </button>
+        </form>
       </div>
+
+      <h1 className="mt-2 font-[family-name:var(--font-display)] text-[2.15rem] leading-[1.05] tracking-tight">
+        {hero.coupleNames ?? session.name}
+      </h1>
+
+      {daysNumber ? (
+        <div className="mt-7">
+          <p className="font-[family-name:var(--font-display)] text-[4.25rem] leading-none text-[var(--accent)]">
+            {daysNumber}
+          </p>
+          <p className="mt-1 font-[family-name:var(--font-display)] text-2xl leading-tight text-[var(--accent)]">
+            {hero.daysToGo === 1 ? "day" : "days"}
+          </p>
+          {hero.countdownSupport ? (
+            <p className="mt-2 text-base text-muted">{hero.countdownSupport}</p>
+          ) : null}
+        </div>
+      ) : hero.countdownLabel ? (
+        <div className="mt-7">
+          <p className="font-[family-name:var(--font-display)] text-4xl leading-tight text-[var(--accent)]">
+            {hero.countdownLabel}
+          </p>
+          {hero.countdownSupport ? (
+            <p className="mt-2 text-base text-muted">{hero.countdownSupport}</p>
+          ) : null}
+        </div>
+      ) : hero.countdownSupport ? (
+        <p className="mt-7 text-base text-muted">{hero.countdownSupport}</p>
+      ) : null}
+
+      {hero.weddingDateLabel && hero.phase !== "after" ? (
+        <p className="mt-6 text-sm text-muted">{hero.weddingDateLabel}</p>
+      ) : null}
+      {hero.venue ? <p className="mt-1 text-sm text-muted">{hero.venue}</p> : null}
     </header>
   );
 }
