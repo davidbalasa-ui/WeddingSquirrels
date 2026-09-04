@@ -32,7 +32,6 @@ import {
 } from "@/lib/day-of-time";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
 import {
-  normalizePersonName,
   parseProfileId,
   profileIdForContact,
   profileIdForGuestPerson,
@@ -40,6 +39,12 @@ import {
   type PeoplePrimaryList,
   isPeoplePrimaryList,
 } from "@/lib/people-directory";
+import {
+  convertPrimaryListForIdentity,
+  copyPhotoToLinkedPeer,
+  linkContactToExistingPerson,
+  linkGuestPersonToExistingPerson,
+} from "@/lib/people-identity-write";
 import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
@@ -1707,20 +1712,11 @@ export async function saveGuestPersonPhoto(
     data: { photoData: nextPhoto },
   });
   if (nextPhoto) {
-    const contacts = await prisma.contact.findMany({
-      select: { id: true, name: true, photoData: true },
+    await copyPhotoToLinkedPeer({
+      sourcePersonId: person.personId,
+      photoData: nextPhoto,
+      direction: "guest-to-contact",
     });
-    const match = contacts.find(
-      (row) =>
-        !row.photoData?.trim() &&
-        normalizePersonName(row.name) === normalizePersonName(person.name),
-    );
-    if (match) {
-      await prisma.contact.update({
-        where: { id: match.id },
-        data: { photoData: nextPhoto },
-      });
-    }
   }
   revalidateGuests();
   return { ok: true, id: guestPersonId };
@@ -1740,6 +1736,15 @@ export async function cycleGuestPersonRole(guestPersonId: string): Promise<Guest
     const profileId = profileIdForGuestPerson(guestPersonId);
     const result = await savePrimaryList(profileId, "vendors");
     if (!result.ok) return { ok: false, reason: result.reason === "protected" ? "invalid" : result.reason };
+    await prisma.guestPerson.update({
+      where: { id: guestPersonId },
+      data: {
+        directoryLabel: directoryLabelForRole("vendor"),
+        isDayOfContact: isDayOfRole("vendor"),
+      },
+    });
+    revalidateGuests();
+    revalidatePeople(result.profileId);
     return { ok: true, id: guestPersonId, profileId: result.profileId };
   }
 
@@ -2646,20 +2651,11 @@ export async function saveContact(formData: FormData): Promise<void> {
   });
 
   if (nextPhoto) {
-    const guestPeople = await prisma.guestPerson.findMany({
-      select: { id: true, name: true, photoData: true },
+    await copyPhotoToLinkedPeer({
+      sourcePersonId: existing.personId,
+      photoData: nextPhoto,
+      direction: "contact-to-guest",
     });
-    const match = guestPeople.find(
-      (row) =>
-        !row.photoData?.trim() &&
-        normalizePersonName(row.name) === normalizePersonName(name),
-    );
-    if (match) {
-      await prisma.guestPerson.update({
-        where: { id: match.id },
-        data: { photoData: nextPhoto },
-      });
-    }
   }
 
   revalidateDayData();
@@ -2711,82 +2707,6 @@ async function requirePeopleEditor() {
   } catch {
     return null;
   }
-}
-
-async function createGuestHouseholdForName(
-  name: string,
-  directoryLabel?: string | null,
-  isDayOfContact?: boolean,
-) {
-  const maxSort = await prisma.guest.aggregate({ _max: { sortOrder: true } });
-  return prisma.guest.create({
-    data: {
-      nameLine1: name,
-      sortOrder: (maxSort._max.sortOrder ?? 0) + 1,
-      invitedCount: 1,
-      people: {
-        create: {
-          name,
-          directoryLabel: directoryLabel?.trim() || null,
-          isDayOfContact: isDayOfContact ?? false,
-          sortOrder: 0,
-        },
-      },
-    },
-    include: { people: true },
-  });
-}
-
-async function ensureGuestPersonForName(
-  name: string,
-  opts?: { directoryLabel?: string | null; isDayOfContact?: boolean },
-) {
-  const trimmed = name.trim();
-  if (!trimmed) return null;
-
-  const existing = await prisma.guestPerson.findFirst({
-    where: { name: { equals: trimmed, mode: "insensitive" } },
-  });
-  if (existing) {
-    if (opts?.isDayOfContact && !existing.isDayOfContact) {
-      await prisma.guestPerson.update({
-        where: { id: existing.id },
-        data: { isDayOfContact: true },
-      });
-    }
-    return existing;
-  }
-
-  const guest = await createGuestHouseholdForName(
-    trimmed,
-    opts?.directoryLabel,
-    opts?.isDayOfContact,
-  );
-  return guest.people[0] ?? null;
-}
-
-async function createContactFromSource(input: {
-  name: string;
-  phone?: string | null;
-  email?: string | null;
-  photoData?: string | null;
-  directoryLabel?: string | null;
-  directoryList?: PeoplePrimaryList;
-  isDayOfContact?: boolean;
-}) {
-  const last = await prisma.contact.findFirst({ orderBy: { sortOrder: "desc" } });
-  return prisma.contact.create({
-    data: {
-      name: input.name,
-      phone: input.phone ?? null,
-      email: input.email ?? null,
-      photoData: input.photoData ?? null,
-      directoryLabel: input.directoryLabel?.trim() || null,
-      directoryList: input.directoryList ?? "vendors",
-      isDayOfContact: input.isDayOfContact ?? false,
-      sortOrder: (last?.sortOrder ?? -1) + 1,
-    },
-  });
 }
 
 async function deleteGuestPersonRecord(guestPersonId: string) {
@@ -2842,75 +2762,41 @@ export async function savePrimaryList(
   const parsed = parseProfileId(profileId);
   if (!parsed) return { ok: false, reason: "invalid" };
 
-  if (parsed.kind === "guest") {
-    const currentProfileId = profileIdForGuestPerson(parsed.id);
-    if (list === "guests") return { ok: true, profileId: currentProfileId };
+  const result = await convertPrimaryListForIdentity(parsed, list);
+  if (!result.ok) return { ok: false, reason: result.reason };
 
-    const guestPerson = await prisma.guestPerson.findUnique({ where: { id: parsed.id } });
-    if (!guestPerson) return { ok: false, reason: "not_found" };
+  revalidatePeople(profileId);
+  if (result.profileId !== profileId) revalidatePeople(result.profileId);
+  return { ok: true, profileId: result.profileId };
+}
 
-    const contact = await createContactFromSource({
-      name: guestPerson.name,
-      directoryLabel: guestPerson.directoryLabel,
-      directoryList: "vendors",
-      isDayOfContact: guestPerson.isDayOfContact,
-    });
-    await deleteGuestPersonRecord(parsed.id);
-    const nextProfileId = profileIdForContact(contact.id);
-    revalidatePeople(profileId);
-    revalidatePeople(nextProfileId);
-    return { ok: true, profileId: nextProfileId };
-  }
+export async function linkGuestPersonToPerson(
+  guestPersonId: string,
+  personId: string,
+): Promise<GuestPersonWriteResult> {
+  if (!(await requirePeopleEditor())) return { ok: false, reason: "forbidden" };
+  if (!guestPersonId || !personId) return { ok: false, reason: "invalid" };
 
-  if (parsed.kind === "contact") {
-    const contact = await prisma.contact.findUnique({ where: { id: parsed.id } });
-    if (!contact) return { ok: false, reason: "not_found" };
+  const linked = await linkGuestPersonToExistingPerson(guestPersonId, personId);
+  if (!linked) return { ok: false, reason: "not_found" };
+  revalidateGuests();
+  revalidatePeople(profileIdForGuestPerson(guestPersonId));
+  revalidatePeople(profileIdForPerson(personId));
+  return { ok: true, id: guestPersonId, profileId: profileIdForPerson(personId) };
+}
 
-    const currentProfileId = profileIdForContact(contact.id);
-    if (list === "guests") {
-      const guestPerson = await ensureGuestPersonForName(contact.name, {
-        directoryLabel: contact.directoryLabel,
-        isDayOfContact: contact.isDayOfContact,
-      });
-      if (!guestPerson) return { ok: false, reason: "not_found" };
+export async function linkContactToPerson(
+  contactId: string,
+  personId: string,
+): Promise<{ ok: true; id: string; profileId: string } | { ok: false; reason: "forbidden" | "invalid" | "not_found" }> {
+  if (!(await requirePeopleEditor())) return { ok: false, reason: "forbidden" };
+  if (!contactId || !personId) return { ok: false, reason: "invalid" };
 
-      await prisma.contact.delete({ where: { id: parsed.id } });
-      const nextProfileId = profileIdForGuestPerson(guestPerson.id);
-      revalidatePeople(profileId);
-      revalidatePeople(nextProfileId);
-      return { ok: true, profileId: nextProfileId };
-    }
-
-    await prisma.contact.update({
-      where: { id: parsed.id },
-      data: { directoryList: list },
-    });
-    revalidatePeople(currentProfileId);
-    return { ok: true, profileId: currentProfileId };
-  }
-
-  const person = await prisma.person.findUnique({ where: { id: parsed.id } });
-  if (!person) return { ok: false, reason: "not_found" };
-
-  const currentProfileId = profileIdForPerson(person.id);
-  if (list === "guests") {
-    await ensureGuestPersonForName(person.name, {
-      directoryLabel: person.directoryLabel,
-      isDayOfContact: person.isDayOfContact,
-    });
-    await prisma.person.update({
-      where: { id: parsed.id },
-      data: { directoryList: "guests" },
-    });
-  } else {
-    await prisma.person.update({
-      where: { id: parsed.id },
-      data: { directoryList: list },
-    });
-  }
-
-  revalidatePeople(currentProfileId);
-  return { ok: true, profileId: currentProfileId };
+  const linked = await linkContactToExistingPerson(contactId, personId);
+  if (!linked) return { ok: false, reason: "not_found" };
+  revalidatePeople(profileIdForContact(contactId));
+  revalidatePeople(profileIdForPerson(personId));
+  return { ok: true, id: contactId, profileId: profileIdForPerson(personId) };
 }
 
 async function resolveGuestPersonForDayOf(id: string) {
