@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, supportsBudgetPayments } from "@/lib/db";
+import { filterVisibleBudgetItems } from "@/lib/money";
 import { requestVisibilityWhere } from "@/lib/requests";
 import { taskVisibilityWhere } from "@/lib/tasks";
 
@@ -12,6 +13,8 @@ export async function GET() {
   if (!session) {
     return Response.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+
+  const includePayments = session.canSeeBudget ? await supportsBudgetPayments() : false;
 
   const [
     settings,
@@ -66,7 +69,12 @@ export async function GET() {
       : Promise.resolve([]),
     session.canSeeBudget
       ? prisma.budgetItem.findMany({
-          include: { shares: { select: { pinAccountId: true } } },
+          include: {
+            shares: { select: { pinAccountId: true } },
+            payments: includePayments
+              ? { orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }] }
+              : false,
+          },
           orderBy: { sortOrder: "asc" },
         })
       : Promise.resolve([]),
@@ -89,17 +97,7 @@ export async function GET() {
     session.canSeeStay ? prisma.staySlot.findMany({ orderBy: { sortOrder: "asc" } }) : Promise.resolve([]),
   ]);
 
-  // Mirror the Money page's visibility rule for non-editing accounts.
-  const budgetItems =
-    session.isMaster || session.canEditBudget
-      ? allBudgetItems
-      : session.canSeeBudget
-        ? allBudgetItems.filter(
-            (item) =>
-              (session.linkedPersonId != null && item.ownerId === session.linkedPersonId) ||
-              item.shares.some((share) => share.pinAccountId === session.id),
-          )
-        : [];
+  const budgetItems = filterVisibleBudgetItems(session, allBudgetItems);
 
   return Response.json({
     fetchedAt: new Date().toISOString(),

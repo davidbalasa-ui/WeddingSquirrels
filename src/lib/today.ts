@@ -1,6 +1,13 @@
 import { differenceInCalendarDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/db";
-import { formatMoney } from "@/lib/money";
+import {
+  contractPaidTotal,
+  contractRemaining,
+  formatMoney,
+  obligationsForContract,
+  type BudgetContractSnapshot,
+  type BudgetPaymentSnapshot,
+} from "@/lib/money";
 import { moneyContractHref } from "@/lib/connections";
 import { loadVisibleBudgetContracts } from "@/lib/money-page";
 import { parseDayOfTime, sortTimelineBlocks } from "@/lib/day-of-time";
@@ -119,6 +126,7 @@ export type BudgetItemSnapshot = {
   price: number;
   amountPaid: number;
   payByDate: Date | null;
+  payments: BudgetPaymentSnapshot[];
 };
 
 export type TodayPageData = Awaited<ReturnType<typeof loadTodayPageData>>;
@@ -176,8 +184,25 @@ export function todayPersonRef(input: {
   return { personId, href: `/people/${profileIdForPerson(personId)}` };
 }
 
-export function remainingOnBudgetItem(item: Pick<BudgetItemSnapshot, "price" | "amountPaid">): number {
-  return Math.max(0, item.price - item.amountPaid);
+export function remainingOnBudgetItem(
+  item: Pick<BudgetItemSnapshot, "price" | "amountPaid"> & { payments?: BudgetPaymentSnapshot[] },
+): number {
+  return contractRemaining(item);
+}
+
+function asMoneyContract(item: BudgetItemSnapshot): BudgetContractSnapshot {
+  return {
+    id: item.id,
+    name: item.name,
+    price: item.price,
+    amountPaid: item.amountPaid,
+    ownerId: null,
+    paidById: null,
+    payByDate: item.payByDate,
+    note: null,
+    sortOrder: 0,
+    payments: item.payments ?? [],
+  };
 }
 
 function isOverdue(date: Date, today: Date): boolean {
@@ -348,28 +373,32 @@ export function buildAttentionQueue(
   }
 
   for (const item of budgetItems) {
-    if (!item.payByDate || remainingOnBudgetItem(item) <= 0) continue;
-    const overdue = isOverdue(item.payByDate, today);
-    const dueToday = isDueToday(item.payByDate, today);
-    const dueSoon = !overdue && !dueToday && daysFromToday(item.payByDate, today) <= DUE_SOON_DAYS;
-    if (!overdue && !dueToday && !dueSoon) continue;
-    const remaining = remainingOnBudgetItem(item);
-    add({
-      type: "payment",
-      id: `payment:${item.id}`,
-      budgetItemId: item.id,
-      name: item.name,
-      title: item.name,
-      amountRemaining: remaining,
-      dueDate: item.payByDate,
-      reason: overdue ? "Payment overdue" : dueToday ? "Payment due today" : "Payment due soon",
-      whenLabel: formatRelativeWhen(item.payByDate, now),
-      context: `${formatMoney(remaining)} remaining`,
-      href: moneyContractHref(item.id),
-      urgency: overdue ? "high" : "normal",
-      rank: overdue ? RANK.overduePayment : dueToday ? RANK.dueTodayPayment : RANK.dueSoonPayment,
-      personId: null,
-    });
+    const obligations = obligationsForContract(asMoneyContract(item), today);
+    for (const obligation of obligations) {
+      const overdue = isOverdue(obligation.dueDate, today);
+      const dueToday = isDueToday(obligation.dueDate, today);
+      const dueSoon = !overdue && !dueToday && daysFromToday(obligation.dueDate, today) <= DUE_SOON_DAYS;
+      if (!overdue && !dueToday && !dueSoon) continue;
+      add({
+        type: "payment",
+        id: obligation.id,
+        budgetItemId: item.id,
+        name: item.name,
+        title: item.name,
+        amountRemaining: obligation.amount,
+        dueDate: obligation.dueDate,
+        reason: overdue ? "Payment overdue" : dueToday ? "Payment due today" : "Payment due soon",
+        whenLabel: formatRelativeWhen(obligation.dueDate, now),
+        context:
+          obligation.kind === "payment"
+            ? `${obligation.label} · ${formatMoney(obligation.amount)}`
+            : `${formatMoney(obligation.amount)} remaining`,
+        href: moneyContractHref(item.id),
+        urgency: overdue ? "high" : "normal",
+        rank: overdue ? RANK.overduePayment : dueToday ? RANK.dueTodayPayment : RANK.dueSoonPayment,
+        personId: null,
+      });
+    }
   }
 
   candidates.sort(
@@ -525,18 +554,22 @@ export function buildComingUpList(input: {
   }
 
   for (const budgetItem of input.budgetItems) {
-    if (!budgetItem.payByDate || startOfDay(budgetItem.payByDate) < today) continue;
-    const remaining = remainingOnBudgetItem(budgetItem);
-    if (remaining <= 0) continue;
-    upcoming.push({
-      id: `payment:${budgetItem.id}`,
-      kind: "payment",
-      title: budgetItem.name,
-      date: budgetItem.payByDate,
-      href: moneyContractHref(budgetItem.id),
-      subtitle: `${formatMoney(remaining)} remaining`,
-      personId: null,
-    });
+    const obligations = obligationsForContract(asMoneyContract(budgetItem), today);
+    for (const obligation of obligations) {
+      if (startOfDay(obligation.dueDate) < today) continue;
+      upcoming.push({
+        id: obligation.id,
+        kind: "payment",
+        title: budgetItem.name,
+        date: obligation.dueDate,
+        href: moneyContractHref(budgetItem.id),
+        subtitle:
+          obligation.kind === "payment"
+            ? `${obligation.label} · ${formatMoney(obligation.amount)}`
+            : `${formatMoney(obligation.amount)} remaining`,
+        personId: null,
+      });
+    }
   }
 
   upcoming.sort((a, b) => a.date.getTime() - b.date.getTime() || a.title.localeCompare(b.title));
@@ -587,15 +620,20 @@ export function buildTodayContext(input: {
   }
 
   for (const item of input.budgetItems) {
-    if (!item.payByDate || remainingOnBudgetItem(item) <= 0) continue;
-    if (!isDueToday(item.payByDate, today)) continue;
-    rows.push({
-      id: `payment:${item.id}`,
-      timeLabel: null,
-      title: item.name,
-      context: `${formatMoney(remainingOnBudgetItem(item))} remaining`,
-      href: moneyContractHref(item.id),
-    });
+    const obligations = obligationsForContract(asMoneyContract(item), today);
+    for (const obligation of obligations) {
+      if (!isDueToday(obligation.dueDate, today)) continue;
+      rows.push({
+        id: obligation.id,
+        timeLabel: null,
+        title: item.name,
+        context:
+          obligation.kind === "payment"
+            ? `${obligation.label} · ${formatMoney(obligation.amount)}`
+            : `${formatMoney(obligation.amount)} remaining`,
+        href: moneyContractHref(item.id),
+      });
+    }
   }
 
   const timeline = sortTimelineBlocks(
@@ -666,6 +704,7 @@ async function loadVisibleBudgetItems(session: SessionAccount): Promise<BudgetIt
     price: item.price,
     amountPaid: item.amountPaid,
     payByDate: item.payByDate,
+    payments: item.payments,
   }));
 }
 
@@ -729,7 +768,7 @@ export async function loadTodayPageData(session: SessionAccount) {
   const waiting = buildWaitingItems(inbox.sections, { accounts: inbox.accounts });
 
   const committed = budgetItems.reduce((sum, item) => sum + item.price, 0);
-  const paid = budgetItems.reduce((sum, item) => sum + item.amountPaid, 0);
+  const paid = budgetItems.reduce((sum, item) => sum + contractPaidTotal(item), 0);
   const rsvpReport = session.canSeeGuests
     ? summarizeGuestRsvp(
         guestRows.map((guest) => ({

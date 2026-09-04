@@ -224,6 +224,7 @@ test("overdue budget items use remaining balance, not installments", () => {
       price: 3000,
       amountPaid: 750,
       payByDate: new Date("2026-08-01T12:00:00"),
+      payments: [],
     },
   ], {
     now: new Date("2026-08-10T12:00:00"),
@@ -265,6 +266,7 @@ test("upcoming items sort chronologically", () => {
         price: 900,
         amountPaid: 0,
         payByDate: new Date("2026-09-01T12:00:00"),
+        payments: [],
       },
     ],
     now: new Date("2026-08-01T12:00:00"),
@@ -466,4 +468,91 @@ test("buildWeddingWeekPreview marks the first visible block as next", () => {
   assert.equal(preview.length, 1);
   assert.equal(preview[0]?.isNext, true);
   assert.equal(preview[0]?.title, "Ceremony");
+});
+
+test("TODAY uses explicit payment schedule when present", () => {
+  const now = new Date("2026-08-10T12:00:00");
+  const item = {
+    id: "b1",
+    name: "Photographer",
+    price: 4500,
+    amountPaid: 2250,
+    payByDate: new Date("2026-08-01T12:00:00"),
+    payments: [
+      {
+        id: "p1",
+        label: "Deposit",
+        amount: 2250,
+        paidAmount: 2250,
+        dueDate: new Date("2026-07-01T12:00:00"),
+        paidAt: null,
+        paidById: null,
+        note: null,
+        sortOrder: 0,
+      },
+      {
+        id: "p2",
+        label: "Final payment",
+        amount: 2250,
+        paidAmount: 0,
+        dueDate: new Date("2026-08-01T12:00:00"),
+        paidAt: null,
+        paidById: null,
+        note: null,
+        sortOrder: 1,
+      },
+    ],
+  };
+  const queue = buildAttentionQueue([], emptySections(), [item], { now });
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0]?.id, "payment:b1:p2");
+  if (queue[0]?.type === "payment") {
+    assert.equal(queue[0].amountRemaining, 2250);
+    assert.equal(queue[0].context, "Final payment · $2,250");
+  }
+});
+
+test("TODAY falls back to legacy payByDate when no schedule exists", () => {
+  const queue = buildAttentionQueue([], emptySections(), [
+    {
+      id: "b1",
+      name: "Photographer",
+      price: 3000,
+      amountPaid: 750,
+      payByDate: new Date("2026-08-01T12:00:00"),
+      payments: [],
+    },
+  ], { now: new Date("2026-08-10T12:00:00") });
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0]?.id, "legacy:b1");
+  if (queue[0]?.type === "payment") {
+    assert.equal(queue[0].amountRemaining, 2250);
+  }
+});
+
+test("TODAY does not duplicate money obligations", () => {
+  const queue = buildAttentionQueue([], emptySections(), [
+    {
+      id: "b1",
+      name: "Photographer",
+      price: 4500,
+      amountPaid: 2250,
+      payByDate: new Date("2026-08-01T12:00:00"),
+      payments: [
+        {
+          id: "p2",
+          label: "Final payment",
+          amount: 2250,
+          paidAmount: 0,
+          dueDate: new Date("2026-08-01T12:00:00"),
+          paidAt: null,
+          paidById: null,
+          note: null,
+          sortOrder: 0,
+        },
+      ],
+    },
+  ], { now: new Date("2026-08-10T12:00:00") });
+  assert.equal(queue.length, 1);
+  assert.equal(queue.some((item) => item.id.startsWith("legacy:")), false);
 });

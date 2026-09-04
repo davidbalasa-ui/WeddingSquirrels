@@ -1,10 +1,10 @@
--- Run in Neon SQL Editor to add BudgetPayment for Phase 5.
--- Safe to run multiple times.
+-- Additive BudgetPayment table for MONEY payment schedules.
+-- Safe to run multiple times. Does not modify existing BudgetItem rows.
 
 CREATE TABLE IF NOT EXISTS "BudgetPayment" (
     "id" TEXT NOT NULL,
     "budgetItemId" TEXT NOT NULL,
-    "label" TEXT NOT NULL,
+    "label" TEXT,
     "amount" DOUBLE PRECISION NOT NULL,
     "dueDate" TIMESTAMP(3),
     "paidAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS "BudgetPayment" (
 
 CREATE INDEX IF NOT EXISTS "BudgetPayment_budgetItemId_sortOrder_idx"
     ON "BudgetPayment" ("budgetItemId", "sortOrder");
+
+ALTER TABLE "BudgetPayment" ALTER COLUMN "label" DROP NOT NULL;
 
 DO $$
 BEGIN
