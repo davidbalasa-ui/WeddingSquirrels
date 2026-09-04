@@ -183,6 +183,7 @@ test("canonical profile includes guest role data without inventing extra roles",
     gifts: ["Crystal vase"],
   });
   assert.deepEqual(profileRoleChips(profile), ["Guest"]);
+  assert.deepEqual(profileRoleChips(emptyProfile({ primaryList: "vendors" })), []);
   assert.ok(visibleProfileSections(profile).includes("guest"));
   assert.equal(profile.guestInfo?.table, "Table 4");
   assert.deepEqual(profile.gifts, ["Crystal vase"]);

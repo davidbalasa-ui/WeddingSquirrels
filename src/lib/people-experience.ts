@@ -148,11 +148,14 @@ export function peopleHubTabCounts(entries: DirectoryEntry[]): Record<PeopleTab,
 
 export function profileRoleChips(profile: Pick<
   PeopleProfile,
-  "guestInfo" | "primaryList" | "isDayOfContact" | "phone" | "email"
+  "guestInfo" | "primaryList" | "isDayOfContact" | "phone" | "email" | "vendorContext"
 >): ProfileRoleChip[] {
   const chips: ProfileRoleChip[] = [];
   if (profile.guestInfo) chips.push("Guest");
-  if (profile.primaryList === "vendors") chips.push("Vendor");
+  const hasVendorEvidence =
+    Boolean(profile.vendorContext?.trim()) ||
+    (profile.primaryList === "vendors" && Boolean(profile.phone?.trim() || profile.email?.trim()));
+  if (hasVendorEvidence) chips.push("Vendor");
   if (profile.isDayOfContact) chips.push("Day-of contact");
   return chips;
 }

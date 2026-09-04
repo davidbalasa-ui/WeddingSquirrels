@@ -15,7 +15,7 @@ const ATTENDANCE: { key: PeopleAttendanceFilter; label: string }[] = [
   { key: "all", label: "Everyone" },
   { key: "pending", label: "No reply" },
   { key: "attending", label: "Accepted" },
-  { key: "not_attending", label: "Not attending" },
+  { key: "not_attending", label: "Declined" },
 ];
 
 export function PeopleHubFilters({
@@ -67,7 +67,7 @@ export function PeopleHubFilters({
       </div>
 
       {showGuestFilters ? (
-        <div className="flex gap-2 overflow-x-auto pb-0.5">
+        <div className="flex flex-wrap gap-2 pb-0.5">
           {ATTENDANCE.map((option) => {
             const active = activeAttendance === option.key;
             return (
