@@ -10,7 +10,8 @@ export default async function DayPage({
   const session = await requirePageSession({ need: "canSeeTimeline" });
   const params = await searchParams;
   const asOf = typeof params.asOf === "string" ? params.asOf : undefined;
-  const { source, view, canEdit } = await loadDayOfExperience(session, { asOf });
+  const fixture = typeof params.fixture === "string" ? params.fixture : undefined;
+  const { source, view, canEdit } = await loadDayOfExperience(session, { asOf, fixture });
 
   return <DayOfExperience source={source} initialView={view} canEdit={canEdit} />;
 }

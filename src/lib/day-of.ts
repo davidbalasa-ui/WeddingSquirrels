@@ -6,8 +6,12 @@
  * SEQUENCE → sortOrder after timed parse (sortTimelineBlocks)
  *
  * startAt inclusive, endAt exclusive.
+ * A wedding minute may have 0, 1, or many active blocks (activeBlocks).
+ *
  * Missing endAt does not invent a duration. The block stays current until
- * the next timed block starts (existing last-started-wins behavior).
+ * the next timed start that is STRICTLY LATER than this block's start.
+ * A same-start parallel block does not close an open-ended block.
+ * A later start on the shared timeline still does — there is no track model.
  *
  * After-midnight times (12:00–4:59 AM) use dayOffset 1 via parseDayOfTime.
  * sortOrder/dayOffset remain the sequence — 12:30 AM is never sorted before 10:00 AM.
@@ -85,9 +89,18 @@ export type DayOfResponsibility = {
 
 export type DayOfSchedulePosition = {
   kind: DayOfPositionKind;
+  /** First active block in wedding sequence. Alias of nowBlocks[0]. */
   now: DayOfMoment | null;
+  /** First block in the nearest future-start group. Alias of nextBlocks[0]. */
   next: DayOfMoment | null;
+  /** First block in the start group after NEXT. Alias of afterNextBlocks[0]. */
   afterNext: DayOfMoment | null;
+  /** Every block whose existing temporal rules say it is active right now. */
+  nowBlocks: DayOfMoment[];
+  /** Every block that shares the nearest future start after nowKey. */
+  nextBlocks: DayOfMoment[];
+  /** Every block that shares the next distinct start after the NEXT group. */
+  afterNextBlocks: DayOfMoment[];
   laterToday: DayOfMoment[];
   fullDay: DayOfMoment[];
   minutesUntilNext: number | null;
@@ -266,14 +279,48 @@ function toMoment(block: DayOfBlock): DayOfMoment {
   };
 }
 
-function isBlockActive(block: DayOfBlock, next: DayOfBlock | undefined, nowKey: number): boolean {
+function nextDistinctStartAfter(blocks: DayOfBlock[], afterStart: number): number | null {
+  let nextStart: number | null = null;
+  for (const block of blocks) {
+    const start = blockStartKey(block);
+    if (start == null || start <= afterStart) continue;
+    if (nextStart == null || start < nextStart) nextStart = start;
+  }
+  return nextStart;
+}
+
+function blocksWithStart(blocks: DayOfBlock[], startKey: number): DayOfBlock[] {
+  return blocks.filter((block) => blockStartKey(block) === startKey);
+}
+
+/**
+ * A block is active when startAt is inclusive and endAt is exclusive.
+ * Missing endAt stays active until the next start that is strictly later
+ * than this block — not merely the next row in the sorted array.
+ */
+export function isBlockActive(block: DayOfBlock, allBlocks: DayOfBlock[], nowKey: number): boolean {
   const start = blockStartKey(block);
   if (start == null || nowKey < start) return false;
   const end = blockEndKey(block);
   if (end != null) return nowKey < end;
-  const nextStart = next ? blockStartKey(next) : null;
-  if (nextStart != null) return nowKey < nextStart;
+  const closeAt = nextDistinctStartAfter(allBlocks, start);
+  if (closeAt != null) return nowKey < closeAt;
   return true;
+}
+
+function emptyFeatured(nowKey: number, fullDay: DayOfMoment[]): Omit<DayOfSchedulePosition, "kind"> {
+  return {
+    now: null,
+    next: null,
+    afterNext: null,
+    nowBlocks: [],
+    nextBlocks: [],
+    afterNextBlocks: [],
+    laterToday: [],
+    fullDay,
+    minutesUntilNext: null,
+    nowKey,
+  };
 }
 
 export function positionDayOfSchedule(
@@ -286,68 +333,52 @@ export function positionDayOfSchedule(
   const fullDay = sorted.map(toMoment);
 
   if (timed.length === 0) {
-    return {
-      kind: "empty",
-      now: null,
-      next: null,
-      afterNext: null,
-      laterToday: [],
-      fullDay,
-      minutesUntilNext: null,
-      nowKey,
-    };
+    return { kind: "empty", ...emptyFeatured(nowKey, fullDay) };
   }
 
-  let activeIndex = -1;
-  for (let index = 0; index < timed.length; index += 1) {
-    if (isBlockActive(timed[index]!, timed[index + 1], nowKey)) {
-      activeIndex = index;
-    }
-  }
+  const nowBlocks = timed.filter((block) => isBlockActive(block, timed, nowKey));
+  const future = timed.filter((block) => (blockStartKey(block) ?? -1) > nowKey);
+  const nextStart = future[0] ? blockStartKey(future[0]) : null;
+  const nextBlocks = nextStart != null ? blocksWithStart(future, nextStart) : [];
+  const afterFuture = nextStart != null
+    ? future.filter((block) => (blockStartKey(block) ?? -1) > nextStart)
+    : [];
+  const afterStart = afterFuture[0] ? blockStartKey(afterFuture[0]) : null;
+  const afterNextBlocks = afterStart != null ? blocksWithStart(afterFuture, afterStart) : [];
 
   let kind: DayOfPositionKind;
-  let nowBlock: DayOfBlock | null = null;
-  let nextBlock: DayOfBlock | null = null;
-
-  if (activeIndex >= 0) {
+  if (nowBlocks.length > 0) {
     kind = "during";
-    nowBlock = timed[activeIndex]!;
-    nextBlock = timed[activeIndex + 1] ?? null;
+  } else if (nextBlocks.length === 0) {
+    kind = "after_final";
   } else {
-    const nextIndex = timed.findIndex(
-      (block) => (blockStartKey(block) ?? Number.POSITIVE_INFINITY) > nowKey,
-    );
-    if (nextIndex === 0) {
-      kind = "before_first";
-      nextBlock = timed[0]!;
-    } else if (nextIndex > 0) {
-      kind = "between";
-      nextBlock = timed[nextIndex]!;
-    } else {
-      kind = "after_final";
-    }
+    const earliestStart = blockStartKey(timed[0]!);
+    kind = earliestStart === nextStart ? "before_first" : "between";
   }
 
-  const nextIndex = nextBlock ? timed.findIndex((block) => block.id === nextBlock.id) : -1;
-  const afterNext = nextIndex >= 0 ? (timed[nextIndex + 1] ?? null) : null;
-
-  const featured = new Set<string>();
-  if (nowBlock) featured.add(nowBlock.id);
-  if (nextBlock) featured.add(nextBlock.id);
-  if (afterNext) featured.add(afterNext.id);
-
+  const featured = new Set<string>(
+    [...nowBlocks, ...nextBlocks, ...afterNextBlocks].map((block) => block.id),
+  );
   const laterToday = timed
     .filter((block) => !featured.has(block.id) && (blockStartKey(block) ?? -1) > nowKey)
     .map(toMoment);
 
-  const nextStart = nextBlock ? blockStartKey(nextBlock) : null;
   const until = nextStart != null ? nextStart - nowKey : null;
+  const nowMoments = nowBlocks.map(toMoment);
+  const nextMoments = nextBlocks.map(toMoment);
+  const afterMoments = afterNextBlocks.map(toMoment);
 
+  // Clone aliases so they are not the same object as group[0]. Next.js Flight
+  // otherwise serializes nowBlocks[0] as a pointer to `now` and the client
+  // can drop the rest of a concurrent NOW group.
   return {
     kind,
-    now: nowBlock ? toMoment(nowBlock) : null,
-    next: nextBlock ? toMoment(nextBlock) : null,
-    afterNext: afterNext ? toMoment(afterNext) : null,
+    now: nowMoments[0] ? { ...nowMoments[0] } : null,
+    next: nextMoments[0] ? { ...nextMoments[0] } : null,
+    afterNext: afterMoments[0] ? { ...afterMoments[0] } : null,
+    nowBlocks: nowMoments,
+    nextBlocks: nextMoments,
+    afterNextBlocks: afterMoments,
     laterToday,
     fullDay,
     minutesUntilNext: until != null && until > 0 ? until : null,
@@ -416,6 +447,9 @@ function restingPosition(position: DayOfSchedulePosition): DayOfSchedulePosition
     now: null,
     next: null,
     afterNext: null,
+    nowBlocks: [],
+    nextBlocks: [],
+    afterNextBlocks: [],
     laterToday: [],
     minutesUntilNext: null,
   };
