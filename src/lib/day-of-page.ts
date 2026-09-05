@@ -24,6 +24,7 @@ export type DayOfPageContext = {
   showNowTab: boolean;
 };
 
+/** Live wedding rows from the database. Never reads candidate bootstrap constants. */
 export async function loadWeddingTimelineBlocks() {
   return sortTimelineBlocks(
     await prisma.timelineBlock.findMany({ where: { schedule: "wedding" } }),

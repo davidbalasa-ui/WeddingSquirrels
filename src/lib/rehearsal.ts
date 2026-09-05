@@ -1,6 +1,16 @@
 import type { PrismaClient } from "@prisma/client";
 import { parsedTimeFields } from "@/lib/day-of-time";
 
+function isNeonHostUrl(databaseUrl: string | undefined): boolean {
+  if (!databaseUrl) return false;
+  try {
+    const hostname = new URL(databaseUrl).hostname.toLowerCase();
+    return hostname === "neon.tech" || hostname.endsWith(".neon.tech");
+  } catch {
+    return false;
+  }
+}
+
 export type RehearsalSeedBlock = {
   id: string;
   startAt: string;
@@ -54,7 +64,16 @@ export const REHEARSAL_SCHEDULE_SEED: RehearsalSeedBlock[] = [
   },
 ];
 
+/** Local/dev convenience only. Production Neon must not silently create rehearsal rows. */
+export function shouldAutoBootstrapRehearsal(
+  databaseUrl: string | undefined = process.env.DATABASE_URL,
+): boolean {
+  return !isNeonHostUrl(databaseUrl);
+}
+
 export async function ensureRehearsalSchedule(client: PrismaClient) {
+  if (!shouldAutoBootstrapRehearsal()) return;
+
   const existing = await client.timelineBlock.count({ where: { schedule: "rehearsal" } });
   if (existing > 0) return;
 
