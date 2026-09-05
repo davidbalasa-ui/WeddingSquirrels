@@ -65,6 +65,10 @@ test("appendPreviewAsOf only adds a query param and never invents a clock", () =
     appendPreviewAsOf("/day", "2026-10-16T14:42:00.000Z"),
     "/day?asOf=2026-10-16T14%3A42%3A00.000Z",
   );
+  assert.equal(
+    appendPreviewAsOf("/day", "2026-10-16T14:42:00.000Z", "production-wedding"),
+    "/day?asOf=2026-10-16T14%3A42%3A00.000Z&fixture=production-wedding",
+  );
 });
 
 test("instantAtLocalClock respects America/Detroit on wedding day", () => {

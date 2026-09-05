@@ -17,6 +17,7 @@ export function V2BottomNav({
   const pathname = usePathname();
   const params = useSearchParams();
   const asOf = params.get("asOf");
+  const fixture = params.get("fixture");
   const tabs = NAV_TABS.filter((item) => canSeeNavTab(session, item.tab));
 
   return (
@@ -27,7 +28,7 @@ export function V2BottomNav({
         return (
           <Link
             key={item.tab}
-            href={appendPreviewAsOf(item.href, asOf)}
+            href={appendPreviewAsOf(item.href, asOf, fixture)}
             className="nav-link"
             data-active={active}
             aria-current={active ? "page" : undefined}

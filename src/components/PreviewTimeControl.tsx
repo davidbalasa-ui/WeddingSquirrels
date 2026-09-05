@@ -21,6 +21,7 @@ export function PreviewTimeControl({
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
   const asOf = params.get("asOf") ?? "";
+  const fixture = params.get("fixture") ?? "";
   const presets = useMemo(
     () => buildPreviewPresets(weddingDateIso ? new Date(weddingDateIso) : null, timezone),
     [weddingDateIso, timezone],
@@ -28,14 +29,24 @@ export function PreviewTimeControl({
   const selected = previewPresetIdForAsOf(asOf || undefined, presets);
   const [custom, setCustom] = useState("");
 
-  function applyAsOf(next: string | null) {
+  function applyQuery(next: { asOf?: string | null; fixture?: string | null }) {
     const query = new URLSearchParams(params.toString());
-    if (next) query.set("asOf", next);
-    else query.delete("asOf");
+    if ("asOf" in next) {
+      if (next.asOf) query.set("asOf", next.asOf);
+      else query.delete("asOf");
+    }
+    if ("fixture" in next) {
+      if (next.fixture) query.set("fixture", next.fixture);
+      else query.delete("fixture");
+    }
     const suffix = query.toString();
     startTransition(() => {
       router.push(suffix ? `${pathname}?${suffix}` : pathname);
     });
+  }
+
+  function applyAsOf(next: string | null) {
+    applyQuery({ asOf: next });
   }
 
   return (
@@ -92,12 +103,24 @@ export function PreviewTimeControl({
           Apply
         </button>
       </div>
-      {asOf ? (
+      <label className="mt-3 flex items-start gap-2 text-[11px] font-semibold text-[var(--warn)]">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={fixture === "production-wedding"}
+          disabled={pending}
+          onChange={(event) => {
+            applyQuery({ fixture: event.target.checked ? "production-wedding" : null });
+          }}
+        />
+        <span>Use 19-row sample timeline (does not write the database)</span>
+      </label>
+      {asOf || fixture ? (
         <button
           type="button"
           className="mt-2 text-xs font-semibold text-[var(--warn)] underline-offset-2 hover:underline"
           disabled={pending}
-          onClick={() => applyAsOf(null)}
+          onClick={() => applyQuery({ asOf: null, fixture: null })}
         >
           Clear preview
         </button>

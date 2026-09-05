@@ -120,10 +120,15 @@ export function canShowPreviewHarness(input: {
   return Boolean(input.isMaster) && isTemporalPreviewAllowed(input.env);
 }
 
-/** Carry a preview ?asOf= across in-app navigation. Never writes data. */
-export function appendPreviewAsOf(href: string, asOf: string | null | undefined): string {
-  if (!asOf) return href;
+/** Carry preview query params across in-app navigation. Never writes data. */
+export function appendPreviewAsOf(
+  href: string,
+  asOf: string | null | undefined,
+  fixture?: string | null,
+): string {
+  if (!asOf && !fixture) return href;
   const url = new URL(href, "https://weddingsquirrels.local");
-  url.searchParams.set("asOf", asOf);
+  if (asOf) url.searchParams.set("asOf", asOf);
+  if (fixture) url.searchParams.set("fixture", fixture);
   return `${url.pathname}${url.search}`;
 }
