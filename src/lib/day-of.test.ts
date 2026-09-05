@@ -15,6 +15,7 @@ import {
 } from "./day-of";
 import {
   morningOverlapFixtureBlocks,
+  productionWeddingTimelineFixtureBlocks,
   resolveDayOfUiFixture,
 } from "./day-of-fixtures";
 import { getWeddingPhase } from "./wedding-phase";
@@ -534,8 +535,57 @@ test("production-style morning overlap at 10:42 AM", () => {
   );
 });
 
+test("production 19-row wedding timeline at 10:42 AM", () => {
+  const fixture = productionWeddingTimelineFixtureBlocks();
+  assert.equal(fixture.length, 19);
+  assert.equal(
+    fixture.some((row) => /rehearsal/i.test(row.notes)),
+    false,
+  );
+  const pos = positionAt("2026-10-16T10:42:00", fixture);
+  assert.equal(pos.kind, "during");
+  assert.deepEqual(
+    pos.nowBlocks.map((row) => row.title),
+    [
+      "Settle in at Airbnb",
+      "Venue Opens",
+      "Vendor + Wedding Party Arrival",
+    ],
+  );
+  assert.deepEqual(
+    pos.nextBlocks.map((row) => ({ title: row.title, startAt: row.startAt })),
+    [{ title: "Wedding party DIY hair & makeup", startAt: "11:00 AM" }],
+  );
+  assert.deepEqual(
+    pos.afterNextBlocks.map((row) => ({ title: row.title, startAt: row.startAt })),
+    [{ title: "Wedding party packs up", startAt: "11:45 AM" }],
+  );
+});
+
+test("production 19-row wedding timeline later NOW moments", () => {
+  const fixture = productionWeddingTimelineFixtureBlocks();
+  assert.deepEqual(
+    positionAt("2026-10-16T15:35:00", fixture).nowBlocks.map((row) => row.title),
+    ["Ceremony"],
+  );
+  assert.deepEqual(
+    positionAt("2026-10-16T17:15:00", fixture).nowBlocks.map((row) => row.title),
+    ["Dinner begins"],
+  );
+  assert.deepEqual(
+    positionAt("2026-10-16T19:30:00", fixture).nowBlocks.map((row) => row.title),
+    ["Open Dancing"],
+  );
+  assert.deepEqual(
+    positionAt("2026-10-16T22:30:00", fixture).nowBlocks.map((row) => row.title),
+    ["Tear down / Clean up"],
+  );
+});
+
 test("non-production fixture overlay is ignored in production", () => {
   assert.equal(resolveDayOfUiFixture("morning-overlap", "production"), undefined);
   assert.equal(resolveDayOfUiFixture("linear", "production"), undefined);
   assert.equal(resolveDayOfUiFixture("morning-overlap", "test"), "morning-overlap");
+  assert.equal(resolveDayOfUiFixture("production-wedding", "production"), undefined);
+  assert.equal(resolveDayOfUiFixture("production-wedding", "test"), "production-wedding");
 });
