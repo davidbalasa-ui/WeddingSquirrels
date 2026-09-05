@@ -866,6 +866,7 @@ export async function loadTodayPageData(
     tomorrow: execution?.tomorrow ?? [],
     laterThisWeek: execution?.laterThisWeek ?? [],
     todayEmpty: execution?.todayEmpty ?? null,
+    tomorrowEmpty: execution?.tomorrowEmpty ?? null,
     handoff: execution?.handoff ?? null,
     pulseCompact: execution?.pulseCompact ?? phaseInfo.phase === "post_wedding",
   };

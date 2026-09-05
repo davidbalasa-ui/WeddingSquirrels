@@ -135,6 +135,12 @@ test("task due today appears in TODAY, not Later or Attention", () => {
   assert.equal(view.today[0]?.href, "/work/today");
 });
 
+test("wedding week shows a calm Tomorrow section when nothing is dated tomorrow", () => {
+  const view = composeAt("2026-10-09");
+  assert.equal(view.tomorrow.length, 0);
+  assert.equal(view.tomorrowEmpty?.title, "Nothing on the calendar tomorrow.");
+});
+
 test("task due tomorrow appears in Tomorrow, not Coming Up", () => {
   const dueTomorrow = taskItem("tomorrow", {
     title: "Confirm florist",

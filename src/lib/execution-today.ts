@@ -76,6 +76,7 @@ export type ExecutionTodayModel = {
   todayContext: TodayContextItem[];
   comingUp: TodayComingUpItem[];
   todayEmpty: { title: string; support: string } | null;
+  tomorrowEmpty: { title: string; support: string } | null;
   handoff: TodayHandoff | null;
   pulseCompact: boolean;
 };
@@ -517,6 +518,10 @@ export function composeExecutionToday(input: {
     todayEmpty:
       today.length === 0 && phase !== "wedding_day"
         ? { title: "Nothing scheduled.", support: "You have room to breathe." }
+        : null,
+    tomorrowEmpty:
+      phase !== "wedding_day" && tomorrowDated.length === 0 && phase !== "day_before"
+        ? { title: "Nothing on the calendar tomorrow.", support: "Only dated work will show here." }
         : null,
     handoff,
     pulseCompact: true,

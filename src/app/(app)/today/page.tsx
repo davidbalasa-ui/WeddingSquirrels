@@ -54,7 +54,7 @@ export default async function TodayPage({
             tasks={data.inbox.tasks}
           />
           {data.phase.phase !== "wedding_day" ? (
-            <TodayContext title="Tomorrow" items={tomorrowContext} />
+            <TodayContext title="Tomorrow" items={tomorrowContext} empty={data.tomorrowEmpty} />
           ) : null}
           <TodayWaitingSection session={session} waiting={data.waiting} tasks={data.inbox.tasks} />
           <TodayPulseStrip stats={data.pulse} compact={data.pulseCompact} />
