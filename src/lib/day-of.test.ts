@@ -356,6 +356,8 @@ test("two overlapping blocks are both active at 10:42", () => {
   assert.deepEqual(ids(pos.nowBlocks), ["settle", "vendor"]);
   assert.deepEqual(ids(pos.nextBlocks), ["diy"]);
   assert.equal(pos.next?.startAt, "11:00 AM");
+  assert.notEqual(pos.now, pos.nowBlocks[0]);
+  assert.notEqual(pos.next, pos.nextBlocks[0]);
 });
 
 test("activeBlocks keep wedding sequence, not alphabetical titles", () => {

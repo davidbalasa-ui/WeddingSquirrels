@@ -368,11 +368,14 @@ export function positionDayOfSchedule(
   const nextMoments = nextBlocks.map(toMoment);
   const afterMoments = afterNextBlocks.map(toMoment);
 
+  // Clone aliases so they are not the same object as group[0]. Next.js Flight
+  // otherwise serializes nowBlocks[0] as a pointer to `now` and the client
+  // can drop the rest of a concurrent NOW group.
   return {
     kind,
-    now: nowMoments[0] ?? null,
-    next: nextMoments[0] ?? null,
-    afterNext: afterMoments[0] ?? null,
+    now: nowMoments[0] ? { ...nowMoments[0] } : null,
+    next: nextMoments[0] ? { ...nextMoments[0] } : null,
+    afterNext: afterMoments[0] ? { ...afterMoments[0] } : null,
     nowBlocks: nowMoments,
     nextBlocks: nextMoments,
     afterNextBlocks: afterMoments,
