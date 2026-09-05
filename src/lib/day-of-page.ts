@@ -6,6 +6,7 @@ import {
   type DayOfExperienceSource,
   type DayOfView,
 } from "@/lib/day-of";
+import { blocksForDayOfUiFixture, resolveDayOfUiFixture } from "@/lib/day-of-fixtures";
 import {
   buildDayNowNextSnapshot,
   shouldShowDayNowTab,
@@ -124,12 +125,13 @@ export type DayOfExperienceData = {
 
 export async function loadDayOfExperience(
   session: SessionAccount,
-  opts?: { now?: Date; asOf?: string },
+  opts?: { now?: Date; asOf?: string; fixture?: string },
 ): Promise<DayOfExperienceData> {
   const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
   const timezone = settings?.timezone ?? "America/Detroit";
   const asOf = parseDayOfAsOf(opts?.asOf, timezone);
   const now = opts?.now ?? asOf ?? new Date();
+  const uiFixture = resolveDayOfUiFixture(opts?.fixture);
   const phase = getWeddingPhase({
     weddingDate: settings?.weddingDate ?? null,
     timezone,
@@ -189,7 +191,7 @@ export async function loadDayOfExperience(
     weddingDateLabel: settings?.weddingDate
       ? formatWeddingDateLabel(settings.weddingDate, timezone)
       : null,
-    blocks: blocks.map(toDayOfBlock),
+    blocks: blocksForDayOfUiFixture(uiFixture) ?? blocks.map(toDayOfBlock),
     contacts: contacts.map((contact) => ({
       id: contact.id,
       name: contact.name,

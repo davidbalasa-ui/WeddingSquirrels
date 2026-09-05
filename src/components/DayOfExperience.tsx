@@ -18,12 +18,20 @@ import {
 
 const CLOCK_INTERVAL_MS = 30_000;
 
+function featuredMomentIds(view: DayOfView): Set<string> {
+  return new Set(
+    [
+      ...view.position.nowBlocks,
+      ...view.position.nextBlocks,
+      ...view.position.afterNextBlocks,
+    ].map((moment) => moment.id),
+  );
+}
+
 function isPastMoment(moment: DayOfMoment, view: DayOfView): boolean {
   if (view.mode === "completed") return true;
   if (view.mode !== "live") return false;
-  if (view.position.now?.id === moment.id) return false;
-  if (view.position.next?.id === moment.id) return false;
-  if (view.position.afterNext?.id === moment.id) return false;
+  if (featuredMomentIds(view).has(moment.id)) return false;
   if (moment.startKey == null) return false;
   return moment.startKey < view.position.nowKey;
 }
@@ -318,54 +326,100 @@ function LiveNow({ view }: { view: DayOfView }) {
     );
   }
 
-  if (!position.now) return null;
+  const nowBlocks = position.nowBlocks.length > 0
+    ? position.nowBlocks
+    : position.now
+      ? [position.now]
+      : [];
+  if (nowBlocks.length === 0) return null;
+
+  if (nowBlocks.length === 1) {
+    const current = nowBlocks[0]!;
+    return (
+      <section className="mt-10" aria-labelledby="now-heading">
+        <SectionLabel>Now</SectionLabel>
+        <h2
+          id="now-heading"
+          className="mt-2 font-[family-name:var(--font-display)] text-[2.15rem] leading-[1.08] tracking-tight"
+          aria-live="polite"
+        >
+          {current.title}
+        </h2>
+        <p className="mt-3 text-base font-semibold text-[var(--accent)]">{current.timeLabel}</p>
+        <MomentNotes moment={current} />
+      </section>
+    );
+  }
 
   return (
-    <section className="mt-10" aria-labelledby="now-heading">
+    <section className="mt-8" aria-labelledby="now-heading">
       <SectionLabel>Now</SectionLabel>
-      <h2
-        id="now-heading"
-        className="mt-2 font-[family-name:var(--font-display)] text-[2.15rem] leading-[1.08] tracking-tight"
-        aria-live="polite"
-      >
-        {position.now.title}
+      <h2 id="now-heading" className="sr-only">
+        Now
       </h2>
-      <p className="mt-3 text-base font-semibold text-[var(--accent)]">{position.now.timeLabel}</p>
-      <MomentNotes moment={position.now} />
+      <ul className="mt-2 space-y-3" aria-live="polite">
+        {nowBlocks.map((moment) => (
+          <li key={moment.id}>
+            <p className="font-[family-name:var(--font-display)] text-[1.55rem] leading-[1.12] tracking-tight">
+              {moment.title}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-[var(--accent)]">{moment.timeLabel}</p>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
 
 function LiveNext({ view }: { view: DayOfView }) {
-  const next = view.position.next;
+  const nextBlocks = view.position.nextBlocks.length > 0
+    ? view.position.nextBlocks
+    : view.position.next
+      ? [view.position.next]
+      : [];
+  const next = nextBlocks[0];
   if (!next) return null;
   const until = formatMinutesUntil(view.position.minutesUntilNext);
   return (
-    <section className="mt-8" aria-labelledby="next-heading">
+    <section className={view.position.nowBlocks.length > 1 ? "mt-6" : "mt-8"} aria-labelledby="next-heading">
       <div className="flex items-baseline justify-between gap-3">
         <h2 id="next-heading" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
           Next{next.startAt ? ` · ${next.startAt}` : ""}
         </h2>
         {until ? <p className="text-sm text-muted">{until}</p> : null}
       </div>
-      <p className="mt-2 text-xl font-semibold leading-snug">{next.title}</p>
-      {next.location ? <p className="mt-1 text-sm text-muted">{next.location}</p> : null}
+      <ul className="mt-2 space-y-2">
+        {nextBlocks.map((moment) => (
+          <li key={moment.id}>
+            <p className="text-xl font-semibold leading-snug">{moment.title}</p>
+            {moment.location ? <p className="mt-1 text-sm text-muted">{moment.location}</p> : null}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
 
 function AfterThat({ view }: { view: DayOfView }) {
-  const after = view.position.afterNext;
+  const afterBlocks = view.position.afterNextBlocks.length > 0
+    ? view.position.afterNextBlocks
+    : view.position.afterNext
+      ? [view.position.afterNext]
+      : [];
+  const after = afterBlocks[0];
   if (!after) return null;
   return (
-    <section className="mt-8" aria-labelledby="after-heading">
+    <section className="mt-6" aria-labelledby="after-heading">
       <h2 id="after-heading" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-        After that
+        After that{after.startAt ? ` · ${after.startAt}` : ""}
       </h2>
-      <div className="mt-2 flex items-start gap-4">
-        <p className="w-[4.75rem] shrink-0 text-sm font-semibold text-muted">{after.startAt}</p>
-        <p className="font-semibold leading-snug">{after.title}</p>
-      </div>
+      <ul className="mt-2 space-y-1.5">
+        {afterBlocks.map((moment) => (
+          <li key={moment.id} className="font-semibold leading-snug">
+            {moment.title}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
