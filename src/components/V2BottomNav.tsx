@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ModuleIcon } from "@/components/ModuleIcon";
 import { canSeeNavTab, isNavTabActive, NAV_TABS } from "@/lib/modules";
+import { appendPreviewAsOf } from "@/lib/preview-clock";
 import type { SessionAccount } from "@/lib/types";
 
 export function V2BottomNav({
@@ -14,17 +15,19 @@ export function V2BottomNav({
   unreadRequests?: number;
 }) {
   const pathname = usePathname();
+  const params = useSearchParams();
+  const asOf = params.get("asOf");
   const tabs = NAV_TABS.filter((item) => canSeeNavTab(session, item.tab));
 
   return (
-    <nav className="nav-bar" aria-label="Main">
+    <nav className="nav-bar" aria-label="Primary">
       {tabs.map((item) => {
         const active = isNavTabActive(pathname, item.tab);
         const showBadge = item.tab === "today" && unreadRequests > 0;
         return (
           <Link
             key={item.tab}
-            href={item.href}
+            href={appendPreviewAsOf(item.href, asOf)}
             className="nav-link"
             data-active={active}
             aria-current={active ? "page" : undefined}

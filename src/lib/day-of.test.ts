@@ -270,6 +270,22 @@ test("asOf is ignored in production and accepted in non-production", () => {
   assert.equal(formatWeddingClock(stamped, DETROIT), "10:30 AM");
 });
 
+test("asOf works on Vercel Preview even when NODE_ENV is production", () => {
+  const preview = parseDayOfAsOf("2026-10-16T10:42:00-04:00", DETROIT, {
+    NODE_ENV: "production",
+    VERCEL_ENV: "preview",
+  });
+  assert.ok(preview);
+  assert.equal(formatWeddingClock(preview, DETROIT), "10:42 AM");
+  assert.equal(
+    parseDayOfAsOf("2026-10-16T10:42:00-04:00", DETROIT, {
+      NODE_ENV: "production",
+      VERCEL_ENV: "production",
+    }),
+    undefined,
+  );
+});
+
 test("responsibilities require an exact linkedPersonId", () => {
   const assignments = [
     {
@@ -590,4 +606,12 @@ test("non-production fixture overlay is ignored in production", () => {
   assert.equal(resolveDayOfUiFixture("morning-overlap", "test"), "morning-overlap");
   assert.equal(resolveDayOfUiFixture("production-wedding", "production"), undefined);
   assert.equal(resolveDayOfUiFixture("production-wedding", "test"), "production-wedding");
+  assert.equal(
+    resolveDayOfUiFixture("morning-overlap", { NODE_ENV: "production", VERCEL_ENV: "preview" }),
+    "morning-overlap",
+  );
+  assert.equal(
+    resolveDayOfUiFixture("morning-overlap", { NODE_ENV: "production", VERCEL_ENV: "production" }),
+    undefined,
+  );
 });

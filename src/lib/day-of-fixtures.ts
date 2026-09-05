@@ -3,6 +3,7 @@
  * Never persist these rows. Never write them to Neon or local Postgres.
  */
 import { toDayOfBlock, type DayOfBlock } from "@/lib/day-of";
+import { isTemporalPreviewAllowed, type PreviewEnv } from "@/lib/preview-clock";
 
 function block(
   id: string,
@@ -73,9 +74,14 @@ export type DayOfUiFixture = "morning-overlap" | "linear" | "production-wedding"
 
 export function resolveDayOfUiFixture(
   raw: string | undefined,
-  env: string = process.env.NODE_ENV ?? "development",
+  env: string | PreviewEnv = process.env,
 ): DayOfUiFixture | undefined {
-  if (!raw || env === "production") return undefined;
+  if (!raw) return undefined;
+  const allowed =
+    typeof env === "string"
+      ? isTemporalPreviewAllowed({ NODE_ENV: env })
+      : isTemporalPreviewAllowed(env);
+  if (!allowed) return undefined;
   if (raw === "morning-overlap" || raw === "linear" || raw === "production-wedding") return raw;
   return undefined;
 }
