@@ -26,7 +26,7 @@ import {
 import { dayAssignmentHref, taskHref } from "@/lib/entity-links";
 import { giftDescriptions } from "@/lib/guest-gifts";
 import { filterVisibleBudgetItems } from "@/lib/money";
-import { dueLabel, listTasks } from "@/lib/tasks";
+import { dueLabel, listAssignedTasksForPerson } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 import { STAY_SECTIONS } from "@/lib/stay";
 
@@ -254,7 +254,7 @@ export async function loadPeopleProfile(
     const linkedMeal = linked.mealGuests[0];
 
     const visibleTasks = session.canSeeTasks
-      ? await listTasks(session, { personId: person.id, showDone: true })
+      ? await listAssignedTasksForPerson(session, person.id, { showDone: true })
       : [];
     const openTasks = visibleTasks
       .filter((task) => task.status !== "done")

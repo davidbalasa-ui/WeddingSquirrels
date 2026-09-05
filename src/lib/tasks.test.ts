@@ -1,6 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dueDateInputValue, dueLabel, taskMatchesAssigneeFilter } from "./tasks";
+import {
+  assignedToPersonWhere,
+  dueDateInputValue,
+  dueLabel,
+  taskMatchesAssigneeFilter,
+} from "./tasks";
+
+test("assignedToPersonWhere is a plain TaskAssignee match, not a couple who-filter", () => {
+  assert.deepEqual(assignedToPersonWhere("david"), {
+    assignees: { some: { personId: "david" } },
+  });
+  assert.deepEqual(assignedToPersonWhere("haley"), {
+    assignees: { some: { personId: "haley" } },
+  });
+});
 
 test("taskMatchesAssigneeFilter lets a Shelly-only PIN edit Shelly-owned tasks", () => {
   const filter = ["shelly"];

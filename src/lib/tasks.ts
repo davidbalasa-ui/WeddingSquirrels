@@ -100,6 +100,34 @@ export function taskVisibilityWhere(session: SessionAccount): Prisma.TaskWhereIn
   };
 }
 
+/** Trustworthy TaskAssignee match. Does not use PLAN couple who-filters. */
+export function assignedToPersonWhere(personId: string): Prisma.TaskWhereInput {
+  return { assignees: { some: { personId } } };
+}
+
+export async function listAssignedTasksForPerson(
+  session: SessionAccount,
+  personId: string,
+  opts: { showDone?: boolean } = {},
+) {
+  const and: Prisma.TaskWhereInput[] = [
+    taskVisibilityWhere(session),
+    { parentId: null },
+    assignedToPersonWhere(personId),
+  ];
+  if (!opts.showDone) {
+    and.push({ status: { not: "done" } });
+  }
+
+  const tasks = await prisma.task.findMany({
+    where: { AND: and },
+    include: taskListInclude,
+    orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }, { title: "asc" }],
+  });
+
+  return rankTasks(tasks);
+}
+
 export async function listTasks(
   session: SessionAccount,
   opts: { showDone?: boolean; personId?: string | null } = {},
