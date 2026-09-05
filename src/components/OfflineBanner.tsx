@@ -29,8 +29,8 @@ export function OfflineBanner() {
         open the offline copy
       </Link>
       {" · "}
-      <Link href="/day/now" className="underline">
-        wedding-day Now / Next
+      <Link href="/day" className="underline">
+        wedding day
       </Link>
     </div>
   );

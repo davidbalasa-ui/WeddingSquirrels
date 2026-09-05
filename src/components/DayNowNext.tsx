@@ -209,13 +209,13 @@ export function DayNowNext({
           {!offline ? (
             canEdit ? (
               <Link
-                href="/day?view=timeline&edit=1"
+                href="/plan/timeline"
                 className="text-xs font-semibold text-[var(--accent)]"
               >
                 Edit timeline
               </Link>
             ) : (
-              <Link href="/day?view=timeline" className="text-xs font-semibold text-[var(--accent)]">
+              <Link href="/day" className="text-xs font-semibold text-[var(--accent)]">
                 Full timeline
               </Link>
             )
@@ -229,7 +229,7 @@ export function DayNowNext({
           {canEdit && !offline ? (
             <>
               {" "}
-              <Link href="/day?view=timeline&edit=1" className="font-semibold text-[var(--accent)]">
+              <Link href="/plan/timeline" className="font-semibold text-[var(--accent)]">
                 Add the run of show
               </Link>
               .
