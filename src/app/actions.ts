@@ -1395,7 +1395,13 @@ async function requireScheduleEditor(schedule: TimelineSchedule) {
 }
 
 function revalidateSchedule(schedule: TimelineSchedule) {
-  revalidatePath(schedule === "rehearsal" ? "/rehearsal" : "/day");
+  if (schedule === "rehearsal") {
+    revalidatePath("/plan/rehearsal");
+    revalidatePath("/rehearsal");
+    return;
+  }
+  revalidatePath("/plan/timeline");
+  revalidatePath("/day");
 }
 
 async function resequenceTimeline(schedule: TimelineSchedule): Promise<string[]> {
@@ -1453,6 +1459,7 @@ export async function saveTimelineBlock(input: {
   });
 
   const order = await resequenceTimeline(schedule);
+  revalidateSchedule(schedule);
   return { ok: true, id, order };
 }
 
@@ -1526,6 +1533,7 @@ export async function saveTimelinePeerOrder(orderedPeerIds: string[]): Promise<T
     ),
   );
 
+  revalidateSchedule(schedule);
   return { ok: true, id: orderedPeerIds[0], order: next.map((block) => block.id) };
 }
 

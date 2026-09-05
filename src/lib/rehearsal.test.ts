@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { REHEARSAL_SCHEDULE_SEED } from "./rehearsal";
+import { REHEARSAL_SCHEDULE_SEED, shouldAutoBootstrapRehearsal } from "./rehearsal";
 import { parseDayOfTime } from "./day-of-time";
 
 test("rehearsal seed has unique ids and timed starts in order", () => {
@@ -17,4 +17,12 @@ test("rehearsal seed has unique ids and timed starts in order", () => {
       previous = parsed.minutes;
     }
   }
+});
+
+test("production Neon does not silently bootstrap rehearsal rows", () => {
+  assert.equal(
+    shouldAutoBootstrapRehearsal("postgresql://user:pass@ep-holy-mouse-avnzi9jd.c-11.us-east-1.aws.neon.tech/neondb"),
+    false,
+  );
+  assert.equal(shouldAutoBootstrapRehearsal("postgresql://wedding:wedding@localhost:5432/wedding"), true);
 });
