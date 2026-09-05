@@ -36,12 +36,22 @@ function ContactRow({
         <p className="text-[15px] font-semibold leading-snug">{contact.name}</p>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
           {contact.phone && phoneHref ? (
-            <a href={phoneHref} className="font-semibold text-[var(--accent)] hover:underline">
+            <a
+              href={phoneHref}
+              className="font-semibold text-[var(--accent)] hover:underline"
+              aria-label={`Call ${contact.name}`}
+            >
               {contact.phone}
             </a>
           ) : null}
           {contact.email ? (
-            <a href={`mailto:${contact.email}`} className="hover:underline">{contact.email}</a>
+            <a
+              href={`mailto:${contact.email}`}
+              className="hover:underline"
+              aria-label={`Email ${contact.name}`}
+            >
+              {contact.email}
+            </a>
           ) : null}
         </div>
       </div>
@@ -64,7 +74,7 @@ function ContactRow({
           </button>
         </div>
       ) : phoneHref ? (
-        <a href={phoneHref} className="shrink-0 text-sm text-muted" aria-label="Call">
+        <a href={phoneHref} className="shrink-0 text-sm text-muted" aria-label={`Call ${contact.name}`}>
           ›
         </a>
       ) : null}

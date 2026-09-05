@@ -225,7 +225,7 @@ export function DayNowNext({
 
       {!hasContent ? (
         <div className="card px-3 py-4 text-sm text-muted">
-          No timed moments on the timeline yet.
+          Nothing scheduled yet.
           {canEdit && !offline ? (
             <>
               {" "}

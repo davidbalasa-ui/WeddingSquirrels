@@ -29,6 +29,7 @@ import {
   parsedTimeFields,
   sortTimelineBlocks,
 } from "@/lib/day-of-time";
+import { isTemporalPreviewAllowed, type PreviewEnv } from "@/lib/preview-clock";
 import {
   calendarDateKey,
   getWeddingPhase,
@@ -213,9 +214,14 @@ export function resolveDayOfMode(phase: WeddingPhase, now: Date, timeZone: strin
 export function parseDayOfAsOf(
   raw: string | undefined,
   timeZone: string,
-  env: string = process.env.NODE_ENV ?? "development",
+  env: string | PreviewEnv = process.env,
 ): Date | undefined {
-  if (!raw || env === "production") return undefined;
+  if (!raw) return undefined;
+  const allowed =
+    typeof env === "string"
+      ? isTemporalPreviewAllowed({ NODE_ENV: env })
+      : isTemporalPreviewAllowed(env);
+  if (!allowed) return undefined;
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return instantOnCalendarDate(raw, timeZone);
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
