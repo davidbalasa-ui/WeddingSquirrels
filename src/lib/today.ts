@@ -26,6 +26,14 @@ import {
 } from "@/lib/guest-gifts";
 import { dueLabel } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
+import {
+  getWeddingPhase,
+  instantOnCalendarDate,
+  weddingPhaseHeroCopy,
+  usesExecutionLayout,
+  type WeddingPhase,
+} from "@/lib/wedding-phase";
+import { composeExecutionToday, type ExecutionTodayModel } from "@/lib/execution-today";
 
 export type TodayHeroPhase = "future" | "wedding-day" | "after";
 
@@ -37,6 +45,11 @@ export type TodayHeroData = {
   timezone: string;
   daysToGo: number | null;
   phase: TodayHeroPhase | null;
+  weddingPhase: WeddingPhase | null;
+  kicker: string | null;
+  lede: string | null;
+  handoffHref: string | null;
+  handoffLabel: string | null;
   countdownLabel: string | null;
   countdownSupport: string | null;
   weddingDateLabel: string | null;
@@ -267,6 +280,9 @@ export function buildTodayHero(
     rawDays === null ? null : rawDays > 0 ? "future" : rawDays === 0 ? "wedding-day" : "after";
   const daysToGo = rawDays !== null && rawDays >= 0 ? rawDays : null;
   const weddingDateLabel = weddingDate ? formatWeddingDateLabel(weddingDate, timezone) : null;
+  const phaseInfo = getWeddingPhase({ weddingDate, timezone, now });
+  const weddingPhase = weddingDate ? phaseInfo.phase : null;
+  const copy = weddingPhaseHeroCopy(weddingPhase, phaseInfo.daysUntilWedding);
 
   let countdownLabel: string | null = null;
   let countdownSupport: string | null = null;
@@ -289,6 +305,11 @@ export function buildTodayHero(
     timezone,
     daysToGo,
     phase,
+    weddingPhase,
+    kicker: copy.kicker,
+    lede: copy.lede,
+    handoffHref: weddingPhase === "wedding_day" ? "/day" : null,
+    handoffLabel: weddingPhase === "wedding_day" ? "Open today's schedule" : null,
     countdownLabel,
     countdownSupport,
     weddingDateLabel,
@@ -725,12 +746,25 @@ async function safeRead<T>(fallback: T, reader: () => Promise<T>): Promise<T> {
   }
 }
 
-export async function loadTodayPageData(session: SessionAccount) {
+export async function loadTodayPageData(
+  session: SessionAccount,
+  opts?: { now?: Date; asOfDateKey?: string },
+) {
   const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
-  const hero = buildTodayHero(settings, session.name);
-  const onWeddingDay = hero.phase === "wedding-day";
+  const timezone = settings?.timezone ?? "America/Detroit";
+  const now =
+    opts?.now ??
+    (opts?.asOfDateKey && process.env.NODE_ENV !== "production"
+      ? instantOnCalendarDate(opts.asOfDateKey, timezone)
+      : new Date());
+  const hero = buildTodayHero(settings, session.name, now);
+  const phaseInfo = getWeddingPhase({
+    weddingDate: settings?.weddingDate ?? null,
+    timezone,
+    now,
+  });
 
-  const [inbox, budgetItems, guestRows, timelineBlocks, calendarEvents] = await Promise.all([
+  const [inbox, budgetItems, guestRows, calendarEvents] = await Promise.all([
     loadInboxPageData(session),
     loadVisibleBudgetItems(session),
     session.canSeeGuests
@@ -747,20 +781,6 @@ export async function loadTodayPageData(session: SessionAccount) {
           }),
         )
       : Promise.resolve([]),
-    session.canSeeTimeline && onWeddingDay
-      ? safeRead([], () =>
-          prisma.timelineBlock.findMany({
-            where: { schedule: "wedding" },
-            select: {
-              id: true,
-              startAt: true,
-              notes: true,
-              startMinutes: true,
-              sortOrder: true,
-            },
-          }),
-        )
-      : Promise.resolve([]),
     session.canSeeCalendar
       ? safeRead([], () =>
           prisma.calendarEvent.findMany({
@@ -771,10 +791,7 @@ export async function loadTodayPageData(session: SessionAccount) {
       : Promise.resolve([]),
   ]);
 
-  const attention = buildAttentionQueue(inbox.items, inbox.sections, budgetItems, {
-    accounts: inbox.accounts,
-  });
-  const waiting = buildWaitingItems(inbox.sections, { accounts: inbox.accounts });
+  const waitingBase = buildWaitingItems(inbox.sections, { accounts: inbox.accounts, now });
 
   const committed = budgetItems.reduce((sum, item) => sum + item.price, 0);
   const paid = budgetItems.reduce((sum, item) => sum + contractPaidTotal(item), 0);
@@ -799,27 +816,59 @@ export async function loadTodayPageData(session: SessionAccount) {
     session,
   });
 
-  const comingUp = buildComingUpList({
+  let attention = buildAttentionQueue(inbox.items, inbox.sections, budgetItems, {
+    accounts: inbox.accounts,
+    now,
+  });
+  let waiting = waitingBase;
+  let comingUp = buildComingUpList({
     items: inbox.items,
     calendar: calendarEvents,
     budgetItems,
+    now,
   });
+  let todayContext = buildTodayContext({
+    calendar: calendarEvents,
+    items: inbox.items,
+    budgetItems,
+    timeline: [],
+    now,
+  });
+  let execution: ExecutionTodayModel | null = null;
 
-  const todayContext = buildTodayContext({
-    calendar: calendarEvents,
-    items: inbox.items,
-    budgetItems,
-    timeline: timelineBlocks,
-  });
+  if (usesExecutionLayout(phaseInfo.phase)) {
+    execution = composeExecutionToday({
+      phase: phaseInfo,
+      items: inbox.items,
+      sections: inbox.sections,
+      budgetItems,
+      calendar: calendarEvents,
+      waiting: waitingBase,
+      accounts: inbox.accounts,
+      now,
+    });
+    attention = execution.attention;
+    waiting = execution.waiting;
+    comingUp = execution.comingUp;
+    todayContext = execution.todayContext;
+  }
 
   return {
     hero,
+    phase: phaseInfo,
     attention,
     waiting,
     pulse,
     comingUp,
     todayContext,
     inbox,
+    execution,
+    tomorrow: execution?.tomorrow ?? [],
+    laterThisWeek: execution?.laterThisWeek ?? [],
+    todayEmpty: execution?.todayEmpty ?? null,
+    tomorrowEmpty: execution?.tomorrowEmpty ?? null,
+    handoff: execution?.handoff ?? null,
+    pulseCompact: execution?.pulseCompact ?? phaseInfo.phase === "post_wedding",
   };
 }
 

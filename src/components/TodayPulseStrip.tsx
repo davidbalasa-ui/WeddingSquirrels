@@ -1,15 +1,21 @@
 import Link from "next/link";
 import type { TodayPulseStat } from "@/lib/today";
 
-export function TodayPulseStrip({ stats }: { stats: TodayPulseStat[] }) {
+export function TodayPulseStrip({
+  stats,
+  compact = false,
+}: {
+  stats: TodayPulseStat[];
+  compact?: boolean;
+}) {
   if (stats.length === 0) return null;
 
   return (
-    <section className="mb-8">
+    <section className={compact ? "mb-6" : "mb-8"}>
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-        Wedding pulse
+        {compact ? "Pulse" : "Wedding pulse"}
       </p>
-      <div className="mt-3 flex flex-col">
+      <div className={compact ? "mt-1 flex flex-col" : "mt-3 flex flex-col"}>
         {stats.map((stat, index) => (
           <Link
             key={stat.id}
