@@ -13,7 +13,15 @@ import {
   weddingLocalMinuteKey,
   type DayOfBlock,
 } from "./day-of";
+import {
+  morningOverlapFixtureBlocks,
+  resolveDayOfUiFixture,
+} from "./day-of-fixtures";
 import { getWeddingPhase } from "./wedding-phase";
+
+function ids(moments: Array<{ id: string }> | null | undefined): string[] {
+  return (moments ?? []).map((row) => row.id);
+}
 
 const DETROIT = "America/Detroit";
 const WEDDING = new Date("2026-10-16T16:00:00.000Z");
@@ -76,7 +84,9 @@ test("before the first block is not treated as NOW", () => {
   const pos = positionAt("2026-10-16T09:00:00");
   assert.equal(pos.kind, "before_first");
   assert.equal(pos.now, null);
+  assert.deepEqual(ids(pos.nowBlocks), []);
   assert.equal(pos.next?.id, "photos");
+  assert.deepEqual(ids(pos.nextBlocks), ["photos"]);
   assert.equal(pos.minutesUntilNext, 90);
 });
 
@@ -84,11 +94,14 @@ test("startAt is inclusive and endAt is exclusive", () => {
   const atStart = positionAt("2026-10-16T10:30:00");
   assert.equal(atStart.kind, "during");
   assert.equal(atStart.now?.id, "photos");
+  assert.deepEqual(ids(atStart.nowBlocks), ["photos"]);
   assert.equal(atStart.next?.id, "portraits");
+  assert.deepEqual(ids(atStart.nextBlocks), ["portraits"]);
 
   const atEnd = positionAt("2026-10-16T11:15:00");
   assert.equal(atEnd.kind, "between");
   assert.equal(atEnd.now, null);
+  assert.deepEqual(ids(atEnd.nowBlocks), []);
   assert.equal(atEnd.next?.id, "portraits");
 });
 
@@ -209,6 +222,8 @@ test("preview and completed modes do not invent a live NOW", () => {
   assert.equal(preview.mode, "preview");
   assert.equal(preview.position.now, null);
   assert.equal(preview.position.next, null);
+  assert.deepEqual(ids(preview.position.nowBlocks), []);
+  assert.deepEqual(ids(preview.position.nextBlocks), []);
   assert.ok(preview.position.fullDay.length > 0);
 
   const completedPhase = getWeddingPhase({
@@ -229,6 +244,7 @@ test("preview and completed modes do not invent a live NOW", () => {
   });
   assert.equal(completed.mode, "completed");
   assert.equal(completed.position.now, null);
+  assert.deepEqual(ids(completed.position.nowBlocks), []);
   assert.equal(completed.position.kind, "after_final");
 });
 
@@ -317,4 +333,209 @@ test("contacts prefer isDayOfContact then stored sortOrder, never name guesses",
   );
   assert.equal(contacts[0]?.name, "Barry Tilson");
   assert.equal(contacts[0]?.context, "Photographer");
+});
+
+test("one active block still fills nowBlocks as a single-item group", () => {
+  const pos = positionAt("2026-10-16T13:10:00");
+  assert.equal(pos.kind, "during");
+  assert.deepEqual(ids(pos.nowBlocks), ["ceremony"]);
+  assert.equal(pos.now?.id, "ceremony");
+  assert.deepEqual(ids(pos.nextBlocks), ["cocktails"]);
+  assert.deepEqual(ids(pos.afterNextBlocks), ["dinner"]);
+});
+
+test("two overlapping blocks are both active at 10:42", () => {
+  const overlap = [
+    block("settle", "9:00 AM", "11:00 AM", "Settle", 0),
+    block("vendor", "10:30 AM", "12:30 PM", "Vendor", 1),
+    block("diy", "11:00 AM", "11:45 AM", "DIY", 2),
+  ];
+  const pos = positionAt("2026-10-16T10:42:00", overlap);
+  assert.equal(pos.kind, "during");
+  assert.deepEqual(ids(pos.nowBlocks), ["settle", "vendor"]);
+  assert.deepEqual(ids(pos.nextBlocks), ["diy"]);
+  assert.equal(pos.next?.startAt, "11:00 AM");
+});
+
+test("activeBlocks keep wedding sequence, not alphabetical titles", () => {
+  const overlap = [
+    block("zebra", "10:30 AM", "12:30 PM", "Zebra arrival", 1),
+    block("airbnb", "9:00 AM", "11:00 AM", "Airbnb settle", 0),
+  ];
+  const pos = positionAt("2026-10-16T10:42:00", overlap);
+  assert.deepEqual(ids(pos.nowBlocks), ["airbnb", "zebra"]);
+  assert.deepEqual(
+    pos.nowBlocks.map((row) => row.title),
+    ["Airbnb settle", "Zebra arrival"],
+  );
+});
+
+test("NEXT during overlap is the nearest future start, not an active block", () => {
+  const overlap = [
+    block("settle", "9:00 AM", "11:00 AM", "Settle", 0),
+    block("vendor", "10:30 AM", "12:30 PM", "Vendor", 1),
+    block("diy", "11:00 AM", "11:45 AM", "DIY", 2),
+  ];
+  const pos = positionAt("2026-10-16T10:42:00", overlap);
+  assert.ok(!ids(pos.nextBlocks).includes("settle"));
+  assert.ok(!ids(pos.nextBlocks).includes("vendor"));
+  assert.deepEqual(ids(pos.nextBlocks), ["diy"]);
+});
+
+test("two blocks that share the nearest future start both appear in nextBlocks", () => {
+  const overlap = [
+    block("settle", "9:00 AM", "11:00 AM", "Settle", 0),
+    block("hair", "11:00 AM", "11:30 AM", "Hair", 1),
+    block("makeup", "11:00 AM", "11:45 AM", "Makeup", 2),
+  ];
+  const pos = positionAt("2026-10-16T10:42:00", overlap);
+  assert.deepEqual(ids(pos.nowBlocks), ["settle"]);
+  assert.deepEqual(ids(pos.nextBlocks), ["hair", "makeup"]);
+});
+
+test("AFTER THAT skips the entire NEXT start group", () => {
+  const overlap = [
+    block("settle", "9:00 AM", "11:00 AM", "Settle", 0),
+    block("hair", "11:00 AM", "11:30 AM", "Hair", 1),
+    block("makeup", "11:00 AM", "11:45 AM", "Makeup", 2),
+    block("pack", "11:45 AM", null, "Pack", 3),
+  ];
+  const pos = positionAt("2026-10-16T10:42:00", overlap);
+  assert.deepEqual(ids(pos.nextBlocks), ["hair", "makeup"]);
+  assert.deepEqual(ids(pos.afterNextBlocks), ["pack"]);
+  assert.equal(pos.afterNext?.startAt, "11:45 AM");
+});
+
+test("before first event can show multiple simultaneous NEXT blocks", () => {
+  const simultaneous = [
+    block("airbnb", "10:00 AM", "11:00 AM", "Airbnb", 0),
+    block("venue", "10:00 AM", "12:00 PM", "Venue", 1),
+    block("later", "1:00 PM", "2:00 PM", "Later", 2),
+  ];
+  const pos = positionAt("2026-10-16T09:00:00", simultaneous);
+  assert.equal(pos.kind, "before_first");
+  assert.deepEqual(ids(pos.nowBlocks), []);
+  assert.deepEqual(ids(pos.nextBlocks), ["airbnb", "venue"]);
+  assert.deepEqual(ids(pos.afterNextBlocks), ["later"]);
+});
+
+test("gap behavior still uses breathing-room kind with future-start NEXT", () => {
+  const pos = positionAt("2026-10-16T11:20:00");
+  assert.equal(pos.kind, "between");
+  assert.deepEqual(ids(pos.nowBlocks), []);
+  assert.deepEqual(ids(pos.nextBlocks), ["portraits"]);
+  assert.deepEqual(ids(pos.afterNextBlocks), ["hideaway"]);
+});
+
+test("exact start activates the new overlapping block without dropping the earlier one", () => {
+  const overlap = [
+    block("settle", "9:00 AM", "11:00 AM", "Settle", 0),
+    block("vendor", "10:30 AM", "12:30 PM", "Vendor", 1),
+  ];
+  const before = positionAt("2026-10-16T10:29:00", overlap);
+  assert.deepEqual(ids(before.nowBlocks), ["settle"]);
+  const atStart = positionAt("2026-10-16T10:30:00", overlap);
+  assert.deepEqual(ids(atStart.nowBlocks), ["settle", "vendor"]);
+});
+
+test("exact end removes only the ended block", () => {
+  const overlap = [
+    block("settle", "9:00 AM", "11:00 AM", "Settle", 0),
+    block("vendor", "10:30 AM", "12:30 PM", "Vendor", 1),
+    block("diy", "11:00 AM", "11:45 AM", "DIY", 2),
+  ];
+  const atEnd = positionAt("2026-10-16T11:00:00", overlap);
+  assert.deepEqual(ids(atEnd.nowBlocks), ["vendor", "diy"]);
+  assert.ok(!ids(atEnd.nowBlocks).includes("settle"));
+});
+
+test("one overlapping block can remain after the other ends", () => {
+  const overlap = [
+    block("settle", "9:00 AM", "11:00 AM", "Settle", 0),
+    block("vendor", "10:30 AM", "12:30 PM", "Vendor", 1),
+  ];
+  const pos = positionAt("2026-10-16T11:00:00", overlap);
+  assert.equal(pos.kind, "during");
+  assert.deepEqual(ids(pos.nowBlocks), ["vendor"]);
+});
+
+test("after every bounded overlap ends, breathing room or completion is restored", () => {
+  const overlap = [
+    block("settle", "9:00 AM", "11:00 AM", "Settle", 0),
+    block("vendor", "10:30 AM", "12:30 PM", "Vendor", 1),
+    block("diy", "11:00 AM", "11:45 AM", "DIY", 2),
+  ];
+  const gap = positionAt("2026-10-16T12:30:00", [
+    ...overlap,
+    block("dinner", "3:00 PM", "5:00 PM", "Dinner", 3),
+  ]);
+  assert.equal(gap.kind, "between");
+  assert.deepEqual(ids(gap.nowBlocks), []);
+  assert.deepEqual(ids(gap.nextBlocks), ["dinner"]);
+
+  const done = positionAt("2026-10-16T12:30:00", overlap);
+  assert.equal(done.kind, "after_final");
+  assert.deepEqual(ids(done.nowBlocks), []);
+  assert.deepEqual(ids(done.nextBlocks), []);
+});
+
+test("late-night dayOffset overlap still sequences after daytime", () => {
+  const blocks = [
+    block("dinner", "3:00 PM", "5:00 PM", "Dinner", 0),
+    block("after", "12:30 AM", "2:00 AM", "After party", 1),
+    block("late-snack", "12:30 AM", "1:15 AM", "Late snack", 2),
+  ];
+  const evening = positionAt("2026-10-16T16:00:00", blocks);
+  assert.deepEqual(ids(evening.nowBlocks), ["dinner"]);
+  assert.deepEqual(ids(evening.nextBlocks), ["after", "late-snack"]);
+
+  const late = positionAt("2026-10-17T00:45:00", blocks);
+  assert.deepEqual(ids(late.nowBlocks), ["after", "late-snack"]);
+  assert.deepEqual(ids(late.nextBlocks), []);
+});
+
+test("open-ended block is not closed by a same-start parallel block", () => {
+  const open = [
+    block("venue", "10:30 AM", null, "Venue open", 0),
+    block("vendor", "10:30 AM", "12:30 PM", "Vendor arrival", 1),
+    block("diy", "11:00 AM", "11:45 AM", "DIY", 2),
+  ];
+  const pos = positionAt("2026-10-16T10:42:00", open);
+  assert.deepEqual(ids(pos.nowBlocks), ["venue", "vendor"]);
+  assert.deepEqual(ids(pos.nextBlocks), ["diy"]);
+});
+
+test("open-ended block still ends at the next strictly later start", () => {
+  const open = [
+    block("open", "10:00 AM", null, "Open", 0),
+    block("next", "11:30 AM", "12:00 PM", "Next", 1),
+  ];
+  const during = positionAt("2026-10-16T11:00:00", open);
+  assert.deepEqual(ids(during.nowBlocks), ["open"]);
+  const atNext = positionAt("2026-10-16T11:30:00", open);
+  assert.deepEqual(ids(atNext.nowBlocks), ["next"]);
+  assert.ok(!ids(atNext.nowBlocks).includes("open"));
+});
+
+test("production-style morning overlap at 10:42 AM", () => {
+  const pos = positionAt("2026-10-16T10:42:00", morningOverlapFixtureBlocks());
+  assert.equal(pos.kind, "during");
+  assert.deepEqual(
+    pos.nowBlocks.map((row) => row.title),
+    ["Settle in at Airbnb", "Vendor + Wedding Party Arrival"],
+  );
+  assert.deepEqual(
+    pos.nextBlocks.map((row) => ({ title: row.title, startAt: row.startAt })),
+    [{ title: "Wedding party DIY hair & makeup", startAt: "11:00 AM" }],
+  );
+  assert.deepEqual(
+    pos.afterNextBlocks.map((row) => ({ title: row.title, startAt: row.startAt })),
+    [{ title: "Wedding party packs up", startAt: "11:45 AM" }],
+  );
+});
+
+test("non-production fixture overlay is ignored in production", () => {
+  assert.equal(resolveDayOfUiFixture("morning-overlap", "production"), undefined);
+  assert.equal(resolveDayOfUiFixture("linear", "production"), undefined);
+  assert.equal(resolveDayOfUiFixture("morning-overlap", "test"), "morning-overlap");
 });
