@@ -5,12 +5,18 @@ function formatComingUpDate(date: Date) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function TodayComingUpList({ items }: { items: TodayComingUpItem[] }) {
+export function TodayComingUpList({
+  items,
+  title = "Coming up",
+}: {
+  items: TodayComingUpItem[];
+  title?: string;
+}) {
   if (items.length === 0) return null;
 
   return (
     <section className="mb-10">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Coming up</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">{title}</p>
       <div className="mt-1 divide-y divide-[var(--line)] border-b border-t border-[var(--line)]">
         {items.map((item) => {
           const href = item.href;

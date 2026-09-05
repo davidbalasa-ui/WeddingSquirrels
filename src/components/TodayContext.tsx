@@ -1,12 +1,27 @@
 import Link from "next/link";
 import type { TodayContextItem } from "@/lib/today";
 
-export function TodayContext({ items }: { items: TodayContextItem[] }) {
-  if (items.length === 0) return null;
+export function TodayContext({
+  items,
+  title = "Today",
+  empty,
+}: {
+  items: TodayContextItem[];
+  title?: string;
+  empty?: { title: string; support: string } | null;
+}) {
+  if (items.length === 0 && !empty) return null;
 
   return (
     <section className="mb-8">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Today</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">{title}</p>
+      {items.length === 0 && empty ? (
+        <div className="mt-3">
+          <p className="text-[1.05rem] font-semibold leading-snug">{empty.title}</p>
+          <p className="mt-1 text-sm text-muted">{empty.support}</p>
+        </div>
+      ) : null}
+      {items.length > 0 ? (
       <div className="mt-1 divide-y divide-[var(--line)] border-b border-t border-[var(--line)]">
         {items.map((item) => {
           const row = (
@@ -38,6 +53,7 @@ export function TodayContext({ items }: { items: TodayContextItem[] }) {
           return <div key={item.id}>{row}</div>;
         })}
       </div>
+      ) : null}
     </section>
   );
 }
