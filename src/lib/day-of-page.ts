@@ -1,5 +1,11 @@
-import { differenceInCalendarDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/db";
+import {
+  parseDayOfAsOf,
+  toDayOfBlock,
+  viewFromExperienceSource,
+  type DayOfExperienceSource,
+  type DayOfView,
+} from "@/lib/day-of";
 import {
   buildDayNowNextSnapshot,
   shouldShowDayNowTab,
@@ -9,6 +15,7 @@ import {
 import { sortTimelineBlocks } from "@/lib/day-of-time";
 import { buildTodayHero, formatWeddingDateLabel } from "@/lib/today";
 import type { SessionAccount } from "@/lib/types";
+import { getWeddingPhase, type WeddingPhaseInfo } from "@/lib/wedding-phase";
 
 export type DayOfPageContext = {
   daysToGo: number | null;
@@ -24,18 +31,18 @@ export async function loadWeddingTimelineBlocks() {
 
 export async function loadDayOfContext(): Promise<DayOfPageContext> {
   const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
-  const now = new Date();
-  const daysToGo = settings?.weddingDate
-    ? differenceInCalendarDays(settings.weddingDate, startOfDay(now))
-    : null;
   const timezone = settings?.timezone ?? "America/Detroit";
+  const phase = getWeddingPhase({
+    weddingDate: settings?.weddingDate ?? null,
+    timezone,
+  });
 
   return {
-    daysToGo,
+    daysToGo: phase.daysUntilWedding,
     weddingDateLabel: settings?.weddingDate
       ? formatWeddingDateLabel(settings.weddingDate, timezone)
       : null,
-    showNowTab: shouldShowDayNowTab(daysToGo),
+    showNowTab: shouldShowDayNowTab(phase.daysUntilWedding),
   };
 }
 
@@ -103,6 +110,106 @@ export async function loadDayNowPageData(session: SessionAccount): Promise<{
       daysToGo: context.daysToGo,
     },
     context,
+    canEdit: session.isMaster || session.canEditTimeline,
+  };
+}
+
+export type DayOfExperienceData = {
+  source: DayOfExperienceSource;
+  view: DayOfView;
+  phase: WeddingPhaseInfo;
+  canEdit: boolean;
+};
+
+export async function loadDayOfExperience(
+  session: SessionAccount,
+  opts?: { now?: Date; asOf?: string },
+): Promise<DayOfExperienceData> {
+  const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
+  const timezone = settings?.timezone ?? "America/Detroit";
+  const asOf = parseDayOfAsOf(opts?.asOf, timezone);
+  const now = opts?.now ?? asOf ?? new Date();
+  const phase = getWeddingPhase({
+    weddingDate: settings?.weddingDate ?? null,
+    timezone,
+    now,
+  });
+
+  const canSeeContacts = Boolean(session.isMaster || session.canSeeTimeline);
+  const [blocks, contacts, assignments] = await Promise.all([
+    prisma.timelineBlock.findMany({
+      where: { schedule: "wedding" },
+      select: {
+        id: true,
+        startAt: true,
+        endAt: true,
+        notes: true,
+        startMinutes: true,
+        endMinutes: true,
+        dayOffset: true,
+        sortOrder: true,
+      },
+    }),
+    canSeeContacts
+      ? prisma.contact.findMany({
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          select: {
+            id: true,
+            name: true,
+            directoryLabel: true,
+            phone: true,
+            email: true,
+            photoData: true,
+            sortOrder: true,
+            isDayOfContact: true,
+            personId: true,
+            person: { select: { id: true, name: true } },
+          },
+        })
+      : Promise.resolve([]),
+    prisma.dayAssignment.findMany({
+      orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        notes: true,
+        sortOrder: true,
+        assignees: { select: { personId: true } },
+      },
+    }),
+  ]);
+
+  const source: DayOfExperienceSource = {
+    generatedAt: now.toISOString(),
+    freezeClock: Boolean(asOf),
+    timezone,
+    weddingDateIso: settings?.weddingDate?.toISOString() ?? null,
+    coupleNames: settings?.coupleNames?.trim() || null,
+    weddingDateLabel: settings?.weddingDate
+      ? formatWeddingDateLabel(settings.weddingDate, timezone)
+      : null,
+    blocks: blocks.map(toDayOfBlock),
+    contacts: contacts.map((contact) => ({
+      id: contact.id,
+      name: contact.name,
+      personName: contact.person?.name ?? null,
+      directoryLabel: contact.directoryLabel,
+      phone: contact.phone,
+      email: contact.email,
+      photoData: contact.photoData,
+      sortOrder: contact.sortOrder,
+      isDayOfContact: contact.isDayOfContact,
+      personId: contact.personId,
+    })),
+    assignments,
+    linkedPersonId: session.linkedPersonId,
+    canSeeContacts,
+  };
+
+  return {
+    source,
+    view: viewFromExperienceSource(source, now),
+    phase,
     canEdit: session.isMaster || session.canEditTimeline,
   };
 }

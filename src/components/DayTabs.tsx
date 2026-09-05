@@ -3,29 +3,24 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
-export function DayTabs({ showNowTab = false }: { showNowTab?: boolean }) {
+export function DayTabs({ showNowTab: _showNowTab = false }: { showNowTab?: boolean }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const timelineHref = showNowTab ? "/day?view=timeline" : "/day";
-  const viewTimeline = searchParams.get("view") === "timeline";
 
   const tabs = [
-    ...(showNowTab ? [{ href: "/day/now", label: "Now" }] : []),
-    { href: timelineHref, label: "Timeline" },
+    { href: "/day", label: "Day" },
     { href: "/people?tab=day-of", label: "Contacts" },
     { href: "/day/assignments", label: "Assignments" },
   ];
 
   return (
-    <div className="mb-4 flex flex-wrap gap-2">
+    <nav aria-label="Day-of pages" className="mb-4 flex flex-wrap gap-2">
       {tabs.map((tab) => {
         const active =
-          tab.href === "/day/now"
-            ? pathname === "/day/now"
+          tab.href === "/day"
+            ? pathname === "/day" || pathname === "/day/now"
             : tab.href === "/people?tab=day-of"
               ? pathname === "/people" && searchParams.get("tab") === "day-of"
-            : tab.href === timelineHref
-              ? pathname === "/day" && (!showNowTab || viewTimeline)
               : pathname.startsWith(tab.href);
         return (
           <Link
@@ -48,6 +43,6 @@ export function DayTabs({ showNowTab = false }: { showNowTab?: boolean }) {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

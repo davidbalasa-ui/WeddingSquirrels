@@ -8,8 +8,8 @@ export function TodayWeddingWeek({ items }: { items: TodayTimelinePreview[] }) {
     <section className="mb-5">
       <div className="mb-2 flex items-baseline justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Wedding week</p>
-        <Link href="/day/now" className="text-xs font-semibold text-[var(--accent)]">
-          Now / Next
+        <Link href="/day" className="text-xs font-semibold text-[var(--accent)]">
+          Wedding day
         </Link>
       </div>
       <div className="divide-y divide-[var(--line)] border-t border-line">
