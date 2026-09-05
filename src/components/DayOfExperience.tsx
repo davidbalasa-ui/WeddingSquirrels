@@ -280,7 +280,14 @@ function LiveNow({ view }: { view: DayOfView }) {
   }
 
   if (position.kind === "empty") {
-    return null;
+    return (
+      <section className="mt-10" aria-labelledby="now-heading">
+        <h2 id="now-heading" className="sr-only">
+          Now
+        </h2>
+        <p className="text-base text-muted">The wedding-day timeline is still taking shape.</p>
+      </section>
+    );
   }
 
   if (position.kind === "before_first") {
@@ -449,9 +456,9 @@ export function DayOfExperience({
               </h2>
               <FullDayList view={view} />
             </section>
-          ) : (
+          ) : view.mode === "preview" ? (
             <p className="mt-10 text-base text-muted">The wedding-day timeline is still taking shape.</p>
-          )}
+          ) : null}
           <Responsibilities items={view.responsibilities} />
           <NeedSomeone contacts={view.contacts} />
         </>
