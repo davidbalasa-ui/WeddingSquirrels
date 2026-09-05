@@ -3,6 +3,7 @@
 :root {
   --bg: #f3efe6;
   --bg-elevated: #fffdf8;
+  --surface: #fffdf8;
   --ink: #1c2421;
   --muted: #5c6862;
   --line: #d9d2c4;
@@ -67,6 +68,24 @@ textarea {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: 8px;
+  z-index: 80;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg-elevated);
+  font-size: 0.8rem;
+  font-weight: 600;
+  transform: translateY(-140%);
+}
+
+.skip-link:focus {
+  transform: none;
 }
 
 .app-shell {
@@ -382,6 +401,15 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
   .pin-key:active,
   .btn-primary:active,
   .btn-secondary:active,

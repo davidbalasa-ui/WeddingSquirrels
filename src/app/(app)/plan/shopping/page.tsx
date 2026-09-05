@@ -17,7 +17,7 @@ export default async function PlanShoppingPage({
   const subtitle =
     data.summary.remaining === 0
       ? data.summary.purchased === 0
-        ? "List is empty."
+        ? "Nothing on the list yet."
         : "Everything is purchased."
       : data.summary.remaining === 1
         ? "1 thing left."
