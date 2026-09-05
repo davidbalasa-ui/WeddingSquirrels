@@ -239,17 +239,65 @@ test("canonical profile includes both guest and contact when both are linked", (
   assert.ok(sections.includes("contact"));
 });
 
+test("profile sections follow identity, work, day-of, then money", () => {
+  const profile = emptyProfile({
+    phone: "555-0100",
+    guestInfo: { household: "Sarah & Alex", rsvpStatus: "attending", table: "Table 4" },
+    vendorContext: "Photography",
+    canSeeTasks: true,
+    openTasks: [{ id: "t1", title: "Shot list", dueLabel: "Due today", href: "/work/t1" }],
+    assignments: [
+      {
+        id: "a1",
+        title: "Family portraits",
+        notes: null,
+        href: "/people/responsibilities",
+      },
+    ],
+    budgetContracts: [
+      {
+        id: "b1",
+        name: "Photography",
+        remaining: 1000,
+        href: "/money/b1",
+        role: "paying",
+      },
+    ],
+    mealStatus: "Bridal party",
+    stayLabel: "House · Room 2",
+    relatedLinks: [{ label: "Guest list", href: "/people", detail: "RSVP" }],
+  });
+  assert.deepEqual(visibleProfileSections(profile), [
+    "contact",
+    "guest",
+    "vendor",
+    "tasks",
+    "day-of",
+    "budget",
+    "meals",
+    "stay",
+    "related",
+  ]);
+});
+
 test("role-specific data is not lost on the unified profile", () => {
   const profile = emptyProfile({
     guestInfo: { household: "Wendy Rush", rsvpStatus: "attending", table: "Table 3 · A" },
     mealStatus: "Bridal party",
     stayLabel: "House · Room 2",
-    assignments: [{ title: "Processional cue", notes: "Stand left" }],
+    assignments: [
+      {
+        id: "a1",
+        title: "Processional cue",
+        notes: "Stand left",
+        href: "/people/responsibilities",
+      },
+    ],
     openTasks: [{ id: "t1", title: "Confirm florist", dueLabel: "Due today", href: "/work/t1" }],
     canSeeTasks: true,
   });
   const sections = visibleProfileSections(profile);
-  assert.deepEqual(sections, ["guest", "tasks", "meals", "stay", "day-of"]);
+  assert.deepEqual(sections, ["guest", "tasks", "day-of", "meals", "stay"]);
   assert.equal(profile.guestInfo?.rsvpStatus, "attending");
   assert.equal(profile.assignments[0]?.title, "Processional cue");
 });

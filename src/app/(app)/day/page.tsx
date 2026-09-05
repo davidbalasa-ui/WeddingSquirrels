@@ -5,6 +5,7 @@ import { DayTimeline } from "@/components/DayTimeline";
 import { timelineEditable } from "@/lib/access";
 import { isWeddingDay } from "@/lib/day-of-now";
 import { loadDayOfContext, loadWeddingTimelineBlocks } from "@/lib/day-of-page";
+import { loadTimelineRelatedTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
 
 export default async function DayPage({
@@ -19,6 +20,10 @@ export default async function DayPage({
   const viewParam = Array.isArray(params.view) ? params.view[0] : params.view;
   const startInEdit = canEdit && editParam === "1";
   const [context, blocks] = await Promise.all([loadDayOfContext(), loadWeddingTimelineBlocks()]);
+  const relatedByBlockId = await loadTimelineRelatedTasks(
+    session,
+    blocks.map((block) => block.id),
+  );
 
   if (context.showNowTab && isWeddingDay(context.daysToGo) && viewParam !== "timeline") {
     redirect("/day/now");
@@ -32,7 +37,12 @@ export default async function DayPage({
         subtitle={context.weddingDateLabel ?? "October 16, 2026"}
       />
       <DayTabs showNowTab={context.showNowTab} />
-      <DayTimeline blocks={blocks} canEdit={canEdit} startInEdit={startInEdit} />
+      <DayTimeline
+        blocks={blocks}
+        canEdit={canEdit}
+        startInEdit={startInEdit}
+        relatedByBlockId={relatedByBlockId}
+      />
     </>
   );
 }

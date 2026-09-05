@@ -5,7 +5,7 @@ import { PersonAvatar } from "@/components/PersonAvatar";
 import { PeopleDeleteButton } from "@/components/PeopleDeleteButton";
 import { PeopleMembershipEditor } from "@/components/PeopleMembershipEditor";
 import { PeopleRoleEditor } from "@/components/PeopleRoleEditor";
-import { formatMoney } from "@/lib/money";
+import { formatBudgetContractDetail } from "@/lib/connections";
 import { rsvpStatusLabel } from "@/lib/guest-gifts";
 import {
   firstName,
@@ -140,7 +140,7 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
 
       {sections.includes("tasks") ? (
         <section className="mb-8">
-          <SectionTitle>Tasks</SectionTitle>
+          <SectionTitle>Open work</SectionTitle>
           {profile.openTasks.length === 0 ? (
             <p className="mt-3 text-base text-muted">{tasksEmptyLabel(profile.name)}</p>
           ) : (
@@ -159,34 +159,16 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
         </section>
       ) : null}
 
-      {sections.includes("meals") && mealStatus ? (
-        <section className="mb-8">
-          <SectionTitle>Meals</SectionTitle>
-          <div className="mt-1 border-t border-[var(--line)]">
-            <ProfileRow title={mealStatus} detail="Rehearsal dinner" href="/rehearsal" />
-          </div>
-        </section>
-      ) : null}
-
-      {sections.includes("stay") && stayLabel ? (
-        <section className="mb-8">
-          <SectionTitle>Stay</SectionTitle>
-          <div className="mt-1 border-t border-[var(--line)]">
-            <ProfileRow title={stayLabel} href="/stay" />
-          </div>
-        </section>
-      ) : null}
-
       {sections.includes("day-of") ? (
         <section className="mb-8">
           <SectionTitle>Day-of responsibilities</SectionTitle>
           <div className="mt-1 border-t border-[var(--line)]">
             {profile.assignments.map((assignment) => (
               <ProfileRow
-                key={assignment.title}
+                key={assignment.id}
                 title={assignment.title}
                 detail={assignment.notes}
-                href="/people/responsibilities"
+                href={assignment.href}
               />
             ))}
           </div>
@@ -202,9 +184,27 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
                 key={contract.id}
                 href={contract.href}
                 title={contract.name}
-                detail={contract.remaining > 0 ? `${formatMoney(contract.remaining)} remaining` : "Paid in full"}
+                detail={formatBudgetContractDetail(contract)}
               />
             ))}
+          </div>
+        </section>
+      ) : null}
+
+      {sections.includes("meals") && mealStatus ? (
+        <section className="mb-8">
+          <SectionTitle>Meals</SectionTitle>
+          <div className="mt-1 border-t border-[var(--line)]">
+            <ProfileRow title={mealStatus} detail="Rehearsal dinner" href="/rehearsal" />
+          </div>
+        </section>
+      ) : null}
+
+      {sections.includes("stay") && stayLabel ? (
+        <section className="mb-8">
+          <SectionTitle>Stay</SectionTitle>
+          <div className="mt-1 border-t border-[var(--line)]">
+            <ProfileRow title={stayLabel} href="/stay" />
           </div>
         </section>
       ) : null}

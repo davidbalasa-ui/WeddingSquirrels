@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState, useTransition, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { markRequestRead } from "@/app/actions";
 import { InboxAddBar } from "@/components/InboxAddBar";
 import { InboxGroupHeader } from "@/components/InboxGroup";
@@ -78,7 +78,14 @@ export function InboxBoard({
     [sections, filter, who, showDone, session, accounts],
   );
 
-  const [expandedAskId, setExpandedAskId] = useState<string | null>(null);
+  const askParam = params.get("ask");
+  const [expandedAskId, setExpandedAskId] = useState<string | null>(
+    askParam ? `ask:${askParam}` : null,
+  );
+
+  useEffect(() => {
+    if (askParam) setExpandedAskId(`ask:${askParam}`);
+  }, [askParam]);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   function isGroupCollapsed(groupKey: string) {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { PersonAvatar } from "@/components/PersonAvatar";
+import { peopleProfileHref } from "@/lib/entity-links";
 import {
   peopleSearchEmptyLabel,
   presentDirectoryRow,
@@ -45,7 +46,7 @@ export function PeopleEntryList({
             return (
               <Link
                 key={entry.profileId}
-                href={`/people/${encodeURIComponent(entry.profileId)}`}
+                href={peopleProfileHref(entry.profileId)}
                 className="flex min-h-[4.25rem] items-center gap-3 py-3.5 transition-colors hover:bg-[var(--accent-soft)]/25"
               >
                 <PersonAvatar name={row.name} photoSrc={row.photoSrc} size="md" />

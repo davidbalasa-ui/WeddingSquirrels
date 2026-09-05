@@ -1,5 +1,6 @@
 import { namesMatch, normalizePersonName, profileIdForContact, profileIdForPerson } from "@/lib/people-directory";
 import { contractRemaining, formatMoney } from "@/lib/money";
+import { moneyHref } from "@/lib/entity-links";
 
 export type ProfileRelatedLink = {
   label: string;
@@ -7,11 +8,14 @@ export type ProfileRelatedLink = {
   detail: string;
 };
 
+export type PersonBudgetRole = "owner" | "paying" | "owner_and_paying";
+
 export type ProfileBudgetContract = {
   id: string;
   name: string;
   remaining: number;
   href: string;
+  role: PersonBudgetRole;
 };
 
 export type ConnectionContact = {
@@ -33,12 +37,24 @@ export type ConnectionBudgetItem = {
   paidById: string | null;
 };
 
-/** Vendor CRM names often include a role after a middle dot. */
+export {
+  calendarHref,
+  dayAssignmentHref,
+  moneyHref as moneyContractHref,
+  peopleProfileHref as profileHref,
+  personProfileHref,
+  requestHref,
+  taskHref,
+  timelineHref,
+} from "@/lib/entity-links";
+
+/** Vendor CRM names often include a role after a middle dot. Display helper only. */
 export function vendorPrimaryName(name: string): string {
   const primary = name.split("·")[0]?.trim();
   return primary || name.trim();
 }
 
+/** Name similarity helper. Never use this to present a relationship as linked. */
 export function budgetMatchesName(budgetName: string, candidateName: string): boolean {
   const budget = normalizePersonName(vendorPrimaryName(budgetName));
   const candidate = normalizePersonName(vendorPrimaryName(candidateName));
@@ -47,6 +63,7 @@ export function budgetMatchesName(budgetName: string, candidateName: string): bo
   return namesMatch(budget, candidate);
 }
 
+/** Name lookup helper. Do not use for Money ↔ People navigation. */
 export function findProfileIdForBudgetName(
   budgetName: string,
   contacts: ConnectionContact[],
@@ -61,53 +78,55 @@ export function findProfileIdForBudgetName(
   return null;
 }
 
-export function moneyContractHref(contractId: string) {
-  return `/money/${encodeURIComponent(contractId)}`;
+export function personBudgetRole(
+  personId: string,
+  item: Pick<ConnectionBudgetItem, "ownerId" | "paidById">,
+): PersonBudgetRole | null {
+  const owner = item.ownerId === personId;
+  const paying = item.paidById === personId;
+  if (owner && paying) return "owner_and_paying";
+  if (paying) return "paying";
+  if (owner) return "owner";
+  return null;
 }
 
-export function profileHref(profileId: string) {
-  return `/people/${encodeURIComponent(profileId)}`;
+export function budgetRoleLabel(role: PersonBudgetRole): string {
+  if (role === "paying") return "Paying";
+  if (role === "owner_and_paying") return "Owner · Paying";
+  return "Owner";
 }
 
 export function budgetContractsForPerson(
   person: ConnectionPerson,
   items: ConnectionBudgetItem[],
 ): ProfileBudgetContract[] {
-  return items
-    .filter(
-      (item) =>
-        item.ownerId === person.id ||
-        item.paidById === person.id ||
-        budgetMatchesName(item.name, person.name),
-    )
-    .map((item) => ({
+  const rows: ProfileBudgetContract[] = [];
+  for (const item of items) {
+    const role = personBudgetRole(person.id, item);
+    if (!role) continue;
+    rows.push({
       id: item.id,
       name: item.name,
       remaining: contractRemaining(item),
-      href: moneyContractHref(item.id),
-    }));
+      href: moneyHref(item.id),
+      role,
+    });
+  }
+  return rows;
 }
 
+/** Contact has no BudgetItem FK. Name matches are not relationships. */
 export function budgetContractsForContact(
-  contact: ConnectionContact,
-  items: ConnectionBudgetItem[],
+  _contact: ConnectionContact,
+  _items: ConnectionBudgetItem[],
 ): ProfileBudgetContract[] {
-  return items
-    .filter((item) => budgetMatchesName(item.name, contact.name))
-    .map((item) => ({
-      id: item.id,
-      name: item.name,
-      remaining: contractRemaining(item),
-      href: moneyContractHref(item.id),
-    }));
+  return [];
 }
 
 export function buildProfileRelatedLinks(input: {
   guestInfo?: boolean;
   stayLabel?: string | null;
   mealStatus?: string | null;
-  assignments?: number;
-  budgetContracts?: ProfileBudgetContract[];
 }): ProfileRelatedLink[] {
   const links: ProfileRelatedLink[] = [];
 
@@ -124,24 +143,13 @@ export function buildProfileRelatedLinks(input: {
       detail: input.mealStatus,
     });
   }
-  if ((input.assignments ?? 0) > 0) {
-    links.push({
-      label: "Responsibilities",
-      href: "/people/responsibilities",
-      detail: `${input.assignments} day-of assignment${input.assignments === 1 ? "" : "s"}`,
-    });
-  }
-  if (input.budgetContracts?.length) {
-    const totalRemaining = input.budgetContracts.reduce((sum, row) => sum + row.remaining, 0);
-    links.push({
-      label: "Money",
-      href: input.budgetContracts[0]!.href,
-      detail:
-        input.budgetContracts.length === 1
-          ? `${input.budgetContracts[0]!.name} · ${formatMoney(totalRemaining)} left`
-          : `${input.budgetContracts.length} contracts · ${formatMoney(totalRemaining)} left`,
-    });
-  }
 
   return links;
 }
+
+export function formatBudgetContractDetail(contract: ProfileBudgetContract): string {
+  const remaining =
+    contract.remaining > 0 ? `${formatMoney(contract.remaining)} remaining` : "Paid in full";
+  return `${budgetRoleLabel(contract.role)} · ${remaining}`;
+}
+

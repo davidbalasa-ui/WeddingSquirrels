@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { taskHref } from "@/lib/entity-links";
 import {
   createTimelineBlock,
   deleteTimelineBlock,
@@ -101,6 +103,7 @@ export function DayTimeline({
   schedule = "wedding",
   idPrefix = "day",
   fixedAdd = true,
+  relatedByBlockId = {},
 }: {
   blocks: TimelineBlockView[];
   canEdit: boolean;
@@ -108,6 +111,7 @@ export function DayTimeline({
   schedule?: TimelineSchedule;
   idPrefix?: string;
   fixedAdd?: boolean;
+  relatedByBlockId?: Record<string, { id: string; title: string }>;
 }) {
   const [mode, setMode] = useState<Mode>(canEdit && startInEdit ? "edit" : "review");
   const [rows, setRows] = useState<Row[]>(() => blocks.map(toRow));
@@ -503,7 +507,12 @@ export function DayTimeline({
             onPeerReorder={(ids, persist) => void persistPeerOrder(ids, persist)}
           />
         ) : (
-          <ReviewSections idPrefix={idPrefix} timed={timed} untimed={untimed} />
+          <ReviewSections
+            idPrefix={idPrefix}
+            timed={timed}
+            untimed={untimed}
+            relatedByBlockId={relatedByBlockId}
+          />
         )}
 
         {editing && draft ? (
@@ -559,10 +568,12 @@ function ReviewSections({
   idPrefix,
   timed,
   untimed,
+  relatedByBlockId,
 }: {
   idPrefix: string;
   timed: Row[];
   untimed: Row[];
+  relatedByBlockId: Record<string, { id: string; title: string }>;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -576,7 +587,11 @@ function ReviewSections({
             </p>
             <div className="card divide-y divide-[var(--line)] overflow-hidden">
               {items.map((row) => (
-                <ReviewRow key={row.id} idPrefix={idPrefix} row={row} />
+                <ReviewRow
+                  key={row.id}
+                  row={row}
+                  related={relatedByBlockId[row.id]}
+                />
               ))}
             </div>
           </section>
@@ -589,7 +604,11 @@ function ReviewSections({
           </summary>
           <div className="divide-y divide-[var(--line)] border-t border-line">
             {untimed.map((row) => (
-              <ReviewRow key={row.id} idPrefix={idPrefix} row={row} />
+              <ReviewRow
+                key={row.id}
+                row={row}
+                related={relatedByBlockId[row.id]}
+              />
             ))}
           </div>
         </details>
@@ -598,25 +617,40 @@ function ReviewSections({
   );
 }
 
-function ReviewRow({ idPrefix, row }: { idPrefix: string; row: Row }) {
+function ReviewRow({
+  row,
+  related,
+}: {
+  row: Row;
+  related?: { id: string; title: string };
+}) {
   const lines = reviewNoteLines(row.notes);
   return (
-    <article id={`${idPrefix}-row-${row.id}`} className="flex items-start gap-2 px-3 py-1.5">
+    <article id={`block-${row.id}`} className="flex items-start gap-2 px-3 py-1.5">
       <p className="shrink-0 whitespace-nowrap text-[12px] font-semibold leading-5 text-[var(--accent)]">
         {row.startAt}
         {row.endAt ? ` – ${row.endAt}` : ""}
       </p>
-      {lines.length <= 1 ? (
-        <p className="min-w-0 text-[14px] leading-5">{lines[0] ?? ""}</p>
-      ) : (
-        <ul className="min-w-0 flex-1 list-none space-y-0.5 p-0">
-          {lines.map((line, index) => (
-            <li key={`${index}-${line}`} className="text-[14px] leading-5">
-              {line}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="min-w-0 flex-1">
+        {lines.length <= 1 ? (
+          <p className="text-[14px] leading-5">{lines[0] ?? ""}</p>
+        ) : (
+          <ul className="list-none space-y-0.5 p-0">
+            {lines.map((line, index) => (
+              <li key={`${index}-${line}`} className="text-[14px] leading-5">
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
+        {related ? (
+          <p className="mt-1 text-xs">
+            <Link href={taskHref(related.id)} className="font-semibold text-[var(--accent)]">
+              Related task · {related.title}
+            </Link>
+          </p>
+        ) : null}
+      </div>
     </article>
   );
 }

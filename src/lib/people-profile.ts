@@ -18,13 +18,14 @@ import {
   type PeoplePrimaryList,
 } from "@/lib/people-directory";
 import {
-  budgetContractsForContact,
   budgetContractsForPerson,
   buildProfileRelatedLinks,
   type ProfileBudgetContract,
   type ProfileRelatedLink,
 } from "@/lib/connections";
+import { dayAssignmentHref, taskHref } from "@/lib/entity-links";
 import { giftDescriptions } from "@/lib/guest-gifts";
+import { filterVisibleBudgetItems } from "@/lib/money";
 import { dueLabel, listTasks } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 import { STAY_SECTIONS } from "@/lib/stay";
@@ -37,8 +38,10 @@ export type ProfileTaskRow = {
 };
 
 export type ProfileAssignmentRow = {
+  id: string;
   title: string;
   notes: string | null;
+  href: string;
 };
 
 export type PeopleProfile = {
@@ -206,6 +209,7 @@ export async function loadPeopleProfile(
             amountPaid: true,
             ownerId: true,
             paidById: true,
+            shares: { select: { pinAccountId: true } },
           },
         })
       : Promise.resolve([]),
@@ -259,24 +263,24 @@ export async function loadPeopleProfile(
         id: task.id,
         title: task.title,
         dueLabel: dueLabel(task.dueDate, task.status),
-        href: `/work/${task.id}`,
+        href: taskHref(task.id),
       }));
     const completedTaskCount = visibleTasks.filter((task) => task.status === "done").length;
 
     const personAssignments = assignments
       .filter((assignment) => assignment.assignees.some((row) => row.personId === person.id))
       .map((assignment) => ({
+        id: assignment.id,
         title: assignment.title,
         notes: assignment.notes,
+        href: dayAssignmentHref(),
       }));
 
     const mealStatus = linkedMeal
       ? mealSectionTitle(linkedMeal.sectionId) ?? "Rehearsal dinner"
       : null;
-    const personBudget = budgetContractsForPerson(person, budgetItems);
-    const contactBudget = linkedContact ? budgetContractsForContact(linkedContact, budgetItems) : [];
-    const budgetById = new Map(personBudget.concat(contactBudget).map((row) => [row.id, row]));
-    const budgetContracts = [...budgetById.values()];
+    const visibleBudget = filterVisibleBudgetItems(session, budgetItems);
+    const budgetContracts = budgetContractsForPerson(person, visibleBudget);
     const directoryLabel =
       person.directoryLabel?.trim() || linkedContact?.directoryLabel?.trim() || linkedGuest?.person.directoryLabel?.trim() || null;
     const roles = [
@@ -357,8 +361,6 @@ export async function loadPeopleProfile(
         guestInfo: Boolean(guestInfo),
         stayLabel,
         mealStatus,
-        assignments: personAssignments.length,
-        budgetContracts,
       }),
     };
   }
@@ -370,7 +372,7 @@ export async function loadPeopleProfile(
       const person = await prisma.person.findUnique({ where: { id: contact.personId } });
       if (person) return profileForPerson(person);
     }
-    const budgetContracts = budgetContractsForContact(contact, budgetItems);
+    const budgetContracts: ProfileBudgetContract[] = [];
     const directoryLabel = contact.directoryLabel?.trim() || null;
     const primaryList =
       contact.directoryList === "guests" || contact.directoryList === "vendors"
@@ -407,7 +409,7 @@ export async function loadPeopleProfile(
       stayLabel: null,
       mealStatus: null,
       budgetContracts,
-      relatedLinks: buildProfileRelatedLinks({ budgetContracts }),
+      relatedLinks: buildProfileRelatedLinks({}),
     };
   }
 

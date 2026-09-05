@@ -2,6 +2,7 @@ import { DayTimeline } from "@/components/DayTimeline";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { timelineEditable } from "@/lib/access";
 import { loadDayOfContext, loadWeddingTimelineBlocks } from "@/lib/day-of-page";
+import { loadTimelineRelatedTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
 
 export default async function PlanTimelinePage({
@@ -15,6 +16,10 @@ export default async function PlanTimelinePage({
   const editParam = Array.isArray(params.edit) ? params.edit[0] : params.edit;
   const startInEdit = canEdit && editParam === "1";
   const [blocks, context] = await Promise.all([loadWeddingTimelineBlocks(), loadDayOfContext()]);
+  const relatedByBlockId = await loadTimelineRelatedTasks(
+    session,
+    blocks.map((block) => block.id),
+  );
 
   const subtitle = context.weddingDateLabel
     ? `What is supposed to happen on ${context.weddingDateLabel}.`
@@ -23,7 +28,12 @@ export default async function PlanTimelinePage({
   return (
     <>
       <PlanChapterHeader title="Wedding Day" subtitle={subtitle} />
-      <DayTimeline blocks={blocks} canEdit={canEdit} startInEdit={startInEdit} />
+      <DayTimeline
+        blocks={blocks}
+        canEdit={canEdit}
+        startInEdit={startInEdit}
+        relatedByBlockId={relatedByBlockId}
+      />
     </>
   );
 }

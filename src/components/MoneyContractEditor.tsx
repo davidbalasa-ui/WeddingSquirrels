@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { deleteBudgetItem, markLegacyRemainingPaid, saveBudgetItem } from "@/app/actions";
+import { personProfileHref } from "@/lib/entity-links";
 import {
   contractPaidTotal,
   contractRemaining,
@@ -156,8 +158,21 @@ export function MoneyContractEditor({
         </p>
         <p className="mt-2 text-base text-muted">{formatMoney(contract.price)} contract</p>
         <p className="mt-1 text-sm text-muted">
-          Owner {personMoneyLabel(contract.ownerId, personNames)}
-          {contract.paidById ? ` · Paid by ${personMoneyLabel(contract.paidById, personNames)}` : ""}
+          {contract.ownerId ? (
+            <Link href={personProfileHref(contract.ownerId)} className="font-semibold text-[var(--accent)]">
+              Owner {personMoneyLabel(contract.ownerId, personNames)}
+            </Link>
+          ) : (
+            <>Owner {personMoneyLabel(contract.ownerId, personNames)}</>
+          )}
+          {contract.paidById ? (
+            <>
+              {" · "}
+              <Link href={personProfileHref(contract.paidById)} className="font-semibold text-[var(--accent)]">
+                Paid by {personMoneyLabel(contract.paidById, personNames)}
+              </Link>
+            </>
+          ) : null}
         </p>
         {contract.note ? <p className="mt-3 text-sm leading-relaxed text-muted">{contract.note}</p> : null}
       </div>

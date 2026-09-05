@@ -8,7 +8,7 @@ import {
   type BudgetContractSnapshot,
   type BudgetPaymentSnapshot,
 } from "@/lib/money";
-import { moneyContractHref } from "@/lib/connections";
+import { calendarHref, moneyHref, personProfileHref, taskHref, timelineHref } from "@/lib/entity-links";
 import { loadVisibleBudgetContracts } from "@/lib/money-page";
 import { parseDayOfTime, sortTimelineBlocks } from "@/lib/day-of-time";
 import {
@@ -24,7 +24,6 @@ import {
   effectiveInvitedCount,
   summarizeGuestRsvp,
 } from "@/lib/guest-gifts";
-import { profileIdForPerson } from "@/lib/people-directory";
 import { dueLabel } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 
@@ -181,13 +180,23 @@ export function todayPersonRef(input: {
 }): { personId: string | null; href: string | null } {
   const personId = input.personId?.trim() || input.linkedPersonId?.trim() || null;
   if (!personId) return { personId: null, href: null };
-  return { personId, href: `/people/${profileIdForPerson(personId)}` };
+  return { personId, href: personProfileHref(personId) };
 }
 
 export function remainingOnBudgetItem(
   item: Pick<BudgetItemSnapshot, "price" | "amountPaid"> & { payments?: BudgetPaymentSnapshot[] },
 ): number {
   return contractRemaining(item);
+}
+
+function obligationHref(
+  itemId: string,
+  obligation: { id: string; kind: "payment" | "legacy" | string },
+): string {
+  if (obligation.kind !== "payment") return moneyHref(itemId);
+  const prefix = `payment:${itemId}:`;
+  const paymentId = obligation.id.startsWith(prefix) ? obligation.id.slice(prefix.length) : "";
+  return paymentId ? moneyHref(itemId, { paymentId }) : moneyHref(itemId);
 }
 
 function asMoneyContract(item: BudgetItemSnapshot): BudgetContractSnapshot {
@@ -342,7 +351,7 @@ export function buildAttentionQueue(
       reason: "Pinned priority",
       whenLabel: item.dueDate ? formatRelativeWhen(item.dueDate, now) : null,
       context: item.ownerLabel || null,
-      href: item.href ?? `/work/${item.sourceId}`,
+      href: item.href ?? taskHref(item.sourceId),
       urgency: "high",
       rank: RANK.escalated,
       personId: todayPersonRef({ personId: personIdFromOwners(item) }).personId,
@@ -365,7 +374,7 @@ export function buildAttentionQueue(
       reason: overdue ? "Overdue" : dueToday ? "Due today" : "Due soon",
       whenLabel: formatRelativeWhen(item.dueDate, now),
       context: item.ownerLabel || null,
-      href: item.href ?? `/work/${item.sourceId}`,
+      href: item.href ?? taskHref(item.sourceId),
       urgency: overdue ? "high" : "normal",
       rank: overdue ? RANK.overdueTask : dueToday ? RANK.dueTodayTask : RANK.dueSoonTask,
       personId: todayPersonRef({ personId: personIdFromOwners(item) }).personId,
@@ -393,7 +402,7 @@ export function buildAttentionQueue(
           obligation.kind === "payment"
             ? `${obligation.label} · ${formatMoney(obligation.amount)}`
             : `${formatMoney(obligation.amount)} remaining`,
-        href: moneyContractHref(item.id),
+        href: obligationHref(item.id, obligation),
         urgency: overdue ? "high" : "normal",
         rank: overdue ? RANK.overduePayment : dueToday ? RANK.dueTodayPayment : RANK.dueSoonPayment,
         personId: null,
@@ -532,7 +541,7 @@ export function buildComingUpList(input: {
       kind: "calendar",
       title: event.title,
       date: event.startDate,
-      href: "/today",
+      href: calendarHref(),
       subtitle: event.notes?.trim() || undefined,
       personId: null,
     });
@@ -562,7 +571,7 @@ export function buildComingUpList(input: {
         kind: "payment",
         title: budgetItem.name,
         date: obligation.dueDate,
-        href: moneyContractHref(budgetItem.id),
+        href: obligationHref(budgetItem.id, obligation),
         subtitle:
           obligation.kind === "payment"
             ? `${obligation.label} · ${formatMoney(obligation.amount)}`
@@ -602,7 +611,7 @@ export function buildTodayContext(input: {
       timeLabel: null,
       title: event.title,
       context: event.notes?.trim() || undefined,
-      href: "/today",
+      href: calendarHref(),
     });
   }
 
@@ -631,7 +640,7 @@ export function buildTodayContext(input: {
           obligation.kind === "payment"
             ? `${obligation.label} · ${formatMoney(obligation.amount)}`
             : `${formatMoney(obligation.amount)} remaining`,
-        href: moneyContractHref(item.id),
+        href: obligationHref(item.id, obligation),
       });
     }
   }
@@ -647,7 +656,7 @@ export function buildTodayContext(input: {
       id: `timeline:${block.id}`,
       timeLabel: block.startAt || null,
       title: block.notes.split("\n")[0]?.trim() || "Timeline moment",
-      href: "/day",
+      href: timelineHref({ blockId: block.id }),
     });
   }
 
