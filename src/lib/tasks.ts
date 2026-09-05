@@ -3,11 +3,15 @@ import { prisma } from "@/lib/db";
 import type { SessionAccount } from "@/lib/types";
 import { startOfDay, endOfDay, addDays } from "date-fns";
 
+const taskListInclude = {
+  assignees: { include: { person: true } },
+  children: true,
+  budgetItem: { select: { id: true, name: true, price: true, amountPaid: true } },
+  timelineBlock: { select: { id: true, startAt: true, notes: true, schedule: true } },
+} satisfies Prisma.TaskInclude;
+
 export type TaskWithAssignees = Prisma.TaskGetPayload<{
-  include: {
-    assignees: { include: { person: true } };
-    children: true;
-  };
+  include: typeof taskListInclude;
 }>;
 
 export type TaskWorkspace = Prisma.TaskGetPayload<{
@@ -18,6 +22,19 @@ export type TaskWorkspace = Prisma.TaskGetPayload<{
       orderBy: { sortOrder: "asc" };
     };
     budgetItem: true;
+    timelineBlock: true;
+    requests: {
+      select: {
+        id: true;
+        title: true;
+        status: true;
+        senderAccountId: true;
+        recipientAccountId: true;
+        readAt: true;
+        senderReadAt: true;
+        senderAccount: { select: { name: true } };
+      };
+    };
   };
 }>;
 
@@ -83,6 +100,34 @@ export function taskVisibilityWhere(session: SessionAccount): Prisma.TaskWhereIn
   };
 }
 
+/** Trustworthy TaskAssignee match. Does not use PLAN couple who-filters. */
+export function assignedToPersonWhere(personId: string): Prisma.TaskWhereInput {
+  return { assignees: { some: { personId } } };
+}
+
+export async function listAssignedTasksForPerson(
+  session: SessionAccount,
+  personId: string,
+  opts: { showDone?: boolean } = {},
+) {
+  const and: Prisma.TaskWhereInput[] = [
+    taskVisibilityWhere(session),
+    { parentId: null },
+    assignedToPersonWhere(personId),
+  ];
+  if (!opts.showDone) {
+    and.push({ status: { not: "done" } });
+  }
+
+  const tasks = await prisma.task.findMany({
+    where: { AND: and },
+    include: taskListInclude,
+    orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }, { title: "asc" }],
+  });
+
+  return rankTasks(tasks);
+}
+
 export async function listTasks(
   session: SessionAccount,
   opts: { showDone?: boolean; personId?: string | null } = {},
@@ -125,10 +170,7 @@ export async function listTasks(
 
   const tasks = await prisma.task.findMany({
     where: { AND: and },
-    include: {
-      assignees: { include: { person: true } },
-      children: true,
-    },
+    include: taskListInclude,
     orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }, { title: "asc" }],
   });
 
@@ -148,10 +190,7 @@ export async function listOrgCards(session: SessionAccount, opts: { showDone?: b
 
   return prisma.task.findMany({
     where: { AND: and },
-    include: {
-      assignees: { include: { person: true } },
-      children: true,
-    },
+    include: taskListInclude,
     orderBy: [{ sortOrder: "asc" }],
   });
 }
@@ -166,6 +205,19 @@ export async function getTaskWorkspace(session: SessionAccount, id: string) {
         orderBy: { sortOrder: "asc" },
       },
       budgetItem: true,
+      timelineBlock: true,
+      requests: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          senderAccountId: true,
+          recipientAccountId: true,
+          readAt: true,
+          senderReadAt: true,
+          senderAccount: { select: { name: true } },
+        },
+      },
     },
   });
   if (!task) return null;
@@ -235,4 +287,22 @@ export function dueLabel(dueDate: Date | string | null | undefined, status: stri
   if (diff === 1) return "Due tomorrow";
   if (diff <= 7) return `Due in ${diff}d`;
   return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+export async function loadTimelineRelatedTasks(
+  session: SessionAccount,
+  blockIds: string[],
+): Promise<Record<string, { id: string; title: string }>> {
+  if (!session.canSeeTasks || blockIds.length === 0) return {};
+  const tasks = await prisma.task.findMany({
+    where: { AND: [taskVisibilityWhere(session), { timelineBlockId: { in: blockIds } }] },
+    select: { id: true, title: true, timelineBlockId: true },
+    orderBy: [{ dueDate: "asc" }, { title: "asc" }],
+  });
+  const map: Record<string, { id: string; title: string }> = {};
+  for (const task of tasks) {
+    if (!task.timelineBlockId || map[task.timelineBlockId]) continue;
+    map[task.timelineBlockId] = { id: task.id, title: task.title };
+  }
+  return map;
 }

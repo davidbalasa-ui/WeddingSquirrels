@@ -3,6 +3,7 @@ import { MealBoard } from "@/components/MealBoard";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { mealsEditable, rehearsalScheduleEditable } from "@/lib/access";
 import { loadPlanRehearsalPage } from "@/lib/plan-pages";
+import { loadTimelineRelatedTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
 
 export default async function PlanRehearsalPage({
@@ -17,6 +18,10 @@ export default async function PlanRehearsalPage({
   const editParam = Array.isArray(params.edit) ? params.edit[0] : params.edit;
   const startInEdit = canEditSchedule && editParam === "1";
   const data = await loadPlanRehearsalPage();
+  const relatedByBlockId = await loadTimelineRelatedTasks(
+    session,
+    data.blocks.map((block) => block.id),
+  );
 
   return (
     <>
@@ -36,6 +41,7 @@ export default async function PlanRehearsalPage({
           schedule="rehearsal"
           idPrefix="reh"
           fixedAdd={false}
+          relatedByBlockId={relatedByBlockId}
         />
       </section>
 

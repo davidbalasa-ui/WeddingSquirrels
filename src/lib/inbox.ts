@@ -1,5 +1,6 @@
 import { startOfDay } from "date-fns";
 import { prisma } from "@/lib/db";
+import { requestHref, taskHref } from "@/lib/entity-links";
 import { assigneeDisplayNames } from "@/lib/people";
 import { isRequestUnread, requestVisibilityWhere } from "@/lib/requests";
 import { listOrgCards, listTasks } from "@/lib/tasks";
@@ -296,6 +297,7 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
     items.push({
       id: `ask:${row.id}`,
       kind: "ask",
+      href: requestHref(row.id),
       sourceId: row.id,
       title: row.title,
       done: row.status === "done",
@@ -390,7 +392,7 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
       dueDate: task.dueDate,
       sortOrder: task.sortOrder,
       escalated: Boolean(task.escalatedAt),
-      href: `/work/${task.id}`,
+      href: taskHref(task.id),
       detail: summary,
     });
 
@@ -411,7 +413,7 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
         sortOrder: step.sortOrder,
         parentId: task.id,
         parentTitle: task.title,
-        href: `/work/${task.id}`,
+        href: taskHref(task.id),
         detail: joinPlain([step.summary, step.helpText, step.planNotes]),
       });
     }
@@ -440,6 +442,7 @@ export async function listInboxItems(session: SessionAccount): Promise<InboxItem
         groupKey: orgKey,
         groupLabel,
         sortOrder: step.sortOrder,
+        href: taskHref(step.parentId || step.id),
         detail: joinPlain([step.summary, step.helpText, step.planNotes]),
         meta: { status: step.status },
       });

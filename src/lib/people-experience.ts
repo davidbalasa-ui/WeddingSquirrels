@@ -212,10 +212,10 @@ export function visibleProfileSections(
   if (profile.guestInfo) sections.push("guest");
   if (profile.vendorContext) sections.push("vendor");
   if (profile.canSeeTasks) sections.push("tasks");
-  if (profile.mealStatus) sections.push("meals");
-  if (profile.stayLabel) sections.push("stay");
   if (profile.assignments.length > 0) sections.push("day-of");
   if (profile.budgetContracts.length > 0) sections.push("budget");
+  if (profile.mealStatus) sections.push("meals");
+  if (profile.stayLabel) sections.push("stay");
   if (profile.relatedLinks.length > 0) sections.push("related");
   return sections;
 }

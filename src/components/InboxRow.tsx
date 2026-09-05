@@ -19,6 +19,7 @@ import {
   toggleTaskDone,
 } from "@/app/actions";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
+import { taskHref } from "@/lib/entity-links";
 import { canManageOwners, inboxDateLine, nextCoupleOwnerIds, type InboxItem } from "@/lib/inbox";
 import {
   canCompleteRequest,
@@ -370,7 +371,7 @@ export function InboxRow({
 
             {item.linkedTaskId && item.linkedTaskTitle && session.canSeeTasks && !askPerms?.edit ? (
               <Link
-                href={`/work/${item.linkedTaskId}`}
+                href={taskHref(item.linkedTaskId)}
                 className="mt-2 block text-sm font-semibold text-[var(--accent)]"
               >
                 Related: {item.linkedTaskTitle}

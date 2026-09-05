@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
-import { assigneeDisplayNames } from "@/lib/people";
+import { moneyHref, personProfileHref, taskHref, timelineHref } from "@/lib/entity-links";
 import { dueLabel } from "@/lib/tasks";
 import type { TaskWithAssignees } from "@/lib/tasks";
 
 export function TaskCard({ task }: { task: TaskWithAssignees }) {
   const label = dueLabel(task.dueDate, task.status);
-  const people = assigneeDisplayNames(task.assignees);
   const done = task.status === "done";
   const escalated = Boolean(task.escalatedAt);
   const childTotal = task.children?.length ?? 0;
@@ -18,9 +17,11 @@ export function TaskCard({ task }: { task: TaskWithAssignees }) {
   const isWeek = task.orgKey === "week_before";
   const isDay = task.orgKey === "day_before";
   const isOrg = isWeek || isDay;
-
   const preview = task.planNotes?.trim() || task.summary?.trim() || "";
   const dueUrgent = label?.startsWith("Overdue") || label === "Due today";
+  const assignees = task.assignees.filter((row) => row.person);
+  const relatedBudget = task.budgetItem;
+  const relatedBlock = task.timelineBlock;
 
   return (
     <article
@@ -28,20 +29,38 @@ export function TaskCard({ task }: { task: TaskWithAssignees }) {
         escalated ? "bg-[var(--warn-soft)]/35" : ""
       } ${isOrg ? (isWeek ? "bg-[#f7f1e4]/80" : "bg-[#e7f0ec]/80") : ""}`}
     >
-      <Link href={`/work/${task.id}`} className="min-w-0 flex-1">
-        {isOrg ? (
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
-            Shared · {isWeek ? "7 days out" : "1 day out"}
+      <div className="min-w-0 flex-1">
+        <Link href={taskHref(task.id)} className="block">
+          {isOrg ? (
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
+              Shared · {isWeek ? "7 days out" : "1 day out"}
+            </p>
+          ) : null}
+          <p className={`text-[15px] font-semibold leading-snug ${done ? "line-through" : ""}`}>
+            {task.title}
           </p>
-        ) : null}
-        <p className={`text-[15px] font-semibold leading-snug ${done ? "line-through" : ""}`}>
-          {task.title}
-        </p>
-        {preview ? (
-          <p className="mt-0.5 line-clamp-1 text-sm leading-snug text-muted">{preview}</p>
-        ) : null}
+          {preview ? (
+            <p className="mt-0.5 line-clamp-1 text-sm leading-snug text-muted">{preview}</p>
+          ) : null}
+        </Link>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
-          <span>{people || (isOrg ? "David · Haley" : "Unassigned")}</span>
+          {assignees.length > 0 ? (
+            <span className="inline-flex flex-wrap gap-x-1">
+              {assignees.map((row, index) => (
+                <span key={row.personId}>
+                  {index > 0 ? " · " : null}
+                  <Link
+                    href={personProfileHref(row.personId)}
+                    className="font-semibold text-[var(--accent)]"
+                  >
+                    {row.person.name}
+                  </Link>
+                </span>
+              ))}
+            </span>
+          ) : (
+            <span>{isOrg ? "David · Haley" : "Unassigned"}</span>
+          )}
           {escalated ? (
             <span className="font-semibold text-[var(--warn)]">
               Priority{task.escalatedBy ? ` · ${task.escalatedBy}` : ""}
@@ -61,6 +80,22 @@ export function TaskCard({ task }: { task: TaskWithAssignees }) {
                 : ""}
             </span>
           ) : null}
+          {relatedBudget ? (
+            <Link href={moneyHref(relatedBudget.id)} className="font-semibold text-[var(--accent)]">
+              {relatedBudget.name}
+            </Link>
+          ) : null}
+          {relatedBlock ? (
+            <Link
+              href={timelineHref({
+                schedule: relatedBlock.schedule === "rehearsal" ? "rehearsal" : "wedding",
+                blockId: relatedBlock.id,
+              })}
+              className="font-semibold text-[var(--accent)]"
+            >
+              {relatedBlock.startAt || "Timeline"}
+            </Link>
+          ) : null}
           {label ? (
             <span
               className={`font-semibold ${dueUrgent ? "text-[var(--warn)]" : "text-[var(--accent)]"}`}
@@ -69,12 +104,12 @@ export function TaskCard({ task }: { task: TaskWithAssignees }) {
             </span>
           ) : null}
         </div>
-      </Link>
+      </div>
 
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="text-lg text-muted" aria-hidden>
+        <Link href={taskHref(task.id)} className="text-lg text-muted" aria-hidden>
           ›
-        </span>
+        </Link>
         <EscalatePriorityButton taskId={task.id} escalated={escalated} compact />
       </div>
     </article>

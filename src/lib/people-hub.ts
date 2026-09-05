@@ -2,9 +2,10 @@ import { prisma } from "@/lib/db";
 import { guestAddressLine, rsvpStatusLabel, summarizeGuestRsvp, type GuestRsvpReport } from "@/lib/guest-gifts";
 import { guestInclude, mapGuestRecord, type GuestRecord } from "@/lib/guests";
 import {
-  budgetContractsForContact,
+  budgetContractsForPerson,
   type ProfileBudgetContract,
 } from "@/lib/connections";
+import { filterVisibleBudgetItems } from "@/lib/money";
 import { peopleHubTabCounts } from "@/lib/people-experience";
 import {
   buildDirectoryEntries,
@@ -112,6 +113,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
             ownerId: true,
             paidById: true,
             receiptData: true,
+            shares: { select: { pinAccountId: true } },
           },
         })
       : Promise.resolve([]),
@@ -183,12 +185,13 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
     }));
 
   const vendorBudgets: Record<string, VendorBudgetRecord[]> = {};
+  const visibleBudget = filterVisibleBudgetItems(session, budgetItems);
   for (const entry of vendorEntries) {
-    const contact = entry.contactId
-      ? contacts.find((row) => row.id === entry.contactId)
-      : null;
-    if (!contact) continue;
-    const contracts = budgetContractsForContact(contact, budgetItems).map((contract) => {
+    const personId = entry.personId;
+    if (!personId) continue;
+    const person = persons.find((row) => row.id === personId);
+    if (!person) continue;
+    const contracts = budgetContractsForPerson(person, visibleBudget).map((contract) => {
       const item = budgetItems.find((row) => row.id === contract.id);
       return {
         ...contract,

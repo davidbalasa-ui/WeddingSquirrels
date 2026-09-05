@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   createBudgetPayment,
   deleteBudgetPayment,
@@ -99,9 +99,11 @@ function PaymentFields({
 export function MoneyPaymentSchedule({
   contract,
   canEdit,
+  highlightPaymentId,
 }: {
   contract: BudgetContractSnapshot;
   canEdit: boolean;
+  highlightPaymentId?: string | null;
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
@@ -110,6 +112,13 @@ export function MoneyPaymentSchedule({
   const explicit = hasExplicitSchedule(contract);
   const open = openPayments(contract);
   const history = completedPayments(contract);
+
+  useEffect(() => {
+    if (!highlightPaymentId) return;
+    document.getElementById(`payment-${highlightPaymentId}`)?.scrollIntoView({
+      block: "center",
+    });
+  }, [highlightPaymentId]);
 
   function refreshAfter(action: () => Promise<void>) {
     startTransition(async () => {
@@ -133,7 +142,11 @@ export function MoneyPaymentSchedule({
                 const overdue = paymentIsOverdue(payment);
                 const editing = editingId === payment.id;
                 return (
-                  <article key={payment.id} className="py-3">
+                  <article
+                    key={payment.id}
+                    id={`payment-${payment.id}`}
+                    className={`py-3 ${highlightPaymentId === payment.id ? "bg-[var(--accent-soft)]/40" : ""}`}
+                  >
                     {editing && canEdit ? (
                       <form
                         action={async (fd) => {
@@ -220,7 +233,13 @@ export function MoneyPaymentSchedule({
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">History</p>
           <div className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
             {history.map((payment) => (
-              <article key={payment.id} className="flex items-start justify-between gap-3 py-3">
+              <article
+                key={payment.id}
+                id={`payment-${payment.id}`}
+                className={`flex items-start justify-between gap-3 py-3 ${
+                  highlightPaymentId === payment.id ? "bg-[var(--accent-soft)]/40" : ""
+                }`}
+              >
                 {editingId === payment.id && canEdit ? (
                   <form
                     className="w-full"

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { saveBudgetAmounts, saveBudgetReceipt } from "@/app/actions";
 import { PersonAvatar } from "@/components/PersonAvatar";
+import { formatBudgetContractDetail } from "@/lib/connections";
+import { peopleProfileHref } from "@/lib/entity-links";
 import { contractRemaining, formatMoney } from "@/lib/money";
 import type { DirectoryEntry, PeopleSort } from "@/lib/people-directory";
 import { filterDirectoryEntries } from "@/lib/people-directory";
@@ -41,12 +43,12 @@ function VendorEntryCard({
           ) : null}
           {primary ? (
             <span className="mt-0.5 block text-xs text-muted">
-              {formatMoney(primary.amountPaid)} paid · {formatMoney(primary.remaining)} left
+              {formatBudgetContractDetail(primary)}
             </span>
           ) : null}
         </button>
         <Link
-          href={`/people/${encodeURIComponent(entry.profileId)}`}
+          href={peopleProfileHref(entry.profileId)}
           className="shrink-0 text-sm text-muted"
           aria-label={`Open ${entry.name}`}
         >
@@ -71,9 +73,7 @@ function VendorEntryCard({
             </div>
           ) : null}
 
-          {budgets.length === 0 ? (
-            <p className="text-sm text-muted">No budget contract linked yet.</p>
-          ) : (
+          {budgets.length > 0 ? (
             <div className="flex flex-col gap-3">
               {budgets.map((budget) => (
                 <VendorBudgetPanel
@@ -88,7 +88,7 @@ function VendorEntryCard({
                 />
               ))}
             </div>
-          )}
+          ) : null}
 
         </div>
       ) : null}
@@ -114,6 +114,7 @@ function VendorBudgetPanel({
   return (
     <div className="rounded-lg border border-line px-3 py-2 text-sm">
       <p className="font-semibold">{budget.name}</p>
+      <p className="mt-1 text-xs text-muted">{formatBudgetContractDetail(budget)}</p>
       <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
         <div>
           <span className="text-muted">Total owed</span>

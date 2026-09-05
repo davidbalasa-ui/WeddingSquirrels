@@ -6,6 +6,7 @@ import { MoneyDueList } from "@/components/MoneyDueList";
 import { MoneyHero } from "@/components/MoneyHero";
 import { MoneyMinorList } from "@/components/MoneyMinorList";
 import { MoneyPosition } from "@/components/MoneyPosition";
+import { moneyHref } from "@/lib/entity-links";
 import { loadMoneyPageData } from "@/lib/money-page";
 import { requirePageSession } from "@/lib/session";
 
@@ -16,7 +17,7 @@ export default async function MoneyPage({
 }) {
   const session = await requirePageSession({ need: "canSeeBudget" });
   const params = await searchParams;
-  if (params.contract) redirect(`/money/${params.contract}`);
+  if (params.contract) redirect(moneyHref(params.contract));
 
   const data = await loadMoneyPageData(session);
   const comingDue = data.dueItems.slice(0, 6);

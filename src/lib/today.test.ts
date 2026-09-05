@@ -347,11 +347,11 @@ test("restricted tasks and requests are not exposed", () => {
 test("linked person references preserve canonical personId behavior", () => {
   const linked = todayPersonRef({ personId: "bri", name: "Someone Else" });
   assert.equal(linked.personId, "bri");
-  assert.equal(linked.href, "/people/person:bri");
+  assert.equal(linked.href, "/people/person%3Abri");
 
   const fromAccount = todayPersonRef({ linkedPersonId: "belle_genton", name: "Belle Genton" });
   assert.equal(fromAccount.personId, "belle_genton");
-  assert.equal(fromAccount.href, "/people/person:belle_genton");
+  assert.equal(fromAccount.href, "/people/person%3Abelle_genton");
 
   const overdue = taskItem("owned", {
     title: "Owned task",
@@ -509,6 +509,7 @@ test("TODAY uses explicit payment schedule when present", () => {
   if (queue[0]?.type === "payment") {
     assert.equal(queue[0].amountRemaining, 2250);
     assert.equal(queue[0].context, "Final payment · $2,250");
+    assert.equal(queue[0].href, "/money/b1?payment=p2");
   }
 });
 
@@ -527,6 +528,7 @@ test("TODAY falls back to legacy payByDate when no schedule exists", () => {
   assert.equal(queue[0]?.id, "legacy:b1");
   if (queue[0]?.type === "payment") {
     assert.equal(queue[0].amountRemaining, 2250);
+    assert.equal(queue[0].href, "/money/b1");
   }
 });
 

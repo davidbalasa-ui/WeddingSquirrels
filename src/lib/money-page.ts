@@ -13,6 +13,7 @@ import {
   type MoneyHistoryItem,
   type MoneySummary,
 } from "@/lib/money";
+import { taskVisibilityWhere } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 
 export type MoneyPageData = {
@@ -115,6 +116,18 @@ export async function loadMinorExpenses(canEdit: boolean): Promise<MinorExpenseS
   });
 
   return rows;
+}
+
+export async function loadRelatedTasksForContract(
+  session: SessionAccount,
+  budgetItemId: string,
+): Promise<Array<{ id: string; title: string }>> {
+  if (!session.canSeeTasks) return [];
+  return prisma.task.findMany({
+    where: { AND: [taskVisibilityWhere(session), { budgetItemId }] },
+    orderBy: [{ dueDate: "asc" }, { title: "asc" }],
+    select: { id: true, title: true },
+  });
 }
 
 export async function loadPersonNames(): Promise<Record<string, string>> {
