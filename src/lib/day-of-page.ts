@@ -139,6 +139,7 @@ export async function loadDayOfExperience(
   });
 
   const canSeeContacts = Boolean(session.isMaster || session.canSeeTimeline);
+  // Wedding execution only: no money, guests, rehearsal, or unrelated tasks.
   const [blocks, contacts, assignments] = await Promise.all([
     prisma.timelineBlock.findMany({
       where: { schedule: "wedding" },
@@ -199,7 +200,7 @@ export async function loadDayOfExperience(
       directoryLabel: contact.directoryLabel,
       phone: contact.phone,
       email: contact.email,
-      photoData: contact.photoData,
+      photoData: contact.isDayOfContact ? contact.photoData : null,
       sortOrder: contact.sortOrder,
       isDayOfContact: contact.isDayOfContact,
       personId: contact.personId,

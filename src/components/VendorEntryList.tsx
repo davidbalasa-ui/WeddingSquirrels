@@ -61,12 +61,20 @@ function VendorEntryCard({
           {entry.phone || entry.email ? (
             <div className="mb-3 flex flex-col gap-1 text-sm">
               {entry.phone && phoneHref ? (
-                <a href={phoneHref} className="font-semibold text-[var(--accent)] hover:underline">
+                <a
+                  href={phoneHref}
+                  className="font-semibold text-[var(--accent)] hover:underline"
+                  aria-label={`Call ${entry.name}`}
+                >
                   {entry.phone}
                 </a>
               ) : null}
               {entry.email ? (
-                <a href={`mailto:${entry.email}`} className="text-muted hover:underline">
+                <a
+                  href={`mailto:${entry.email}`}
+                  className="text-muted hover:underline"
+                  aria-label={`Email ${entry.name}`}
+                >
                   {entry.email}
                 </a>
               ) : null}

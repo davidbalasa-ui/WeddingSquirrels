@@ -259,13 +259,13 @@ test("empty domains produce intentional low-data summaries without fake dates or
   });
 
   assert.equal(rows.find((row) => row.key === "tasks")?.detail, "Nothing open right now");
-  assert.equal(rows.find((row) => row.key === "timeline")?.detail, "No moments mapped yet");
+  assert.equal(rows.find((row) => row.key === "timeline")?.detail, "Nothing scheduled yet");
   assert.equal(
     rows.find((row) => row.key === "rehearsal")?.detail,
     "No walkthrough yet · Dinner not started",
   );
   assert.equal(rows.find((row) => row.key === "stay")?.detail, "Beds are not laid out yet");
-  assert.equal(rows.find((row) => row.key === "shopping")?.detail, "List is empty");
+  assert.equal(rows.find((row) => row.key === "shopping")?.detail, "Nothing on the list yet");
   assert.equal(rows.find((row) => row.key === "calendar")?.detail, "Nothing upcoming");
 
   for (const row of rows) {

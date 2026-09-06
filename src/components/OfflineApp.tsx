@@ -289,12 +289,20 @@ function ContactsView({ pack }: { pack: OfflinePack }) {
           <div className="min-w-0 flex-1">
             <p className="font-semibold leading-snug">{contact.name}</p>
             {contact.phone ? (
-              <a href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`} className="mt-0.5 block text-sm text-[var(--accent)]">
+              <a
+                href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}
+                className="mt-0.5 block text-sm text-[var(--accent)]"
+                aria-label={`Call ${contact.name}`}
+              >
                 {contact.phone}
               </a>
             ) : null}
             {contact.email ? (
-              <a href={`mailto:${contact.email}`} className="mt-0.5 block text-sm text-[var(--accent)]">
+              <a
+                href={`mailto:${contact.email}`}
+                className="mt-0.5 block text-sm text-[var(--accent)]"
+                aria-label={`Email ${contact.name}`}
+              >
                 {contact.email}
               </a>
             ) : null}

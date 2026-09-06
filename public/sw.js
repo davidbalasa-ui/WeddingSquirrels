@@ -2,6 +2,7 @@
  * The app's actual data is stored in IndexedDB by the "Download for offline"
  * button; this worker only handles the static shell and navigation fallback. */
 const CACHE = "weddingsquirrels-v2";
+/** Install-time shell only. Authenticated pages such as /day are cached on visit. */
 const PRECACHE = [
   "/",
   "/today",
@@ -54,7 +55,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Navigations: network-first, fall back to the offline view.
+  // Navigations: network-first. Cache each successful page by its URL so a
+  // previously opened /day, /today, /people, or /plan/timeline can reopen
+  // after a network drop. Do not overwrite "/" with another route's HTML.
   if (request.mode === "navigate") {
     if (url.pathname === "/offline") {
       event.respondWith(
@@ -66,11 +69,18 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put("/", copy));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy));
+          }
           return response;
         })
-        .catch(() => caches.match("/offline").then((cached) => cached || caches.match("/"))),
+        .catch(() =>
+          caches
+            .match(request)
+            .then((cached) => cached || caches.match("/offline"))
+            .then((cached) => cached || caches.match("/")),
+        ),
     );
     return;
   }

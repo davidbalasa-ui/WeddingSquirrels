@@ -1,4 +1,5 @@
 import { differenceInCalendarDays, startOfDay } from "date-fns";
+import { parseDayOfAsOf } from "@/lib/day-of";
 import { prisma } from "@/lib/db";
 import {
   contractPaidTotal,
@@ -28,7 +29,6 @@ import { dueLabel } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 import {
   getWeddingPhase,
-  instantOnCalendarDate,
   weddingPhaseHeroCopy,
   usesExecutionLayout,
   type WeddingPhase,
@@ -753,10 +753,7 @@ export async function loadTodayPageData(
   const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
   const timezone = settings?.timezone ?? "America/Detroit";
   const now =
-    opts?.now ??
-    (opts?.asOfDateKey && process.env.NODE_ENV !== "production"
-      ? instantOnCalendarDate(opts.asOfDateKey, timezone)
-      : new Date());
+    opts?.now ?? parseDayOfAsOf(opts?.asOfDateKey, timezone) ?? new Date();
   const hero = buildTodayHero(settings, session.name, now);
   const phaseInfo = getWeddingPhase({
     weddingDate: settings?.weddingDate ?? null,

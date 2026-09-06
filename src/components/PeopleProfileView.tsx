@@ -97,6 +97,7 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
             <a
               key={`${action.label}-${action.href}`}
               href={action.href}
+              aria-label={`${action.label} ${profile.name}`}
               className="inline-flex min-h-11 items-center rounded-full bg-[var(--accent-soft)] px-4 text-sm font-semibold text-[var(--accent)]"
             >
               {action.label}
@@ -109,7 +110,9 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
         <section className="mb-8">
           <SectionTitle>Contact</SectionTitle>
           <div className="mt-1 border-t border-[var(--line)]">
-            {phone ? <ProfileRow title={phone} detail="Phone" href={`tel:${phone.replace(/[^\d+]/g, "")}`} /> : null}
+            {phone ? (
+              <ProfileRow title={phone} detail="Phone" href={`tel:${phone.replace(/[^\d+]/g, "")}`} />
+            ) : null}
             {email ? <ProfileRow title={email} detail="Email" href={`mailto:${email}`} /> : null}
           </div>
         </section>

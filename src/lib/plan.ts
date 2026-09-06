@@ -253,7 +253,7 @@ function taskDetail(counts: PlanTaskCounts) {
 }
 
 function timelineDetail(counts: PlanTimelineCounts) {
-  if (counts.moments === 0) return "No moments mapped yet";
+  if (counts.moments === 0) return "Nothing scheduled yet";
   const noun = counts.moments === 1 ? "timeline moment" : "timeline moments";
   if (counts.nextTime) return `${counts.moments} ${noun} · from ${counts.nextTime}`;
   return `${counts.moments} ${noun}`;
@@ -289,7 +289,7 @@ function stayDetail(counts: PlanStayCounts) {
 }
 
 function shoppingDetail(counts: PlanShoppingCounts) {
-  if (counts.remaining === 0 && counts.purchased === 0) return "List is empty";
+  if (counts.remaining === 0 && counts.purchased === 0) return "Nothing on the list yet";
   if (counts.remaining === 0) return "Everything is purchased";
   if (counts.remaining === 1) return "1 thing left";
   return `${counts.remaining} things left`;

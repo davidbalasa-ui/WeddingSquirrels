@@ -485,7 +485,7 @@ export function DayTimeline({
       <div className="flex flex-col gap-2">
         {rows.length === 0 && !draft ? (
           <div className="card p-6 text-center text-sm text-muted">
-            {editing ? "No moments yet — tap + to add one." : "No moments yet."}
+            {editing ? "Nothing scheduled yet — tap + to add one." : "Nothing scheduled yet."}
             {canEdit && !editing ? " Switch to Edit to add one." : null}
           </div>
         ) : null}

@@ -148,12 +148,13 @@ test("groupCsvRowsByHousehold keeps full Olaffson household", () => {
 });
 
 test("parseGuestRsvpCsv reads quoted party names", () => {
-  const csv = readFileSync(
-    "/home/ubuntu/.cursor/projects/workspace/uploads/rsvp_03ab.csv",
-    "utf8",
-  );
+  const csv = [
+    "First Name,Last Name,Party,My Notes,Wedding Day - RSVP,Wedding Day - Thank You Sent,Wedding Day - Gift Received",
+    'Marie,Wiewiora,"Marie Wiewiora, Juniper Wiewiora",,Attending,,',
+    "Alex,Rivera,Alex Rivera,,Pending,,",
+  ].join("\n");
   const rows = parseGuestRsvpCsv(csv);
-  assert.equal(rows.length, 76);
+  assert.equal(rows.length, 2);
   const marieParty = rows.find((row) => row.firstName === "Marie" && row.lastName === "Wiewiora");
   assert.ok(marieParty?.party.includes("Juniper Wiewiora"));
 });

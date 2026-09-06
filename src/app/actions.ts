@@ -95,7 +95,7 @@ export async function unlockAction(
     const code = prismaErrorCode(error);
     if (isDatabaseUnreachable(error)) {
       return {
-        error: `Can't reach the wedding database${code ? ` (${code})` : ""}. Check DATABASE_URL on Vercel and redeploy.`,
+        error: "Can't reach the wedding database right now. Try again in a moment.",
       };
     }
     return { error: `Login failed${code ? ` (${code})` : ""}. Try again.` };
