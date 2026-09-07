@@ -10,6 +10,7 @@ import {
   type DayOfContactInput,
   type DayOfExperienceSource,
 } from "@/lib/day-of";
+import { weddingTimelineRows } from "@/lib/day-of-time";
 import type { OfflinePack } from "@/lib/offline-db";
 
 type TimelineRow = {
@@ -51,9 +52,7 @@ function sourceFromPack(pack: OfflinePack): DayOfExperienceSource {
   const now = new Date();
   const people = (pack.people ?? []) as PersonRow[];
   const peopleById = new Map(people.map((person) => [person.id, person.name]));
-  const blocks = ((pack.timeline ?? []) as TimelineRow[])
-    .filter((block) => block.schedule !== "rehearsal")
-    .map(toDayOfBlock);
+  const blocks = weddingTimelineRows((pack.timeline ?? []) as TimelineRow[]).map(toDayOfBlock);
   const contacts: DayOfContactInput[] = ((pack.contacts ?? []) as ContactRow[]).map((contact) => ({
     id: contact.id,
     name: contact.name,

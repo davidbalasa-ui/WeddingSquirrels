@@ -20,6 +20,7 @@ import {
   rawFromClockParts,
   reviewNoteLines,
   sortTimelineBlocks,
+  weddingTimelineRows,
 } from "./day-of-time";
 
 function timed(raw: string, minutes: number, dayOffset: 0 | 1, display: string) {
@@ -310,4 +311,17 @@ test("review notes split on semicolons into line items", () => {
   assert.deepEqual(reviewNoteLines("  one ; two ;  ; three  "), ["one", "two", "three"]);
   assert.deepEqual(reviewNoteLines("line one\nline two"), ["line one", "line two"]);
   assert.deepEqual(reviewNoteLines(""), []);
+});
+
+test("weddingTimelineRows counts wedding rows only, not rehearsal", () => {
+  const rows = [
+    ...Array.from({ length: 19 }, (_, i) => ({ id: `w${i}`, schedule: "wedding" as const })),
+    ...Array.from({ length: 7 }, (_, i) => ({ id: `r${i}`, schedule: "rehearsal" as const })),
+  ];
+  assert.equal(rows.length, 26);
+  assert.equal(weddingTimelineRows(rows).length, 19);
+  assert.equal(
+    weddingTimelineRows(rows).every((row) => row.schedule === "wedding"),
+    true,
+  );
 });

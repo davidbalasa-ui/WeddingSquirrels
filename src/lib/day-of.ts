@@ -156,7 +156,6 @@ export type DayOfExperienceSource = {
   canSeeContacts: boolean;
 };
 
-const CONTACT_LIMIT = 6;
 const LATE_NIGHT_END_MINUTES = 5 * 60;
 
 export function formatWeddingDateLabel(date: Date, timeZone: string): string {
@@ -413,7 +412,7 @@ export function pickDayOfContacts(contacts: DayOfContactInput[]): DayOfContact[]
   const ordered = [...source].sort(
     (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id.localeCompare(b.id),
   );
-  return ordered.slice(0, CONTACT_LIMIT).map((contact) => {
+  return ordered.map((contact) => {
     const personId = contact.personId ?? null;
     const name = contact.personName?.trim() || contact.name;
     return {

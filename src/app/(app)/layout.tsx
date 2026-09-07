@@ -27,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app-shell">
-      <a href="#main-content" className="skip-link">
+      <a href="#main-content" className="skip-link print-hide">
         Skip to content
       </a>
       <AutoOfflineSync />

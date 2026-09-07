@@ -18,7 +18,8 @@ export type ModuleIconName =
   | "rehearsal"
   | "dinner"
   | "accounts"
-  | "more";
+  | "more"
+  | "print";
 
 export type ModuleGroup = "plan" | "money" | "wedding" | "comm" | "admin";
 
@@ -168,6 +169,15 @@ export const MODULES: ModuleDef[] = [
     see: "canManageAccounts",
     icon: "accounts",
   },
+  {
+    key: "print",
+    label: "Wedding Binder & Print",
+    href: "/print",
+    group: "wedding",
+    navTab: "more",
+    hideFromMore: true,
+    icon: "print",
+  },
 ];
 
 /** V2 bottom navigation tabs in display order. */
@@ -185,7 +195,7 @@ export const NAV_TAB_PREFIXES: Record<NavTab, string[]> = {
   plan: ["/plan", "/day", "/rehearsal", "/stay", "/shop", "/calendar"],
   people: ["/people", "/guests"],
   money: ["/money"],
-  more: ["/more", "/accounts", "/offline"],
+  more: ["/more", "/accounts", "/offline", "/print"],
 };
 
 /** Order groups render in, in both the permission grid and the More sheet. */
@@ -215,6 +225,7 @@ export function canSeeModule(session: SessionAccount, module: ModuleDef): boolea
   if (module.key === "home") return canSeeHome(session);
   if (module.key === "accounts") return canManageAccounts(session);
   if (module.key === "rehearsal") return canSeeDinnerTab(session);
+  if (module.key === "print") return true;
   return module.see ? Boolean(session[module.see]) : false;
 }
 
