@@ -154,6 +154,14 @@ test("assertDestructiveDatabaseAllowed throws the production refusal", () => {
   );
 });
 
+test("seed and reset entry points still hard-guard production", () => {
+  const root = path.join(import.meta.dirname, "../..");
+  const seed = readFileSync(path.join(root, "prisma/seed.ts"), "utf8");
+  const reset = readFileSync(path.join(root, "scripts/db-reset.ts"), "utf8");
+  assert.match(seed, /assertDestructiveDatabaseAllowed\("db:seed"\)/);
+  assert.match(reset, /assertDestructiveDatabaseAllowed\("db:reset"\)/);
+});
+
 test("vercel build, postinstall, and npm test do not invoke prisma seed", () => {
   const root = path.join(import.meta.dirname, "../..");
   const vercelBuild = readFileSync(path.join(root, "scripts/vercel-build.sh"), "utf8");

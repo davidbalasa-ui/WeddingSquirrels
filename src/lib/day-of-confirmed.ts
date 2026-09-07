@@ -16,20 +16,20 @@ export type ContactFlagApproval = {
   expectedSortOrder: number;
 };
 
-/** Snapshot-verified production PinAccount ids. */
+/** Post-recovery verified production PinAccount ids. Match by id AND expected name only. */
 export const APPROVED_PIN_LINKS: PinLinkApproval[] = [
   {
-    pinAccountId: "cmtnslqbt0000js87zguxlq64",
+    pinAccountId: "cmtonz4ma0000jsuyf9ra47of",
     personId: "david",
     expectedAccountName: "David",
   },
   {
-    pinAccountId: "cmtnslqgw0001js87n7pfdwr4",
+    pinAccountId: "cmtonz4ov0001jsuyk6nvk7c2",
     personId: "haley",
     expectedAccountName: "Haley",
   },
   {
-    pinAccountId: "cmtnslqmj0002js871zyszgyc",
+    pinAccountId: "cmtonz4r50002jsuyknc1ve1n",
     personId: "shelly",
     expectedAccountName: "Mother in law",
   },
