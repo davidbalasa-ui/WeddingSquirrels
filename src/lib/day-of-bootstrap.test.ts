@@ -123,24 +123,71 @@ test("production runtime /day uses provided DB blocks, not candidate constants",
   assert.equal(CANDIDATE_WEDDING_TIMELINE.length, 19);
 });
 
+const LIVE_PIN_DAVID = "cmtonz4ma0000jsuyf9ra47of";
+const LIVE_PIN_HALEY = "cmtonz4ov0001jsuyk6nvk7c2";
+const LIVE_PIN_MOTHER_IN_LAW = "cmtonz4r50002jsuyknc1ve1n";
+const STALE_PRE_RECOVERY_PIN_IDS = [
+  "cmtnslqbt0000js87zguxlq64",
+  "cmtnslqgw0001js87n7pfdwr4",
+  "cmtnslqmj0002js871zyszgyc",
+] as const;
+
 test("David, Haley, and Mother-in-law link by exact PinAccount id", () => {
   const accounts = [
-    { id: "cmtnslqbt0000js87zguxlq64", name: "David", linkedPersonId: null },
-    { id: "cmtnslqgw0001js87n7pfdwr4", name: "Haley", linkedPersonId: null },
-    { id: "cmtnslqmj0002js871zyszgyc", name: "Mother in law", linkedPersonId: null },
+    { id: LIVE_PIN_DAVID, name: "David", linkedPersonId: null },
+    { id: LIVE_PIN_HALEY, name: "Haley", linkedPersonId: null },
+    { id: LIVE_PIN_MOTHER_IN_LAW, name: "Mother in law", linkedPersonId: null },
   ];
   const plan = planApprovedPinLinks(accounts);
   assert.deepEqual(
     plan.updates.map((row) => [row.pinAccountId, row.to]),
     [
-      ["cmtnslqbt0000js87zguxlq64", "david"],
-      ["cmtnslqgw0001js87n7pfdwr4", "haley"],
-      ["cmtnslqmj0002js871zyszgyc", "shelly"],
+      [LIVE_PIN_DAVID, "david"],
+      [LIVE_PIN_HALEY, "haley"],
+      [LIVE_PIN_MOTHER_IN_LAW, "shelly"],
     ],
   );
   assert.deepEqual(plan.mismatches, []);
+  assert.deepEqual(
+    APPROVED_PIN_LINKS.map((row) => [row.pinAccountId, row.expectedAccountName, row.personId]),
+    [
+      [LIVE_PIN_DAVID, "David", "david"],
+      [LIVE_PIN_HALEY, "Haley", "haley"],
+      [LIVE_PIN_MOTHER_IN_LAW, "Mother in law", "shelly"],
+    ],
+  );
+});
+
+test("pre-recovery PinAccount ids are not in the approved snapshot", () => {
+  const approvedIds = APPROVED_PIN_LINKS.map((row) => row.pinAccountId);
+  for (const staleId of STALE_PRE_RECOVERY_PIN_IDS) {
+    assert.equal(approvedIds.includes(staleId), false);
+  }
+});
+
+test("stale PinAccount ids mismatch and stop the write", () => {
+  const plan = planApprovedPinLinks([
+    { id: STALE_PRE_RECOVERY_PIN_IDS[0], name: "David", linkedPersonId: null },
+    { id: STALE_PRE_RECOVERY_PIN_IDS[1], name: "Haley", linkedPersonId: null },
+    { id: STALE_PRE_RECOVERY_PIN_IDS[2], name: "Mother in law", linkedPersonId: null },
+  ]);
+  assert.deepEqual(plan.updates, []);
+  assert.equal(plan.mismatches.length, 3);
   assert.equal(
-    APPROVED_PIN_LINKS.every((row) => row.pinAccountId.startsWith("cmt")),
+    plan.mismatches.every((line) => line.startsWith("missing PinAccount ")),
+    true,
+  );
+});
+
+test("live PinAccount id with the wrong name stops the write", () => {
+  const plan = planApprovedPinLinks([
+    { id: LIVE_PIN_DAVID, name: "Not David", linkedPersonId: null },
+    { id: LIVE_PIN_HALEY, name: "Haley", linkedPersonId: null },
+    { id: LIVE_PIN_MOTHER_IN_LAW, name: "Mother in law", linkedPersonId: null },
+  ]);
+  assert.equal(plan.updates.some((row) => row.pinAccountId === LIVE_PIN_DAVID), false);
+  assert.equal(
+    plan.mismatches.some((line) => line.includes(LIVE_PIN_DAVID) && line.includes("Not David")),
     true,
   );
 });
@@ -148,7 +195,7 @@ test("David, Haley, and Mother-in-law link by exact PinAccount id", () => {
 test("no PinAccount is linked by name matching", () => {
   const decoy = [
     { id: "other-david", name: "David", linkedPersonId: null },
-    { id: "cmtnslqbt0000js87zguxlq64", name: "David", linkedPersonId: null },
+    { id: LIVE_PIN_DAVID, name: "David", linkedPersonId: null },
   ];
   const plan = planApprovedPinLinks(decoy);
   assert.equal(plan.updates.some((row) => row.pinAccountId === "other-david"), false);
