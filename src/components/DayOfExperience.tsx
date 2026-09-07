@@ -472,14 +472,17 @@ export function DayOfExperience({
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
-    if (source.freezeClock) return;
+    if (source.freezeClock) {
+      setNow(null);
+      return;
+    }
     const tick = () => setNow(new Date());
     tick();
     const id = window.setInterval(tick, CLOCK_INTERVAL_MS);
     return () => window.clearInterval(id);
   }, [source.freezeClock]);
 
-  const view = now ? viewFromExperienceSource(source, now) : initialView;
+  const view = source.freezeClock || !now ? initialView : viewFromExperienceSource(source, now);
 
   return (
     <div className="pb-6">
