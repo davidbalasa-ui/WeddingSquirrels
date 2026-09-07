@@ -67,6 +67,10 @@ export async function openPreviewPreset(page: Page, label: string) {
   await page.waitForURL((url) => url.href !== previous);
 }
 
+export function certName(suffix: string) {
+  return `CERT-WS ${suffix} ${Date.now()}`;
+}
+
 export async function countVisibleTitles(page: Page, titles: string[]) {
   if (titles[0]) {
     await expect(page.getByText(titles[0], { exact: true }).first()).toBeVisible();

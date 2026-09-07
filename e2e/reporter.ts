@@ -1,3 +1,4 @@
+import { coverageStats, DISCOVERED_ROUTES, kindStats, type ControlKind } from "./inventory";
 import { mkdirSync, writeFileSync } from "node:fs";
 import type { FullConfig, FullResult, Reporter, Suite, TestCase, TestResult } from "@playwright/test/reporter";
 
@@ -12,12 +13,19 @@ type Row = {
 const FILE_SUITE: Record<string, string> = {
   "routes.spec.ts": "ROUTES / NAVIGATION",
   "interactions.spec.ts": "CORE INTERACTIONS",
+  "today.spec.ts": "TODAY",
+  "people.spec.ts": "PEOPLE",
+  "plan.spec.ts": "PLAN",
+  "money.spec.ts": "MONEY",
+  "more.spec.ts": "MORE",
   "data.spec.ts": "DATA INTEGRITY",
   "day-of.spec.ts": "DAY OF",
   "offline.spec.ts": "OFFLINE",
   "print.spec.ts": "PRINT CENTER",
   "permissions.spec.ts": "PERMISSIONS",
   "mobile.spec.ts": "MOBILE",
+  "writes.spec.ts": "CREATE / EDIT / SAVE / CANCEL / DELETE",
+  "crawl.spec.ts": "INVENTORY CRAWL",
 };
 
 function fileName(path: string) {
@@ -61,6 +69,31 @@ class CertificationReporter implements Reporter {
       const label = bad ? "FAIL" : ok ? "PASS" : "NOT RUN";
       return `${suite}\n${label} ${ok}/${items.length}${skip ? ` (${skip} not run)` : ""}`;
     });
+    const kinds: ControlKind[] = [
+      "route",
+      "navigation",
+      "create",
+      "edit",
+      "save",
+      "cancel",
+      "delete",
+      "filter",
+      "dialog",
+      "day",
+      "people",
+      "plan",
+      "money",
+      "more",
+      "print",
+      "offline",
+      "permissions",
+      "mobile",
+    ];
+    const coverage = coverageStats();
+    const kindLines = kinds.map((kind) => {
+      const row = kindStats(kind);
+      return `${kind.toUpperCase()}\n${row.automated}/${row.total}`;
+    });
     const report = {
       status: result.status,
       workers: this.workers,
@@ -70,6 +103,13 @@ class CertificationReporter implements Reporter {
       notRun,
       total: this.rows.length,
       fullReleaseCertification: failed === 0 && passed > 0 ? "PASS" : "FAIL",
+      interactionCoverage: {
+        percent: coverage.percent,
+        automated: coverage.automated,
+        notCovered: coverage.notCovered,
+        total: coverage.total,
+        routesDiscovered: DISCOVERED_ROUTES.length,
+      },
       rows: this.rows,
     };
     mkdirSync("test-artifacts", { recursive: true });
@@ -83,6 +123,9 @@ class CertificationReporter implements Reporter {
       `Elapsed: ${(elapsedMs / 1000).toFixed(1)}s`,
       `Passed ${passed} / failed ${failed} / not-run ${notRun} / total ${this.rows.length}`,
       "",
+      `INTERACTION COVERAGE: ${coverage.percent}% (${coverage.automated}/${coverage.total} controls)`,
+      "",
+      ...kindLines.flatMap((line) => [line, ""]),
       ...suiteLines.flatMap((line) => [line, ""]),
       "## Items",
       "",

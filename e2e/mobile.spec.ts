@@ -10,6 +10,11 @@ test.describe("mobile smoke", () => {
 
     await clickPrimaryNav(page, "Plan");
     await expect(page).toHaveURL(/\/plan/);
+    await clickPrimaryNav(page, "Money");
+    await expect(page).toHaveURL(/\/money/);
+    await clickPrimaryNav(page, "More");
+    await expect(page).toHaveURL(/\/more/);
+    await expect(page.getByRole("link", { name: "Open offline copy" })).toBeVisible();
 
     await clickPrimaryNav(page, "People");
     await expect(page.getByLabel("Search people")).toBeVisible();
@@ -22,6 +27,9 @@ test.describe("mobile smoke", () => {
     await page.getByTestId("print-preset-packet").click();
     await expect(page.getByTestId("print-preset-packet")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("print-save-pdf")).toBeVisible();
+
+    await page.goto("/more");
+    await expect(page.getByRole("link", { name: "Open offline copy" })).toBeVisible();
 
     for (const label of PRIMARY_NAV) {
       await expect(page.locator("nav[aria-label='Primary']").getByRole("link", { name: label, exact: true })).toBeVisible();

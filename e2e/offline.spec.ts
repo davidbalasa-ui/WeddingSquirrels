@@ -49,6 +49,14 @@ test.describe("offline critical path", () => {
     await stayTab.click();
     await expect(page.getByText(/Bed|Stay|Airbnb|Haley|David/i).first()).toBeVisible();
 
+    for (const name of ["Home", "Assignments", "Guests", "Money", "Ask"]) {
+      const tab = page.getByRole("button", { name: new RegExp(`^${name}`) });
+      if (await tab.count()) await tab.click();
+    }
+
+    const tel = page.locator('a[href^="tel:"]');
+    if (await tel.count()) expect(await tel.first().getAttribute("href")).toMatch(/^tel:/);
+
     await context.setOffline(true);
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: /WeddingSquirrels · Offline/i })).toBeVisible();

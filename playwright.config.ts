@@ -9,6 +9,8 @@ const DATABASE_URL =
   process.env.CERT_DATABASE_URL ||
   "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable";
 
+process.env.CERT_DATABASE_URL = DATABASE_URL;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -46,7 +48,16 @@ export default defineConfig({
     {
       name: "desktop",
       use: { ...devices["Desktop Chrome"], channel: process.env.CERT_USE_BUNDLED_CHROMIUM === "1" ? undefined : "chrome", viewport: { width: 1280, height: 900 } },
-      testIgnore: ["mobile.spec.ts", "permissions.spec.ts"],
+      testIgnore: ["mobile.spec.ts", "permissions.spec.ts", "writes.spec.ts"],
+    },
+    {
+      name: "writes",
+      fullyParallel: false,
+      workers: 1,
+      timeout: 60_000,
+      dependencies: ["desktop"],
+      testMatch: ["writes.spec.ts"],
+      use: { ...devices["Desktop Chrome"], channel: process.env.CERT_USE_BUNDLED_CHROMIUM === "1" ? undefined : "chrome", viewport: { width: 1280, height: 900 } },
     },
     {
       name: "restricted",

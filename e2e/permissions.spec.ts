@@ -20,6 +20,13 @@ test.describe("permissions and privacy", () => {
     const text = await page.locator("body").innerText();
     expect(SECRET_LEAK.test(text)).toBeFalsy();
     expect(text).not.toMatch(/pinHash/);
+
+    await page.goto("/people");
+    await expect(page.getByRole("link", { name: /Day-of/ })).toHaveCount(0);
+    await page.goto("/plan");
+    await expect(page.getByRole("navigation", { name: "Wedding plan" }).getByRole("link", { name: /Wedding Day/ })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Wedding plan" }).getByRole("link", { name: /Tasks/ })).toBeVisible();
+    await expect(page.locator("nav[aria-label='Primary']").getByRole("link", { name: "Plan", exact: true })).toBeVisible();
     guards.assertClean();
   });
 });

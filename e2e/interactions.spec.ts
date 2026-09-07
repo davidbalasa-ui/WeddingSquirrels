@@ -47,7 +47,10 @@ test.describe("core interactions", () => {
     await page.getByRole("button", { name: "Review" }).click();
 
     await page.getByRole("link", { name: "← Plan" }).click();
-    await page.getByRole("link", { name: /Rehearsal/ }).click();
+    await expect(page).toHaveURL(/\/plan$/);
+    const rehearsal = page.getByRole("navigation", { name: "Wedding plan" }).getByRole("link", { name: /Rehearsal/ });
+    await expect(rehearsal).toBeVisible();
+    await rehearsal.click();
     await expect(page).toHaveURL(/\/plan\/rehearsal/);
     await expect(page.getByRole("heading", { name: /Rehearsal/ })).toBeVisible();
 

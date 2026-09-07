@@ -1,8 +1,10 @@
 # WeddingSquirrels release certification
 
-Small Playwright suite that answers: **does the app actually work?**
+Inventory-driven Playwright suite that answers: **does WeddingSquirrels actually work?**
 
-It complements `npx tsc --noEmit`, `npm test`, and `npm run build`. It is not exhaustive QA.
+It complements `npx tsc --noEmit`, `npm test`, and `npm run build`.
+
+Full control catalog: `docs/release-interaction-inventory.md`.
 
 ## How to run
 
@@ -25,14 +27,21 @@ Override with `CERT_BASE_URL`, `CERT_DATABASE_URL`, `CERT_PORT`, or `CERT_WORKER
 
 | Suite | Spec | What it certifies |
 | --- | --- | --- |
-| ROUTES / NAVIGATION | `e2e/routes.spec.ts` | Authenticated routes load; TODAY/PLAN/PEOPLE/MONEY/MORE clicks |
-| CORE INTERACTIONS | `e2e/interactions.spec.ts` | People tabs/search/profile, money detail, cancel add-contract, Plan chapters, timeline Review/Edit, rehearsal, More → Print, day assignments, shopping add/cancel |
-| DATA INTEGRITY | `e2e/data.spec.ts` | Money fingerprint, 19+7 timeline, contacts/Wendy/Kurt roles, unassigned jobs, shopping when present, tasks in Print Center |
-| DAY OF | `e2e/day-of.spec.ts` | Preview Time 10:42 / ceremony / dinner / dancing / teardown; planning-mode full schedule; Need Someone |
+| ROUTES / NAVIGATION | `e2e/routes.spec.ts` | Authenticated hubs, aliases, skip, logout, primary nav |
+| INVENTORY CRAWL | `e2e/crawl.spec.ts` | Same-origin links stay inside the inventoried route set |
+| TODAY | `e2e/today.spec.ts` | Pulse, attention/waiting/coming-up, compose cancel, inbox filters |
+| PEOPLE | `e2e/people.spec.ts` | Tabs, search, identity, profiles, guests, role cancel, subpages |
+| PLAN | `e2e/plan.spec.ts` | Hub chapters, tasks, timeline, rehearsal, stay, shopping, calendar |
+| MONEY | `e2e/money.spec.ts` | Due, history, print, contract detail cancel, add-contract cancel |
+| MORE | `e2e/more.spec.ts` | Cards plus Accounts dialogs close without writing PINs |
+| CORE INTERACTIONS | `e2e/interactions.spec.ts` | Shared People/Money/Plan/Day/Shopping smoke that predates the split specs |
+| DATA INTEGRITY | `e2e/data.spec.ts` | Money fingerprint, 19+7 timeline, contacts/Wendy/Kurt roles, unassigned jobs |
+| DAY OF | `e2e/day-of.spec.ts` | Preview Time 10:42 / ceremony / dinner / dancing / teardown; planning; Need Someone |
+| WRITES | `e2e/writes.spec.ts` | Disposable create/edit/save/cancel/delete on shopping, assignments, timeline, stay, tasks, money |
 | OFFLINE | `e2e/offline.spec.ts` | Save pack online, open `/offline`, Day-of · 19, contacts/timeline/stay/shopping, reload while offline |
-| PRINT CENTER | `e2e/print.spec.ts` | Full Binder vs Day-of Packet, toggles, canonical rows, Money totals, `window.print`, print CSS hides chrome |
-| PERMISSIONS | `e2e/permissions.spec.ts` | Restricted PIN cannot open money or day-of; UI does not render pinHash/DB URLs |
-| MOBILE | `e2e/mobile.spec.ts` | `/today` `/day` `/people` `/print` and primary nav on a phone viewport |
+| PRINT CENTER | `e2e/print.spec.ts` | Full Binder vs Day-of Packet, every section toggle, canonical rows, `window.print` |
+| PERMISSIONS | `e2e/permissions.spec.ts` | Restricted PIN cannot open money or day-of; hidden chrome; no secret leak |
+| MOBILE | `e2e/mobile.spec.ts` | Critical hubs + primary nav on a phone viewport |
 
 ## Requirements
 
@@ -61,6 +70,13 @@ Latest PASS / FAIL / NOT RUN for each row is written by the Playwright reporter 
 | Full Binder + Day-of Packet presets, toggles, print, print CSS | `e2e/print.spec.ts` | see last run |
 | Restricted PIN cannot open money or day-of; no secret leak | `e2e/permissions.spec.ts` | see last run |
 | Mobile smoke: `/today` `/day` `/people` `/print` + nav | `e2e/mobile.spec.ts` | see last run |
+| Inbox compose, pulse, filters | `e2e/today.spec.ts` | see last run |
+| People identity, guests, role cancel | `e2e/people.spec.ts` | see last run |
+| Plan chapter + chapter-page controls | `e2e/plan.spec.ts` | see last run |
+| Money due / history / print / detail cancel | `e2e/money.spec.ts` | see last run |
+| More cards + Accounts dialogs | `e2e/more.spec.ts` | see last run |
+| Disposable CRUD lifecycles | `e2e/writes.spec.ts` | see last run |
+| Crawl finds no silent routes | `e2e/crawl.spec.ts` | see last run |
 
 ## Status
 

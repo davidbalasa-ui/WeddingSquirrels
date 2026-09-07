@@ -17,6 +17,11 @@ test.describe("day of", () => {
     await expect(main.getByRole("paragraph").filter({ hasText: /^Now$/ })).toBeVisible();
     await expect(main.getByRole("heading", { name: /Next/ })).toBeVisible();
     await expect(main.getByRole("heading", { name: /After that/ })).toBeVisible();
+    const fullDay = page.getByText("View full day");
+    if (await fullDay.count()) {
+      await fullDay.click();
+      await expect(main).toContainText("Tear down / Clean up");
+    }
     guards.assertClean();
   });
 
@@ -53,11 +58,49 @@ test.describe("day of", () => {
     const guards = await attachPageGuards(page);
     await page.goto("/day");
     await expect(page.getByText("Need someone?")).toBeVisible();
+    const call = page.locator('#main-content a[href^="tel:"]').first();
+    if (await call.count()) {
+      expect(await call.getAttribute("href")).toMatch(/^tel:/);
+    }
+    const mail = page.locator('#main-content a[href^="mailto:"]');
+    if (await mail.count()) {
+      expect(await mail.first().getAttribute("href")).toMatch(/^mailto:/);
+    }
     const body = await page.locator("body").innerText();
     for (const name of DAY_OF_CONTACTS) {
       expect(body).toContain(name.split(" · ")[0]!);
     }
     expect(body).toContain("Wendy Rush");
+    guards.assertClean();
+  });
+
+  test("day tabs, edit-timeline link, and preview harness extras", async ({ page }) => {
+    const guards = await attachPageGuards(page);
+    await page.goto("/day");
+    await page.getByRole("navigation", { name: "Day-of pages" }).getByRole("link", { name: "Contacts" }).click();
+    await expect(page).toHaveURL(/tab=day-of/);
+    await page.goto("/day");
+    await page.getByRole("navigation", { name: "Day-of pages" }).getByRole("link", { name: "Assignments" }).click();
+    await expect(page).toHaveURL(/\/day\/assignments/);
+    await page.getByRole("navigation", { name: "Day-of pages" }).getByRole("link", { name: "Day", exact: true }).click();
+    await expect(page).toHaveURL(/\/day/);
+    await page.getByRole("link", { name: "Edit timeline in Plan" }).click();
+    await expect(page).toHaveURL(/\/plan\/timeline/);
+
+    await page.goto("/day");
+    const details = page.locator("details.preview-time-control");
+    await expect(details).toBeVisible();
+    const isOpen = await details.evaluate((el) => (el as HTMLDetailsElement).open);
+    if (!isOpen) await details.locator("summary").click();
+    await details.locator("#preview-time-custom").fill("2026-10-16T15:35");
+    await details.getByRole("button", { name: "Apply" }).click();
+    await expect(page).toHaveURL(/asOf=/);
+    const detailsAfter = page.locator("details.preview-time-control");
+    const openAfter = await detailsAfter.evaluate((el) => (el as HTMLDetailsElement).open);
+    if (!openAfter) await detailsAfter.locator("summary").click();
+    await detailsAfter.getByText(/19-row sample timeline/).click();
+    await expect(page).toHaveURL(/fixture=/);
+    await detailsAfter.getByRole("button", { name: "Clear preview" }).click();
     guards.assertClean();
   });
 });

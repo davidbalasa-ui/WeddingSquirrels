@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { PRINT_SECTION_IDS } from "../src/lib/print-center";
 import { MONEY, REHEARSAL_TITLES, WEDDING_TITLES } from "./expected";
 import { attachPageGuards, countVisibleTitles, expectNoSecrets } from "./helpers";
 
@@ -37,6 +38,25 @@ test.describe("print center", () => {
     await page.locator('[data-print-section="money"]').check();
     await expect(binder).toContainText(MONEY.committed);
     await page.locator('[data-print-section="money"]').uncheck();
+
+    await page.getByTestId("print-preset-binder").click();
+    for (const id of PRINT_SECTION_IDS) {
+      const box = page.locator(`[data-print-section="${id}"]`);
+      if ((await box.count()) === 0) continue;
+      const wasChecked = await box.isChecked();
+      if (wasChecked) {
+        await box.uncheck();
+        await expect(box).not.toBeChecked();
+        await box.check();
+        await expect(box).toBeChecked();
+      } else {
+        await box.check();
+        await expect(box).toBeChecked();
+        await box.uncheck();
+        await expect(box).not.toBeChecked();
+      }
+    }
+    await page.getByTestId("print-preset-binder").click();
 
     await page.evaluate(() => {
       (window as Window & { __printCalls?: number }).__printCalls = 0;

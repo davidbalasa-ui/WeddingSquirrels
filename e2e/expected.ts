@@ -71,8 +71,32 @@ export const AUTH_ROUTES: Array<{ path: string; expect: RegExp }> = [
   { path: "/plan/shopping", expect: /Shopping/ },
   { path: "/plan/calendar", expect: /Calendar/ },
   { path: "/money", expect: /Committed|Know what we’ve committed|Know what we've committed/i },
+  { path: "/money/due", expect: /Due|Nothing is due|Nothing coming due/i },
+  { path: "/money/history", expect: /History|No payments recorded|paid/i },
+  { path: "/money/print", expect: /Print|Committed|Money/i },
   { path: "/print", expect: /Wedding Binder & Print/i },
   { path: "/more", expect: /More|Wedding Binder & Print|Offline/i },
+  { path: "/accounts", expect: /Accounts|Add account/i },
+  { path: "/people/vendors", expect: /Vendor|People|Search/i },
+  { path: "/guests/print", expect: /Gift|Guest|Print/i },
 ];
+
+export const ALIAS_ROUTES: Array<{ path: string; expectPath: RegExp }> = [
+  { path: "/home", expectPath: /\/today/ },
+  { path: "/requests", expectPath: /\/today/ },
+  { path: "/shop", expectPath: /\/plan\/shopping/ },
+  { path: "/stay", expectPath: /\/plan\/stay/ },
+  { path: "/calendar", expectPath: /\/plan\/calendar/ },
+  { path: "/rehearsal", expectPath: /\/plan\/rehearsal/ },
+  { path: "/dinner", expectPath: /\/(plan\/)?rehearsal/ },
+  { path: "/guests", expectPath: /\/people/ },
+  { path: "/people/guests", expectPath: /\/people/ },
+  { path: "/people/contacts", expectPath: /\/people/ },
+  { path: "/people/responsibilities", expectPath: /\/day\/assignments/ },
+  { path: "/day/now", expectPath: /\/day/ },
+  { path: "/day/contacts", expectPath: /\/people/ },
+];
+
+export const CERT_PREFIX = "CERT-WS";
 
 export const SECRET_LEAK = /pinHash|DATABASE_URL|PIN_SESSION_SECRET|postgres:\/\//;
