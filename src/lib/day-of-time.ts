@@ -11,6 +11,11 @@ export function parseTimelineSchedule(value: string | null | undefined): Timelin
   return value === "rehearsal" ? "rehearsal" : "wedding";
 }
 
+/** Wedding-day rows only. Rehearsal stays available on its own schedule. */
+export function weddingTimelineRows<T extends { schedule?: string | null }>(rows: T[]): T[] {
+  return rows.filter((row) => parseTimelineSchedule(row.schedule) === "wedding");
+}
+
 export type ParsedDayOfTime =
   | { kind: "untimed"; raw: string }
   | {

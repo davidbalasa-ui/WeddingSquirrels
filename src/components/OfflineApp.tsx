@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { OfflineDayOfPanel } from "@/components/OfflineDayOfPanel";
+import { weddingTimelineRows } from "@/lib/day-of-time";
 import { formatFetchedAt, loadOfflinePack, type OfflinePack } from "@/lib/offline-db";
 
 type TabId =
@@ -129,7 +130,8 @@ export function OfflineApp() {
     if (!pack || pack === "loading") return [];
     const available: { id: TabId; label: string; count: number }[] = [];
     if (asTasks(pack).length) available.push({ id: "tasks", label: "Home", count: asTasks(pack).length });
-    if (asTimeline(pack).length) available.push({ id: "day", label: "Day-of", count: asTimeline(pack).length });
+    const weddingBlocks = weddingTimelineRows(asTimeline(pack));
+    if (weddingBlocks.length) available.push({ id: "day", label: "Day-of", count: weddingBlocks.length });
     if (asContacts(pack).length) available.push({ id: "contacts", label: "Contacts", count: asContacts(pack).length });
     if (asAssignments(pack).length)
       available.push({ id: "assignments", label: "Assignments", count: asAssignments(pack).length });

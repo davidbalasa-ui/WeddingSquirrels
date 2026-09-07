@@ -352,6 +352,32 @@ test("contacts prefer isDayOfContact then stored sortOrder, never name guesses",
   assert.equal(contacts[0]?.context, "Photographer");
 });
 
+test("Need Someone includes every flagged day-of contact, including a seventh Wendy row", () => {
+  const contacts = pickDayOfContacts([
+    { id: "c0", name: "Avalon Green · Planner", sortOrder: 0, isDayOfContact: true, phone: "1", email: null },
+    { id: "c1", name: "Black Sheep Shelter · Venue", sortOrder: 1, isDayOfContact: true, phone: "2", email: null },
+    { id: "c2", name: "Barry Tilson · Photographer", sortOrder: 2, isDayOfContact: true, phone: "3", email: null },
+    { id: "c3", name: "Belle Genton · Videographer", sortOrder: 3, isDayOfContact: true, phone: "4", email: null },
+    { id: "c4", name: "Precious Peony · Caterer", sortOrder: 4, isDayOfContact: true, phone: null, email: "a@b.c" },
+    { id: "c5", name: "Shelly Wiewiora", sortOrder: 5, isDayOfContact: true, phone: "5", email: null },
+    { id: "c6", name: "Wendy Rush", sortOrder: 6, isDayOfContact: true, phone: "6", email: null },
+    { id: "c7", name: "Belle Genton +1", sortOrder: 7, isDayOfContact: false, phone: null, email: null },
+  ]);
+  assert.equal(contacts.length, 7);
+  assert.deepEqual(
+    contacts.map((row) => row.name),
+    [
+      "Avalon Green · Planner",
+      "Black Sheep Shelter · Venue",
+      "Barry Tilson · Photographer",
+      "Belle Genton · Videographer",
+      "Precious Peony · Caterer",
+      "Shelly Wiewiora",
+      "Wendy Rush",
+    ],
+  );
+});
+
 test("one active block still fills nowBlocks as a single-item group", () => {
   const pos = positionAt("2026-10-16T13:10:00");
   assert.equal(pos.kind, "during");
