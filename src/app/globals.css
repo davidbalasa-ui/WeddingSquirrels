@@ -480,4 +480,152 @@ a {
   .gift-print-table td:last-child {
     width: 42%;
   }
+
+  @page {
+    size: letter;
+    margin: 0.7in;
+    @bottom-center {
+      content: counter(page);
+      font-size: 9pt;
+      color: #5c574f;
+    }
+  }
+
+  .binder-title {
+    break-after: page;
+  }
+
+  .binder-section {
+    break-before: page;
+  }
+
+  .binder-card,
+  .binder-cues li,
+  .binder-table tr {
+    break-inside: avoid;
+  }
+
+  .binder-section h2,
+  .binder-section h3 {
+    break-after: avoid;
+  }
+}
+
+.binder-doc {
+  color: #1c1916;
+  background: #fff;
+}
+
+.binder-title {
+  padding: 2.5rem 0 2rem;
+  border-bottom: 1px solid #d9d2c6;
+}
+
+.binder-kicker {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #5c574f;
+}
+
+.binder-title h1 {
+  margin-top: 0.75rem;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 2.4rem;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.binder-date {
+  margin-top: 0.75rem;
+  font-size: 1.05rem;
+}
+
+.binder-section {
+  padding-top: 1.75rem;
+}
+
+.binder-section h2 {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.65rem;
+  line-height: 1.15;
+  margin-bottom: 0.85rem;
+}
+
+.binder-section h3 {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.1rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.binder-lede,
+.binder-note,
+.binder-music {
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #3f3a34;
+}
+
+.binder-spoken {
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-top: 0.35rem;
+}
+
+.binder-time,
+.binder-item-title {
+  font-weight: 650;
+}
+
+.binder-time {
+  color: #2f5d50;
+  font-size: 0.92rem;
+}
+
+.binder-card {
+  padding: 0.7rem 0;
+  border-bottom: 1px solid #ece7de;
+}
+
+.binder-list,
+.binder-timeline,
+.binder-cues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.binder-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #ece7de;
+}
+
+.binder-unassigned {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.binder-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.binder-table th,
+.binder-table td {
+  text-align: left;
+  padding: 0.4rem 0.45rem 0.4rem 0;
+  border-bottom: 1px solid #ece7de;
+  vertical-align: top;
+}
+
+.binder-block {
+  margin-bottom: 1rem;
 }

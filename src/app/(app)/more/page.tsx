@@ -7,7 +7,7 @@ import { requirePageSession } from "@/lib/session";
 
 export default async function MoreHubPage() {
   const session = await requirePageSession();
-  const moreModules = modulesForNavTab(session, "more");
+  const moreModules = modulesForNavTab(session, "more").filter((item) => item.key !== "print");
   const legacyGroups = moreGroups(session);
 
   return (
@@ -34,6 +34,25 @@ export default async function MoreHubPage() {
             </div>
           </section>
         ) : null}
+
+        <section>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted">Print</p>
+          <Link
+            href="/print"
+            className="card flex items-center gap-3 p-4 transition-colors hover:bg-[var(--accent-soft)]/40"
+          >
+            <ModuleIcon name="print" className="h-6 w-6 shrink-0 text-[var(--accent)]" />
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Wedding Binder & Print</span>
+              <span className="mt-0.5 block text-sm text-muted">
+                Create a binder or day-of packet from current information.
+              </span>
+            </span>
+            <span className="text-sm text-muted" aria-hidden>
+              ›
+            </span>
+          </Link>
+        </section>
 
         <section>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted">Offline</p>

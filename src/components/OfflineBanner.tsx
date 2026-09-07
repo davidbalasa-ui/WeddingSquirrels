@@ -21,7 +21,7 @@ export function OfflineBanner() {
 
   return (
     <div
-      className="sticky top-0 z-30 -mx-4 border-b border-[var(--warn)] bg-[var(--warn-soft)] px-4 py-2 text-sm font-semibold text-[var(--warn)]"
+      className="print-hide sticky top-0 z-30 -mx-4 border-b border-[var(--warn)] bg-[var(--warn-soft)] px-4 py-2 text-sm font-semibold text-[var(--warn)]"
       role="status"
     >
       You&apos;re offline —{" "}
