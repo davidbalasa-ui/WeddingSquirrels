@@ -37,7 +37,7 @@ Override with `CERT_BASE_URL`, `CERT_DATABASE_URL`, `CERT_PORT`, or `CERT_WORKER
 | CORE INTERACTIONS | `e2e/interactions.spec.ts` | Shared People/Money/Plan/Day/Shopping smoke that predates the split specs |
 | DATA INTEGRITY | `e2e/data.spec.ts` | Money fingerprint, 19+7 timeline, contacts/Wendy/Kurt roles, unassigned jobs |
 | DAY OF | `e2e/day-of.spec.ts` | Preview Time 10:42 / ceremony / dinner / dancing / teardown; planning; Need Someone |
-| WRITES | `e2e/writes.spec.ts` | Disposable create/edit/save/cancel/delete on shopping, assignments, timeline, stay, tasks, money |
+| WRITES | `e2e/writes.spec.ts` | Disposable create/edit/save/cancel/delete plus timeline drag-reorder, meal menu, and leave-without-save |
 | OFFLINE | `e2e/offline.spec.ts` | Save pack online, open `/offline`, Day-of · 19, contacts/timeline/stay/shopping, reload while offline |
 | PRINT CENTER | `e2e/print.spec.ts` | Full Binder vs Day-of Packet, every section toggle, canonical rows, `window.print` |
 | PERMISSIONS | `e2e/permissions.spec.ts` | Restricted PIN cannot open money or day-of; hidden chrome; no secret leak |

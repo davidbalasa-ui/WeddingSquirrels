@@ -6,11 +6,11 @@ TOTAL USER-FACING ROUTES DISCOVERED: **44**
 
 TOTAL MEANINGFUL CONTROLS INVENTORIED: **86**
 
-AUTOMATED CONTROLS: **75**
+AUTOMATED CONTROLS: **78**
 
-NOT COVERED CONTROLS: **11**
+NOT COVERED CONTROLS: **8**
 
-INTERACTION COVERAGE: **87%**
+INTERACTION COVERAGE: **91%**
 
 Repeated identical row actions are inventoried once as a shared pattern.
 
@@ -63,14 +63,14 @@ Repeated identical row actions are inventoried once as a shared pattern.
 | `plan-task-open` | /plan/tasks | Open task workspace | Task card opens /work/{id} | plan.spec.ts · tasks | AUTOMATED |
 | `plan-task-save` | /work/{id} | Save decision / complete checkbox | Disposable edit then restore | writes.spec.ts · task workspace | AUTOMATED |
 | `plan-task-delete` | /work/{id} | Delete task | No delete control exists in the workspace | — | NOT COVERED — App has no task-delete control |
-| `plan-task-cancel` | /work/{id} | Cancel workspace | Workspace persists on Save only; no Cancel button | — | NOT COVERED — No cancel control; leave-without-save is the browser back |
+| `plan-task-cancel` | /work/{id} | Leave without save | Change workspace notes, leave via Back, original persists | writes.spec.ts · leave without save | AUTOMATED |
 | `plan-timeline-toggle` | /plan/timeline | Review / Edit | Toggles edit mode and + Add moment | plan.spec.ts · timeline | AUTOMATED |
 | `plan-timeline-count` | /plan/timeline | 19 wedding rows | Canonical titles present | data.spec.ts · Timeline | AUTOMATED |
 | `plan-timeline-crud` | /plan/timeline | Add / Discard / Delete disposable block | CERT block created then removed | writes.spec.ts · timeline | AUTOMATED |
-| `plan-timeline-reorder` | /plan/timeline | Drag handle reorder | Reorders same-time peers | — | NOT COVERED — Pointer drag of same-start peers is not a distinct user-facing destination; skip to keep the suite fast |
+| `plan-timeline-reorder` | /plan/timeline | Drag handle reorder | Pointer-drags same-start CERT peers and persists the new order | writes.spec.ts · timeline drag | AUTOMATED |
 | `plan-rehearsal` | /plan/rehearsal | 7 rehearsal rows + empty dinner | Dinner before rehearsal; truthful empty menu | plan.spec.ts · rehearsal | AUTOMATED |
 | `plan-rehearsal-edit` | /plan/rehearsal | Walkthrough Review/Edit | Edit exposes + Add moment | plan.spec.ts · rehearsal | AUTOMATED |
-| `plan-rehearsal-menu-write` | /plan/rehearsal | Add course / dish / publish menu | Would mutate shared dinner board | — | NOT COVERED — Menu is unpublished/empty; creating courses would invent product dinner data. Empty state is certified instead |
+| `plan-rehearsal-menu-write` | /plan/rehearsal | Add course / dish / publish menu | Disposable course + dish, blur-save, publish toggle, then remove | writes.spec.ts · meal menu | AUTOMATED |
 | `plan-stay` | /plan/stay | Stay slots | Slots and occupants render | plan.spec.ts · stay | AUTOMATED |
 | `plan-stay-note` | /plan/stay | Add / remove bathroom note | Disposable note create + delete | writes.spec.ts · stay note | AUTOMATED |
 | `plan-stay-occupant-cancel` | /plan/stay | Occupant restore | Change an empty/optional field then restore original | writes.spec.ts · stay note | AUTOMATED |
@@ -110,9 +110,6 @@ Repeated identical row actions are inventoried once as a shared pattern.
 - **Delete person** (`people-delete-canonical`): Must not delete canonical wedding people; no disposable Person fixture is created here
 - **Take picture** (`people-guest-photo-camera`): Device camera cannot be operated in this runner
 - **Delete task** (`plan-task-delete`): App has no task-delete control
-- **Cancel workspace** (`plan-task-cancel`): No cancel control; leave-without-save is the browser back
-- **Drag handle reorder** (`plan-timeline-reorder`): Pointer drag of same-start peers is not a distinct user-facing destination; skip to keep the suite fast
-- **Add course / dish / publish menu** (`plan-rehearsal-menu-write`): Menu is unpublished/empty; creating courses would invent product dinner data. Empty state is certified instead
 - **Add / edit / delete event** (`plan-cal-crud`): Calendar UI is read-only; events are seeded
 - **Save / Delete PIN account** (`accounts-pin-write`): Shared local auth fixtures must stay stable; dialogs are certified instead
 - **Native print dialog** (`print-os-dialog`): Native dialog cannot be driven; window.print invocation is certified

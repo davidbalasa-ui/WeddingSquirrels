@@ -156,16 +156,16 @@ export const CONTROLS: InventoryControl[] = [
   auto("plan-task-open", "/plan/tasks", "Open task workspace", "Task card opens /work/{id}", ["plan", "navigation"], "plan.spec.ts · tasks"),
   auto("plan-task-save", "/work/{id}", "Save decision / complete checkbox", "Disposable edit then restore", ["edit", "save", "plan"], "writes.spec.ts · task workspace"),
   skip("plan-task-delete", "/work/{id}", "Delete task", "No delete control exists in the workspace", ["delete", "plan"], "App has no task-delete control"),
-  skip("plan-task-cancel", "/work/{id}", "Cancel workspace", "Workspace persists on Save only; no Cancel button", ["cancel", "plan"], "No cancel control; leave-without-save is the browser back"),
+  auto("plan-task-cancel", "/work/{id}", "Leave without save", "Change workspace notes, leave via Back, original persists", ["cancel", "plan"], "writes.spec.ts · leave without save"),
 
   auto("plan-timeline-toggle", "/plan/timeline", "Review / Edit", "Toggles edit mode and + Add moment", ["edit", "plan"], "plan.spec.ts · timeline"),
   auto("plan-timeline-count", "/plan/timeline", "19 wedding rows", "Canonical titles present", ["plan"], "data.spec.ts · Timeline"),
   auto("plan-timeline-crud", "/plan/timeline", "Add / Discard / Delete disposable block", "CERT block created then removed", ["create", "cancel", "delete", "plan"], "writes.spec.ts · timeline"),
-  skip("plan-timeline-reorder", "/plan/timeline", "Drag handle reorder", "Reorders same-time peers", ["edit", "plan"], "Pointer drag of same-start peers is not a distinct user-facing destination; skip to keep the suite fast"),
+  auto("plan-timeline-reorder", "/plan/timeline", "Drag handle reorder", "Pointer-drags same-start CERT peers and persists the new order", ["edit", "plan"], "writes.spec.ts · timeline drag"),
 
   auto("plan-rehearsal", "/plan/rehearsal", "7 rehearsal rows + empty dinner", "Dinner before rehearsal; truthful empty menu", ["plan"], "plan.spec.ts · rehearsal"),
   auto("plan-rehearsal-edit", "/plan/rehearsal", "Walkthrough Review/Edit", "Edit exposes + Add moment", ["edit", "plan"], "plan.spec.ts · rehearsal"),
-  skip("plan-rehearsal-menu-write", "/plan/rehearsal", "Add course / dish / publish menu", "Would mutate shared dinner board", ["create", "plan"], "Menu is unpublished/empty; creating courses would invent product dinner data. Empty state is certified instead"),
+  auto("plan-rehearsal-menu-write", "/plan/rehearsal", "Add course / dish / publish menu", "Disposable course + dish, blur-save, publish toggle, then remove", ["create", "save", "plan"], "writes.spec.ts · meal menu"),
 
   auto("plan-stay", "/plan/stay", "Stay slots", "Slots and occupants render", ["plan"], "plan.spec.ts · stay"),
   auto("plan-stay-note", "/plan/stay", "Add / remove bathroom note", "Disposable note create + delete", ["create", "delete", "plan"], "writes.spec.ts · stay note"),
