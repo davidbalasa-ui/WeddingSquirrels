@@ -4,12 +4,14 @@ import { MASTER_ACCOUNT_ID, RESTRICTED_ACCOUNT_ID } from "./expected";
 
 loadEnv();
 
+/** Production-like simulation used by `npm run test:cert`. Not the daily-dev `wedding` database. */
+export const CERT_SIMULATION_DATABASE_URL =
+  "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable";
+
 export function certDatabaseUrl() {
-  return (
-    process.env.CERT_DATABASE_URL ||
-    process.env.DATABASE_URL ||
-    "postgresql://wedding:wedding@127.0.0.1:5432/wedding?sslmode=disable"
-  );
+  // CERT_DATABASE_URL may override. Never fall back to DATABASE_URL from `.env`,
+  // which points at the reconstruction/dev database `wedding`.
+  return process.env.CERT_DATABASE_URL || CERT_SIMULATION_DATABASE_URL;
 }
 
 export async function resolveCertAccountIds() {
