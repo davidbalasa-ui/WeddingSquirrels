@@ -10,6 +10,7 @@ import { rsvpStatusLabel } from "@/lib/guest-gifts";
 import {
   firstName,
   omitFabricatedValue,
+  openWorkSummary,
   profileContactActions,
   profileDisplayLabel,
   profilePhotoSrc,
@@ -73,6 +74,9 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
   const stayLabel = omitFabricatedValue(profile.stayLabel);
   const mealStatus = omitFabricatedValue(profile.mealStatus);
   const gifts = profile.gifts.map((gift) => omitFabricatedValue(gift)).filter((gift): gift is string => Boolean(gift));
+  const openWorkspaces = profile.openTasks.length;
+  const openSteps = profile.openTasks.reduce((sum, task) => sum + (task.openStepCount ?? 1), 0);
+  const workSummary = openWorkSummary(openWorkspaces, openSteps);
 
   return (
     <div className="flex flex-col">
@@ -153,10 +157,12 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
               ))}
             </div>
           )}
-          {profile.completedTaskCount > 0 ? (
+          {workSummary || profile.completedTaskCount > 0 ? (
             <p className="mt-3 text-sm text-muted">
-              {profile.completedTaskCount} completed
-              {profile.openTasks.length > 0 ? ` · ${profile.openTasks.length} open` : ""}
+              {workSummary}
+              {profile.completedTaskCount > 0
+                ? `${workSummary ? " · " : ""}${profile.completedTaskCount} completed workspaces`
+                : ""}
             </p>
           ) : null}
         </section>

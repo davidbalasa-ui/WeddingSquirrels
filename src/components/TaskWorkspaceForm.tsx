@@ -14,10 +14,12 @@ export function TaskWorkspaceForm({
   task,
   people,
   canManageOwners,
+  returnTo,
 }: {
   task: TaskWorkspace;
   people: PersonOption[];
   canManageOwners: boolean;
+  returnTo: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [saveState, saveAction, saving] = useActionState(saveTaskWorkspace, {} as TaskFormState);
@@ -46,6 +48,7 @@ export function TaskWorkspaceForm({
 
       <form action={saveAction} className="card flex flex-col gap-4 p-4">
         <input type="hidden" name="id" value={task.id} />
+        <input type="hidden" name="returnTo" value={returnTo} />
 
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
@@ -98,12 +101,6 @@ export function TaskWorkspaceForm({
             </span>
           ) : null}
         </div>
-
-        {canManageOwners ? (
-          <AssigneeFields people={people} selectedIds={selectedIds} allowNew />
-        ) : (
-          <p className="text-sm text-muted">Owners: {ownerNames || "Unassigned"}</p>
-        )}
 
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
@@ -159,8 +156,21 @@ export function TaskWorkspaceForm({
             defaultChecked={task.status === "done"}
             className="h-6 w-6 accent-[var(--accent)]"
           />
-          <span className="text-sm font-semibold">Mark this decision completed</span>
+          <span className="text-sm font-semibold">Mark this whole package completed</span>
         </label>
+
+        {canManageOwners ? (
+          <details className="rounded-xl border border-line px-3 py-2">
+            <summary className="cursor-pointer text-sm font-semibold">
+              Owners · {ownerNames || "Unassigned"}
+            </summary>
+            <div className="mt-3">
+              <AssigneeFields people={people} selectedIds={selectedIds} allowNew />
+            </div>
+          </details>
+        ) : (
+          <p className="text-sm text-muted">Owners: {ownerNames || "Unassigned"}</p>
+        )}
 
         {saveState.error ? (
           <p className="text-sm text-[var(--danger)]">{saveState.error}</p>

@@ -46,4 +46,28 @@ test.describe("today", () => {
     await expect(page).toHaveURL(/done=1/);
     guards.assertClean();
   });
+
+  test("task titles open the canonical workspace and back returns to Today", async ({ page }) => {
+    const guards = await attachPageGuards(page);
+    await page.goto("/today");
+    const pulseTasks = page.getByRole("link").filter({ hasText: /Tasks/ }).filter({ hasText: /open/ });
+    if (await pulseTasks.count()) {
+      const pulseText = (await pulseTasks.first().innerText()).replace(/\s+/g, " ");
+      const pulseOpen = pulseText.match(/(\d+)/);
+      expect(pulseOpen, `today pulse copy: ${pulseText}`).toBeTruthy();
+      expect(Number(pulseOpen![1])).toBeGreaterThanOrEqual(13);
+    }
+
+    await page.goto("/today?filter=tasks");
+    const stepTitle = page.getByRole("link", { name: "Confirm week-of plans with each other" });
+    await expect(stepTitle).toBeVisible();
+    await stepTitle.click();
+    await expect(page).toHaveURL(/\/work\/.+/);
+    await expect(page).toHaveURL(/returnTo=/);
+    await expect(page.getByRole("button", { name: "Save decision" })).toBeVisible();
+    await page.getByRole("link", { name: /^← Back/ }).click();
+    await expect(page).toHaveURL(/\/today/);
+    await expect(page).toHaveURL(/filter=tasks/);
+    guards.assertClean();
+  });
 });

@@ -1,11 +1,14 @@
 import { TaskCard } from "@/components/TaskCard";
+import { PlanAddTask } from "@/components/PlanAddTask";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { PlanTaskFilters } from "@/components/PlanTaskFilters";
 import {
+  decisionsEmptyCopy,
   filterTasksForPlanView,
   parsePlanTaskView,
   summarizeVisibleTasks,
 } from "@/lib/plan";
+import { planTasksPath } from "@/lib/return-to";
 import { listOrgCards, listTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
 
@@ -27,6 +30,7 @@ export default async function PlanTasksPage({
   const view = params.done === "1" ? "done" : parsePlanTaskView(params.view);
   const now = new Date();
   const showDone = view === "done";
+  const originHref = planTasksPath(view);
 
   const [tasks, orgCards] = await Promise.all([
     listTasks(session, { showDone }),
@@ -34,14 +38,10 @@ export default async function PlanTasksPage({
   ]);
 
   const visibleTasks = filterTasksForPlanView(tasks, view, session, now);
-  const visibleOrgCards =
-    view === "open" || view === "done"
-      ? orgCards.filter((task) => (view === "done" ? task.status === "done" : task.status !== "done"))
-      : [];
-  const summary = summarizeVisibleTasks(
-    [...tasks, ...orgCards].filter((task) => task.status !== "done"),
-    now,
-  );
+  const visibleOrgCards = filterTasksForPlanView(orgCards, view, session, now);
+  const summary = summarizeVisibleTasks([...tasks, ...orgCards], now);
+  const pageEmpty = visibleTasks.length === 0 && visibleOrgCards.length === 0;
+  const showGlobalDone = view === "open" && pageEmpty && summary.open === 0;
 
   const subtitle =
     view === "open" && summary.open > 0
@@ -55,45 +55,44 @@ export default async function PlanTasksPage({
   return (
     <>
       <PlanChapterHeader title="Tasks" subtitle={subtitle} />
+      <PlanAddTask returnTo={originHref} />
       <PlanTaskFilters active={view} />
 
-      {visibleOrgCards.length > 0 ? (
-        <section className="mb-8">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-            Wedding week
-          </p>
-          <div className="divide-y divide-[var(--line)] border-b border-t border-[var(--line)]">
-            {visibleOrgCards.map((task) => (
-              <TaskCard key={task.id} task={task} />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      {showGlobalDone ? (
+        <p className="border-t border-[var(--line)] py-6 text-base text-muted">Everything is done.</p>
+      ) : (
+        <>
+          {visibleOrgCards.length > 0 ? (
+            <section className="mb-8">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+                Wedding week
+              </p>
+              <div className="divide-y divide-[var(--line)] border-b border-t border-[var(--line)]">
+                {visibleOrgCards.map((task) => (
+                  <TaskCard key={task.id} task={task} returnTo={originHref} />
+                ))}
+              </div>
+            </section>
+          ) : null}
 
-      <section>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-          Decisions
-        </p>
-        {visibleTasks.length > 0 ? (
-          <div className="divide-y divide-[var(--line)] border-b border-t border-[var(--line)]">
-            {visibleTasks.map((task) => (
-              <TaskCard key={task.id} task={task} />
-            ))}
-          </div>
-        ) : (
-          <p className="border-t border-[var(--line)] py-6 text-base text-muted">
-            {view === "done"
-              ? "No finished cards yet."
-              : view === "overdue"
-                ? "Nothing overdue."
-                : view === "soon"
-                  ? "Nothing due this week."
-                  : view === "mine"
-                    ? "Nothing assigned to you."
-                    : "Everything is done."}
-          </p>
-        )}
-      </section>
+          <section>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+              Decisions
+            </p>
+            {visibleTasks.length > 0 ? (
+              <div className="divide-y divide-[var(--line)] border-b border-t border-[var(--line)]">
+                {visibleTasks.map((task) => (
+                  <TaskCard key={task.id} task={task} returnTo={originHref} />
+                ))}
+              </div>
+            ) : (
+              <p className="border-t border-[var(--line)] py-6 text-base text-muted">
+                {decisionsEmptyCopy(view)}
+              </p>
+            )}
+          </section>
+        </>
+      )}
     </>
   );
 }

@@ -121,6 +121,7 @@ export const CONTROLS: InventoryControl[] = [
   auto("today-add-open", "/today", "Ask / Task / Buy compose", "Opens compose and Cancel closes it", ["create", "cancel", "dialog"], "today.spec.ts · compose cancel"),
   auto("today-add-task", "/today", "Add task save", "Creates a disposable task visible in Tasks", ["create", "save"], "writes.spec.ts · today task"),
   auto("today-filter", "/today?filter=asks", "Inbox filter chips", "Asks / Tasks / Buy / Done change the board", ["filter"], "today.spec.ts · inbox filters"),
+  auto("today-task-open", "/today?filter=tasks", "Task title", "Visible task title opens /work/{id}; Back returns to Today filter", ["navigation"], "today.spec.ts · task title"),
   auto("today-alias", "/home /requests", "Today aliases", "/home and /requests reach Today", ["route"], "routes.spec.ts · aliases"),
 
   auto("day-load", "/day", "Day route", "Planning or live Day-of loads", ["route", "day"], "routes.spec.ts · authenticated routes"),
@@ -148,15 +149,18 @@ export const CONTROLS: InventoryControl[] = [
   auto("people-channels", "/people/{id}", "Profile tel/mailto", "Href present only when channel exists", ["external", "people"], "people.spec.ts · profiles"),
   auto("people-role-cancel", "/people/{id}", "Edit role Cancel", "Opens role editor and Cancel leaves MC unchanged", ["edit", "cancel", "people"], "people.spec.ts · role cancel"),
   auto("people-subpages", "/people/vendors|/party|/family", "Legacy people lists", "Load and expose search", ["route", "people"], "people.spec.ts · subpages"),
+  auto("people-task-open", "/people/{id}", "Open work task title", "Profile task opens /work/{id}; Back returns to profile", ["people", "navigation"], "people.spec.ts · David open work"),
   skip("people-delete-canonical", "/people/{id}", "Delete person", "Would permanently remove a Person", ["delete", "people"], "Must not delete canonical wedding people; no disposable Person fixture is created here"),
   skip("people-guest-photo-camera", "/people?tab=guests", "Take picture", "Would open device camera", ["people"], "Device camera cannot be operated in this runner"),
 
   auto("plan-hub", "/plan", "Plan chapter cards", "Tasks / Wedding Day / Rehearsal / Stay / Shopping / Calendar", ["navigation", "plan"], "plan.spec.ts · hub"),
-  auto("plan-tasks-filters", "/plan/tasks", "Task filters", "Open / Overdue / Soon / Mine / Finished", ["filter", "plan"], "plan.spec.ts · tasks"),
+  auto("plan-tasks-filters", "/plan/tasks", "Task filters", "Open / Overdue / Soon / Mine / Finished; wedding-week work stays in the same universe", ["filter", "plan"], "plan.spec.ts · tasks"),
+  auto("plan-task-add", "/plan/tasks", "Add Task", "Creates a package and opens /work/{id}", ["create", "plan"], "writes.spec.ts · plan add task"),
   auto("plan-task-open", "/plan/tasks", "Open task workspace", "Task card opens /work/{id}", ["plan", "navigation"], "plan.spec.ts · tasks"),
-  auto("plan-task-save", "/work/{id}", "Save decision / complete checkbox", "Disposable edit then restore", ["edit", "save", "plan"], "writes.spec.ts · task workspace"),
+  auto("plan-task-save", "/work/{id}", "Save decision / complete checkbox", "Disposable edit then restore to origin", ["edit", "save", "plan"], "writes.spec.ts · task workspace"),
   skip("plan-task-delete", "/work/{id}", "Delete task", "No delete control exists in the workspace", ["delete", "plan"], "App has no task-delete control"),
   auto("plan-task-cancel", "/work/{id}", "Leave without save", "Change workspace notes, leave via Back, original persists", ["cancel", "plan"], "writes.spec.ts · leave without save"),
+  auto("plan-task-back", "/work/{id}", "Back", "Returns to originating internal route, falling back to /plan/tasks", ["navigation", "plan"], "writes.spec.ts · return to origin"),
 
   auto("plan-timeline-toggle", "/plan/timeline", "Review / Edit", "Toggles edit mode and + Add moment", ["edit", "plan"], "plan.spec.ts · timeline"),
   auto("plan-timeline-count", "/plan/timeline", "19 wedding rows", "Canonical titles present", ["plan"], "data.spec.ts · Timeline"),

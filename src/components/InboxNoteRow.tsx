@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
   createInboxChild,
@@ -18,6 +19,8 @@ import {
   type InboxItem,
   type PersonOption,
 } from "@/lib/inbox";
+import { taskHref } from "@/lib/entity-links";
+import { withReturnTo } from "@/lib/return-to";
 import { dueDateInputValue } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 
@@ -26,11 +29,13 @@ export function InboxNoteRow({
   session,
   people,
   dragHandle,
+  originHref,
 }: {
   item: InboxItem;
   session: SessionAccount;
   people: PersonOption[];
   dragHandle?: React.ReactNode;
+  originHref?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
@@ -38,6 +43,13 @@ export function InboxNoteRow({
 
   const dateLine = inboxDateLine(item.dueDate, item.done);
   const canEditWho = canManageOwners(session) && item.kind !== "buy" ? session.canSeeTasks : session.canSeeShop;
+  const workspaceHref =
+    (item.kind === "task" || item.kind === "task_step" || item.kind === "org_step") && item.href
+      ? withReturnTo(item.href, originHref)
+      : null;
+  const linkedTaskHref = item.linkedTaskId
+    ? taskHref(item.linkedTaskId, { returnTo: originHref })
+    : null;
 
   function runMutation(action: () => Promise<void>, onSuccess?: () => void) {
     setMutationError(null);
@@ -79,9 +91,17 @@ export function InboxNoteRow({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <p className={`min-w-0 flex-1 text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
-              {item.title}
-            </p>
+            {workspaceHref ? (
+              <Link href={workspaceHref} className="min-w-0 flex-1">
+                <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
+                  {item.title}
+                </p>
+              </Link>
+            ) : (
+              <p className={`min-w-0 flex-1 text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
+                {item.title}
+              </p>
+            )}
             <span className="shrink-0 text-[12px] text-muted">{item.ownerLabel}</span>
             <button
               type="button"
@@ -94,6 +114,11 @@ export function InboxNoteRow({
           </div>
           {item.detail && !editing ? (
             <p className="text-[13px] leading-snug text-muted">{item.detail}</p>
+          ) : null}
+          {linkedTaskHref && !editing ? (
+            <Link href={linkedTaskHref} className="text-[13px] font-semibold text-[var(--accent)]">
+              Related task{item.linkedTaskTitle ? ` · ${item.linkedTaskTitle}` : ""}
+            </Link>
           ) : null}
           {dateLine && !editing ? (
             <p className={`text-xs ${dateLine.includes("overdue") ? "font-semibold text-[var(--danger)]" : "text-muted"}`}>
@@ -296,21 +321,30 @@ function NoteEditor({
 export function InboxPackageHeader({
   item,
   session,
+  originHref,
 }: {
   item: InboxItem;
   session: SessionAccount;
   people?: PersonOption[];
+  originHref?: string;
 }) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const dateLine = inboxDateLine(item.dueDate, item.done);
+  const workspaceHref = item.href ? withReturnTo(item.href, originHref) : null;
 
   return (
     <div className="flex items-baseline gap-2 py-1.5">
       <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-semibold leading-snug">{item.title}</p>
+        {workspaceHref ? (
+          <Link href={workspaceHref}>
+            <p className="text-[15px] font-semibold leading-snug">{item.title}</p>
+          </Link>
+        ) : (
+          <p className="text-[15px] font-semibold leading-snug">{item.title}</p>
+        )}
         {dateLine ? (
           <p className={`text-xs ${dateLine.includes("overdue") ? "font-semibold text-[var(--danger)]" : "text-muted"}`}>
             {dateLine}

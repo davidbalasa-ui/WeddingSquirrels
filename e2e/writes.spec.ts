@@ -1,12 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
+import { certDatabaseUrl } from "./cert-env";
 import { attachPageGuards, certName } from "./helpers";
 
 async function cleanupCertRecords() {
-  const url =
-    process.env.CERT_DATABASE_URL ||
-    process.env.DATABASE_URL ||
-    "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable";
+  const url = certDatabaseUrl();
   const prisma = new PrismaClient({ datasourceUrl: url });
   try {
     await prisma.shoppingItem.deleteMany({ where: { name: { startsWith: "CERT-WS" } } });
@@ -157,9 +155,7 @@ test.describe("writable lifecycles", () => {
     await expect(page.getByText(name)).toBeVisible({ timeout: 15_000 });
 
     const prisma = new PrismaClient({
-      datasourceUrl:
-        process.env.CERT_DATABASE_URL ||
-        "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable",
+      datasourceUrl: certDatabaseUrl(),
     });
     const created = await prisma.task.findFirst({ where: { title: name } });
     await prisma.$disconnect();
@@ -169,7 +165,7 @@ test.describe("writable lifecycles", () => {
     await expect(page.getByRole("button", { name: "Save decision" })).toBeVisible();
     await page.locator('textarea[name="planNotes"]').fill("CERT workspace note");
     await page.getByRole("button", { name: "Save decision" }).click();
-    await expect(page).toHaveURL(/\/today/);
+    await expect(page).toHaveURL(/\/plan\/tasks/);
     await page.goto(workspace);
     await expect(page.locator('textarea[name="planNotes"]')).toHaveValue("CERT workspace note");
     guards.assertClean();
@@ -186,9 +182,7 @@ test.describe("writable lifecycles", () => {
     await expect(page.getByRole("button", { name: "Add a contract" })).toBeVisible({ timeout: 15_000 });
 
     const prisma = new PrismaClient({
-      datasourceUrl:
-        process.env.CERT_DATABASE_URL ||
-        "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable",
+      datasourceUrl: certDatabaseUrl(),
     });
     const created = await prisma.budgetItem.findFirst({ where: { name } });
     await prisma.$disconnect();
@@ -229,9 +223,7 @@ test.describe("writable lifecycles", () => {
 
     const certDb = () =>
       new PrismaClient({
-        datasourceUrl:
-          process.env.CERT_DATABASE_URL ||
-          "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable",
+        datasourceUrl: certDatabaseUrl(),
       });
     await expect
       .poll(async () => {
@@ -359,9 +351,7 @@ test.describe("writable lifecycles", () => {
     await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0);
 
     const prisma = new PrismaClient({
-      datasourceUrl:
-        process.env.CERT_DATABASE_URL ||
-        "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable",
+      datasourceUrl: certDatabaseUrl(),
     });
     const created = await prisma.task.findFirst({ where: { title: name } });
     await prisma.$disconnect();
@@ -372,11 +362,47 @@ test.describe("writable lifecycles", () => {
     const original = await notes.inputValue();
     await notes.fill("CERT should not persist");
     await expect(notes).toHaveValue("CERT should not persist");
-    await page.getByRole("link", { name: "← Back to Today" }).click();
-    await expect(page).toHaveURL(/\/today/);
+    await page.getByRole("link", { name: /^← Back/ }).click();
+    await expect(page).toHaveURL(/\/plan\/tasks/);
     await page.goto(workspace);
     await expect(notes).toHaveValue(original);
     await expect(notes).not.toHaveValue("CERT should not persist");
+    guards.assertClean();
+  });
+
+  test("plan Add Task opens workspace and save returns to Tasks", async ({ page }) => {
+    const guards = await attachPageGuards(page);
+    const name = certName("plan-add");
+    await page.goto("/plan/tasks");
+    await page.getByRole("button", { name: "Add Task" }).click();
+    await page.getByPlaceholder("What needs deciding?").fill(name);
+    await page.getByRole("button", { name: "Add Task" }).click();
+    await expect(page).toHaveURL(/\/work\/.+/, { timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Save decision" })).toBeVisible();
+    await page.locator('textarea[name="planNotes"]').fill("CERT plan origin note");
+    await page.getByRole("button", { name: "Save decision" }).click();
+    await expect(page).toHaveURL(/\/plan\/tasks/);
+    await expect(page.getByText(name)).toBeVisible();
+    guards.assertClean();
+  });
+
+  test("workspace save and back honor Today origin", async ({ page }) => {
+    const guards = await attachPageGuards(page);
+    const name = certName("today-origin");
+    await page.goto("/today");
+    await page.getByRole("button", { name: "Task", exact: true }).click();
+    await page.getByPlaceholder("What needs deciding?").fill(name);
+    await page.getByRole("button", { name: "Add task" }).click();
+    await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0);
+    await page.goto("/today?filter=tasks");
+    await expect(page.getByRole("link", { name })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("link", { name }).click();
+    await expect(page).toHaveURL(/\/work\//);
+    await expect(page).toHaveURL(/returnTo=/);
+    await page.locator('textarea[name="planNotes"]').fill("CERT today origin");
+    await page.getByRole("button", { name: "Save decision" }).click();
+    await expect(page).toHaveURL(/\/today/);
+    await expect(page).toHaveURL(/filter=tasks/);
     guards.assertClean();
   });
 });

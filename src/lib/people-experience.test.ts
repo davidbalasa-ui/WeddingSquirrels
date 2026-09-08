@@ -19,6 +19,7 @@ import {
   profilePhotoSrc,
   profileRoleChips,
   searchDirectoryEntries,
+  openWorkSummary,
   tasksEmptyLabel,
   visibleProfileSections,
 } from "./people-experience";
@@ -245,7 +246,7 @@ test("profile sections follow identity, work, day-of, then money", () => {
     guestInfo: { household: "Sarah & Alex", rsvpStatus: "attending", table: "Table 4" },
     vendorContext: "Photography",
     canSeeTasks: true,
-    openTasks: [{ id: "t1", title: "Shot list", dueLabel: "Due today", href: "/work/t1" }],
+    openTasks: [{ id: "t1", title: "Shot list", dueLabel: "Due today", href: "/work/t1", openStepCount: 1 }],
     assignments: [
       {
         id: "a1",
@@ -293,7 +294,7 @@ test("role-specific data is not lost on the unified profile", () => {
         href: "/people/responsibilities",
       },
     ],
-    openTasks: [{ id: "t1", title: "Confirm florist", dueLabel: "Due today", href: "/work/t1" }],
+    openTasks: [{ id: "t1", title: "Confirm florist", dueLabel: "Due today", href: "/work/t1", openStepCount: 1 }],
     canSeeTasks: true,
   });
   const sections = visibleProfileSections(profile);
@@ -380,6 +381,9 @@ test("directory and profile search do not create or infer identity links", () =>
 test("human empty copy never uses database-admin phrasing", () => {
   assert.equal(tasksEmptyLabel("Sarah Chen"), "Nothing open for Sarah.");
   assert.equal(omitFabricatedValue("No records found"), "No records found");
+  assert.equal(openWorkSummary(2, 13), "2 workspaces · 13 open steps");
+  assert.equal(openWorkSummary(1, 1), "1 workspace · 1 open step");
+  assert.equal(openWorkSummary(0, 0), null);
 });
 
 test("RSVP attendance filter is presentation-only", () => {

@@ -19,6 +19,7 @@ test("person profiles use canonical person:{id} URLs", () => {
 
 test("task, money, request, and plan destinations are specific", () => {
   assert.equal(taskHref("t1"), "/work/t1");
+  assert.equal(taskHref("t1", { returnTo: "/plan/tasks" }), "/work/t1?returnTo=%2Fplan%2Ftasks");
   assert.equal(moneyHref("b1"), "/money/b1");
   assert.equal(moneyHref("b1", { paymentId: "p9" }), "/money/b1?payment=p9");
   assert.equal(requestHref("r1"), "/today?filter=asks&ask=r1");

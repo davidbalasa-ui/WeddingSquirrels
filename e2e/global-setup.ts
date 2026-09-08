@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { SignJWT } from "jose";
 import { config as loadEnv } from "dotenv";
-import { MASTER_ACCOUNT_ID, RESTRICTED_ACCOUNT_ID } from "./expected";
+import { resolveCertAccountIds } from "./cert-env";
 
 loadEnv();
 
@@ -31,10 +31,11 @@ async function storageState(accountId: string) {
 }
 
 export default async function globalSetup() {
+  const { masterId, restrictedId } = await resolveCertAccountIds();
   mkdirSync("test-artifacts/.auth", { recursive: true });
-  writeFileSync("test-artifacts/.auth/master.json", JSON.stringify(await storageState(MASTER_ACCOUNT_ID)));
+  writeFileSync("test-artifacts/.auth/master.json", JSON.stringify(await storageState(masterId)));
   writeFileSync(
     "test-artifacts/.auth/restricted.json",
-    JSON.stringify(await storageState(RESTRICTED_ACCOUNT_ID)),
+    JSON.stringify(await storageState(restrictedId)),
   );
 }

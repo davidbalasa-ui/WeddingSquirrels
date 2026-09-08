@@ -5,7 +5,7 @@ import { startOfDay, endOfDay, addDays } from "date-fns";
 
 const taskListInclude = {
   assignees: { include: { person: true } },
-  children: true,
+  children: { include: { assignees: true } },
   budgetItem: { select: { id: true, name: true, price: true, amountPaid: true } },
   timelineBlock: { select: { id: true, startAt: true, notes: true, schedule: true } },
 } satisfies Prisma.TaskInclude;
@@ -274,6 +274,39 @@ export function dueDateInputValue(value: Date | string | null | undefined): stri
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+export type ActionableTaskNode = {
+  status?: string | null;
+  dueDate?: Date | string | null;
+  children?: Array<{
+    status?: string | null;
+    dueDate?: Date | string | null;
+    assignees?: Array<{ personId: string }>;
+  }>;
+  assignees?: Array<{ personId: string }>;
+};
+
+function nodeStatus(node: { status?: string | null }): string {
+  return node.status ?? "todo";
+}
+
+/** Leaves that still need action. Parent packages with children are containers, not extra actions. */
+export function openActionableLeaves(task: ActionableTaskNode): Array<{ dueDate: Date | null }> {
+  const children = task.children ?? [];
+  if (children.length > 0) {
+    return children
+      .filter((child) => nodeStatus(child) !== "done")
+      .map((child) => ({ dueDate: asDate(child.dueDate ?? task.dueDate) }));
+  }
+  if (nodeStatus(task) === "done") return [];
+  return [{ dueDate: asDate(task.dueDate) }];
+}
+
+export function countOpenActionableTasks(tasks: ActionableTaskNode[]): number {
+  let count = 0;
+  for (const task of tasks) count += openActionableLeaves(task).length;
+  return count;
 }
 
 export function dueLabel(dueDate: Date | string | null | undefined, status: string) {

@@ -11,6 +11,7 @@ import {
   toggleShoppingPurchased,
 } from "@/app/actions";
 import { StarIcon } from "@/components/StarIcon";
+import { taskHref } from "@/lib/entity-links";
 
 export type ShoppingItemView = {
   id: string;
@@ -146,33 +147,42 @@ function ShoppingItemRow({
           {item.purchased ? "✓" : ""}
         </button>
 
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="min-w-0 flex-1 text-left"
-          aria-expanded={open}
-        >
-          <p className={`text-[15px] font-semibold leading-snug ${item.purchased ? "line-through" : ""}`}>
-            {item.name}
-            {item.quantity ? (
-              <span className="ml-1 text-sm font-medium text-muted">× {item.quantity}</span>
-            ) : null}
-          </p>
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="w-full text-left"
+            aria-expanded={open}
+          >
+            <p className={`text-[15px] font-semibold leading-snug ${item.purchased ? "line-through" : ""}`}>
+              {item.name}
+              {item.quantity ? (
+                <span className="ml-1 text-sm font-medium text-muted">× {item.quantity}</span>
+              ) : null}
+            </p>
+          </button>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
             <span className="font-semibold text-[var(--accent)]">{ownerLabel}</span>
-            {item.task ? <span>{item.task.title}</span> : null}
+            {item.task ? (
+              <Link
+                href={taskHref(item.task.id, { returnTo: "/plan/shopping" })}
+                className="font-semibold text-[var(--accent)]"
+              >
+                {item.task.title}
+              </Link>
+            ) : null}
           </div>
           {item.note && !open ? (
             <p className="mt-0.5 line-clamp-1 text-sm leading-snug text-muted">{item.note}</p>
           ) : null}
-        </button>
+        </div>
 
         <div className="flex shrink-0 flex-col items-end gap-1">
           {item.task && !open ? (
             <Link
-              href={`/work/${item.task.id}`}
+              href={taskHref(item.task.id, { returnTo: "/plan/shopping" })}
               className="text-sm text-muted"
-              aria-label="Open decision"
+              aria-label="Open related task"
               onClick={(e) => e.stopPropagation()}
             >
               ›

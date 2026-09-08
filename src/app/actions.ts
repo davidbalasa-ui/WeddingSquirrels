@@ -54,6 +54,8 @@ import {
 } from "@/lib/people-identity-write";
 import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
+import { taskHref } from "@/lib/entity-links";
+import { safeReturnTo, TASKS_HOME } from "@/lib/return-to";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
 import { applyRsvpChange, effectiveInvitedCount, parseRsvpStatus, syncLegacyGuestNames, type RsvpStatus } from "@/lib/guest-gifts";
 import { householdRsvpFromPeople } from "@/lib/guest-rsvp-import";
@@ -237,7 +239,9 @@ export async function saveTaskWorkspace(
   revalidatePath("/today");
   revalidatePath(`/work/${id}`);
   revalidatePath("/money");
-  redirect("/today");
+  revalidatePath("/plan/tasks");
+  const returnTo = safeReturnTo(String(formData.get("returnTo") || TASKS_HOME));
+  redirect(returnTo);
 }
 
 export async function createTaskPackage(
@@ -305,7 +309,9 @@ export async function createTaskPackage(
   revalidatePath("/today");
   revalidatePath("/people");
   revalidatePath("/today");
-  redirect(`/work/${taskId}`);
+  revalidatePath("/plan/tasks");
+  const returnTo = safeReturnTo(String(formData.get("returnTo") || TASKS_HOME));
+  redirect(taskHref(taskId, { returnTo }));
 }
 
 export async function saveStepNotes(formData: FormData): Promise<void> {

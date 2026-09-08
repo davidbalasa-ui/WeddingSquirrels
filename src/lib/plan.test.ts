@@ -3,6 +3,8 @@ import { test } from "node:test";
 import type { SessionAccount } from "./types";
 import {
   buildPlanDomainSummaries,
+  decisionsEmptyCopy,
+  filterTasksForPlanView,
   parsePlanTaskView,
   summarizeCalendarEvents,
   summarizeRehearsal,
@@ -13,6 +15,7 @@ import {
   taskIsDueSoon,
   taskIsOverdue,
   taskMatchesMine,
+  taskPackageMatchesMine,
   upcomingCalendarEvents,
   type PlanCounts,
 } from "./plan";
@@ -123,6 +126,32 @@ test("task summary counts only the visible tasks it is given", () => {
   );
   assert.equal(withOrgCards.open, 4);
   assert.equal(withOrgCards.dueSoon, 2);
+});
+
+test("task summary counts open children, not parent containers", () => {
+  const counts = summarizeVisibleTasks(
+    [
+      {
+        status: "todo",
+        dueDate: new Date("2026-10-09T12:00:00"),
+        children: [
+          { status: "todo" },
+          { status: "todo" },
+          { status: "done" },
+        ],
+      },
+      {
+        status: "todo",
+        dueDate: new Date("2026-10-15T12:00:00"),
+        children: Array.from({ length: 6 }, () => ({ status: "todo" })),
+      },
+      { status: "todo", dueDate: null },
+    ],
+    now,
+  );
+  assert.equal(counts.open, 9);
+  assert.equal(counts.overdue, 0);
+  assert.equal(counts.dueSoon, 0);
 });
 
 test("overdue and due-soon summaries are deterministic for a fixed now", () => {
@@ -303,4 +332,58 @@ test("parsePlanTaskView stays in the known task views", () => {
   assert.equal(parsePlanTaskView("done"), "done");
   assert.equal(parsePlanTaskView("nope"), "open");
   assert.equal(parsePlanTaskView(undefined), "open");
+});
+
+test("Mine matching includes child owners on a package", () => {
+  assert.equal(
+    taskPackageMatchesMine(
+      {
+        assignees: [{ personId: "haley" }],
+        children: [{ assignees: [{ personId: "david" }] }],
+      },
+      session(),
+    ),
+    true,
+  );
+  assert.equal(
+    taskPackageMatchesMine({ assignees: [{ personId: "haley" }], children: [] }, session()),
+    false,
+  );
+});
+
+test("plan filters keep org-key packages in the same universe", () => {
+  const org = {
+    id: "week",
+    title: "Week before",
+    status: "todo",
+    dueDate: new Date("2026-10-09T12:00:00"),
+    orgKey: "week_before",
+    assignees: [{ personId: "david" }, { personId: "haley" }],
+    children: [
+      { status: "todo", dueDate: null, assignees: [{ personId: "david" }] },
+      { status: "todo", dueDate: null, assignees: [{ personId: "haley" }] },
+    ],
+  } as unknown as Parameters<typeof filterTasksForPlanView>[0][number];
+
+  const open = filterTasksForPlanView([org], "open", session(), now);
+  const mine = filterTasksForPlanView([org], "mine", session(), now);
+  const soon = filterTasksForPlanView([org], "soon", session(), now);
+  const unlinkedMine = filterTasksForPlanView(
+    [org],
+    "mine",
+    session({ linkedPersonId: null, assigneeFilter: null }),
+    now,
+  );
+  const soonDue = {
+    ...org,
+    dueDate: new Date("2026-09-06T12:00:00"),
+  } as unknown as Parameters<typeof filterTasksForPlanView>[0][number];
+  const soonInWindow = filterTasksForPlanView([soonDue], "soon", session(), now);
+  assert.equal(open.length, 1);
+  assert.equal(mine.length, 1);
+  assert.equal(soon.length, 0);
+  assert.equal(unlinkedMine.length, 0);
+  assert.equal(soonInWindow.length, 1);
+  assert.equal(decisionsEmptyCopy("open"), "No decision tasks yet.");
+  assert.notEqual(decisionsEmptyCopy("open"), "Everything is done.");
 });
