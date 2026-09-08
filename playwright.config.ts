@@ -1,13 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 import { config as loadEnv } from "dotenv";
+import { certDatabaseUrl } from "./e2e/cert-env";
 
 loadEnv();
 
 const PORT = Number(process.env.CERT_PORT || 3100);
 const BASE_URL = process.env.CERT_BASE_URL || `http://127.0.0.1:${PORT}`;
-const DATABASE_URL =
-  process.env.CERT_DATABASE_URL ||
-  "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable";
+const DATABASE_URL = certDatabaseUrl();
 
 process.env.CERT_DATABASE_URL = DATABASE_URL;
 

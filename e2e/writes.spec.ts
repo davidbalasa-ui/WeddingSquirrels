@@ -1,12 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
+import { certDatabaseUrl } from "./cert-env";
 import { attachPageGuards, certName } from "./helpers";
 
 async function cleanupCertRecords() {
-  const url =
-    process.env.CERT_DATABASE_URL ||
-    process.env.DATABASE_URL ||
-    "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable";
+  const url = certDatabaseUrl();
   const prisma = new PrismaClient({ datasourceUrl: url });
   try {
     await prisma.shoppingItem.deleteMany({ where: { name: { startsWith: "CERT-WS" } } });
@@ -157,9 +155,7 @@ test.describe("writable lifecycles", () => {
     await expect(page.getByText(name)).toBeVisible({ timeout: 15_000 });
 
     const prisma = new PrismaClient({
-      datasourceUrl:
-        process.env.CERT_DATABASE_URL ||
-        "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable",
+      datasourceUrl: certDatabaseUrl(),
     });
     const created = await prisma.task.findFirst({ where: { title: name } });
     await prisma.$disconnect();
@@ -186,9 +182,7 @@ test.describe("writable lifecycles", () => {
     await expect(page.getByRole("button", { name: "Add a contract" })).toBeVisible({ timeout: 15_000 });
 
     const prisma = new PrismaClient({
-      datasourceUrl:
-        process.env.CERT_DATABASE_URL ||
-        "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable",
+      datasourceUrl: certDatabaseUrl(),
     });
     const created = await prisma.budgetItem.findFirst({ where: { name } });
     await prisma.$disconnect();
@@ -229,9 +223,7 @@ test.describe("writable lifecycles", () => {
 
     const certDb = () =>
       new PrismaClient({
-        datasourceUrl:
-          process.env.CERT_DATABASE_URL ||
-          "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable",
+        datasourceUrl: certDatabaseUrl(),
       });
     await expect
       .poll(async () => {
@@ -359,9 +351,7 @@ test.describe("writable lifecycles", () => {
     await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0);
 
     const prisma = new PrismaClient({
-      datasourceUrl:
-        process.env.CERT_DATABASE_URL ||
-        "postgresql://wedding:wedding@127.0.0.1:5432/wedding_production_merge_simulation_20260907?sslmode=disable",
+      datasourceUrl: certDatabaseUrl(),
     });
     const created = await prisma.task.findFirst({ where: { title: name } });
     await prisma.$disconnect();
