@@ -405,6 +405,43 @@ test("null-personId legacy rows do not gain inferred identity", () => {
   assert.match(waiting[0]?.context ?? "", /Mom/);
 });
 
+test("buildPulseStats counts actionable leaves, not workspace parents", () => {
+  const items: InboxItem[] = [
+    taskItem("pkg"),
+    {
+      ...taskItem("step-a"),
+      id: "task_step:step-a",
+      kind: "task_step",
+      parentId: "pkg",
+      sourceId: "step-a",
+    },
+    {
+      ...taskItem("step-b"),
+      id: "task_step:step-b",
+      kind: "task_step",
+      parentId: "pkg",
+      sourceId: "step-b",
+    },
+    {
+      ...taskItem("org"),
+      id: "org_step:org",
+      kind: "org_step",
+      sourceId: "org",
+    },
+    taskItem("crossbow"),
+    taskItem("done-pkg", { done: true }),
+  ];
+  const stats = buildPulseStats({
+    items,
+    budget: null,
+    rsvp: null,
+    session: masterSession(),
+  });
+  const pulse = stats.find((stat) => stat.id === "open-tasks");
+  assert.equal(pulse?.value, "4");
+  assert.equal(pulse?.detail, "open");
+});
+
 test("buildPulseStats respects module visibility", () => {
   const stats = buildPulseStats({
     items: [taskItem("t1"), taskItem("t2", { done: true })],

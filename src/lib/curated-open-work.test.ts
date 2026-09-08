@@ -248,8 +248,8 @@ test("day-of flags update existing people/contacts and never invent Kurt's chann
 test("plan and today pulse counts do not double-count children", () => {
   const tasks = orgTree();
   assert.equal(tasks.length, 15);
-  assert.equal(planOpenCount(tasks), 2);
-  assert.equal(todayPulseOpenCount(tasks), 0);
+  assert.equal(planOpenCount(tasks), 13);
+  assert.equal(todayPulseOpenCount(tasks), 13);
   assert.equal(actionableOpenCount(tasks), 13);
 
   const withPackages = [
@@ -257,8 +257,8 @@ test("plan and today pulse counts do not double-count children", () => {
     task({ id: "p", title: "Wedding Funding" }),
     task({ id: "s", title: "Receive/confirm John & Shelly's $5,000 wedding contribution", parentId: "p" }),
   ];
-  assert.equal(planOpenCount(withPackages), 3);
-  assert.equal(todayPulseOpenCount(withPackages), 1);
+  assert.equal(planOpenCount(withPackages), 14);
+  assert.equal(todayPulseOpenCount(withPackages), 14);
   assert.equal(actionableOpenCount(withPackages), 14);
 });
 

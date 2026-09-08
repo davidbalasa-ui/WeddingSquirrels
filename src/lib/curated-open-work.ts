@@ -5,6 +5,8 @@
  * to insert/reuse Task packages on the known production Neon database.
  */
 
+import { countActionableOpenTasks, countOpenWorkspaceCards } from "./task-actionable";
+
 export const EXPECTED_COUPLE_NAMES = "David & Haley";
 export const EXPECTED_WEDDING_DATE = "2026-10-16";
 export const EXPECTED_TIMEZONE = "America/Detroit";
@@ -687,41 +689,22 @@ export function plannedInsertCounts(plan: CuratedPlan): { packages: number; step
   };
 }
 
-/** Plan hub / plan/tasks: top-level packages + org-card parents. Children are not counted. */
+/** Same canonical open-actionable count used by /plan, /plan/tasks, and /today. */
 export function planOpenCount(tasks: TaskSnapshot[]): number {
-  return tasks.filter(
-    (task) =>
-      task.status !== "done" &&
-      task.parentId === null &&
-      (task.orgKey === null || task.orgKey === "week_before" || task.orgKey === "day_before"),
-  ).length;
+  return countActionableOpenTasks(tasks);
 }
 
-/** Today pulse: top-level non-org packages only. Org cards and children are not counted. */
+/** @deprecated Use planOpenCount; kept so apply-script logs stay named. */
 export function todayPulseOpenCount(tasks: TaskSnapshot[]): number {
-  return tasks.filter(
-    (task) => task.status !== "done" && task.parentId === null && task.orgKey === null,
-  ).length;
+  return countActionableOpenTasks(tasks);
 }
 
-/** Open actionable steps: org-card children + package children + childless top-level packages. */
 export function actionableOpenCount(tasks: TaskSnapshot[]): number {
-  const childrenOf = new Map<string, number>();
-  for (const task of tasks) {
-    if (!task.parentId) continue;
-    childrenOf.set(task.parentId, (childrenOf.get(task.parentId) ?? 0) + 1);
-  }
-  let n = 0;
-  for (const task of tasks) {
-    if (task.status === "done") continue;
-    if (task.parentId) {
-      n += 1;
-      continue;
-    }
-    if (task.orgKey === "week_before" || task.orgKey === "day_before") continue;
-    if ((childrenOf.get(task.id) ?? 0) === 0) n += 1;
-  }
-  return n;
+  return countActionableOpenTasks(tasks);
+}
+
+export function planWorkspaceCount(tasks: TaskSnapshot[]): number {
+  return countOpenWorkspaceCards(tasks);
 }
 
 export function weddingDateStamp(value: Date | string): string {
