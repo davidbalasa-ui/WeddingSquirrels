@@ -3,7 +3,13 @@ import { can, canSeeDinnerTab, canSeeStayTab } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { countFinishedGuests, type MealChoiceMap, type MealCourseView } from "@/lib/meals";
 import { reviewNoteLines, sortTimelineBlocks } from "@/lib/day-of-time";
-import { listOrgCards, listTasks, type TaskWithAssignees } from "@/lib/tasks";
+import {
+  listOrgCards,
+  listTasks,
+  openActionableLeaves,
+  type ActionableTaskNode,
+  type TaskWithAssignees,
+} from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 
 export const PLAN_TASK_DUE_SOON_DAYS = 7;
@@ -94,17 +100,17 @@ export function taskIsDueSoon(dueDate: Date | null | undefined, now: Date) {
 }
 
 export function summarizeVisibleTasks(
-  tasks: Array<{ dueDate: Date | null }>,
+  tasks: ActionableTaskNode[],
   now: Date,
 ): PlanTaskCounts {
-  const open = tasks.length;
+  const leaves = tasks.flatMap(openActionableLeaves);
   let overdue = 0;
   let dueSoon = 0;
-  for (const task of tasks) {
-    if (taskIsOverdue(task.dueDate, now)) overdue += 1;
-    else if (taskIsDueSoon(task.dueDate, now)) dueSoon += 1;
+  for (const leaf of leaves) {
+    if (taskIsOverdue(leaf.dueDate, now)) overdue += 1;
+    else if (taskIsDueSoon(leaf.dueDate, now)) dueSoon += 1;
   }
-  return { open, overdue, dueSoon };
+  return { open: leaves.length, overdue, dueSoon };
 }
 
 export function taskMatchesMine(
@@ -118,6 +124,27 @@ export function taskMatchesMine(
   return task.assignees.some((row) => ids.has(row.personId));
 }
 
+export function taskPackageMatchesMine(
+  task: {
+    assignees: Array<{ personId: string }>;
+    children?: Array<{ assignees?: Array<{ personId: string }> }>;
+  },
+  session: Pick<SessionAccount, "linkedPersonId" | "assigneeFilter">,
+) {
+  if (taskMatchesMine(task, session)) return true;
+  return (task.children ?? []).some((child) =>
+    child.assignees ? taskMatchesMine({ assignees: child.assignees }, session) : false,
+  );
+}
+
+function packageMatchesDue(
+  task: TaskWithAssignees,
+  pred: (dueDate: Date | null | undefined) => boolean,
+): boolean {
+  if (pred(task.dueDate)) return true;
+  return (task.children ?? []).some((child) => pred(child.dueDate ?? task.dueDate));
+}
+
 export function filterTasksForPlanView(
   tasks: TaskWithAssignees[],
   view: PlanTaskView,
@@ -126,10 +153,18 @@ export function filterTasksForPlanView(
 ): TaskWithAssignees[] {
   if (view === "done") return tasks.filter((task) => task.status === "done");
   const open = tasks.filter((task) => task.status !== "done");
-  if (view === "overdue") return open.filter((task) => taskIsOverdue(task.dueDate, now));
-  if (view === "soon") return open.filter((task) => taskIsDueSoon(task.dueDate, now));
-  if (view === "mine") return open.filter((task) => taskMatchesMine(task, session));
+  if (view === "overdue") return open.filter((task) => packageMatchesDue(task, (due) => taskIsOverdue(due, now)));
+  if (view === "soon") return open.filter((task) => packageMatchesDue(task, (due) => taskIsDueSoon(due, now)));
+  if (view === "mine") return open.filter((task) => taskPackageMatchesMine(task, session));
   return open;
+}
+
+export function decisionsEmptyCopy(view: PlanTaskView): string {
+  if (view === "done") return "No finished cards yet.";
+  if (view === "overdue") return "No overdue decision tasks.";
+  if (view === "soon") return "No decision tasks due this week.";
+  if (view === "mine") return "No decision tasks assigned to you.";
+  return "No decision tasks yet.";
 }
 
 function timelineTitle(notes: string) {

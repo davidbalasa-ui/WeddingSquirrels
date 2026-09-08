@@ -7,14 +7,24 @@ import { prisma } from "@/lib/db";
 import { canViewRequest } from "@/lib/requests";
 import { contractRemaining, formatMoney } from "@/lib/money";
 import { personProfileHref, moneyHref, requestHref, timelineHref } from "@/lib/entity-links";
+import { safeReturnTo, taskWorkspaceBackLabel } from "@/lib/return-to";
 import { getTaskWorkspace } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
 
-export default async function WorkPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function WorkPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string | string[] }>;
+}) {
   const session = await requirePageSession({ need: "canSeeTasks" });
   const { id } = await params;
+  const query = await searchParams;
   const task = await getTaskWorkspace(session, id);
   if (!task) notFound();
+
+  const returnTo = safeReturnTo(Array.isArray(query.returnTo) ? query.returnTo[0] : query.returnTo);
 
   let people = await prisma.person.findMany({ orderBy: { sortOrder: "asc" } });
   if (session.assigneeFilter?.length) {
@@ -64,9 +74,9 @@ export default async function WorkPage({ params }: { params: Promise<{ id: strin
 
   return (
     <>
-      <AppHeader session={session} title={task.title} subtitle="Decision workspace" />
-      <Link href="/today" className="mb-3 inline-block text-sm font-semibold text-[var(--accent)]">
-        ← Back to Today
+      <AppHeader session={session} title={task.title} subtitle="Task workspace" />
+      <Link href={returnTo} className="mb-3 inline-block text-sm font-semibold text-[var(--accent)]">
+        {taskWorkspaceBackLabel(returnTo)}
       </Link>
       <RelatedLinkList title="People" items={peopleLinks} />
       <RelatedLinkList title="Money" items={moneyLinks} />
@@ -75,7 +85,12 @@ export default async function WorkPage({ params }: { params: Promise<{ id: strin
         items={timelineLinks}
       />
       <RelatedLinkList title="Requests" items={requestLinks} />
-      <TaskWorkspaceForm task={task} people={people} canManageOwners={canManageOwners} />
+      <TaskWorkspaceForm
+        task={task}
+        people={people}
+        canManageOwners={canManageOwners}
+        returnTo={returnTo}
+      />
     </>
   );
 }

@@ -107,6 +107,7 @@ export function InboxBoard({
     [params, router],
   );
 
+  const originHref = params.toString() ? `/today?${params.toString()}` : "/today";
   const vendorOnly = session.canSeeRequests && !session.canSeeTasks && !session.canSeeShop;
 
   function toggleGroupCollapse(groupKey: string) {
@@ -216,6 +217,7 @@ export function InboxBoard({
                 item={item}
                 session={session}
                 tasks={tasks}
+                originHref={originHref}
                 expanded={expandedAskId === item.id}
                 onToggleExpand={() =>
                   handleAskToggle(item.id, item.sourceId, expandedAskId !== item.id)
@@ -234,6 +236,7 @@ export function InboxBoard({
               item={item}
               session={session}
               tasks={tasks}
+              originHref={originHref}
               expanded={expandedAskId === item.id}
               onToggleExpand={() =>
                 handleAskToggle(item.id, item.sourceId, expandedAskId !== item.id)
@@ -252,19 +255,19 @@ export function InboxBoard({
               {openGroups.map((og) =>
                 og.hasChildren ? (
                   <div key={og.package.id} className="divide-y divide-[var(--line)]">
-                    <InboxPackageHeader item={og.package} session={session} people={people} />
+                    <InboxPackageHeader item={og.package} session={session} people={people} originHref={originHref} />
                     {og.steps.map((step) => (
                       <div key={step.id} className="pl-3">
-                        <InboxNoteRow item={step} session={session} people={people} />
+                        <InboxNoteRow item={step} session={session} people={people} originHref={originHref} />
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <InboxNoteRow key={og.package.id} item={og.package} session={session} people={people} />
+                  <InboxNoteRow key={og.package.id} item={og.package} session={session} people={people} originHref={originHref} />
                 ),
               )}
               {openBuy.map((item) => (
-                <InboxNoteRow key={item.id} item={item} session={session} people={people} />
+                <InboxNoteRow key={item.id} item={item} session={session} people={people} originHref={originHref} />
               ))}
             </>
           )}
@@ -278,10 +281,11 @@ export function InboxBoard({
                 group={og.group}
                 collapsed={isGroupCollapsed(og.group.groupKey)}
                 onToggleCollapse={() => toggleGroupCollapse(og.group.groupKey)}
+                originHref={originHref}
               />
               {!isGroupCollapsed(og.group.groupKey)
                 ? og.steps.map((item) => (
-                    <InboxNoteRow key={item.id} item={item} session={session} people={people} />
+                    <InboxNoteRow key={item.id} item={item} session={session} people={people} originHref={originHref} />
                   ))
                 : null}
             </Section>
@@ -296,6 +300,7 @@ export function InboxBoard({
               item={item}
               session={session}
               tasks={tasks}
+              originHref={originHref}
               expanded={expandedAskId === item.id}
               onToggleExpand={() => {
                 if (item.kind !== "ask") return;

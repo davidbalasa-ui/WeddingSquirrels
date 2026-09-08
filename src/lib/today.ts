@@ -466,7 +466,23 @@ export function buildWaitingItems(
 }
 
 export function countOpenTasks(items: InboxItem[]): number {
-  return items.filter((item) => item.kind === "task" && !item.done).length;
+  const parentsWithSteps = new Set<string>();
+  for (const item of items) {
+    if (item.kind === "task_step" && item.parentId) parentsWithSteps.add(item.parentId);
+  }
+
+  let count = 0;
+  for (const item of items) {
+    if (item.done) continue;
+    if (item.kind === "task_step" || item.kind === "org_step") {
+      count += 1;
+      continue;
+    }
+    if (item.kind === "task" && !parentsWithSteps.has(item.sourceId)) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 export function countOpenAsks(items: InboxItem[]): number {

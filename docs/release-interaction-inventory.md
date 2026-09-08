@@ -4,9 +4,9 @@ Every meaningful user-facing control is listed. Status is **AUTOMATED** or **NOT
 
 TOTAL USER-FACING ROUTES DISCOVERED: **44**
 
-TOTAL MEANINGFUL CONTROLS INVENTORIED: **86**
+TOTAL MEANINGFUL CONTROLS INVENTORIED: **90**
 
-AUTOMATED CONTROLS: **78**
+AUTOMATED CONTROLS: **82**
 
 NOT COVERED CONTROLS: **8**
 
@@ -32,6 +32,7 @@ Repeated identical row actions are inventoried once as a shared pattern.
 | `today-add-open` | /today | Ask / Task / Buy compose | Opens compose and Cancel closes it | today.spec.ts · compose cancel | AUTOMATED |
 | `today-add-task` | /today | Add task save | Creates a disposable task visible in Tasks | writes.spec.ts · today task | AUTOMATED |
 | `today-filter` | /today?filter=asks | Inbox filter chips | Asks / Tasks / Buy / Done change the board | today.spec.ts · inbox filters | AUTOMATED |
+| `today-task-open` | /today?filter=tasks | Task title | Visible task title opens /work/{id}; Back returns to Today filter | today.spec.ts · task title | AUTOMATED |
 | `today-alias` | /home /requests | Today aliases | /home and /requests reach Today | routes.spec.ts · aliases | AUTOMATED |
 | `day-load` | /day | Day route | Planning or live Day-of loads | routes.spec.ts · authenticated routes | AUTOMATED |
 | `day-planning` | /day | Planning schedule | 19 wedding rows, no live NOW | day-of.spec.ts · planning mode | AUTOMATED |
@@ -56,14 +57,17 @@ Repeated identical row actions are inventoried once as a shared pattern.
 | `people-channels` | /people/{id} | Profile tel/mailto | Href present only when channel exists | people.spec.ts · profiles | AUTOMATED |
 | `people-role-cancel` | /people/{id} | Edit role Cancel | Opens role editor and Cancel leaves MC unchanged | people.spec.ts · role cancel | AUTOMATED |
 | `people-subpages` | /people/vendors|/party|/family | Legacy people lists | Load and expose search | people.spec.ts · subpages | AUTOMATED |
+| `people-task-open` | /people/{id} | Open work task title | Profile task opens /work/{id}; Back returns to profile | people.spec.ts · David open work | AUTOMATED |
 | `people-delete-canonical` | /people/{id} | Delete person | Would permanently remove a Person | — | NOT COVERED — Must not delete canonical wedding people; no disposable Person fixture is created here |
 | `people-guest-photo-camera` | /people?tab=guests | Take picture | Would open device camera | — | NOT COVERED — Device camera cannot be operated in this runner |
 | `plan-hub` | /plan | Plan chapter cards | Tasks / Wedding Day / Rehearsal / Stay / Shopping / Calendar | plan.spec.ts · hub | AUTOMATED |
-| `plan-tasks-filters` | /plan/tasks | Task filters | Open / Overdue / Soon / Mine / Finished | plan.spec.ts · tasks | AUTOMATED |
+| `plan-tasks-filters` | /plan/tasks | Task filters | Open / Overdue / Soon / Mine / Finished; wedding-week work stays in the same universe | plan.spec.ts · tasks | AUTOMATED |
+| `plan-task-add` | /plan/tasks | Add Task | Creates a package and opens /work/{id} | writes.spec.ts · plan add task | AUTOMATED |
 | `plan-task-open` | /plan/tasks | Open task workspace | Task card opens /work/{id} | plan.spec.ts · tasks | AUTOMATED |
-| `plan-task-save` | /work/{id} | Save decision / complete checkbox | Disposable edit then restore | writes.spec.ts · task workspace | AUTOMATED |
+| `plan-task-save` | /work/{id} | Save decision / complete checkbox | Disposable edit then restore to origin | writes.spec.ts · task workspace | AUTOMATED |
 | `plan-task-delete` | /work/{id} | Delete task | No delete control exists in the workspace | — | NOT COVERED — App has no task-delete control |
 | `plan-task-cancel` | /work/{id} | Leave without save | Change workspace notes, leave via Back, original persists | writes.spec.ts · leave without save | AUTOMATED |
+| `plan-task-back` | /work/{id} | Back | Returns to originating internal route, falling back to /plan/tasks | writes.spec.ts · return to origin | AUTOMATED |
 | `plan-timeline-toggle` | /plan/timeline | Review / Edit | Toggles edit mode and + Add moment | plan.spec.ts · timeline | AUTOMATED |
 | `plan-timeline-count` | /plan/timeline | 19 wedding rows | Canonical titles present | data.spec.ts · Timeline | AUTOMATED |
 | `plan-timeline-crud` | /plan/timeline | Add / Discard / Delete disposable block | CERT block created then removed | writes.spec.ts · timeline | AUTOMATED |
@@ -113,3 +117,4 @@ Repeated identical row actions are inventoried once as a shared pattern.
 - **Add / edit / delete event** (`plan-cal-crud`): Calendar UI is read-only; events are seeded
 - **Save / Delete PIN account** (`accounts-pin-write`): Shared local auth fixtures must stay stable; dialogs are certified instead
 - **Native print dialog** (`print-os-dialog`): Native dialog cannot be driven; window.print invocation is certified
+

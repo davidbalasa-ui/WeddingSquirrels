@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   assignedToPersonWhere,
+  countOpenActionableTasks,
   dueDateInputValue,
   dueLabel,
   taskMatchesAssigneeFilter,
@@ -47,4 +48,49 @@ test("dueDateInputValue accepts Date and ISO strings", () => {
 test("dueLabel does not throw when the due date is a string", () => {
   const label = dueLabel("2026-09-01T12:00:00.000Z", "todo");
   assert.ok(label);
+});
+
+test("countOpenActionableTasks counts leaves, not parent packages", () => {
+  assert.equal(
+    countOpenActionableTasks([
+      {
+        status: "todo",
+        dueDate: new Date("2026-10-09T12:00:00"),
+        children: [
+          { status: "todo" },
+          { status: "todo" },
+          { status: "done" },
+        ],
+      },
+      {
+        status: "todo",
+        dueDate: new Date("2026-10-15T12:00:00"),
+        children: [
+          { status: "todo" },
+          { status: "todo" },
+          { status: "todo" },
+          { status: "todo" },
+          { status: "todo" },
+          { status: "todo" },
+        ],
+      },
+    ]),
+    8,
+  );
+
+  assert.equal(
+    countOpenActionableTasks([
+      { status: "todo", children: [{ status: "todo" }, { status: "todo" }] },
+      { status: "todo" },
+    ]),
+    3,
+  );
+
+  assert.equal(countOpenActionableTasks([{ status: "done" }]), 0);
+  assert.equal(
+    countOpenActionableTasks([
+      { status: "todo", children: [{ status: "done" }, { status: "done" }] },
+    ]),
+    0,
+  );
 });

@@ -8,6 +8,7 @@ import {
   buildTodayHero,
   buildWaitingItems,
   buildWeddingWeekPreview,
+  countOpenTasks,
   daysUntilWedding,
   greetingForHour,
   remainingOnBudgetItem,
@@ -424,6 +425,65 @@ test("buildPulseStats respects module visibility", () => {
     session: masterSession(),
   });
   assert.equal(emptyMoney.some((stat) => stat.id === "budget-remaining"), false);
+});
+
+test("open task pulse counts actionable leaves, not parent packages", () => {
+  const steps: InboxItem[] = [
+    {
+      id: "org_step:a",
+      kind: "org_step",
+      sourceId: "a",
+      title: "Confirm vendors",
+      done: false,
+      ownerPersonIds: ["david"],
+      ownerLabel: "David",
+      sortOrder: 1,
+      href: "/work/week",
+    },
+    {
+      id: "org_step:b",
+      kind: "org_step",
+      sourceId: "b",
+      title: "Pack bags",
+      done: false,
+      ownerPersonIds: ["haley"],
+      ownerLabel: "Haley",
+      sortOrder: 2,
+      href: "/work/week",
+    },
+    {
+      id: "task_step:c",
+      kind: "task_step",
+      sourceId: "c",
+      title: "Shot list",
+      done: false,
+      ownerPersonIds: ["david"],
+      ownerLabel: "David",
+      sortOrder: 1,
+      parentId: "photos",
+      href: "/work/photos",
+    },
+    {
+      id: "task:photos",
+      kind: "task",
+      sourceId: "photos",
+      title: "Photos",
+      done: false,
+      ownerPersonIds: ["david"],
+      ownerLabel: "David",
+      sortOrder: 1,
+      href: "/work/photos",
+    },
+    taskItem("solo"),
+  ];
+  assert.equal(countOpenTasks(steps), 4);
+  const stats = buildPulseStats({
+    items: steps,
+    budget: null,
+    rsvp: null,
+    session: masterSession(),
+  });
+  assert.equal(stats.find((stat) => stat.id === "open-tasks")?.value, "4");
 });
 
 test("shouldShowWeddingWeek is true only within seven days", () => {

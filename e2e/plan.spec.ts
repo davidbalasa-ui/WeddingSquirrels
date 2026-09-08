@@ -28,6 +28,42 @@ test.describe("plan", () => {
     await firstTask.click();
     await expect(page).toHaveURL(/\/work\//);
     await expect(page.getByRole("button", { name: "Save decision" })).toBeVisible();
+    await page.getByRole("link", { name: /^← Back/ }).click();
+    await expect(page).toHaveURL(/\/plan\/tasks/);
+    guards.assertClean();
+  });
+
+  test("task home count, empty copy, and mine filter keep wedding-week work", async ({ page }) => {
+    const guards = await attachPageGuards(page);
+    await page.goto("/plan");
+    const hubTasks = page.getByRole("navigation", { name: "Wedding plan" }).getByRole("link", { name: /Tasks/ });
+    const hubText = (await hubTasks.innerText()).replace(/\s+/g, " ");
+    const hubOpen = hubText.match(/(\d+)\s+open/);
+    expect(hubOpen, `plan hub tasks copy: ${hubText}`).toBeTruthy();
+    const openCount = Number(hubOpen![1]);
+    expect(openCount).toBeGreaterThanOrEqual(13);
+
+    await hubTasks.click();
+    await expect(page).toHaveURL(/\/plan\/tasks/);
+    await expect(page.getByRole("button", { name: "Add Task" })).toBeVisible();
+    const tasksBody = await page.locator("#main-content").innerText();
+    expect(tasksBody).toMatch(new RegExp(`${openCount} open`));
+    expect(tasksBody).toContain("Wedding week");
+    expect(tasksBody).toContain("Week before");
+    expect(tasksBody).not.toMatch(/Everything is done/);
+    if (tasksBody.includes("Decisions") && !tasksBody.match(/Decisions[\s\S]{0,80}(CERT|decision)/i)) {
+      expect(tasksBody).toMatch(/No decision tasks yet|Decisions/);
+    }
+
+    await page.getByRole("link", { name: "Mine", exact: true }).click();
+    await expect(page).toHaveURL(/view=mine/);
+    await expect(page.getByText("Week before")).toBeVisible();
+    await expect(page.locator("#main-content")).not.toContainText("Everything is done.");
+
+    await page.getByRole("link", { name: "Soon", exact: true }).click();
+    await expect(page).toHaveURL(/view=soon/);
+    const soonBody = await page.locator("#main-content").innerText();
+    expect(soonBody).not.toMatch(/Everything is done/);
     guards.assertClean();
   });
 

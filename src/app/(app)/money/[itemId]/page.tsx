@@ -63,7 +63,7 @@ export default async function MoneyContractPage({
       <RelatedLinkList
         title="Related work"
         items={relatedTasks.map((task) => ({
-          href: taskHref(task.id),
+          href: taskHref(task.id, { returnTo: `/money/${encodeURIComponent(itemId)}` }),
           title: task.title,
         }))}
       />

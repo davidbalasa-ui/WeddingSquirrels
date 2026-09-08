@@ -1,4 +1,5 @@
 import { profileIdForPerson } from "@/lib/people-directory";
+import { withReturnTo } from "@/lib/return-to";
 
 /** Canonical URLs for trustworthy wedding entities. Do not scatter these. */
 
@@ -10,8 +11,9 @@ export function personProfileHref(personId: string): string {
   return peopleProfileHref(profileIdForPerson(personId));
 }
 
-export function taskHref(taskId: string): string {
-  return `/work/${encodeURIComponent(taskId)}`;
+export function taskHref(taskId: string, opts?: { returnTo?: string | null }): string {
+  const path = `/work/${encodeURIComponent(taskId)}`;
+  return withReturnTo(path, opts?.returnTo);
 }
 
 export function moneyHref(itemId: string, opts?: { paymentId?: string }): string {

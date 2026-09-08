@@ -6,7 +6,14 @@ import { moneyHref, personProfileHref, taskHref, timelineHref } from "@/lib/enti
 import { dueLabel } from "@/lib/tasks";
 import type { TaskWithAssignees } from "@/lib/tasks";
 
-export function TaskCard({ task }: { task: TaskWithAssignees }) {
+export function TaskCard({
+  task,
+  returnTo,
+}: {
+  task: TaskWithAssignees;
+  returnTo?: string | null;
+}) {
+  const href = taskHref(task.id, { returnTo });
   const label = dueLabel(task.dueDate, task.status);
   const done = task.status === "done";
   const escalated = Boolean(task.escalatedAt);
@@ -30,7 +37,7 @@ export function TaskCard({ task }: { task: TaskWithAssignees }) {
       } ${isOrg ? (isWeek ? "bg-[#f7f1e4]/80" : "bg-[#e7f0ec]/80") : ""}`}
     >
       <div className="min-w-0 flex-1">
-        <Link href={taskHref(task.id)} className="block">
+        <Link href={href} className="block">
           {isOrg ? (
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
               Shared · {isWeek ? "7 days out" : "1 day out"}
@@ -107,7 +114,7 @@ export function TaskCard({ task }: { task: TaskWithAssignees }) {
       </div>
 
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <Link href={taskHref(task.id)} className="text-lg text-muted" aria-hidden>
+        <Link href={href} className="text-lg text-muted" aria-hidden>
           ›
         </Link>
         <EscalatePriorityButton taskId={task.id} escalated={escalated} compact />

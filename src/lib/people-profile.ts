@@ -23,10 +23,10 @@ import {
   type ProfileBudgetContract,
   type ProfileRelatedLink,
 } from "@/lib/connections";
-import { dayAssignmentHref, taskHref } from "@/lib/entity-links";
+import { dayAssignmentHref, peopleProfileHref, taskHref } from "@/lib/entity-links";
 import { giftDescriptions } from "@/lib/guest-gifts";
 import { filterVisibleBudgetItems } from "@/lib/money";
-import { dueLabel, listAssignedTasksForPerson } from "@/lib/tasks";
+import { countOpenActionableTasks, dueLabel, listAssignedTasksForPerson } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 import { STAY_SECTIONS } from "@/lib/stay";
 
@@ -35,6 +35,7 @@ export type ProfileTaskRow = {
   title: string;
   dueLabel: string | null;
   href: string;
+  openStepCount: number;
 };
 
 export type ProfileAssignmentRow = {
@@ -256,6 +257,7 @@ export async function loadPeopleProfile(
     const visibleTasks = session.canSeeTasks
       ? await listAssignedTasksForPerson(session, person.id, { showDone: true })
       : [];
+    const profileHref = peopleProfileHref(profileIdForPerson(person.id));
     const openTasks = visibleTasks
       .filter((task) => task.status !== "done")
       .slice(0, 8)
@@ -263,7 +265,8 @@ export async function loadPeopleProfile(
         id: task.id,
         title: task.title,
         dueLabel: dueLabel(task.dueDate, task.status),
-        href: taskHref(task.id),
+        href: taskHref(task.id, { returnTo: profileHref }),
+        openStepCount: countOpenActionableTasks([task]),
       }));
     const completedTaskCount = visibleTasks.filter((task) => task.status === "done").length;
 

@@ -102,4 +102,22 @@ test.describe("people", () => {
     await expect(page.getByLabel(/Search/)).toBeVisible();
     guards.assertClean();
   });
+
+  test("David open work titles open the task workspace and back returns", async ({ page }) => {
+    const guards = await attachPageGuards(page);
+    await page.goto("/people/person:david");
+    await expect(page.getByRole("heading", { name: /David/ }).first()).toBeVisible();
+    const openWork = page.locator("section").filter({ hasText: "Open work" });
+    await expect(openWork).toBeVisible();
+    await expect(openWork.getByText(/workspace/)).toBeVisible();
+    await expect(openWork.getByText(/open step/)).toBeVisible();
+    const firstWork = openWork.getByRole("link").first();
+    await expect(firstWork).toBeVisible();
+    await firstWork.click();
+    await expect(page).toHaveURL(/\/work\//);
+    await expect(page.getByRole("button", { name: "Save decision" })).toBeVisible();
+    await page.getByRole("link", { name: /^← Back/ }).click();
+    await expect(page).toHaveURL(/\/people\/person:david|\/people\/person%3Adavid/);
+    guards.assertClean();
+  });
 });

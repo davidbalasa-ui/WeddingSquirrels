@@ -224,6 +224,13 @@ export function tasksEmptyLabel(name: string): string {
   return `Nothing open for ${firstName(name)}.`;
 }
 
+export function openWorkSummary(workspaces: number, steps: number): string | null {
+  if (workspaces === 0) return null;
+  const workspaceLabel = workspaces === 1 ? "1 workspace" : `${workspaces} workspaces`;
+  const stepLabel = steps === 1 ? "1 open step" : `${steps} open steps`;
+  return `${workspaceLabel} · ${stepLabel}`;
+}
+
 export function profilePhotoSrc(photoSrc: string | null | undefined): string | null {
   const trimmed = photoSrc?.trim();
   return trimmed ? trimmed : null;

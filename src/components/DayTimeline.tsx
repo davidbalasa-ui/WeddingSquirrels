@@ -512,6 +512,7 @@ export function DayTimeline({
             timed={timed}
             untimed={untimed}
             relatedByBlockId={relatedByBlockId}
+            schedule={schedule}
           />
         )}
 
@@ -569,11 +570,13 @@ function ReviewSections({
   timed,
   untimed,
   relatedByBlockId,
+  schedule,
 }: {
   idPrefix: string;
   timed: Row[];
   untimed: Row[];
   relatedByBlockId: Record<string, { id: string; title: string }>;
+  schedule: TimelineSchedule;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -591,6 +594,7 @@ function ReviewSections({
                   key={row.id}
                   row={row}
                   related={relatedByBlockId[row.id]}
+                  schedule={schedule}
                 />
               ))}
             </div>
@@ -608,6 +612,7 @@ function ReviewSections({
                 key={row.id}
                 row={row}
                 related={relatedByBlockId[row.id]}
+                schedule={schedule}
               />
             ))}
           </div>
@@ -620,9 +625,11 @@ function ReviewSections({
 function ReviewRow({
   row,
   related,
+  schedule,
 }: {
   row: Row;
   related?: { id: string; title: string };
+  schedule?: TimelineSchedule;
 }) {
   const lines = reviewNoteLines(row.notes);
   return (
@@ -645,7 +652,12 @@ function ReviewRow({
         )}
         {related ? (
           <p className="mt-1 text-xs">
-            <Link href={taskHref(related.id)} className="font-semibold text-[var(--accent)]">
+            <Link
+              href={taskHref(related.id, {
+                returnTo: schedule === "rehearsal" ? "/plan/rehearsal" : "/plan/timeline",
+              })}
+              className="font-semibold text-[var(--accent)]"
+            >
               Related task · {related.title}
             </Link>
           </p>

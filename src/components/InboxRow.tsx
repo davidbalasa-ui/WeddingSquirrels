@@ -21,6 +21,7 @@ import {
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
 import { taskHref } from "@/lib/entity-links";
 import { canManageOwners, inboxDateLine, nextCoupleOwnerIds, type InboxItem } from "@/lib/inbox";
+import { withReturnTo } from "@/lib/return-to";
 import {
   canCompleteRequest,
   canDeclineRequest,
@@ -52,6 +53,7 @@ export function InboxRow({
   onToggleExpand,
   onAskSomeone,
   dragHandle,
+  originHref,
 }: {
   item: InboxItem;
   session: SessionAccount;
@@ -60,6 +62,7 @@ export function InboxRow({
   onToggleExpand: () => void;
   onAskSomeone?: () => void;
   dragHandle?: React.ReactNode;
+  originHref?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [editingTitle, setEditingTitle] = useState(false);
@@ -185,6 +188,12 @@ export function InboxRow({
   const unread = askPerm ? isRequestUnread(session, askPerm) : false;
   const dateLine = inboxDateLine(item.dueDate, item.done);
   const ownerTappable = item.kind === "buy" || canCycleOwners || Boolean(item.href);
+  const workspaceHref =
+    (item.kind === "task" || item.kind === "task_step" || item.kind === "org_step") && item.href
+      ? withReturnTo(item.href, originHref)
+      : item.linkedTaskId
+        ? taskHref(item.linkedTaskId, { returnTo: originHref })
+        : null;
 
   return (
     <article className={`flex items-start gap-1.5 py-2 ${item.done ? "opacity-60" : ""}`}>
@@ -229,8 +238,8 @@ export function InboxRow({
                   {item.title}
                 </p>
               </button>
-            ) : item.kind === "task" && item.href ? (
-              <Link href={item.href} className="block">
+            ) : workspaceHref ? (
+              <Link href={workspaceHref} className="block">
                 <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
                   {item.title}
                 </p>
@@ -284,9 +293,9 @@ export function InboxRow({
                       Rename
                     </button>
                   ) : null}
-                  {item.kind === "task" && item.href ? (
+                  {workspaceHref ? (
                     <Link
-                      href={item.href}
+                      href={workspaceHref}
                       className="block px-3 py-2 text-sm font-semibold hover:bg-[var(--surface)]"
                       onClick={() => setMenuOpen(false)}
                     >
@@ -371,7 +380,7 @@ export function InboxRow({
 
             {item.linkedTaskId && item.linkedTaskTitle && session.canSeeTasks && !askPerms?.edit ? (
               <Link
-                href={taskHref(item.linkedTaskId)}
+                href={taskHref(item.linkedTaskId, { returnTo: originHref })}
                 className="mt-2 block text-sm font-semibold text-[var(--accent)]"
               >
                 Related: {item.linkedTaskTitle}
