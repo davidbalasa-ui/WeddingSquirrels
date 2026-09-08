@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { timelineEditable } from "@/lib/access";
+import { canManageDayOfContacts, timelineEditable } from "@/lib/access";
 import { guestInclude, mapGuestRecord } from "@/lib/guests";
 import { MEAL_SECTIONS } from "@/lib/meals";
 import {
@@ -234,6 +234,7 @@ export async function loadPeopleProfile(
 
   const guestRecords = guests.map((guest) => mapGuestRecord(guest));
   const editable = timelineEditable(session);
+  const canEditDayOf = canManageDayOfContacts(session);
   const guestPeople = guestRecords.flatMap((guest) =>
     guest.people.map((person) => ({ guest, person })),
   );
@@ -348,7 +349,7 @@ export async function loadPeopleProfile(
       isDayOfContact,
       canEditLabel: editable,
       canEditPrimaryList: editable,
-      canEditDayOf: editable,
+      canEditDayOf,
       canDelete: editable && !["david", "haley"].includes(person.id),
       canSeeTasks: session.canSeeTasks,
       openTasks,
@@ -400,7 +401,7 @@ export async function loadPeopleProfile(
       isDayOfContact,
       canEditLabel: editable,
       canEditPrimaryList: editable,
-      canEditDayOf: editable,
+      canEditDayOf,
       canDelete: editable,
       canSeeTasks: false,
       openTasks: [],
@@ -468,7 +469,7 @@ export async function loadPeopleProfile(
     isDayOfContact,
     canEditLabel: editable,
     canEditPrimaryList: false,
-    canEditDayOf: editable,
+    canEditDayOf,
     canDelete: editable,
     canSeeTasks: false,
     openTasks: [],

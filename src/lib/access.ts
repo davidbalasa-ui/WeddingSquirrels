@@ -30,6 +30,11 @@ export function timelineEditable(session: SessionAccount): boolean {
   return session.isMaster || session.canEditTimeline;
 }
 
+/** Same gate as managing Day-of Contacts and the profile add/remove action. */
+export function canManageDayOfContacts(session: SessionAccount): boolean {
+  return session.canSeePeople && timelineEditable(session);
+}
+
 export function canManageAccounts(session: SessionAccount): boolean {
   return session.isMaster || session.canManageAccounts;
 }

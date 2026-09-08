@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PersonAvatar } from "@/components/PersonAvatar";
+import { DayOfCallListToggle } from "@/components/DayOfCallListToggle";
 import { PeopleDeleteButton } from "@/components/PeopleDeleteButton";
 import { PeopleMembershipEditor } from "@/components/PeopleMembershipEditor";
 import { PeopleRoleEditor } from "@/components/PeopleRoleEditor";
@@ -95,8 +96,8 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
         </div>
       </header>
 
-      {actions.length > 0 ? (
-        <div className="mb-8 flex flex-wrap gap-2">
+      {actions.length > 0 || profile.canEditDayOf ? (
+        <div className="mb-8 flex flex-wrap items-center gap-2">
           {actions.map((action) => (
             <a
               key={`${action.label}-${action.href}`}
@@ -107,6 +108,13 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
               {action.label}
             </a>
           ))}
+          {profile.canEditDayOf ? (
+            <DayOfCallListToggle
+              profileId={profile.profileId}
+              checked={profile.isDayOfContact}
+              instanceId={`${profile.profileId}-profile`}
+            />
+          ) : null}
         </div>
       ) : null}
 

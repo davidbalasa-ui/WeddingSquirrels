@@ -318,6 +318,34 @@ test("unlinked legacy guest and contact entries still work", () => {
   assert.equal(davidGuest?.personId, null);
 });
 
+test("Kurt-style Person + guest + day-of flag appears without a Contact row", () => {
+  const entries = buildDirectoryEntries({
+    persons: [
+      {
+        id: "kurt_huizenga",
+        name: "Kurt Huizenga",
+        directoryLabel: "MC",
+        isDayOfContact: true,
+      },
+    ],
+    contacts: [],
+    guestPeople: [
+      guestRow("gp-kurt", "Kurt Huizenga", {
+        personId: "kurt_huizenga",
+        directoryLabel: "MC",
+        householdLabel: "Kurt Huizenga",
+      }),
+    ],
+  });
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0]?.profileId, profileIdForPerson("kurt_huizenga"));
+  assert.equal(entries[0]?.isDayOfContact, true);
+  assert.equal(entries[0]?.phone, null);
+  assert.equal(entries[0]?.email, null);
+  assert.equal(entries[0]?.subtitle, "MC");
+  assert.ok(filterEntriesByTab(entries, "day-of").some((entry) => entry.name === "Kurt Huizenga"));
+});
+
 test("canonicalProfileIdForSource prefers personId when present", () => {
   assert.equal(
     canonicalProfileIdForSource({ kind: "guest", id: "gp-1", personId: "wendy_rush" }),

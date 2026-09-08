@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { savePrimaryList } from "@/app/actions";
+import { DayOfCallListToggle } from "@/components/DayOfCallListToggle";
 import type { PeoplePrimaryList } from "@/lib/people-directory";
 
 const PRIMARY_OPTIONS: { value: PeoplePrimaryList; label: string }[] = [
@@ -83,18 +83,15 @@ export function PeopleMembershipEditor({
         <p className="text-sm text-muted">List · {currentLabel}</p>
       ) : null}
 
-      {canEditDayOf || isDayOfContact ? (
-        <p className="text-sm text-muted">
-          Day-of call list ·{" "}
-          {canEditDayOf ? (
-            <Link href="/people?tab=day-of" className="font-semibold text-[var(--accent)]">
-              manage on Day-of contacts
-            </Link>
-          ) : (
-            "Day-of contacts tab"
-          )}
-          {isDayOfContact ? <span className="mt-1 block text-xs">Currently on the call list</span> : null}
-        </p>
+      {canEditDayOf ? (
+        <DayOfCallListToggle
+          profileId={profileId}
+          checked={isDayOfContact}
+          compact
+          instanceId={`${profileId}-edit`}
+        />
+      ) : isDayOfContact ? (
+        <p className="text-sm text-muted">On the day-of call list</p>
       ) : null}
 
       {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
