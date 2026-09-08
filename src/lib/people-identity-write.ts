@@ -121,6 +121,109 @@ export function editPersonInStore(
   return row;
 }
 
+export type DayOfContactWriteTarget = { kind: "person" | "contact" | "guest"; id: string };
+
+export type DayOfContactWriteResult =
+  | { ok: true; personId: string | null }
+  | { ok: false; reason: "not_found" };
+
+/**
+ * Toggle Day-of Contact membership on the existing identity.
+ * Person.isDayOfContact is canonical when a Person exists.
+ * Does not create Person, Contact, or GuestPerson rows, and does not
+ * invent phone/email or change other roles.
+ */
+export function setDayOfContactInStore(
+  store: IdentityStore,
+  target: DayOfContactWriteTarget,
+  on: boolean,
+): DayOfContactWriteResult {
+  if (target.kind === "person") {
+    const person = store.persons.find((row) => row.id === target.id);
+    if (!person) return { ok: false, reason: "not_found" };
+    person.isDayOfContact = on;
+    return { ok: true, personId: person.id };
+  }
+
+  if (target.kind === "contact") {
+    const contact = store.contacts.find((row) => row.id === target.id);
+    if (!contact) return { ok: false, reason: "not_found" };
+    if (contact.personId) {
+      const person = store.persons.find((row) => row.id === contact.personId);
+      if (!person) return { ok: false, reason: "not_found" };
+      person.isDayOfContact = on;
+      return { ok: true, personId: person.id };
+    }
+    contact.isDayOfContact = on;
+    return { ok: true, personId: null };
+  }
+
+  const guestPerson = store.guestPeople.find((row) => row.id === target.id);
+  if (!guestPerson) return { ok: false, reason: "not_found" };
+  if (guestPerson.personId) {
+    const person = store.persons.find((row) => row.id === guestPerson.personId);
+    if (!person) return { ok: false, reason: "not_found" };
+    person.isDayOfContact = on;
+    return { ok: true, personId: person.id };
+  }
+  guestPerson.isDayOfContact = on;
+  return { ok: true, personId: null };
+}
+
+export async function applyDayOfContactForIdentity(
+  target: DayOfContactWriteTarget,
+  on: boolean,
+): Promise<DayOfContactWriteResult> {
+  if (target.kind === "person") {
+    const person = await prisma.person.findUnique({
+      where: { id: target.id },
+      select: { id: true },
+    });
+    if (!person) return { ok: false, reason: "not_found" };
+    await prisma.person.update({ where: { id: person.id }, data: { isDayOfContact: on } });
+    return { ok: true, personId: person.id };
+  }
+
+  if (target.kind === "contact") {
+    const contact = await prisma.contact.findUnique({
+      where: { id: target.id },
+      select: { id: true, personId: true },
+    });
+    if (!contact) return { ok: false, reason: "not_found" };
+    if (contact.personId) {
+      const person = await prisma.person.findUnique({
+        where: { id: contact.personId },
+        select: { id: true },
+      });
+      if (!person) return { ok: false, reason: "not_found" };
+      await prisma.person.update({ where: { id: person.id }, data: { isDayOfContact: on } });
+      return { ok: true, personId: person.id };
+    }
+    await prisma.contact.update({ where: { id: contact.id }, data: { isDayOfContact: on } });
+    return { ok: true, personId: null };
+  }
+
+  const guestPerson = await prisma.guestPerson.findUnique({
+    where: { id: target.id },
+    select: { id: true, personId: true },
+  });
+  if (!guestPerson) return { ok: false, reason: "not_found" };
+  if (guestPerson.personId) {
+    const person = await prisma.person.findUnique({
+      where: { id: guestPerson.personId },
+      select: { id: true },
+    });
+    if (!person) return { ok: false, reason: "not_found" };
+    await prisma.person.update({ where: { id: person.id }, data: { isDayOfContact: on } });
+    return { ok: true, personId: person.id };
+  }
+  await prisma.guestPerson.update({
+    where: { id: guestPerson.id },
+    data: { isDayOfContact: on },
+  });
+  return { ok: true, personId: null };
+}
+
 export function editGuestPersonInStore(
   store: IdentityStore,
   guestPersonId: string,

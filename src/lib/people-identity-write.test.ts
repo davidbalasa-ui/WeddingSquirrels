@@ -13,6 +13,7 @@ import {
   photoCopyPeerByPersonId,
   planPersonForRoleWrite,
   roleEditMustPreservePersonId,
+  setDayOfContactInStore,
   type IdentityContact,
   type IdentityGuestPerson,
   type IdentityPerson,
@@ -270,6 +271,165 @@ test("editing a roleless Person does not create GuestPerson or Contact", () => {
   assert.equal(store.guestPeople.length, 0);
   assert.equal(store.contacts.length, 0);
   assert.equal(store.persons.length, 1);
+});
+
+test("existing Person can be added to Day-of Contacts without creating rows", () => {
+  const store = emptyStore();
+  addPerson(store, "kurt_huizenga", "Kurt Huizenga");
+  addGuestPerson(store, {
+    id: "gp-kurt",
+    name: "Kurt Huizenga",
+    personId: "kurt_huizenga",
+    directoryLabel: "MC",
+    rsvpStatus: "attending",
+    tableNumber: 2,
+    tableSpot: "C",
+  });
+  const guestBefore = { ...store.guestPeople[0]! };
+
+  const added = setDayOfContactInStore(store, { kind: "person", id: "kurt_huizenga" }, true);
+  assert.equal(added.ok, true);
+  assert.equal(store.persons.length, 1);
+  assert.equal(store.persons[0]?.isDayOfContact, true);
+  assert.equal(store.contacts.length, 0);
+  assert.equal(store.guestPeople.length, 1);
+  assert.deepEqual(
+    {
+      id: store.guestPeople[0]?.id,
+      personId: store.guestPeople[0]?.personId,
+      name: store.guestPeople[0]?.name,
+      rsvpStatus: store.guestPeople[0]?.rsvpStatus,
+      tableNumber: store.guestPeople[0]?.tableNumber,
+      tableSpot: store.guestPeople[0]?.tableSpot,
+      directoryLabel: store.guestPeople[0]?.directoryLabel,
+      isDayOfContact: store.guestPeople[0]?.isDayOfContact,
+    },
+    {
+      id: guestBefore.id,
+      personId: guestBefore.personId,
+      name: guestBefore.name,
+      rsvpStatus: guestBefore.rsvpStatus,
+      tableNumber: guestBefore.tableNumber,
+      tableSpot: guestBefore.tableSpot,
+      directoryLabel: guestBefore.directoryLabel,
+      isDayOfContact: guestBefore.isDayOfContact,
+    },
+  );
+});
+
+test("Person with no Contact row can become a Day-of Contact without fake phone or email", () => {
+  const store = emptyStore();
+  addPerson(store, "kurt_huizenga", "Kurt Huizenga");
+  store.persons[0]!.directoryLabel = "MC";
+
+  const added = setDayOfContactInStore(store, { kind: "person", id: "kurt_huizenga" }, true);
+  assert.equal(added.ok, true);
+  assert.equal(store.persons[0]?.isDayOfContact, true);
+  assert.equal(store.persons[0]?.directoryLabel, "MC");
+  assert.equal(store.contacts.length, 0);
+});
+
+test("existing Contact row is preserved when toggling Day-of Contact on the Person", () => {
+  const store = emptyStore();
+  addPerson(store, "belle_genton", "Belle Genton");
+  addContact(store, {
+    id: "c-belle",
+    name: "Belle Genton",
+    personId: "belle_genton",
+    phone: "555-0147",
+    email: "belle@example.com",
+    photoData: "data:image/jpeg;base64,photo",
+    directoryLabel: "Hair",
+    isDayOfContact: false,
+  });
+  const contactBefore = { ...store.contacts[0]! };
+
+  const fromContact = setDayOfContactInStore(store, { kind: "contact", id: "c-belle" }, true);
+  assert.equal(fromContact.ok, true);
+  assert.equal(store.persons[0]?.isDayOfContact, true);
+  assert.equal(store.contacts.length, 1);
+  assert.deepEqual(
+    {
+      id: store.contacts[0]?.id,
+      personId: store.contacts[0]?.personId,
+      phone: store.contacts[0]?.phone,
+      email: store.contacts[0]?.email,
+      photoData: store.contacts[0]?.photoData,
+      directoryLabel: store.contacts[0]?.directoryLabel,
+      isDayOfContact: store.contacts[0]?.isDayOfContact,
+    },
+    {
+      id: contactBefore.id,
+      personId: contactBefore.personId,
+      phone: contactBefore.phone,
+      email: contactBefore.email,
+      photoData: contactBefore.photoData,
+      directoryLabel: contactBefore.directoryLabel,
+      isDayOfContact: false,
+    },
+  );
+});
+
+test("removing Day-of Contact status preserves identity and other roles", () => {
+  const store = emptyStore();
+  addPerson(store, "kurt_huizenga", "Kurt Huizenga");
+  store.persons[0]!.directoryLabel = "MC";
+  store.persons[0]!.directoryList = "guests";
+  store.persons[0]!.isDayOfContact = true;
+  addGuestPerson(store, {
+    id: "gp-kurt",
+    name: "Kurt Huizenga",
+    personId: "kurt_huizenga",
+    directoryLabel: "MC",
+    rsvpStatus: "attending",
+    tableNumber: 2,
+    tableSpot: "C",
+  });
+  addContact(store, {
+    id: "c-kurt",
+    name: "Kurt Huizenga",
+    personId: "kurt_huizenga",
+    phone: "555-0111",
+    email: "kurt@example.com",
+    directoryLabel: "MC",
+    isDayOfContact: false,
+  });
+
+  const removed = setDayOfContactInStore(store, { kind: "person", id: "kurt_huizenga" }, false);
+  assert.equal(removed.ok, true);
+  assert.equal(store.persons.length, 1);
+  assert.equal(store.persons[0]?.isDayOfContact, false);
+  assert.equal(store.persons[0]?.name, "Kurt Huizenga");
+  assert.equal(store.persons[0]?.directoryLabel, "MC");
+  assert.equal(store.persons[0]?.directoryList, "guests");
+  assert.equal(store.guestPeople.length, 1);
+  assert.equal(store.guestPeople[0]?.personId, "kurt_huizenga");
+  assert.equal(store.guestPeople[0]?.rsvpStatus, "attending");
+  assert.equal(store.contacts.length, 1);
+  assert.equal(store.contacts[0]?.phone, "555-0111");
+  assert.equal(store.contacts[0]?.email, "kurt@example.com");
+});
+
+test("linked GuestPerson profile toggles the Person flag only", () => {
+  const store = emptyStore();
+  addPerson(store, "kurt_huizenga", "Kurt Huizenga");
+  addGuestPerson(store, { id: "gp-kurt", name: "Kurt Huizenga", personId: "kurt_huizenga" });
+
+  const added = setDayOfContactInStore(store, { kind: "guest", id: "gp-kurt" }, true);
+  assert.equal(added.ok, true);
+  assert.equal(store.persons[0]?.isDayOfContact, true);
+  assert.equal(store.guestPeople[0]?.isDayOfContact, false);
+  assert.equal(store.persons.length, 1);
+});
+
+test("missing identity returns not_found and creates nothing", () => {
+  const store = emptyStore();
+  const result = setDayOfContactInStore(store, { kind: "person", id: "missing" }, true);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.reason, "not_found");
+  assert.equal(store.persons.length, 0);
+  assert.equal(store.contacts.length, 0);
+  assert.equal(store.guestPeople.length, 0);
 });
 
 test("keeping an unlinked guest on the guest list does not create a Person", () => {

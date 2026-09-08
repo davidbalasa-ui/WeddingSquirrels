@@ -16,6 +16,7 @@ import {
   presentDirectoryRow,
   presentDirectoryRows,
   profileContactActions,
+  profileDisplayLabel,
   profilePhotoSrc,
   profileRoleChips,
   searchDirectoryEntries,
@@ -225,6 +226,23 @@ test("canonical profile includes contact role data", () => {
   assert.ok(sections.includes("vendor"));
   assert.equal(sections.includes("guest"), false);
   assert.equal(profileContactActions(profile).length, 3);
+});
+
+test("Kurt-style day-of profile renders the role label without inventing contact details", () => {
+  const profile = emptyProfile({
+    profileId: "person:kurt_huizenga",
+    name: "Kurt Huizenga",
+    directoryLabel: "MC",
+    subtitle: "MC",
+    isDayOfContact: true,
+    phone: null,
+    email: null,
+    guestInfo: { household: "Kurt Huizenga", rsvpStatus: "attending", table: null },
+  });
+  assert.deepEqual(profileRoleChips(profile), ["Guest", "Day-of contact"]);
+  assert.equal(profileDisplayLabel(profile), "MC");
+  assert.deepEqual(profileContactActions(profile), []);
+  assert.equal(visibleProfileSections(profile).includes("contact"), false);
 });
 
 test("canonical profile includes both guest and contact when both are linked", () => {

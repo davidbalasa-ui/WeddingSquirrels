@@ -47,6 +47,7 @@ import {
   isPeoplePrimaryList,
 } from "@/lib/people-directory";
 import {
+  applyDayOfContactForIdentity,
   convertPrimaryListForIdentity,
   copyPhotoToLinkedPeer,
   linkContactToExistingPerson,
@@ -3021,32 +3022,6 @@ export async function linkContactToPerson(
   return { ok: true, id: contactId, profileId: profileIdForPerson(personId) };
 }
 
-async function resolveGuestPersonForDayOf(id: string) {
-  const existing = await prisma.guestPerson.findUnique({ where: { id } });
-  if (existing) return existing;
-
-  const synthesized = id.match(/^(.*)-p([12])$/);
-  if (!synthesized) return null;
-  const guestId = synthesized[1];
-  const index = Number(synthesized[2]) - 1;
-  const guest = await prisma.guest.findUnique({
-    where: { id: guestId },
-    include: { people: { orderBy: { sortOrder: "asc" } } },
-  });
-  if (!guest) return null;
-  if (guest.people[index]) return guest.people[index];
-
-  const name = (index === 0 ? guest.nameLine1 : guest.nameLine2)?.trim();
-  if (!name) return null;
-  return prisma.guestPerson.create({
-    data: {
-      guestId,
-      name,
-      sortOrder: index,
-    },
-  });
-}
-
 export async function setDayOfContact(
   profileId: string,
   on: boolean,
@@ -3056,22 +3031,8 @@ export async function setDayOfContact(
   const parsed = parseProfileId(profileId);
   if (!parsed) return { ok: false, reason: "invalid" };
 
-  try {
-    if (parsed.kind === "person") {
-      await prisma.person.update({ where: { id: parsed.id }, data: { isDayOfContact: on } });
-    } else if (parsed.kind === "contact") {
-      await prisma.contact.update({ where: { id: parsed.id }, data: { isDayOfContact: on } });
-    } else {
-      const guestPerson = await resolveGuestPersonForDayOf(parsed.id);
-      if (!guestPerson) return { ok: false, reason: "not_found" };
-      await prisma.guestPerson.update({
-        where: { id: guestPerson.id },
-        data: { isDayOfContact: on },
-      });
-    }
-  } catch {
-    return { ok: false, reason: "not_found" };
-  }
+  const result = await applyDayOfContactForIdentity(parsed, on);
+  if (!result.ok) return result;
 
   revalidatePeople(profileId);
   return { ok: true };

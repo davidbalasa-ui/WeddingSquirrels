@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import {
+  collectDayOfContactInputs,
   parseDayOfAsOf,
   toDayOfBlock,
   viewFromExperienceSource,
@@ -140,7 +141,7 @@ export async function loadDayOfExperience(
 
   const canSeeContacts = Boolean(session.isMaster || session.canSeeTimeline);
   // Wedding execution only: no money, guests, rehearsal, or unrelated tasks.
-  const [blocks, contacts, assignments] = await Promise.all([
+  const [blocks, contacts, flaggedPersons, assignments] = await Promise.all([
     prisma.timelineBlock.findMany({
       where: { schedule: "wedding" },
       select: {
@@ -171,6 +172,19 @@ export async function loadDayOfExperience(
           },
         })
       : Promise.resolve([]),
+    canSeeContacts
+      ? prisma.person.findMany({
+          where: { isDayOfContact: true },
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          select: {
+            id: true,
+            name: true,
+            directoryLabel: true,
+            isDayOfContact: true,
+            sortOrder: true,
+          },
+        })
+      : Promise.resolve([]),
     prisma.dayAssignment.findMany({
       orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
       select: {
@@ -193,18 +207,21 @@ export async function loadDayOfExperience(
       ? formatWeddingDateLabel(settings.weddingDate, timezone)
       : null,
     blocks: blocksForDayOfUiFixture(uiFixture) ?? blocks.map(toDayOfBlock),
-    contacts: contacts.map((contact) => ({
-      id: contact.id,
-      name: contact.name,
-      personName: contact.person?.name ?? null,
-      directoryLabel: contact.directoryLabel,
-      phone: contact.phone,
-      email: contact.email,
-      photoData: contact.isDayOfContact ? contact.photoData : null,
-      sortOrder: contact.sortOrder,
-      isDayOfContact: contact.isDayOfContact,
-      personId: contact.personId,
-    })),
+    contacts: collectDayOfContactInputs({
+      contacts: contacts.map((contact) => ({
+        id: contact.id,
+        name: contact.name,
+        personName: contact.person?.name ?? null,
+        directoryLabel: contact.directoryLabel,
+        phone: contact.phone,
+        email: contact.email,
+        photoData: contact.isDayOfContact ? contact.photoData : null,
+        sortOrder: contact.sortOrder,
+        isDayOfContact: contact.isDayOfContact,
+        personId: contact.personId,
+      })),
+      persons: flaggedPersons,
+    }),
     assignments,
     linkedPersonId: session.linkedPersonId,
     canSeeContacts,
