@@ -57,7 +57,7 @@ import { sessionCanMutateTask } from "@/lib/tasks";
 import { taskHref } from "@/lib/entity-links";
 import { safeReturnTo, TASKS_HOME } from "@/lib/return-to";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
-import { applyRsvpChange, effectiveInvitedCount, parseRsvpStatus, syncLegacyGuestNames, type RsvpStatus } from "@/lib/guest-gifts";
+import { applyRsvpChange, effectiveInvitedCount, isRsvpStatus, parseRsvpStatus, RSVP_STATUSES, syncLegacyGuestNames, type RsvpStatus } from "@/lib/guest-gifts";
 import { householdRsvpFromPeople } from "@/lib/guest-rsvp-import";
 import {
   directoryLabelForRole,
@@ -1739,7 +1739,7 @@ export type GuestPersonWriteResult =
   | { ok: true; id: string; profileId?: string }
   | { ok: false; reason: "forbidden" | "not_found" | "invalid" };
 
-const RSVP_CYCLE: RsvpStatus[] = ["pending", "attending", "not_attending"];
+const RSVP_CYCLE: RsvpStatus[] = [...RSVP_STATUSES];
 
 async function syncHouseholdRsvpFromPeople(guestId: string) {
   const guest = await prisma.guest.findUnique({
@@ -1807,6 +1807,64 @@ function synthesizeGuestPeopleFromLegacy(guest: {
   return people;
 }
 
+async function applyExistingGuestPersonRsvp(
+  guestPersonId: string,
+  rsvpStatus: RsvpStatus,
+): Promise<GuestPersonWriteResult> {
+  const person = await prisma.guestPerson.findUnique({ where: { id: guestPersonId } });
+  if (!person) return { ok: false, reason: "not_found" };
+
+  if (person.rsvpStatus !== rsvpStatus) {
+    await prisma.guestPerson.update({
+      where: { id: guestPersonId },
+      data: { rsvpStatus },
+    });
+    await syncHouseholdRsvpFromPeople(person.guestId);
+  }
+  revalidateGuests();
+  return { ok: true, id: guestPersonId };
+}
+
+async function resolveExistingGuestPersonForProfile(profileId: string) {
+  const parsed = parseProfileId(profileId);
+  if (!parsed) return null;
+
+  if (parsed.kind === "guest") {
+    return prisma.guestPerson.findUnique({ where: { id: parsed.id } });
+  }
+
+  let personId: string | null = null;
+  if (parsed.kind === "person") {
+    personId = parsed.id;
+  } else {
+    const contact = await prisma.contact.findUnique({
+      where: { id: parsed.id },
+      select: { personId: true },
+    });
+    personId = contact?.personId ?? null;
+  }
+  if (!personId) return null;
+  return prisma.guestPerson.findFirst({ where: { personId } });
+}
+
+export async function saveProfileGuestRsvp(
+  profileId: string,
+  rsvpStatus: string,
+): Promise<GuestPersonWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  if (!isRsvpStatus(rsvpStatus)) return { ok: false, reason: "invalid" };
+
+  const guestPerson = await resolveExistingGuestPersonForProfile(profileId);
+  if (!guestPerson) return { ok: false, reason: "not_found" };
+
+  const result = await applyExistingGuestPersonRsvp(guestPerson.id, rsvpStatus);
+  if (result.ok) {
+    revalidatePeople(profileId);
+    refresh();
+  }
+  return result;
+}
+
 export async function cycleGuestPersonRsvp(guestPersonId: string): Promise<GuestPersonWriteResult> {
   if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
   if (!guestPersonId) return { ok: false, reason: "invalid" };
@@ -1816,13 +1874,7 @@ export async function cycleGuestPersonRsvp(guestPersonId: string): Promise<Guest
 
   const current = parseRsvpStatus(person.rsvpStatus);
   const next = RSVP_CYCLE[(RSVP_CYCLE.indexOf(current) + 1) % RSVP_CYCLE.length];
-  await prisma.guestPerson.update({
-    where: { id: guestPersonId },
-    data: { rsvpStatus: next },
-  });
-  await syncHouseholdRsvpFromPeople(person.guestId);
-  revalidateGuests();
-  return { ok: true, id: guestPersonId };
+  return applyExistingGuestPersonRsvp(guestPersonId, next);
 }
 
 export async function saveGuestPersonName(

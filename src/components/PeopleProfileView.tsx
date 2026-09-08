@@ -5,8 +5,8 @@ import { PersonAvatar } from "@/components/PersonAvatar";
 import { PeopleDeleteButton } from "@/components/PeopleDeleteButton";
 import { PeopleMembershipEditor } from "@/components/PeopleMembershipEditor";
 import { PeopleRoleEditor } from "@/components/PeopleRoleEditor";
+import { PeopleRsvpEditor } from "@/components/PeopleRsvpEditor";
 import { formatBudgetContractDetail } from "@/lib/connections";
-import { rsvpStatusLabel } from "@/lib/guest-gifts";
 import {
   firstName,
   omitFabricatedValue,
@@ -65,7 +65,6 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
   const photoSrc = profilePhotoSrc(profile.photoSrc);
   const displayLabel = profileDisplayLabel(profile);
   const givenName = firstName(profile.name);
-  const rsvp = profile.guestInfo ? omitFabricatedValue(rsvpStatusLabel(profile.guestInfo.rsvpStatus)) : null;
   const table = omitFabricatedValue(profile.guestInfo?.table);
   const household = omitFabricatedValue(profile.guestInfo?.household);
   const phone = omitFabricatedValue(profile.phone);
@@ -127,7 +126,11 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
           <SectionTitle>Guest</SectionTitle>
           <div className="mt-1 border-t border-[var(--line)]">
             {household ? <ProfileRow title={household} detail="Household" href="/people?tab=guests" /> : null}
-            {rsvp ? <ProfileRow title={rsvp} detail="RSVP" /> : null}
+            <PeopleRsvpEditor
+              profileId={profile.profileId}
+              rsvpStatus={profile.guestInfo.rsvpStatus}
+              canEdit={profile.canEditRsvp}
+            />
             {table ? <ProfileRow title={table} detail="Seating" /> : null}
             {gifts.map((gift) => (
               <ProfileRow key={gift} title={gift} detail="Gift" href="/people?tab=guests" />

@@ -70,6 +70,7 @@ function emptyProfile(overrides: Partial<PeopleProfile> = {}): PeopleProfile {
     canEditLabel: false,
     canEditPrimaryList: false,
     canEditDayOf: false,
+    canEditRsvp: false,
     canDelete: false,
     canSeeTasks: false,
     openTasks: [],
@@ -188,6 +189,7 @@ test("Person-only profile does not display fake role metadata", () => {
   assert.deepEqual(profileRoleChips(profile), []);
   assert.equal(profile.primaryList, null);
   assert.equal(profile.guestInfo, null);
+  assert.equal(profile.canEditRsvp, false);
   assert.equal(profile.vendorContext, null);
   assert.equal(profile.isDayOfContact, false);
   const sections = visibleProfileSections(profile);
