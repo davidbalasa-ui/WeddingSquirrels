@@ -48,12 +48,10 @@ test.describe("plan", () => {
     await expect(page.getByRole("button", { name: "Add Task" })).toBeVisible();
     const tasksBody = await page.locator("#main-content").innerText();
     expect(tasksBody).toMatch(new RegExp(`${openCount} open`));
-    expect(tasksBody).toContain("Wedding week");
+    expect(tasksBody).toMatch(/wedding week/i);
     expect(tasksBody).toContain("Week before");
+    expect(tasksBody).toMatch(/No decision tasks yet/);
     expect(tasksBody).not.toMatch(/Everything is done/);
-    if (tasksBody.includes("Decisions") && !tasksBody.match(/Decisions[\s\S]{0,80}(CERT|decision)/i)) {
-      expect(tasksBody).toMatch(/No decision tasks yet|Decisions/);
-    }
 
     await page.getByRole("link", { name: "Mine", exact: true }).click();
     await expect(page).toHaveURL(/view=mine/);

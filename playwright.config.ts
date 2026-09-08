@@ -54,7 +54,6 @@ export default defineConfig({
       fullyParallel: false,
       workers: 1,
       timeout: 60_000,
-      dependencies: ["desktop"],
       testMatch: ["writes.spec.ts"],
       use: { ...devices["Desktop Chrome"], channel: process.env.CERT_USE_BUNDLED_CHROMIUM === "1" ? undefined : "chrome", viewport: { width: 1280, height: 900 } },
     },
