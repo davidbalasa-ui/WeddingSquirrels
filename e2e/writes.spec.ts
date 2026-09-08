@@ -372,8 +372,8 @@ test.describe("writable lifecycles", () => {
     const original = await notes.inputValue();
     await notes.fill("CERT should not persist");
     await expect(notes).toHaveValue("CERT should not persist");
-    await page.getByRole("link", { name: "← Back to Today" }).click();
-    await expect(page).toHaveURL(/\/today/);
+    await page.getByRole("link", { name: "← Back to Plan Tasks" }).click();
+    await expect(page).toHaveURL(/\/plan\/tasks/);
     await page.goto(workspace);
     await expect(notes).toHaveValue(original);
     await expect(notes).not.toHaveValue("CERT should not persist");

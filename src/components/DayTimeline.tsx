@@ -10,6 +10,7 @@ import {
   saveTimelinePeerOrder,
 } from "@/app/actions";
 import { DayTimeRange } from "@/components/DayTimeStepper";
+import { WorkFromLink } from "@/components/WorkFromLink";
 import {
   DAY_OF_BUCKETS,
   applyPeerOrder,
@@ -645,9 +646,9 @@ function ReviewRow({
         )}
         {related ? (
           <p className="mt-1 text-xs">
-            <Link href={taskHref(related.id)} className="font-semibold text-[var(--accent)]">
+            <WorkFromLink href={taskHref(related.id)} className="font-semibold text-[var(--accent)]">
               Related task · {related.title}
-            </Link>
+            </WorkFromLink>
           </p>
         ) : null}
       </div>

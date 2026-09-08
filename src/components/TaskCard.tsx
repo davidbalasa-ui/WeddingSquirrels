@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
+import { WorkFromLink } from "@/components/WorkFromLink";
 import { moneyHref, personProfileHref, taskHref, timelineHref } from "@/lib/entity-links";
 import { dueLabel } from "@/lib/tasks";
 import type { TaskWithAssignees } from "@/lib/tasks";
@@ -30,7 +31,7 @@ export function TaskCard({ task }: { task: TaskWithAssignees }) {
       } ${isOrg ? (isWeek ? "bg-[#f7f1e4]/80" : "bg-[#e7f0ec]/80") : ""}`}
     >
       <div className="min-w-0 flex-1">
-        <Link href={taskHref(task.id)} className="block">
+        <WorkFromLink href={taskHref(task.id)} className="block">
           {isOrg ? (
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
               Shared · {isWeek ? "7 days out" : "1 day out"}
@@ -42,7 +43,7 @@ export function TaskCard({ task }: { task: TaskWithAssignees }) {
           {preview ? (
             <p className="mt-0.5 line-clamp-1 text-sm leading-snug text-muted">{preview}</p>
           ) : null}
-        </Link>
+        </WorkFromLink>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
           {assignees.length > 0 ? (
             <span className="inline-flex flex-wrap gap-x-1">
@@ -107,9 +108,9 @@ export function TaskCard({ task }: { task: TaskWithAssignees }) {
       </div>
 
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <Link href={taskHref(task.id)} className="text-lg text-muted" aria-hidden>
+        <WorkFromLink href={taskHref(task.id)} className="text-lg text-muted" aria-hidden>
           ›
-        </Link>
+        </WorkFromLink>
         <EscalatePriorityButton taskId={task.id} escalated={escalated} compact />
       </div>
     </article>

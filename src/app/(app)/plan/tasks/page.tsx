@@ -34,23 +34,27 @@ export default async function PlanTasksPage({
   ]);
 
   const visibleTasks = filterTasksForPlanView(tasks, view, session, now);
-  const visibleOrgCards =
-    view === "open" || view === "done"
-      ? orgCards.filter((task) => (view === "done" ? task.status === "done" : task.status !== "done"))
-      : [];
+  const visibleOrgCards = filterTasksForPlanView(orgCards, view, session, now);
   const summary = summarizeVisibleTasks(
-    [...tasks, ...orgCards].filter((task) => task.status !== "done"),
+    [...tasks, ...orgCards].filter((task) => task.status !== "done" || view === "done"),
     now,
   );
 
-  const subtitle =
-    view === "open" && summary.open > 0
-      ? summary.overdue > 0
-        ? `${summary.open} open · ${summary.overdue} overdue`
-        : summary.dueSoon > 0
-          ? `${summary.open} open · ${summary.dueSoon} due this week`
-          : `${summary.open} open`
-      : VIEW_COPY[view];
+  const openSubtitle = [
+    `${summary.open} open`,
+    summary.workspaces > 0 && summary.workspaces !== summary.open
+      ? `${summary.workspaces} workspace${summary.workspaces === 1 ? "" : "s"}`
+      : null,
+    summary.overdue > 0
+      ? `${summary.overdue} overdue`
+      : summary.dueSoon > 0
+        ? `${summary.dueSoon} due this week`
+        : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const subtitle = view === "open" && summary.open > 0 ? openSubtitle : VIEW_COPY[view];
 
   return (
     <>

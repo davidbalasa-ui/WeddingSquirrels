@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WorkFromLink } from "@/components/WorkFromLink";
 import type { TodayComingUpItem } from "@/lib/today";
 
 function formatComingUpDate(date: Date) {
@@ -33,14 +34,15 @@ export function TodayComingUpList({
           );
 
           if (href) {
+            const LinkCmp = href.startsWith("/work/") ? WorkFromLink : Link;
             return (
-              <Link
+              <LinkCmp
                 key={item.id}
                 href={href}
                 className="block transition-colors hover:bg-[var(--accent-soft)]/25"
               >
                 {row}
-              </Link>
+              </LinkCmp>
             );
           }
 

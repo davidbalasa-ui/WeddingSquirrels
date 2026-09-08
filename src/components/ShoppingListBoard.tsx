@@ -11,6 +11,7 @@ import {
   toggleShoppingPurchased,
 } from "@/app/actions";
 import { StarIcon } from "@/components/StarIcon";
+import { WorkFromLink } from "@/components/WorkFromLink";
 
 export type ShoppingItemView = {
   id: string;
@@ -169,14 +170,14 @@ function ShoppingItemRow({
 
         <div className="flex shrink-0 flex-col items-end gap-1">
           {item.task && !open ? (
-            <Link
+            <WorkFromLink
               href={`/work/${item.task.id}`}
               className="text-sm text-muted"
               aria-label="Open decision"
               onClick={(e) => e.stopPropagation()}
             >
               ›
-            </Link>
+            </WorkFromLink>
           ) : (
             <span className="text-sm text-muted" aria-hidden>
               {open ? "−" : "+"}

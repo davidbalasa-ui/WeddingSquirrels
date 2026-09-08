@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WorkFromLink } from "@/components/WorkFromLink";
 import type { TodayContextItem } from "@/lib/today";
 
 export function TodayContext({
@@ -39,14 +40,15 @@ export function TodayContext({
           );
 
           if (item.href) {
+            const LinkCmp = item.href.startsWith("/work/") ? WorkFromLink : Link;
             return (
-              <Link
+              <LinkCmp
                 key={item.id}
                 href={item.href}
                 className="block transition-colors hover:bg-[var(--accent-soft)]/25"
               >
                 {row}
-              </Link>
+              </LinkCmp>
             );
           }
 

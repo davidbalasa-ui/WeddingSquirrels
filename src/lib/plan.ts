@@ -3,6 +3,10 @@ import { can, canSeeDinnerTab, canSeeStayTab } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { countFinishedGuests, type MealChoiceMap, type MealCourseView } from "@/lib/meals";
 import { reviewNoteLines, sortTimelineBlocks } from "@/lib/day-of-time";
+import {
+  countOpenWorkspaceCards,
+  listActionableOpenTasks,
+} from "@/lib/task-actionable";
 import { listOrgCards, listTasks, type TaskWithAssignees } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 
@@ -29,6 +33,7 @@ export type PlanTaskCounts = {
   open: number;
   overdue: number;
   dueSoon: number;
+  workspaces: number;
 };
 
 export type PlanTimelineCounts = {
@@ -94,28 +99,50 @@ export function taskIsDueSoon(dueDate: Date | null | undefined, now: Date) {
 }
 
 export function summarizeVisibleTasks(
-  tasks: Array<{ dueDate: Date | null }>,
+  tasks: Array<{
+    id?: string | null;
+    status?: string | null;
+    parentId?: string | null;
+    dueDate?: Date | null;
+    children?: Array<{
+      id?: string | null;
+      status?: string | null;
+      parentId?: string | null;
+      dueDate?: Date | null;
+    }>;
+  }>,
   now: Date,
 ): PlanTaskCounts {
-  const open = tasks.length;
+  const leaves = listActionableOpenTasks(tasks);
   let overdue = 0;
   let dueSoon = 0;
-  for (const task of tasks) {
+  for (const task of leaves) {
     if (taskIsOverdue(task.dueDate, now)) overdue += 1;
     else if (taskIsDueSoon(task.dueDate, now)) dueSoon += 1;
   }
-  return { open, overdue, dueSoon };
+  return {
+    open: leaves.length,
+    overdue,
+    dueSoon,
+    workspaces: countOpenWorkspaceCards(tasks),
+  };
 }
 
 export function taskMatchesMine(
-  task: { assignees: Array<{ personId: string }> },
+  task: {
+    assignees: Array<{ personId: string }>;
+    children?: Array<{ status?: string | null; assignees: Array<{ personId: string }> }>;
+  },
   session: Pick<SessionAccount, "linkedPersonId" | "assigneeFilter">,
 ) {
   const ids = new Set<string>();
   if (session.linkedPersonId) ids.add(session.linkedPersonId);
   for (const id of session.assigneeFilter ?? []) ids.add(id);
   if (ids.size === 0) return false;
-  return task.assignees.some((row) => ids.has(row.personId));
+  if (task.assignees.some((row) => ids.has(row.personId))) return true;
+  return (task.children ?? []).some(
+    (child) => child.status !== "done" && child.assignees.some((row) => ids.has(row.personId)),
+  );
 }
 
 export function filterTasksForPlanView(
@@ -126,8 +153,16 @@ export function filterTasksForPlanView(
 ): TaskWithAssignees[] {
   if (view === "done") return tasks.filter((task) => task.status === "done");
   const open = tasks.filter((task) => task.status !== "done");
-  if (view === "overdue") return open.filter((task) => taskIsOverdue(task.dueDate, now));
-  if (view === "soon") return open.filter((task) => taskIsDueSoon(task.dueDate, now));
+  if (view === "overdue") {
+    return open.filter((task) =>
+      listActionableOpenTasks([task]).some((leaf) => taskIsOverdue(leaf.dueDate, now)),
+    );
+  }
+  if (view === "soon") {
+    return open.filter((task) =>
+      listActionableOpenTasks([task]).some((leaf) => taskIsDueSoon(leaf.dueDate, now)),
+    );
+  }
   if (view === "mine") return open.filter((task) => taskMatchesMine(task, session));
   return open;
 }
@@ -244,6 +279,9 @@ export function summarizeCalendarEvents(
 function taskDetail(counts: PlanTaskCounts) {
   if (counts.open === 0) return "Nothing open right now";
   const parts: string[] = [`${counts.open} open`];
+  if (counts.workspaces > 0 && counts.workspaces !== counts.open) {
+    parts.push(`${counts.workspaces} workspace${counts.workspaces === 1 ? "" : "s"}`);
+  }
   if (counts.overdue > 0) {
     parts.push(`${counts.overdue} overdue`);
   } else if (counts.dueSoon > 0) {

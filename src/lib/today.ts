@@ -26,6 +26,7 @@ import {
   summarizeGuestRsvp,
 } from "@/lib/guest-gifts";
 import { dueLabel } from "@/lib/tasks";
+import { countActionableOpenInboxTasks } from "@/lib/task-actionable";
 import type { SessionAccount } from "@/lib/types";
 import {
   getWeddingPhase,
@@ -466,7 +467,7 @@ export function buildWaitingItems(
 }
 
 export function countOpenTasks(items: InboxItem[]): number {
-  return items.filter((item) => item.kind === "task" && !item.done).length;
+  return countActionableOpenInboxTasks(items);
 }
 
 export function countOpenAsks(items: InboxItem[]): number {

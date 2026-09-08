@@ -3,6 +3,7 @@ import { test } from "node:test";
 import type { SessionAccount } from "./types";
 import {
   buildPlanDomainSummaries,
+  filterTasksForPlanView,
   parsePlanTaskView,
   summarizeCalendarEvents,
   summarizeRehearsal,
@@ -16,6 +17,7 @@ import {
   upcomingCalendarEvents,
   type PlanCounts,
 } from "./plan";
+import type { TaskWithAssignees } from "./tasks";
 
 function session(overrides: Partial<SessionAccount> = {}): SessionAccount {
   return {
@@ -46,7 +48,7 @@ function session(overrides: Partial<SessionAccount> = {}): SessionAccount {
 const now = new Date("2026-09-04T15:00:00");
 
 const populated: PlanCounts = {
-  tasks: { open: 18, overdue: 0, dueSoon: 4 },
+  tasks: { open: 18, overdue: 0, dueSoon: 4, workspaces: 18 },
   timeline: { moments: 42, nextLabel: "Getting ready", nextTime: "10:00 AM" },
   rehearsal: { moments: 7, mealGuests: 17, mealChoices: 11, published: true },
   stay: { assigned: 14, total: 18, open: 4 },
@@ -123,6 +125,7 @@ test("task summary counts only the visible tasks it is given", () => {
   );
   assert.equal(withOrgCards.open, 4);
   assert.equal(withOrgCards.dueSoon, 2);
+  assert.equal(withOrgCards.workspaces, 4);
 });
 
 test("overdue and due-soon summaries are deterministic for a fixed now", () => {
@@ -143,7 +146,7 @@ test("overdue and due-soon summaries are deterministic for a fixed now", () => {
     ],
     now,
   );
-  assert.deepEqual(counts, { open: 4, overdue: 1, dueSoon: 1 });
+  assert.deepEqual(counts, { open: 4, overdue: 1, dueSoon: 1, workspaces: 4 });
 });
 
 test("wedding timeline summary uses wedding TimelineBlocks only", () => {
@@ -250,7 +253,7 @@ test("calendar upcoming items are chronological and ignore past events", () => {
 
 test("empty domains produce intentional low-data summaries without fake dates or counts", () => {
   const rows = buildPlanDomainSummaries(session(), {
-    tasks: { open: 0, overdue: 0, dueSoon: 0 },
+    tasks: { open: 0, overdue: 0, dueSoon: 0, workspaces: 0 },
     timeline: { moments: 0, nextLabel: null, nextTime: null },
     rehearsal: { moments: 0, mealGuests: 0, mealChoices: 0, published: false },
     stay: { assigned: 0, total: 0, open: 0 },
@@ -296,6 +299,96 @@ test("task mine matching uses linked personId only", () => {
     ),
     true,
   );
+  assert.equal(
+    taskMatchesMine(
+      {
+        assignees: [],
+        children: [{ status: "todo", assignees: [{ personId: "david" }] }],
+      },
+      session(),
+    ),
+    true,
+  );
+  assert.equal(
+    taskMatchesMine(
+      {
+        assignees: [],
+        children: [{ status: "done", assignees: [{ personId: "david" }] }],
+      },
+      session(),
+    ),
+    false,
+  );
+});
+
+test("plan task filters use the same universe including org-card children", () => {
+  const orgCard = {
+    id: "week",
+    status: "todo",
+    parentId: null,
+    dueDate: null,
+    assignees: [],
+    children: [
+      {
+        id: "w0",
+        status: "todo",
+        parentId: "week",
+        dueDate: new Date("2026-09-06T12:00:00"),
+        assignees: [{ personId: "david" }],
+      },
+    ],
+  } as unknown as TaskWithAssignees;
+  const workspace = {
+    id: "pkg",
+    status: "todo",
+    parentId: null,
+    dueDate: null,
+    assignees: [],
+    children: [
+      {
+        id: "step",
+        status: "todo",
+        parentId: "pkg",
+        dueDate: new Date("2026-09-08T12:00:00"),
+        assignees: [{ personId: "haley" }],
+      },
+    ],
+  } as unknown as TaskWithAssignees;
+  const standalone = {
+    id: "crossbow",
+    status: "todo",
+    parentId: null,
+    dueDate: null,
+    assignees: [{ personId: "david" }],
+    children: [],
+  } as unknown as TaskWithAssignees;
+
+  const universe = [orgCard, workspace, standalone];
+  assert.deepEqual(
+    filterTasksForPlanView(universe, "open", session(), now).map((row) => row.id),
+    ["week", "pkg", "crossbow"],
+  );
+  assert.deepEqual(
+    filterTasksForPlanView(universe, "soon", session(), now).map((row) => row.id),
+    ["week", "pkg"],
+  );
+  assert.deepEqual(
+    filterTasksForPlanView(universe, "mine", session(), now).map((row) => row.id),
+    ["week", "crossbow"],
+  );
+  assert.deepEqual(
+    filterTasksForPlanView(universe, "mine", session({ linkedPersonId: "haley" }), now).map(
+      (row) => row.id,
+    ),
+    ["pkg"],
+  );
+});
+
+test("plan hub labels open work separately from workspaces", () => {
+  const row = buildPlanDomainSummaries(session(), {
+    tasks: { open: 49, overdue: 0, dueSoon: 0, workspaces: 11 },
+  }).find((item) => item.key === "tasks");
+  assert.equal(row?.detail, "49 open · 11 workspaces");
 });
 
 test("parsePlanTaskView stays in the known task views", () => {

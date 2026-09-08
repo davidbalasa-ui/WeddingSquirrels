@@ -5,7 +5,7 @@ import { startOfDay, endOfDay, addDays } from "date-fns";
 
 const taskListInclude = {
   assignees: { include: { person: true } },
-  children: true,
+  children: { include: { assignees: { include: { person: true } } } },
   budgetItem: { select: { id: true, name: true, price: true, amountPaid: true } },
   timelineBlock: { select: { id: true, startAt: true, notes: true, schedule: true } },
 } satisfies Prisma.TaskInclude;

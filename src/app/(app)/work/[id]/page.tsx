@@ -9,12 +9,21 @@ import { contractRemaining, formatMoney } from "@/lib/money";
 import { personProfileHref, moneyHref, requestHref, timelineHref } from "@/lib/entity-links";
 import { getTaskWorkspace } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
+import { resolveWorkReturn, workBackLabel } from "@/lib/work-return";
 
-export default async function WorkPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function WorkPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string | string[] }>;
+}) {
   const session = await requirePageSession({ need: "canSeeTasks" });
   const { id } = await params;
+  const { from } = await searchParams;
   const task = await getTaskWorkspace(session, id);
   if (!task) notFound();
+  const back = resolveWorkReturn(from);
 
   let people = await prisma.person.findMany({ orderBy: { sortOrder: "asc" } });
   if (session.assigneeFilter?.length) {
@@ -65,8 +74,8 @@ export default async function WorkPage({ params }: { params: Promise<{ id: strin
   return (
     <>
       <AppHeader session={session} title={task.title} subtitle="Decision workspace" />
-      <Link href="/today" className="mb-3 inline-block text-sm font-semibold text-[var(--accent)]">
-        ← Back to Today
+      <Link href={back.href} className="mb-3 inline-block text-sm font-semibold text-[var(--accent)]">
+        {workBackLabel(back)}
       </Link>
       <RelatedLinkList title="People" items={peopleLinks} />
       <RelatedLinkList title="Money" items={moneyLinks} />

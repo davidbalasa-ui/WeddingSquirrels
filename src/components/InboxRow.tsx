@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   addRequestMessage,
@@ -19,6 +18,7 @@ import {
   toggleTaskDone,
 } from "@/app/actions";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
+import { WorkFromLink, useWorkHref } from "@/components/WorkFromLink";
 import { taskHref } from "@/lib/entity-links";
 import { canManageOwners, inboxDateLine, nextCoupleOwnerIds, type InboxItem } from "@/lib/inbox";
 import {
@@ -80,6 +80,8 @@ export function InboxRow({
       if (undoTimer.current) clearTimeout(undoTimer.current);
     };
   }, []);
+
+  const workHref = useWorkHref(item.href);
 
   const canCycleOwners =
     (item.kind === "task" || item.kind === "org_step") &&
@@ -176,7 +178,7 @@ export function InboxRow({
       return;
     }
     if (!canCycleOwners) {
-      if (item.href) window.location.href = item.href;
+      if (workHref || item.href) window.location.href = workHref ?? item.href!;
       return;
     }
     runMutation(() => cycleTaskOwners(item.sourceId));
@@ -230,11 +232,11 @@ export function InboxRow({
                 </p>
               </button>
             ) : item.kind === "task" && item.href ? (
-              <Link href={item.href} className="block">
+              <WorkFromLink href={item.href} className="block">
                 <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
                   {item.title}
                 </p>
-              </Link>
+              </WorkFromLink>
             ) : (
               <button type="button" className="w-full text-left" onClick={() => setEditingTitle(true)}>
                 <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
@@ -285,13 +287,13 @@ export function InboxRow({
                     </button>
                   ) : null}
                   {item.kind === "task" && item.href ? (
-                    <Link
+                    <WorkFromLink
                       href={item.href}
                       className="block px-3 py-2 text-sm font-semibold hover:bg-[var(--surface)]"
                       onClick={() => setMenuOpen(false)}
                     >
                       Open workspace
-                    </Link>
+                    </WorkFromLink>
                   ) : null}
                   {onAskSomeone ? (
                     <button
@@ -370,12 +372,12 @@ export function InboxRow({
             <AskThread messages={item.askData.messages} sessionId={session.id} />
 
             {item.linkedTaskId && item.linkedTaskTitle && session.canSeeTasks && !askPerms?.edit ? (
-              <Link
+              <WorkFromLink
                 href={taskHref(item.linkedTaskId)}
                 className="mt-2 block text-sm font-semibold text-[var(--accent)]"
               >
                 Related: {item.linkedTaskTitle}
-              </Link>
+              </WorkFromLink>
             ) : null}
 
             {askPerms?.edit ? (

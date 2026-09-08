@@ -5,6 +5,7 @@ import { PersonAvatar } from "@/components/PersonAvatar";
 import { PeopleDeleteButton } from "@/components/PeopleDeleteButton";
 import { PeopleMembershipEditor } from "@/components/PeopleMembershipEditor";
 import { PeopleRoleEditor } from "@/components/PeopleRoleEditor";
+import { WorkFromLink } from "@/components/WorkFromLink";
 import { formatBudgetContractDetail } from "@/lib/connections";
 import { rsvpStatusLabel } from "@/lib/guest-gifts";
 import {
@@ -49,6 +50,17 @@ function ProfileRow({
   );
 
   if (!href) return <div className="border-b border-[var(--line)]">{body}</div>;
+
+  if (href.startsWith("/work/")) {
+    return (
+      <WorkFromLink
+        href={href}
+        className="block border-b border-[var(--line)] transition-colors hover:bg-[var(--accent-soft)]/25"
+      >
+        {body}
+      </WorkFromLink>
+    );
+  }
 
   return (
     <Link href={href} className="block border-b border-[var(--line)] transition-colors hover:bg-[var(--accent-soft)]/25">
