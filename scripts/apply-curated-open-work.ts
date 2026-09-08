@@ -32,7 +32,6 @@ import {
   type TaskSnapshot,
   type WeddingSnapshot,
 } from "../src/lib/curated-open-work";
-import { isNeonDatabaseUrl } from "../src/lib/db";
 import {
   isProtectedProductionTarget,
   parseDatabaseTarget,
@@ -41,6 +40,11 @@ import {
 
 const WEEK_BEFORE_ID_HINT = "week_before";
 const DAY_BEFORE_ID_HINT = "day_before";
+
+function isNeonHost(host: string): boolean {
+  const hostname = host.toLowerCase();
+  return hostname === "neon.tech" || hostname.endsWith(".neon.tech");
+}
 
 function parseHost(databaseUrl: string): string {
   try {
@@ -54,7 +58,7 @@ function neonConnectionUrl(): { url: string; host: string } {
   const explicit = process.env.NEON_DATABASE_URL?.trim();
   if (explicit) {
     const host = parseHost(explicit);
-    if (!isNeonDatabaseUrl(explicit)) throw new Error(`NEON_DATABASE_URL host is not Neon: ${host}`);
+    if (!isNeonHost(host)) throw new Error(`NEON_DATABASE_URL host is not Neon: ${host}`);
     return { url: explicit, host };
   }
 
@@ -70,29 +74,24 @@ function neonConnectionUrl(): { url: string; host: string } {
       !pgDatabase && "PGDATABASE",
     ].filter(Boolean);
     if (missing.length) throw new Error(`Missing ${missing.join(", ")}`);
-    if (!isNeonDatabaseUrl(`postgresql://x:y@${pgHost}/db`)) {
-      throw new Error(`PGHOST is not Neon: ${pgHost}`);
-    }
+    if (!isNeonHost(pgHost!)) throw new Error(`PGHOST is not Neon: ${pgHost}`);
     const sslmode = process.env.PGSSLMODE?.trim() || "require";
-    const channel = process.env.PGCHANNELBINDING?.trim();
-    const extras = channel ? `&channel_binding=${encodeURIComponent(channel)}` : "";
     return {
-      url: `postgresql://${encodeURIComponent(pgUser!)}:${encodeURIComponent(pgPassword)}@${pgHost}/${pgDatabase}?sslmode=${sslmode}${extras}`,
+      url: `postgresql://${encodeURIComponent(pgUser!)}:${encodeURIComponent(pgPassword)}@${pgHost}/${pgDatabase}?sslmode=${sslmode}`,
       host: pgHost!,
     };
   }
 
   const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
-  if (databaseUrl && isNeonDatabaseUrl(databaseUrl)) {
-    return { url: databaseUrl, host: parseHost(databaseUrl) };
-  }
+  const host = parseHost(databaseUrl);
+  if (databaseUrl && isNeonHost(host)) return { url: databaseUrl, host };
   throw new Error(
     "No production Neon credentials. Set NEON_DATABASE_URL or PGHOST/PGUSER/PGPASSWORD/PGDATABASE. Local DATABASE_URL is refused.",
   );
 }
 
 function clientFor(url: string) {
-  if (isNeonDatabaseUrl(url)) {
+  if (isNeonHost(parseHost(url))) {
     return new PrismaClient({ adapter: new PrismaNeon({ connectionString: url }) });
   }
   return new PrismaClient({ datasourceUrl: url });
@@ -109,32 +108,62 @@ function assertKnownProductionHost(host: string, database: string) {
 }
 
 async function tableCounts(prisma: PrismaClient): Promise<Record<string, number>> {
-  const names = [
-    "Person",
-    "Guest",
-    "GuestPerson",
-    "BudgetItem",
-    "BudgetPayment",
-    "TimelineBlock",
-    "Contact",
-    "PinAccount",
-    "ShoppingItem",
-    "Task",
-    "TaskAssignee",
-    "StaySlot",
-    "MealGuest",
-    "CalendarEvent",
-    "DayAssignment",
-    "BudgetFundingSource",
-    "Request",
-  ] as const;
-  const rows = await Promise.all(
-    names.map(async (name) => {
-      const result = await prisma.$queryRawUnsafe<Array<{ n: number }>>(`SELECT COUNT(*)::int AS n FROM "${name}"`);
-      return [name, result[0]!.n] as const;
-    }),
-  );
-  return Object.fromEntries(rows);
+  const [
+    Person,
+    Guest,
+    GuestPerson,
+    BudgetItem,
+    BudgetPayment,
+    TimelineBlock,
+    Contact,
+    PinAccount,
+    ShoppingItem,
+    Task,
+    TaskAssignee,
+    StaySlot,
+    MealGuest,
+    CalendarEvent,
+    DayAssignment,
+    BudgetFundingSource,
+    Request,
+  ] = await Promise.all([
+    prisma.person.count(),
+    prisma.guest.count(),
+    prisma.guestPerson.count(),
+    prisma.budgetItem.count(),
+    prisma.budgetPayment.count(),
+    prisma.timelineBlock.count(),
+    prisma.contact.count(),
+    prisma.pinAccount.count(),
+    prisma.shoppingItem.count(),
+    prisma.task.count(),
+    prisma.taskAssignee.count(),
+    prisma.staySlot.count(),
+    prisma.mealGuest.count(),
+    prisma.calendarEvent.count(),
+    prisma.dayAssignment.count(),
+    prisma.budgetFundingSource.count(),
+    prisma.request.count(),
+  ]);
+  return {
+    Person,
+    Guest,
+    GuestPerson,
+    BudgetItem,
+    BudgetPayment,
+    TimelineBlock,
+    Contact,
+    PinAccount,
+    ShoppingItem,
+    Task,
+    TaskAssignee,
+    StaySlot,
+    MealGuest,
+    CalendarEvent,
+    DayAssignment,
+    BudgetFundingSource,
+    Request,
+  };
 }
 
 async function loadSnapshot(prisma: PrismaClient): Promise<WeddingSnapshot & { settingsId: number }> {
@@ -213,18 +242,47 @@ function orgTreeOk(tasks: TaskSnapshot[]): string[] {
   return errors;
 }
 
+function pgDumpBin(): string {
+  const candidates = [
+    "/usr/lib/postgresql/17/bin/pg_dump",
+    "/usr/lib/postgresql/18/bin/pg_dump",
+    "pg_dump",
+  ];
+  for (const bin of candidates) {
+    try {
+      const out = execFileSync(bin, ["--version"], { encoding: "utf8" });
+      const major = Number.parseInt((out.match(/(\d+)\./) ?? [])[1] ?? "0", 10);
+      if (major >= 17) return bin;
+    } catch {
+      /* try next */
+    }
+  }
+  throw new Error("Need pg_dump 17+ to backup Neon 17. Install postgresql-client-17.");
+}
+
 function dumpProduction(): { path: string; sha256: string } {
-  const dir = "/opt/cursor/artifacts";
+  // Custom-format pg_dump seeks the archive file. The Cursor artifacts
+  // mount does not support that, so the backup lives on local disk.
+  const dir = "/tmp/weddingsquirrels-backups";
   mkdirSync(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const file = path.join(dir, `weddingsquirrels-production-pre-curated-open-work-${stamp}.dump`);
-  execFileSync(
-    "pg_dump",
-    ["-Fc", "--no-owner", "--no-acl", "-f", file],
-    { stdio: ["ignore", "pipe", "pipe"], env: process.env },
-  );
+  const bin = pgDumpBin();
+  execFileSync(bin, ["-Fc", "--no-owner", "--no-acl", "-f", file], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: process.env,
+  });
   const sha256 = createHash("sha256").update(readFileSync(file)).digest("hex");
   writeFileSync(`${file}.sha256`, `${sha256}  ${path.basename(file)}\n`);
+  try {
+    mkdirSync("/opt/cursor/artifacts", { recursive: true });
+    writeFileSync(
+      "/opt/cursor/artifacts/production-backup-sha256.txt",
+      `${sha256}  ${file}\n`,
+    );
+  } catch {
+    /* artifacts mount is optional */
+  }
   return { path: file, sha256 };
 }
 
@@ -337,6 +395,7 @@ async function applyPlan(prisma: PrismaClient, snapshot: WeddingSnapshot) {
 async function main() {
   const apply = process.argv.includes("--apply");
   const { url, host } = neonConnectionUrl();
+  process.env.DATABASE_URL = url;
   const database = process.env.PGDATABASE?.trim() || parseDatabaseTarget(url)?.database || "";
   assertKnownProductionHost(host, database || "neondb");
 
