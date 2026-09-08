@@ -21,6 +21,7 @@
     "db:review-wedding-timeline": "tsx scripts/review-wedding-timeline.ts",
     "db:import-wedding-timeline": "tsx scripts/import-wedding-timeline.ts",
     "db:apply-day-of-confirmed": "tsx scripts/apply-day-of-confirmed.ts",
+    "db:apply-curated-open-work": "tsx scripts/apply-curated-open-work.ts",
     "db:budget-payment-schema": "tsx scripts/ensure-budget-payment-schema.ts",
     "db:budget-payments": "tsx scripts/ensure-budget-payments.ts",
     "db:budget-funding": "tsx scripts/ensure-budget-funding.ts",
