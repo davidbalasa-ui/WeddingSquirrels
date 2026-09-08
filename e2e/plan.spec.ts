@@ -55,13 +55,15 @@ test.describe("plan", () => {
 
     await page.getByRole("link", { name: "Mine", exact: true }).click();
     await expect(page).toHaveURL(/view=mine/);
-    await expect(page.getByText("Week before")).toBeVisible();
-    await expect(page.locator("#main-content")).not.toContainText("Everything is done.");
+    const mineBody = await page.locator("#main-content").innerText();
+    expect(mineBody).not.toMatch(/Everything is done/);
+    expect(mineBody).toMatch(/Assigned to you|No decision tasks assigned to you/);
 
     await page.getByRole("link", { name: "Soon", exact: true }).click();
     await expect(page).toHaveURL(/view=soon/);
     const soonBody = await page.locator("#main-content").innerText();
     expect(soonBody).not.toMatch(/Everything is done/);
+    expect(soonBody).toMatch(/Due this week|No decision tasks due this week|Week before/);
     guards.assertClean();
   });
 

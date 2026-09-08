@@ -368,9 +368,22 @@ test("plan filters keep org-key packages in the same universe", () => {
   const open = filterTasksForPlanView([org], "open", session(), now);
   const mine = filterTasksForPlanView([org], "mine", session(), now);
   const soon = filterTasksForPlanView([org], "soon", session(), now);
+  const unlinkedMine = filterTasksForPlanView(
+    [org],
+    "mine",
+    session({ linkedPersonId: null, assigneeFilter: null }),
+    now,
+  );
+  const soonDue = {
+    ...org,
+    dueDate: new Date("2026-09-06T12:00:00"),
+  } as unknown as Parameters<typeof filterTasksForPlanView>[0][number];
+  const soonInWindow = filterTasksForPlanView([soonDue], "soon", session(), now);
   assert.equal(open.length, 1);
   assert.equal(mine.length, 1);
   assert.equal(soon.length, 0);
+  assert.equal(unlinkedMine.length, 0);
+  assert.equal(soonInWindow.length, 1);
   assert.equal(decisionsEmptyCopy("open"), "No decision tasks yet.");
   assert.notEqual(decisionsEmptyCopy("open"), "Everything is done.");
 });
