@@ -5,6 +5,7 @@ import {
   formatMinutesUntil,
   formatWeddingClock,
   parseDayOfAsOf,
+  collectDayOfContactInputs,
   pickDayOfContacts,
   pickResponsibilities,
   positionDayOfSchedule,
@@ -350,6 +351,89 @@ test("contacts prefer isDayOfContact then stored sortOrder, never name guesses",
   );
   assert.equal(contacts[0]?.name, "Barry Tilson");
   assert.equal(contacts[0]?.context, "Photographer");
+});
+
+test("Need Someone includes a flagged Person with no Contact row and blank channels", () => {
+  const contacts = pickDayOfContacts(
+    collectDayOfContactInputs({
+      contacts: [
+        {
+          id: "c0",
+          name: "Avalon Green · Planner",
+          sortOrder: 0,
+          isDayOfContact: true,
+          phone: "1",
+          email: null,
+        },
+      ],
+      persons: [
+        {
+          id: "kurt_huizenga",
+          name: "Kurt Huizenga",
+          directoryLabel: "MC",
+          isDayOfContact: true,
+          sortOrder: 8,
+        },
+      ],
+    }),
+  );
+  const kurt = contacts.find((row) => row.personId === "kurt_huizenga");
+  assert.ok(kurt);
+  assert.equal(kurt?.name, "Kurt Huizenga");
+  assert.equal(kurt?.context, "MC");
+  assert.equal(kurt?.phone, null);
+  assert.equal(kurt?.email, null);
+  assert.equal(kurt?.photoSrc, null);
+});
+
+test("Need Someone does not invent phone or email for a Kurt-style Person", () => {
+  const merged = collectDayOfContactInputs({
+    contacts: [],
+    persons: [
+      {
+        id: "kurt_huizenga",
+        name: "Kurt Huizenga",
+        directoryLabel: "MC",
+        isDayOfContact: true,
+      },
+    ],
+  });
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0]?.phone, null);
+  assert.equal(merged[0]?.email, null);
+  assert.equal(merged[0]?.directoryLabel, "MC");
+  assert.equal(merged[0]?.isDayOfContact, true);
+  assert.equal(merged[0]?.personId, "kurt_huizenga");
+});
+
+test("Need Someone does not duplicate a Person already represented by a flagged Contact", () => {
+  const contacts = pickDayOfContacts(
+    collectDayOfContactInputs({
+      contacts: [
+        {
+          id: "c-kurt",
+          name: "Kurt Huizenga",
+          personId: "kurt_huizenga",
+          personName: "Kurt Huizenga",
+          directoryLabel: "MC",
+          phone: "555",
+          email: null,
+          sortOrder: 1,
+          isDayOfContact: true,
+        },
+      ],
+      persons: [
+        {
+          id: "kurt_huizenga",
+          name: "Kurt Huizenga",
+          directoryLabel: "MC",
+          isDayOfContact: true,
+        },
+      ],
+    }),
+  );
+  assert.equal(contacts.filter((row) => row.personId === "kurt_huizenga").length, 1);
+  assert.equal(contacts[0]?.phone, "555");
 });
 
 test("Need Someone includes every flagged day-of contact, including a seventh Wendy row", () => {

@@ -16,7 +16,8 @@
  * After-midnight times (12:00–4:59 AM) use dayOffset 1 via parseDayOfTime.
  * sortOrder/dayOffset remain the sequence — 12:30 AM is never sorted before 10:00 AM.
  *
- * Need Someone uses stored Contact rows + sortOrder / isDayOfContact.
+ * Need Someone uses flagged Contact rows and flagged Person rows.
+ * A Person can appear without a Contact row. Missing phone/email stay blank.
  * It does not infer vendors from notes or names.
  *
  * Your responsibilities use DayAssignmentAssignee + PinAccount.linkedPersonId only.
@@ -133,6 +134,55 @@ export type DayOfContactInput = {
   isDayOfContact?: boolean;
   personId?: string | null;
 };
+
+export type DayOfPersonInput = {
+  id: string;
+  name: string;
+  directoryLabel?: string | null;
+  isDayOfContact?: boolean;
+  sortOrder?: number;
+};
+
+/**
+ * Build the Day-of Contacts source list from existing Contact and Person rows.
+ * Flagged Persons without a Contact still appear. Phone/email are never invented.
+ */
+export function collectDayOfContactInputs(input: {
+  contacts: DayOfContactInput[];
+  persons: DayOfPersonInput[];
+}): DayOfContactInput[] {
+  const flaggedContactPersonIds = new Set(
+    input.contacts
+      .filter((contact) => contact.isDayOfContact && contact.personId)
+      .map((contact) => contact.personId as string),
+  );
+  const contactByPersonId = new Map(
+    input.contacts
+      .filter((contact) => contact.personId)
+      .map((contact) => [contact.personId as string, contact]),
+  );
+
+  const fromPersons: DayOfContactInput[] = input.persons
+    .filter((person) => person.isDayOfContact)
+    .filter((person) => !flaggedContactPersonIds.has(person.id))
+    .map((person) => {
+      const linked = contactByPersonId.get(person.id);
+      return {
+        id: `person:${person.id}`,
+        name: person.name,
+        personName: person.name,
+        directoryLabel: person.directoryLabel ?? null,
+        phone: linked?.phone ?? null,
+        email: linked?.email ?? null,
+        photoData: linked?.photoData ?? null,
+        sortOrder: person.sortOrder ?? 0,
+        isDayOfContact: true,
+        personId: person.id,
+      };
+    });
+
+  return [...input.contacts, ...fromPersons];
+}
 
 export type DayOfAssignmentInput = {
   id: string;

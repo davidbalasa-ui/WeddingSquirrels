@@ -1,6 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { setDayOfContact } from "@/app/actions";
 
 export function DayOfCallListToggle({
@@ -8,56 +9,62 @@ export function DayOfCallListToggle({
   checked,
   disabled,
   compact,
-  personLabel,
+  instanceId,
 }: {
   profileId: string;
   checked: boolean;
   disabled?: boolean;
   compact?: boolean;
-  personLabel?: string;
+  instanceId?: string;
 }) {
+  const router = useRouter();
   const [optimisticChecked, setOptimisticChecked] = useOptimistic(checked);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const errorId = `day-of-error-${profileId}`;
-  const visibleLabel = personLabel ?? "On day-of call list";
-  const checkboxLabel = personLabel ? `On day-of call list, ${personLabel}` : visibleLabel;
+  const [status, setStatus] = useState("");
+  const errorId = `day-of-error-${instanceId ?? profileId}`;
+  const label = optimisticChecked ? "Remove from Day-of Contacts" : "Add to Day-of Contacts";
 
   return (
     <div className={compact ? undefined : "flex flex-col gap-1"} aria-busy={pending || undefined}>
-      <label
-        className={`flex items-center gap-2 ${compact ? "text-xs" : "text-sm"} ${disabled ? "text-muted" : ""}`}
-        onClick={(event) => event.stopPropagation()}
-        onPointerDown={(event) => event.stopPropagation()}
+      <button
+        type="button"
+        className={
+          compact
+            ? "text-sm font-semibold text-[var(--accent)] disabled:text-muted"
+            : "inline-flex min-h-11 items-center self-start rounded-full bg-[var(--accent-soft)] px-4 text-sm font-semibold text-[var(--accent)] disabled:opacity-50"
+        }
+        disabled={disabled || pending}
+        aria-pressed={optimisticChecked}
+        aria-describedby={error ? errorId : undefined}
+        onClick={(event) => {
+          event.stopPropagation();
+          const next = !optimisticChecked;
+          setError(null);
+          startTransition(async () => {
+            setOptimisticChecked(next);
+            const result = await setDayOfContact(profileId, next);
+            if (!result.ok) {
+              setError("Could not update Day-of Contacts.");
+              setStatus("");
+              return;
+            }
+            setStatus(next ? "Added to Day-of Contacts" : "Removed from Day-of Contacts");
+            router.refresh();
+          });
+        }}
       >
-        <input
-          type="checkbox"
-          className="h-4 w-4 shrink-0 rounded border-line"
-          checked={optimisticChecked}
-          disabled={disabled || pending}
-          aria-label={checkboxLabel}
-          aria-describedby={error ? errorId : undefined}
-          onChange={(event) => {
-            const next = event.target.checked;
-            setError(null);
-            startTransition(async () => {
-              setOptimisticChecked(next);
-              const result = await setDayOfContact(profileId, next);
-              if (!result.ok) {
-                setError("Could not update day-of call list.");
-              }
-            });
-          }}
-        />
-        <span className="whitespace-nowrap">{visibleLabel}</span>
-      </label>
+        {label}
+      </button>
       <span className="sr-only" role="status" aria-live="polite">
-        {pending ? "Saving day-of call list status" : ""}
+        {pending ? "Saving Day-of Contacts" : status}
       </span>
       {error ? (
         <p id={errorId} className="text-xs text-[var(--danger)]">
           {error}
         </p>
+      ) : status && !compact ? (
+        <p className="text-xs text-muted">{status}</p>
       ) : null}
     </div>
   );
