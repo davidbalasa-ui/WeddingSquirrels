@@ -487,7 +487,7 @@ async function main() {
       const found = after.tasks.find((task) => !task.parentId && task.title === pkg.title);
       console.log(`  workspace ${pkg.title} → /work/${found?.id ?? "MISSING"}`);
     }
-    console.log("  source-return on /work/{id} remains Back to Today (current app behavior).");
+    console.log("  source-return on /work/{id} uses the opening surface; missing/unsafe returnTo falls back to /plan/tasks.");
     console.log("O. Unresolved manual data:");
     if (!planned.kurt.hasChannel) console.log("  - Kurt's phone/email still missing; Person day-of flag set if Person existed; no Contact invented.");
     const dish = planned.packages.flatMap((p) => p.steps).find((s) => s.key === "drinks-dishware");
