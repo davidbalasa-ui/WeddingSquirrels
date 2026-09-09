@@ -246,6 +246,80 @@ export function editContactInStore(
   return row;
 }
 
+export type ProfilePhotoWriteTarget = { kind: "person" | "contact" | "guest"; id: string };
+
+export type ProfilePhotoWriteResult =
+  | {
+      ok: true;
+      personId: string | null;
+      guestPersonId: string | null;
+      contactId: string | null;
+      createdPerson: false;
+      createdGuestPerson: false;
+      createdContact: false;
+    }
+  | { ok: false; reason: "not_found" | "no_photo_target" };
+
+/**
+ * Write a profile photo onto existing GuestPerson/Contact rows for this identity.
+ * Person has no photo column. Never creates Person, GuestPerson, or Contact rows.
+ * Links only by personId, never by name.
+ */
+export function setProfilePhotoInStore(
+  store: IdentityStore,
+  target: ProfilePhotoWriteTarget,
+  photoData: string | null,
+): ProfilePhotoWriteResult {
+  const personCount = store.persons.length;
+  const guestCount = store.guestPeople.length;
+  const contactCount = store.contacts.length;
+
+  let personId: string | null = null;
+  let guestPerson: IdentityGuestPerson | undefined;
+  let contact: IdentityContact | undefined;
+
+  if (target.kind === "person") {
+    const person = store.persons.find((row) => row.id === target.id);
+    if (!person) return { ok: false, reason: "not_found" };
+    personId = person.id;
+    guestPerson = store.guestPeople.find((row) => row.personId === person.id);
+    contact = store.contacts.find((row) => row.personId === person.id);
+  } else if (target.kind === "guest") {
+    guestPerson = store.guestPeople.find((row) => row.id === target.id);
+    if (!guestPerson) return { ok: false, reason: "not_found" };
+    personId = guestPerson.personId;
+    if (personId) contact = store.contacts.find((row) => row.personId === personId);
+  } else {
+    contact = store.contacts.find((row) => row.id === target.id);
+    if (!contact) return { ok: false, reason: "not_found" };
+    personId = contact.personId;
+    if (personId) guestPerson = store.guestPeople.find((row) => row.personId === personId);
+  }
+
+  if (!guestPerson && !contact) return { ok: false, reason: "no_photo_target" };
+
+  if (guestPerson) guestPerson.photoData = photoData;
+  if (contact) contact.photoData = photoData;
+
+  if (
+    store.persons.length !== personCount ||
+    store.guestPeople.length !== guestCount ||
+    store.contacts.length !== contactCount
+  ) {
+    throw new Error("PROFILE_PHOTO_CREATED_IDENTITY");
+  }
+
+  return {
+    ok: true,
+    personId,
+    guestPersonId: guestPerson?.id ?? null,
+    contactId: contact?.id ?? null,
+    createdPerson: false,
+    createdGuestPerson: false,
+    createdContact: false,
+  };
+}
+
 export function linkGuestPersonInStore(
   store: IdentityStore,
   guestPersonId: string,

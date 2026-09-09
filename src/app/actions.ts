@@ -46,6 +46,7 @@ import {
   type PeoplePrimaryList,
   isPeoplePrimaryList,
 } from "@/lib/people-directory";
+import { parseContactPhoto } from "@/lib/contact-photo";
 import {
   applyDayOfContactForIdentity,
   convertPrimaryListForIdentity,
@@ -1945,6 +1946,98 @@ export async function saveGuestPersonPhoto(
   return { ok: true, id: guestPersonId };
 }
 
+export async function savePeopleProfilePhoto(
+  profileId: string,
+  photoData: string | null,
+  clearPhoto = false,
+): Promise<GuestPersonWriteResult> {
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  const parsed = parseProfileId(profileId);
+  if (!parsed) return { ok: false, reason: "invalid" };
+
+  let nextPhoto: string | null = null;
+  try {
+    if (clearPhoto) nextPhoto = null;
+    else if (photoData) nextPhoto = parseContactPhoto(photoData);
+    else return { ok: false, reason: "invalid" };
+  } catch {
+    return { ok: false, reason: "invalid" };
+  }
+
+  let personId: string | null = null;
+  let guestPerson = parsed.kind === "guest"
+    ? await prisma.guestPerson.findUnique({ where: { id: parsed.id } })
+    : null;
+  let contact = parsed.kind === "contact"
+    ? await prisma.contact.findUnique({ where: { id: parsed.id } })
+    : null;
+
+  if (parsed.kind === "person") {
+    const person = await prisma.person.findUnique({ where: { id: parsed.id }, select: { id: true } });
+    if (!person) return { ok: false, reason: "not_found" };
+    personId = person.id;
+    const [linkedGuest, linkedContact] = await Promise.all([
+      prisma.guestPerson.findFirst({ where: { personId: person.id } }),
+      prisma.contact.findFirst({ where: { personId: person.id } }),
+    ]);
+    guestPerson = linkedGuest;
+    contact = linkedContact;
+  } else if (parsed.kind === "guest") {
+    if (!guestPerson) return { ok: false, reason: "not_found" };
+    personId = guestPerson.personId;
+    if (personId) {
+      contact = await prisma.contact.findFirst({ where: { personId } });
+    }
+  } else {
+    if (!contact) return { ok: false, reason: "not_found" };
+    personId = contact.personId;
+    if (personId) {
+      guestPerson = await prisma.guestPerson.findFirst({ where: { personId } });
+    }
+  }
+
+  if (!guestPerson && !contact) return { ok: false, reason: "invalid" };
+
+  const canGuest = Boolean(guestPerson) && session.canSeeGuests;
+  const canContact = Boolean(contact) && timelineEditable(session);
+  if (!canGuest && !canContact) return { ok: false, reason: "forbidden" };
+
+  if (canGuest && guestPerson) {
+    await prisma.guestPerson.update({
+      where: { id: guestPerson.id },
+      data: { photoData: nextPhoto },
+    });
+  }
+  if (canContact && contact) {
+    await prisma.contact.update({
+      where: { id: contact.id },
+      data: { photoData: nextPhoto },
+    });
+  } else if (nextPhoto && canGuest && guestPerson) {
+    await copyPhotoToLinkedPeer({
+      sourcePersonId: personId,
+      photoData: nextPhoto,
+      direction: "guest-to-contact",
+    });
+  } else if (nextPhoto && canContact && contact) {
+    await copyPhotoToLinkedPeer({
+      sourcePersonId: personId,
+      photoData: nextPhoto,
+      direction: "contact-to-guest",
+    });
+  }
+
+  revalidatePeople(profileId);
+  revalidateGuests();
+  return { ok: true, id: guestPerson?.id ?? contact!.id };
+}
+
 export async function cycleGuestPersonRole(guestPersonId: string): Promise<GuestPersonWriteResult> {
   if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
   if (!guestPersonId) return { ok: false, reason: "invalid" };
@@ -2792,9 +2885,6 @@ export async function saveMealChoice(
 
 /* ---------------------------------- Day-of contacts ---------------------------------- */
 
-const CONTACT_PHOTO_RE = /^data:image\/(?:jpeg|jpg|png|webp);base64,[a-z0-9+/=]+$/i;
-const MAX_CONTACT_PHOTO_CHARS = 500_000;
-
 /** Day-of contacts are viewable with timeline access and editable like the timeline. */
 async function requireDayDataEditor() {
   try {
@@ -2804,15 +2894,6 @@ async function requireDayDataEditor() {
   } catch {
     return null;
   }
-}
-
-function parseContactPhoto(raw: string): string | null {
-  const value = raw.trim();
-  if (!value) return null;
-  if (!CONTACT_PHOTO_RE.test(value) || value.length > MAX_CONTACT_PHOTO_CHARS) {
-    throw new Error("INVALID_PHOTO");
-  }
-  return value;
 }
 
 function revalidateDayData() {
@@ -2916,7 +2997,10 @@ export async function saveDirectoryLabel(profileId: string, label: string): Prom
 
 function revalidatePeople(profileId?: string) {
   revalidatePath("/people");
-  if (profileId) revalidatePath(`/people/${encodeURIComponent(profileId)}`);
+  if (profileId) {
+    revalidatePath(`/people/${profileId}`);
+    revalidatePath(`/people/${encodeURIComponent(profileId)}`);
+  }
   revalidatePath("/guests");
   revalidateDayData();
 }

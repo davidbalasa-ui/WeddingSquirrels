@@ -72,6 +72,7 @@ function emptyProfile(overrides: Partial<PeopleProfile> = {}): PeopleProfile {
     canEditPrimaryList: false,
     canEditDayOf: false,
     canEditRsvp: false,
+    canEditPhoto: false,
     canDelete: false,
     canSeeTasks: false,
     openTasks: [],

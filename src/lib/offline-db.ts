@@ -19,7 +19,7 @@ export type OfflinePack = {
   requests: unknown[];
   shopping: unknown[];
   stay: unknown[];
-  playbook: unknown[];
+  playbook?: unknown[];
 };
 
 function openDb(): Promise<IDBDatabase> {
