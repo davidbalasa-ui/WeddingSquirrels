@@ -5,6 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import { OfflineDayOfPanel } from "@/components/OfflineDayOfPanel";
 import { weddingTimelineRows } from "@/lib/day-of-time";
 import { formatFetchedAt, loadOfflinePack, type OfflinePack } from "@/lib/offline-db";
+import {
+  asOfflineAssignments,
+  asOfflineGuests,
+  offlineAssignmentOwnerNames,
+  offlineDirectoryContactsFromPack,
+  offlineGuestDisplayName,
+} from "@/lib/offline-pack";
 
 type TabId =
   | "tasks"
@@ -39,25 +46,6 @@ type TimelineRow = {
   notes: string;
 };
 
-type ContactRow = { id: string; name: string; phone: string | null; email: string | null; photoData: string | null };
-
-type AssignmentRow = {
-  id: string;
-  title: string;
-  notes: string | null;
-  assignees: { person: { id: string; name: string } }[];
-};
-
-type GuestRow = {
-  id: string;
-  nameLine1: string;
-  nameLine2: string | null;
-  rsvpStatus: string;
-  invitedCount: number;
-  acceptedCount: number;
-  gifts: { id: string; description: string; thanked: boolean }[];
-};
-
 type BudgetRow = {
   id: string;
   name: string;
@@ -87,14 +75,11 @@ function asTasks(pack: OfflinePack | null): TaskRow[] {
 function asTimeline(pack: OfflinePack | null): TimelineRow[] {
   return (pack?.timeline ?? []) as TimelineRow[];
 }
-function asContacts(pack: OfflinePack | null): ContactRow[] {
-  return (pack?.contacts ?? []) as ContactRow[];
+function asAssignments(pack: OfflinePack | null) {
+  return pack ? asOfflineAssignments(pack) : [];
 }
-function asAssignments(pack: OfflinePack | null): AssignmentRow[] {
-  return (pack?.assignments ?? []) as AssignmentRow[];
-}
-function asGuests(pack: OfflinePack | null): GuestRow[] {
-  return (pack?.guests ?? []) as GuestRow[];
+function asGuests(pack: OfflinePack | null) {
+  return pack ? asOfflineGuests(pack) : [];
 }
 function asBudget(pack: OfflinePack | null): BudgetRow[] {
   return (pack?.budgetItems ?? []) as BudgetRow[];
@@ -132,7 +117,8 @@ export function OfflineApp() {
     if (asTasks(pack).length) available.push({ id: "tasks", label: "Home", count: asTasks(pack).length });
     const weddingBlocks = weddingTimelineRows(asTimeline(pack));
     if (weddingBlocks.length) available.push({ id: "day", label: "Day-of", count: weddingBlocks.length });
-    if (asContacts(pack).length) available.push({ id: "contacts", label: "Contacts", count: asContacts(pack).length });
+    const directoryContacts = offlineDirectoryContactsFromPack(pack);
+    if (directoryContacts.length) available.push({ id: "contacts", label: "Contacts", count: directoryContacts.length });
     if (asAssignments(pack).length)
       available.push({ id: "assignments", label: "Assignments", count: asAssignments(pack).length });
     if (asGuests(pack).length) available.push({ id: "guests", label: "Guests", count: asGuests(pack).length });
@@ -275,7 +261,7 @@ function TasksView({ pack }: { pack: OfflinePack }) {
 }
 
 function ContactsView({ pack }: { pack: OfflinePack }) {
-  const contacts = asContacts(pack);
+  const contacts = offlineDirectoryContactsFromPack(pack);
   return (
     <div className="flex flex-col gap-3">
       <SectionTitle>Contacts</SectionTitle>
@@ -290,6 +276,7 @@ function ContactsView({ pack }: { pack: OfflinePack }) {
           )}
           <div className="min-w-0 flex-1">
             <p className="font-semibold leading-snug">{contact.name}</p>
+            {contact.subtitle ? <p className="mt-0.5 text-sm text-muted">{contact.subtitle}</p> : null}
             {contact.phone ? (
               <a
                 href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}
@@ -320,24 +307,27 @@ function AssignmentsView({ pack }: { pack: OfflinePack }) {
   return (
     <div className="flex flex-col gap-3">
       <SectionTitle>Assignments</SectionTitle>
-      {assignments.map((assignment) => (
-        <article key={assignment.id} className="card p-4">
-          <p className="font-semibold leading-snug">{assignment.title}</p>
-          {assignment.notes ? <p className="mt-1 whitespace-pre-wrap text-sm text-muted">{assignment.notes}</p> : null}
-          {assignment.assignees.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {assignment.assignees.map((row) => (
-                <span
-                  key={row.person.id}
-                  className="rounded-full border border-line px-2.5 py-1 text-xs font-semibold text-muted"
-                >
-                  {row.person.name}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </article>
-      ))}
+      {assignments.map((assignment) => {
+        const names = offlineAssignmentOwnerNames(assignment);
+        return (
+          <article key={assignment.id} className="card p-4">
+            <p className="font-semibold leading-snug">{assignment.title}</p>
+            {assignment.notes ? <p className="mt-1 whitespace-pre-wrap text-sm text-muted">{assignment.notes}</p> : null}
+            {names.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {names.map((name) => (
+                  <span
+                    key={`${assignment.id}-${name}`}
+                    className="rounded-full border border-line px-2.5 py-1 text-xs font-semibold text-muted"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -350,10 +340,7 @@ function GuestsView({ pack }: { pack: OfflinePack }) {
       {guests.map((guest) => (
         <article key={guest.id} className="card p-4">
           <div className="flex items-center justify-between gap-2">
-            <p className="font-semibold leading-snug">
-              {guest.nameLine1}
-              {guest.nameLine2 ? ` & ${guest.nameLine2}` : ""}
-            </p>
+            <p className="font-semibold leading-snug">{offlineGuestDisplayName(guest)}</p>
             <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
               {guest.rsvpStatus}
             </span>

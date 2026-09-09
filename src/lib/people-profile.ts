@@ -60,6 +60,7 @@ export type PeopleProfile = {
   canEditPrimaryList: boolean;
   canEditDayOf: boolean;
   canEditRsvp: boolean;
+  canEditPhoto: boolean;
   canDelete: boolean;
   canSeeTasks: boolean;
   openTasks: ProfileTaskRow[];
@@ -236,6 +237,8 @@ export async function loadPeopleProfile(
   const guestRecords = guests.map((guest) => mapGuestRecord(guest));
   const editable = timelineEditable(session);
   const canEditDayOf = canManageDayOfContacts(session);
+  const canEditGuestPhoto = session.canSeeGuests;
+  const canEditContactPhoto = editable;
   const guestPeople = guestRecords.flatMap((guest) =>
     guest.people.map((person) => ({ guest, person })),
   );
@@ -352,6 +355,8 @@ export async function loadPeopleProfile(
       canEditPrimaryList: editable,
       canEditDayOf,
       canEditRsvp: Boolean(guestInfo) && session.canSeeGuests,
+      canEditPhoto:
+        (Boolean(linkedGuest) && canEditGuestPhoto) || (Boolean(linkedContact) && canEditContactPhoto),
       canDelete: editable && !["david", "haley"].includes(person.id),
       canSeeTasks: session.canSeeTasks,
       openTasks,
@@ -405,6 +410,7 @@ export async function loadPeopleProfile(
       canEditPrimaryList: editable,
       canEditDayOf,
       canEditRsvp: false,
+      canEditPhoto: canEditContactPhoto,
       canDelete: editable,
       canSeeTasks: false,
       openTasks: [],
@@ -474,6 +480,7 @@ export async function loadPeopleProfile(
     canEditPrimaryList: false,
     canEditDayOf,
     canEditRsvp: session.canSeeGuests,
+    canEditPhoto: canEditGuestPhoto,
     canDelete: editable,
     canSeeTasks: false,
     openTasks: [],
