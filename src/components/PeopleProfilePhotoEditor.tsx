@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { savePeopleProfilePhoto } from "@/app/actions";
 import { PersonAvatar } from "@/components/PersonAvatar";
@@ -23,7 +23,6 @@ export function PeopleProfilePhotoEditor({
   const [override, setOverride] = useState<string | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     if (override === undefined) return;
@@ -32,11 +31,11 @@ export function PeopleProfilePhotoEditor({
   }, [photoSrc, override]);
 
   const displaySrc = profilePhotoSrc(override !== undefined ? override : photoSrc);
-  const working = busy || pending;
 
   async function persist(next: string | null, clear = false) {
     setError(null);
-    startTransition(async () => {
+    setBusy(true);
+    try {
       const result = await savePeopleProfilePhoto(profileId, next, clear);
       if (!result.ok) {
         setOverride(undefined);
@@ -50,7 +49,9 @@ export function PeopleProfilePhotoEditor({
         return;
       }
       router.refresh();
-    });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function onFile(file: File | undefined) {
@@ -87,16 +88,16 @@ export function PeopleProfilePhotoEditor({
       <button
         type="button"
         className="text-sm font-semibold text-[var(--accent)] disabled:opacity-50"
-        disabled={working}
+        disabled={busy}
         onClick={() => fileRef.current?.click()}
       >
-        {working ? "Saving…" : displaySrc ? "Change photo" : "Add photo"}
+        {busy ? "Saving…" : displaySrc ? "Change photo" : "Add photo"}
       </button>
       {displaySrc ? (
         <button
           type="button"
           className="text-sm font-semibold text-[var(--danger)] disabled:opacity-50"
-          disabled={working}
+          disabled={busy}
           onClick={() => {
             setOverride(null);
             void persist(null, true);
