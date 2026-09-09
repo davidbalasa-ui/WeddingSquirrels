@@ -655,7 +655,7 @@ test("production-style morning overlap at 10:42 AM", () => {
   );
   assert.deepEqual(
     pos.nextBlocks.map((row) => ({ title: row.title, startAt: row.startAt })),
-    [{ title: "Wedding party DIY hair & makeup", startAt: "11:00 AM" }],
+    [{ title: "Hair & makeup at Airbnb", startAt: "11:00 AM" }],
   );
   assert.deepEqual(
     pos.afterNextBlocks.map((row) => ({ title: row.title, startAt: row.startAt })),
@@ -682,7 +682,7 @@ test("production 19-row wedding timeline at 10:42 AM", () => {
   );
   assert.deepEqual(
     pos.nextBlocks.map((row) => ({ title: row.title, startAt: row.startAt })),
-    [{ title: "Wedding party DIY hair & makeup", startAt: "11:00 AM" }],
+    [{ title: "Hair & makeup at Airbnb", startAt: "11:00 AM" }],
   );
   assert.deepEqual(
     pos.afterNextBlocks.map((row) => ({ title: row.title, startAt: row.startAt })),

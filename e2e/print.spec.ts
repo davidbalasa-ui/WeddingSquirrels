@@ -31,6 +31,8 @@ test.describe("print center", () => {
     await expect(page.locator('[data-print-section="setup"]')).toBeChecked();
     await expect(page.locator('[data-print-section="timeline"]')).toBeChecked();
     await expect(page.locator('[data-print-section="mc"]')).toBeChecked();
+    await expect(page.locator('[data-print-section="hair"]')).toBeChecked();
+    await expect(page.locator('[data-print-section="shots"]')).toBeChecked();
     await expect(binder).toContainText("Wedding Day Packet");
     await expect(binder).not.toContainText(MONEY.committed);
     await expect(binder).not.toContainText("Guests / households");

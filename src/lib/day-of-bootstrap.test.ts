@@ -323,6 +323,18 @@ test("Wendy is not labeled MC", () => {
   );
 });
 
+test("Mistress of Ceremonies is a legitimate Wendy day-of role", () => {
+  assert.equal(
+    wendyIsLabeledMc([
+      {
+        name: "Wendy Rush",
+        directoryLabel: "Mistress of Ceremonies",
+      },
+    ]),
+    true,
+  );
+});
+
 test("Ice / S’mores / Lunch have no planned assignees", () => {
   assert.deepEqual(plannedAssignmentAssignees(), []);
 });

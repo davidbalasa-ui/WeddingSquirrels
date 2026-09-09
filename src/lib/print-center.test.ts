@@ -22,64 +22,7 @@ import {
   type PrintCenterDocument,
 } from "./print-center";
 
-const PRODUCTION_CUE_BLOCKS = [
-  {
-    startAt: "10:30 AM",
-    endAt: null,
-    notes: "Venue Opens\nVenue:\n- vendors\n- coordinator Avalon\n- MC Kurt",
-    sortOrder: 1,
-  },
-  {
-    startAt: "3:15 PM",
-    endAt: "3:30 PM",
-    notes:
-      "Pre-Ceremony Transition\n- guests arrive\nPlaylist: While They Wait 3:00–3:30\nMC cue 3:25 PM: \"Friends and travelers, welcome! Our ceremony will begin shortly. Please find your seats and silence your phones as we prepare to witness David and Haley begin their next chapter.\"",
-    sortOrder: 11,
-  },
-  {
-    startAt: "3:30 PM",
-    endAt: "4:00 PM",
-    notes:
-      "Ceremony\nUnder the shelter\nPlaylist: Walking Down The Aisle\nMC cue at 4:00: \"The ceremony has concluded - let the celebration begin!\"",
-    sortOrder: 12,
-  },
-  {
-    startAt: "4:00 PM",
-    endAt: "5:00 PM",
-    notes:
-      "Cocktail Hour\nMC cue 4:55: \"Honored guests, cocktail hour is nearing its end.\"",
-    sortOrder: 13,
-  },
-  {
-    startAt: "5:00 PM",
-    endAt: "6:00 PM",
-    notes:
-      "Dinner begins\nGrand Entrance Song: Special Dances Playlist\nMC cue 5:00: \"If I may have your attention - it’s time! Please welcome the wedding party, and then join me in cheering for the newlyweds, David and Haley!\"\nDinner cue immediately after entrance: \"Our couple has arrived - let the feast begin!\"\nPlaylist: Dinner Minstrels, start of dinner through start of toasts",
-    sortOrder: 14,
-  },
-  {
-    startAt: "6:00 PM",
-    endAt: "6:30 PM",
-    notes:
-      "Toasts + Cake cutting\nMC cue 6:00: \"As dinner winds down, please return to your seats.\"\nMC cue 6:15: \"With the toasts complete, gather near the cake table.\"",
-    sortOrder: 15,
-  },
-  {
-    startAt: "6:30 PM",
-    endAt: "7:00 PM",
-    notes:
-      "First dances\nMusic: First Dance and Father Daughter\nMC cue 6:30: \"Please turn your attention to the center of the space.\"",
-    sortOrder: 16,
-  },
-  {
-    startAt: "7:00 PM",
-    endAt: "10:00 PM",
-    notes:
-      "Open Dancing\nMC cue 7:00: \"The dance floor is officially open in the glass house.\"\nPlaylist: Wedding - Kids Section 7:00–8:15\nMC cue 8:00: \"A gentle reminder for our younger travelers.\"\nPlaylist: Wedding - Adults Section 8:15–8:30\nMC cue 8:30 — Dollar Dance: \"It’s time for a cherished tradition - the dollar dance.\"\nMusic: Dollar Dance Song, Special Dances Playlist\nMC cue 9:55 — Last Call + Final Dance: \"As the evening winds down, this is the last call for drinks.\"\nMusic: Last Dance Song, Special Dances Playlist\nMC cue 10:00 — Reception Conclusion: \"Our celebration has reached its end.\"",
-    sortOrder: 17,
-  },
-];
-
+import { PRODUCTION_CUE_BLOCKS } from "./mc-cue-fixture";
 test("Print Center is a More entry, not a primary navigation tab", () => {
   const print = MODULES.find((module) => module.key === "print");
   assert.equal(print?.href, "/print");
@@ -93,8 +36,10 @@ test("Full Binder preset includes money and guests; Day-of Packet excludes them"
   assert.equal(FULL_BINDER_SECTIONS.includes("guests"), true);
   assert.equal(DAY_OF_PACKET_SECTIONS.includes("money"), false);
   assert.equal(DAY_OF_PACKET_SECTIONS.includes("guests"), false);
-  assert.equal(DAY_OF_PACKET_SECTIONS.includes("mc"), true);
-  assert.equal(DAY_OF_PACKET_SECTIONS.includes("setup"), true);
+  assert.equal(DAY_OF_PACKET_SECTIONS.includes("hair"), true);
+  assert.equal(DAY_OF_PACKET_SECTIONS.includes("shots"), true);
+  assert.equal(FULL_BINDER_SECTIONS.includes("hair"), true);
+  assert.equal(FULL_BINDER_SECTIONS.includes("shots"), true);
   assert.equal(presetMatchesSelection("binder", sectionsForPreset("binder")), true);
   assert.equal(presetMatchesSelection("packet", sectionsForPreset("packet")), true);
 });
@@ -149,15 +94,17 @@ test("MC extraction uses canonical note cues and does not invent Kurt contact da
   assert.equal(cues.every((cue) => !/Kurt/.test(cue.spoken)), true);
 });
 
-test("Kurt is MC from directory label; Wendy is not", () => {
+test("Kurt is MC from directory label; Wendy is Mistress of Ceremonies", () => {
   assert.equal(isMcDirectoryLabel("MC"), true);
+  assert.equal(isMcDirectoryLabel("Mistress of Ceremonies"), true);
+  assert.equal(isMcDirectoryLabel("Mistress of Ceremony"), true);
   assert.equal(isMcDirectoryLabel("Setup / teardown / cleanup contact"), false);
   assert.deepEqual(
     mcPeopleFromDirectory([
       { name: "Kurt Huizenga", directoryLabel: "MC" },
-      { name: "Wendy Rush", directoryLabel: "Setup / teardown / cleanup contact" },
+      { name: "Wendy Rush", directoryLabel: "Mistress of Ceremonies" },
     ]),
-    ["Kurt Huizenga"],
+    ["Kurt Huizenga", "Wendy Rush"],
   );
 });
 
@@ -260,6 +207,19 @@ test("printable packet omits money and guests even if those sections have data",
   assert.equal(printed.includes("timeline"), true);
   assert.equal(doc.timeline.length, 19);
   assert.equal(doc.rehearsal.length, 7);
+});
+
+test("packet prints hair and shot list when those projections have content", () => {
+  const doc: PrintCenterDocument = {
+    ...emptyPrintDocument(),
+    hairMakeup: [{ timeLabel: "9:00 AM", title: "Braxton — hair", location: "Bathroom 1", notes: [], section: "9:00 AM" }],
+    shots: [{ timeLabel: null, title: "Invitations", location: null, notes: [], section: "Details" }],
+    setupDecor: [{ timeLabel: null, title: "Storm clouds", location: null, notes: [], section: "Tables" }],
+  };
+  const printed = printableSections(doc, sectionsForPreset("packet"));
+  assert.equal(printed.includes("hair"), true);
+  assert.equal(printed.includes("shots"), true);
+  assert.equal(printed.includes("setup"), true);
 });
 
 test("print document text does not include PIN or session internals", () => {
