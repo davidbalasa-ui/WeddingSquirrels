@@ -809,7 +809,7 @@ export function planWeddingOpsUpdate(snapshot: WeddingOpsSnapshot): WeddingOpsPl
       plan.assignmentUpdates.push({
         action: "update",
         id: teardown.id,
-        from: { notes: teardown.notes },
+        from: { notes: teardown.notes ?? undefined },
         to: { notes: teardown.notes ? `${teardown.notes}\n${wanted}` : wanted },
       });
     }

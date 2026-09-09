@@ -52,7 +52,7 @@ export function sortMcCues<T extends Pick<McRunCue, "time" | "momentTitle" | "ki
   });
 }
 
-function insertMusicBeds<T extends Pick<McRunCue, "time" | "kind">>(spoken: T[], beds: T[]): T[] {
+function insertMusicBeds(spoken: McRunCue[], beds: McRunCue[]): McRunCue[] {
   const result = [...spoken];
   for (const bed of sortMcCues(beds)) {
     const bedTime = afternoonClock(bed.time);

@@ -228,31 +228,32 @@ async function loadSnapshot(prisma: PrismaClient): Promise<WeddingOpsSnapshot> {
   };
 }
 
-function pgDumpBin(): string {
+function pgDumpBin(minMajor: number): string {
   const candidates = [
-    "/usr/lib/postgresql/17/bin/pg_dump",
     "/usr/lib/postgresql/18/bin/pg_dump",
+    "/usr/lib/postgresql/17/bin/pg_dump",
+    "/usr/lib/postgresql/16/bin/pg_dump",
     "pg_dump",
   ];
   for (const bin of candidates) {
     try {
       const out = execFileSync(bin, ["--version"], { encoding: "utf8" });
       const major = Number.parseInt((out.match(/(\d+)\./) ?? [])[1] ?? "0", 10);
-      if (major >= 17) return bin;
+      if (major >= minMajor) return bin;
     } catch {
       /* try next */
     }
   }
-  throw new Error("Need pg_dump 17+ to backup Neon 17. Install postgresql-client-17.");
+  throw new Error(`Need pg_dump ${minMajor}+ for backup. Install postgresql-client-${minMajor}.`);
 }
 
-function dumpDatabase(label: string): { path: string; sha256: string } {
+function dumpDatabase(label: string, minMajor: number, databaseUrl: string): { path: string; sha256: string } {
   const dir = "/tmp/weddingsquirrels-backups";
   mkdirSync(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const file = path.join(dir, `weddingsquirrels-${label}-${stamp}.dump`);
-  const bin = pgDumpBin();
-  execFileSync(bin, ["-Fc", "--no-owner", "--no-acl", "-f", file], {
+  const bin = pgDumpBin(minMajor);
+  execFileSync(bin, ["-Fc", "--no-owner", "--no-acl", "-f", file, databaseUrl], {
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
   });
@@ -536,7 +537,11 @@ async function main() {
     }
 
     console.log("\nB. Taking backup…");
-    const backup = dumpDatabase(local ? "local-pre-wedding-ops" : "production-pre-wedding-ops");
+    const backup = dumpDatabase(
+      local ? "local-pre-wedding-ops" : "production-pre-wedding-ops",
+      local ? 16 : 17,
+      url,
+    );
     console.log(`  path=${backup.path}`);
     console.log(`  sha256=${backup.sha256}`);
 

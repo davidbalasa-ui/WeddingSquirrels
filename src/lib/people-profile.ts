@@ -27,6 +27,7 @@ import { dayAssignmentHref, peopleProfileHref, taskHref } from "@/lib/entity-lin
 import { giftDescriptions } from "@/lib/guest-gifts";
 import { filterVisibleBudgetItems } from "@/lib/money";
 import { profileOperationalLinks } from "@/lib/playbook";
+import { countOpenActionableTasks, dueLabel, listAssignedTasksForPerson } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 import { STAY_SECTIONS } from "@/lib/stay";
 
