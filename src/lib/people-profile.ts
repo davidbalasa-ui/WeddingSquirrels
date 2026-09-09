@@ -26,7 +26,7 @@ import {
 import { dayAssignmentHref, peopleProfileHref, taskHref } from "@/lib/entity-links";
 import { giftDescriptions } from "@/lib/guest-gifts";
 import { filterVisibleBudgetItems } from "@/lib/money";
-import { countOpenActionableTasks, dueLabel, listAssignedTasksForPerson } from "@/lib/tasks";
+import { profileOperationalLinks } from "@/lib/playbook";
 import type { SessionAccount } from "@/lib/types";
 import { STAY_SECTIONS } from "@/lib/stay";
 
@@ -363,11 +363,14 @@ export async function loadPeopleProfile(
       stayLabel,
       mealStatus,
       budgetContracts,
-      relatedLinks: buildProfileRelatedLinks({
-        guestInfo: Boolean(guestInfo),
-        stayLabel,
-        mealStatus,
-      }),
+      relatedLinks: [
+        ...buildProfileRelatedLinks({
+          guestInfo: Boolean(guestInfo),
+          stayLabel,
+          mealStatus,
+        }),
+        ...(session.canSeeTimeline ? profileOperationalLinks(person.name) : []),
+      ],
     };
   }
 
@@ -416,7 +419,10 @@ export async function loadPeopleProfile(
       stayLabel: null,
       mealStatus: null,
       budgetContracts,
-      relatedLinks: buildProfileRelatedLinks({}),
+      relatedLinks: [
+        ...buildProfileRelatedLinks({}),
+        ...(session.canSeeTimeline ? profileOperationalLinks(contact.name) : []),
+      ],
     };
   }
 

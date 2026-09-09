@@ -9,6 +9,7 @@ export function DayTabs({ showNowTab: _showNowTab = false }: { showNowTab?: bool
 
   const tabs = [
     { href: "/day", label: "Day" },
+    { href: "/day/mc", label: "MC" },
     { href: "/people?tab=day-of", label: "Contacts" },
     { href: "/day/assignments", label: "Assignments" },
   ];

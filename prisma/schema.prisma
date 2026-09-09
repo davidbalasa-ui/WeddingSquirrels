@@ -455,3 +455,23 @@ model DayAssignmentAssignee {
   @@id([assignmentId, personId])
   @@index([personId])
 }
+
+/// Operational projections: hair/makeup, shots, decor, lineup, coordinator scope.
+/// MC spoken/music cues stay on TimelineBlock notes — do not duplicate them here.
+model PlaybookItem {
+  id        String   @id @default(cuid())
+  kind      String
+  section   String
+  startAt   String?
+  title     String
+  detail    String?
+  location  String?
+  notes     String?
+  sortOrder Int      @default(0)
+  completed Boolean  @default(false)
+  sourceKey String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, sortOrder])
+}

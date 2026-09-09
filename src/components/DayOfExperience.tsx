@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { lockAction } from "@/app/actions";
 import { DayTabs } from "@/components/DayTabs";
+import { OperationalViewsNav } from "@/components/OperationalViewsNav";
 import { PersonAvatar } from "@/components/PersonAvatar";
 import {
   contactChannelHref,
@@ -535,6 +536,7 @@ export function DayOfExperience({
       {showTabs ? (
         <div className="mt-10">
           <DayTabs />
+          <OperationalViewsNav current="/day" />
         </div>
       ) : null}
     </div>

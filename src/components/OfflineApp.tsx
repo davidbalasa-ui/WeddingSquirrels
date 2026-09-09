@@ -4,11 +4,17 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { OfflineDayOfPanel } from "@/components/OfflineDayOfPanel";
 import { weddingTimelineRows } from "@/lib/day-of-time";
+import { buildMcRunOfShow } from "@/lib/mc-run-of-show";
 import { formatFetchedAt, loadOfflinePack, type OfflinePack } from "@/lib/offline-db";
+import { playbookByKind, type PlaybookItemView, type PlaybookKind } from "@/lib/playbook";
 
 type TabId =
   | "tasks"
   | "day"
+  | "mc"
+  | "hair"
+  | "shots"
+  | "decor"
   | "contacts"
   | "assignments"
   | "guests"
@@ -108,6 +114,9 @@ function asShopping(pack: OfflinePack | null): ShoppingRow[] {
 function asStay(pack: OfflinePack | null): StayRow[] {
   return (pack?.stay ?? []) as StayRow[];
 }
+function asPlaybook(pack: OfflinePack | null): PlaybookItemView[] {
+  return (pack?.playbook ?? []) as PlaybookItemView[];
+}
 
 export function OfflineApp() {
   const [pack, setPack] = useState<OfflinePack | null | "loading">("loading");
@@ -132,6 +141,15 @@ export function OfflineApp() {
     if (asTasks(pack).length) available.push({ id: "tasks", label: "Home", count: asTasks(pack).length });
     const weddingBlocks = weddingTimelineRows(asTimeline(pack));
     if (weddingBlocks.length) available.push({ id: "day", label: "Day-of", count: weddingBlocks.length });
+    const mcCues = buildMcRunOfShow(weddingBlocks, []).cues.length;
+    if (mcCues) available.push({ id: "mc", label: "MC", count: mcCues });
+    const playbook = asPlaybook(pack);
+    const hair = playbookByKind(playbook, "hair_makeup").length;
+    const shots = playbookByKind(playbook, "shot").length;
+    const decor = playbookByKind(playbook, "decor").length;
+    if (hair) available.push({ id: "hair", label: "Hair", count: hair });
+    if (shots) available.push({ id: "shots", label: "Shots", count: shots });
+    if (decor) available.push({ id: "decor", label: "Decor", count: decor });
     if (asContacts(pack).length) available.push({ id: "contacts", label: "Contacts", count: asContacts(pack).length });
     if (asAssignments(pack).length)
       available.push({ id: "assignments", label: "Assignments", count: asAssignments(pack).length });
@@ -223,6 +241,10 @@ export function OfflineApp() {
       {active === "day" ? (
         <OfflineDayOfPanel pack={pack} onAllContacts={() => setTab("contacts")} />
       ) : null}
+      {active === "mc" ? <OfflineMcView pack={pack} /> : null}
+      {active === "hair" ? <OfflinePlaybookView pack={pack} kind="hair_makeup" title="Hair & Makeup" /> : null}
+      {active === "shots" ? <OfflinePlaybookView pack={pack} kind="shot" title="Shot List" /> : null}
+      {active === "decor" ? <OfflinePlaybookView pack={pack} kind="decor" title="Decor / Setup" /> : null}
       {active === "contacts" ? <ContactsView pack={pack} /> : null}
       {active === "assignments" ? <AssignmentsView pack={pack} /> : null}
       {active === "guests" ? <GuestsView pack={pack} /> : null}
@@ -230,6 +252,61 @@ export function OfflineApp() {
       {active === "requests" ? <RequestsView pack={pack} /> : null}
       {active === "shop" ? <ShopView pack={pack} /> : null}
       {active === "stay" ? <StayView pack={pack} /> : null}
+    </div>
+  );
+}
+
+function OfflineMcView({ pack }: { pack: OfflinePack }) {
+  const show = buildMcRunOfShow(asTimeline(pack), []);
+  return (
+    <div className="flex flex-col gap-3">
+      <SectionTitle>MC Run of Show</SectionTitle>
+      {show.cues.map((cue, index) => (
+        <article key={`${cue.time ?? "cue"}-${index}`} className="card p-4">
+          <p className="text-sm font-semibold text-[var(--accent)]">{cue.time ?? "Cue"}</p>
+          {cue.kind === "spoken" && cue.spoken ? (
+            <p className="mt-2 text-base leading-snug">“{cue.spoken}”</p>
+          ) : null}
+          {cue.music.map((line) => (
+            <p key={line} className="mt-1 text-sm text-muted">
+              {line}
+            </p>
+          ))}
+          {cue.nextTitle ? (
+            <p className="mt-2 text-sm text-muted">
+              Next: {cue.nextTime ? `${cue.nextTime} · ` : ""}
+              {cue.nextTitle}
+            </p>
+          ) : null}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function OfflinePlaybookView({
+  pack,
+  kind,
+  title,
+}: {
+  pack: OfflinePack;
+  kind: PlaybookKind;
+  title: string;
+}) {
+  const items = playbookByKind(asPlaybook(pack), kind);
+  return (
+    <div className="flex flex-col gap-3">
+      <SectionTitle>{title}</SectionTitle>
+      {items.map((item) => (
+        <article key={item.sourceKey} className="card p-4">
+          {item.startAt ? (
+            <p className="text-sm font-semibold text-[var(--accent)]">{item.startAt}</p>
+          ) : null}
+          <p className="font-semibold leading-snug">{item.title}</p>
+          {item.location ? <p className="mt-1 text-sm text-muted">{item.location}</p> : null}
+          {item.notes ? <p className="mt-1 text-sm text-muted">{item.notes}</p> : null}
+        </article>
+      ))}
     </div>
   );
 }

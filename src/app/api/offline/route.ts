@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { prisma, supportsBudgetPayments } from "@/lib/db";
 import { filterVisibleBudgetItems } from "@/lib/money";
+import { loadPlaybookItems } from "@/lib/playbook-data";
 import { requestVisibilityWhere } from "@/lib/requests";
 import { taskVisibilityWhere } from "@/lib/tasks";
 
@@ -28,6 +29,7 @@ export async function GET() {
     requests,
     shopping,
     stay,
+    playbook,
   ] = await Promise.all([
     prisma.appSettings.findUnique({ where: { id: 1 } }),
     session.canSeeTasks
@@ -95,6 +97,7 @@ export async function GET() {
       : Promise.resolve([]),
     session.canSeeShop ? prisma.shoppingItem.findMany({ orderBy: { sortOrder: "asc" } }) : Promise.resolve([]),
     session.canSeeStay ? prisma.staySlot.findMany({ orderBy: { sortOrder: "asc" } }) : Promise.resolve([]),
+    session.canSeeTimeline ? loadPlaybookItems() : Promise.resolve([]),
   ]);
 
   const budgetItems = filterVisibleBudgetItems(session, allBudgetItems);
@@ -114,5 +117,6 @@ export async function GET() {
     requests,
     shopping,
     stay,
+    playbook,
   });
 }

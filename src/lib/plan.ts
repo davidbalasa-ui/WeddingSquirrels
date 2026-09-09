@@ -3,6 +3,7 @@ import { can, canSeeDinnerTab, canSeeStayTab } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { countFinishedGuests, type MealChoiceMap, type MealCourseView } from "@/lib/meals";
 import { reviewNoteLines, sortTimelineBlocks } from "@/lib/day-of-time";
+import { extractMcCues, mcPeopleFromDirectory } from "@/lib/print-center";
 import {
   listOrgCards,
   listTasks,
@@ -17,6 +18,7 @@ export const PLAN_TASK_DUE_SOON_DAYS = 7;
 export type PlanDomainKey =
   | "tasks"
   | "timeline"
+  | "mc"
   | "rehearsal"
   | "stay"
   | "shopping"
@@ -41,6 +43,11 @@ export type PlanTimelineCounts = {
   moments: number;
   nextLabel: string | null;
   nextTime: string | null;
+};
+
+export type PlanMcCounts = {
+  cues: number;
+  mcNames: string[];
 };
 
 export type PlanRehearsalCounts = {
@@ -70,6 +77,7 @@ export type PlanCalendarCounts = {
 export type PlanCounts = {
   tasks?: PlanTaskCounts;
   timeline?: PlanTimelineCounts;
+  mc?: PlanMcCounts;
   rehearsal?: PlanRehearsalCounts;
   stay?: PlanStayCounts;
   shopping?: PlanShoppingCounts;
@@ -193,6 +201,16 @@ export function summarizeWeddingTimeline(
   };
 }
 
+export function summarizeMcRunOfShow(
+  blocks: Array<{ startAt: string; endAt: string | null; notes: string; schedule?: string | null }>,
+  people: Array<{ name: string; directoryLabel?: string | null }>,
+): PlanMcCounts {
+  return {
+    cues: extractMcCues(blocks).length,
+    mcNames: mcPeopleFromDirectory(people),
+  };
+}
+
 export function summarizeRehearsal(input: {
   blocks: Array<{ schedule?: string | null }>;
   courses: MealCourseView[];
@@ -294,6 +312,13 @@ function timelineDetail(counts: PlanTimelineCounts) {
   return `${counts.moments} ${noun}`;
 }
 
+function mcDetail(counts: PlanMcCounts) {
+  if (counts.cues === 0) return "Cues live on the wedding-day timeline";
+  const noun = counts.cues === 1 ? "cue" : "cues";
+  if (counts.mcNames.length) return `${counts.cues} ${noun} · ${counts.mcNames.join(" · ")}`;
+  return `${counts.cues} ${noun}`;
+}
+
 function rehearsalDetail(counts: PlanRehearsalCounts) {
   const parts: string[] = [];
   if (counts.moments === 0) parts.push("No walkthrough yet");
@@ -376,6 +401,16 @@ export function buildPlanDomainSummaries(
     });
   }
 
+  if (can(session, "canSeeTimeline") && counts.mc) {
+    rows.push({
+      key: "mc",
+      label: "MC Run of Show",
+      detail: mcDetail(counts.mc),
+      explanation: "The reception script Kurt and Wendy actually run.",
+      href: "/day/mc",
+    });
+  }
+
   if (canSeeDinnerTab(session) && counts.rehearsal) {
     rows.push({
       key: "rehearsal",
@@ -421,7 +456,7 @@ export function buildPlanDomainSummaries(
 }
 
 export async function loadPlanPageData(session: SessionAccount, now = new Date()) {
-  const [taskRows, timelineBlocks, rehearsal, staySlots, shoppingItems, calendarEvents] =
+  const [taskRows, timelineBlocks, rehearsal, staySlots, shoppingItems, calendarEvents, mcPeople] =
     await Promise.all([
       can(session, "canSeeTasks")
         ? Promise.all([listTasks(session), listOrgCards(session)])
@@ -429,7 +464,14 @@ export async function loadPlanPageData(session: SessionAccount, now = new Date()
       can(session, "canSeeTimeline")
         ? prisma.timelineBlock.findMany({
             where: { schedule: "wedding" },
-            select: { id: true, startAt: true, notes: true, sortOrder: true, schedule: true },
+            select: {
+              id: true,
+              startAt: true,
+              endAt: true,
+              notes: true,
+              sortOrder: true,
+              schedule: true,
+            },
           })
         : Promise.resolve(null),
       canSeeDinnerTab(session)
@@ -460,6 +502,9 @@ export async function loadPlanPageData(session: SessionAccount, now = new Date()
             select: { id: true, title: true, startDate: true, endDate: true },
           })
         : Promise.resolve(null),
+      can(session, "canSeeTimeline")
+        ? prisma.person.findMany({ select: { name: true, directoryLabel: true } })
+        : Promise.resolve(null),
     ]);
 
   const counts: PlanCounts = {
@@ -467,6 +512,7 @@ export async function loadPlanPageData(session: SessionAccount, now = new Date()
       ? { tasks: summarizeVisibleTasks([...taskRows[0], ...taskRows[1]], now) }
       : {}),
     ...(timelineBlocks ? { timeline: summarizeWeddingTimeline(timelineBlocks) } : {}),
+    ...(timelineBlocks ? { mc: summarizeMcRunOfShow(timelineBlocks, mcPeople ?? []) } : {}),
     ...(rehearsal
       ? {
           rehearsal: summarizeRehearsal({
