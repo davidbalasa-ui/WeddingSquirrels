@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { PersonAvatar } from "@/components/PersonAvatar";
 import { DayOfCallListToggle } from "@/components/DayOfCallListToggle";
 import { PeopleDeleteButton } from "@/components/PeopleDeleteButton";
 import { PeopleMembershipEditor } from "@/components/PeopleMembershipEditor";
+import { PeopleProfilePhotoEditor } from "@/components/PeopleProfilePhotoEditor";
 import { PeopleRoleEditor } from "@/components/PeopleRoleEditor";
 import { PeopleRsvpEditor } from "@/components/PeopleRsvpEditor";
 import { formatBudgetContractDetail } from "@/lib/connections";
@@ -82,7 +82,12 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
     <div className="flex flex-col">
       <header className="mb-8">
         <div className="flex items-start gap-4">
-          <PersonAvatar name={profile.name} photoSrc={photoSrc} size="lg" />
+          <PeopleProfilePhotoEditor
+            profileId={profile.profileId}
+            name={profile.name}
+            photoSrc={photoSrc}
+            canEdit={profile.canEditPhoto}
+          />
           <div className="min-w-0 flex-1 pt-1">
             <h1 className="font-[family-name:var(--font-display)] text-[2rem] leading-[1.05] tracking-tight">
               {profile.name}

@@ -41,7 +41,7 @@ export async function GET() {
           orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }, { title: "asc" }],
         })
       : Promise.resolve([]),
-    session.canSeePeople
+    session.canSeePeople || session.canSeeTimeline
       ? prisma.person.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })
       : Promise.resolve([]),
     session.canSeeTimeline
