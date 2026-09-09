@@ -2997,7 +2997,10 @@ export async function saveDirectoryLabel(profileId: string, label: string): Prom
 
 function revalidatePeople(profileId?: string) {
   revalidatePath("/people");
-  if (profileId) revalidatePath(`/people/${encodeURIComponent(profileId)}`);
+  if (profileId) {
+    revalidatePath(`/people/${profileId}`);
+    revalidatePath(`/people/${encodeURIComponent(profileId)}`);
+  }
   revalidatePath("/guests");
   revalidateDayData();
 }

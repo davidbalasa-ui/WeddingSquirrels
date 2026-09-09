@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { savePeopleProfilePhoto } from "@/app/actions";
 import { PersonAvatar } from "@/components/PersonAvatar";
@@ -20,18 +20,18 @@ export function PeopleProfilePhotoEditor({
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(photoSrc);
-  const [prevSrc, setPrevSrc] = useState(photoSrc);
+  const [override, setOverride] = useState<string | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  if (photoSrc !== prevSrc) {
-    setPrevSrc(photoSrc);
-    setPreview(photoSrc);
-  }
+  useEffect(() => {
+    if (override === undefined) return;
+    if (override && photoSrc) setOverride(undefined);
+    if (override === null && !photoSrc) setOverride(undefined);
+  }, [photoSrc, override]);
 
-  const displaySrc = profilePhotoSrc(preview);
+  const displaySrc = profilePhotoSrc(override !== undefined ? override : photoSrc);
   const working = busy || pending;
 
   async function persist(next: string | null, clear = false) {
@@ -39,7 +39,7 @@ export function PeopleProfilePhotoEditor({
     startTransition(async () => {
       const result = await savePeopleProfilePhoto(profileId, next, clear);
       if (!result.ok) {
-        setPreview(photoSrc);
+        setOverride(undefined);
         setError(
           result.reason === "forbidden"
             ? "You don't have permission to change this photo."
@@ -59,9 +59,10 @@ export function PeopleProfilePhotoEditor({
     setError(null);
     try {
       const dataUrl = await fileToResizedDataUrl(file);
-      setPreview(dataUrl);
+      setOverride(dataUrl);
       await persist(dataUrl);
     } catch {
+      setOverride(undefined);
       setError("That image couldn't be read. Try a JPEG or PNG.");
     } finally {
       setBusy(false);
@@ -97,7 +98,7 @@ export function PeopleProfilePhotoEditor({
           className="text-sm font-semibold text-[var(--danger)] disabled:opacity-50"
           disabled={working}
           onClick={() => {
-            setPreview(null);
+            setOverride(null);
             void persist(null, true);
           }}
         >
