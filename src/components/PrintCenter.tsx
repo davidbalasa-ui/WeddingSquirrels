@@ -148,6 +148,7 @@ function PrintTitlePage({
       <p className="binder-kicker">{packet ? "Wedding Day Packet" : "Wedding Binder"}</p>
       <h1>{document.coupleNames}</h1>
       <p className="binder-date">{document.weddingDateLabel}</p>
+      <BinderSunsetRule />
     </header>
   );
 }
@@ -192,7 +193,7 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
           ) : null}
           <ol className="binder-cues">
             {document.mcCues.map((cue, index) => (
-              <li key={`${cue.time ?? "cue"}-${index}`} className="binder-card">
+              <li key={`${cue.time ?? "cue"}-${index}`} className="binder-cue binder-card">
                 <p className="binder-time">
                   {cue.time ?? "Cue"}
                   {cue.heading ? ` · ${cue.heading}` : ` · ${cue.momentTitle}`}
@@ -439,6 +440,18 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
         </section>
       );
   }
+}
+
+function BinderSunsetRule() {
+  return (
+    <div className="binder-sunset" aria-hidden="true">
+      <span />
+      <span />
+      <span />
+      <span />
+      <span />
+    </div>
+  );
 }
 
 function TimelineList({ rows }: { rows: PrintCenterDocument["timeline"] }) {
