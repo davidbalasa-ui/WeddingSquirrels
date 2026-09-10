@@ -486,9 +486,19 @@ a {
     margin: 0.7in;
     @bottom-center {
       content: counter(page);
-      font-size: 9pt;
-      color: #5c574f;
+      font-size: 8.5pt;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--print-burgundy, #642c3b);
+      padding-top: 6pt;
+      border-top: 0.6pt solid var(--print-amber, #9a6b3f);
     }
+  }
+
+  .binder-doc {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
   }
 
   .binder-title {
@@ -500,25 +510,67 @@ a {
   }
 
   .binder-card,
+  .binder-cue,
   .binder-cues li,
   .binder-table tr {
     break-inside: avoid;
   }
 
   .binder-section h2,
-  .binder-section h3 {
+  .binder-section h3,
+  .binder-section h2::after {
     break-after: avoid;
   }
 }
 
+/*
+  Print binder — sunset dreams palette.
+  Color is ceremonial structure only; grayscale must stay readable.
+  Primary accent: deep burgundy. Companion hues appear on thin rules.
+*/
 .binder-doc {
-  color: #1c1916;
-  background: #fff;
+  --print-ink: #1c1916;
+  --print-muted: #5c574f;
+  --print-body: #3f3a34;
+  --print-paper: #fff;
+  --print-line: #d9d2c6;
+  --print-hairline: #ece7de;
+  --print-burgundy: #642c3b;
+  --print-mauve: #5e3d4f;
+  --print-rose: #7a4e58;
+  --print-terracotta: #8a4b2a;
+  --print-amber: #9a6b3f;
+  --print-callout: color-mix(in srgb, var(--print-burgundy) 7%, white);
+  --print-section-rule: var(--print-burgundy);
+  color: var(--print-ink);
+  background: var(--print-paper);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+  color-adjust: exact;
+}
+
+.binder-section:nth-of-type(5n + 1) {
+  --print-section-rule: var(--print-amber);
+}
+.binder-section:nth-of-type(5n + 2) {
+  --print-section-rule: var(--print-terracotta);
+}
+.binder-section:nth-of-type(5n + 3) {
+  --print-section-rule: var(--print-rose);
+}
+.binder-section:nth-of-type(5n + 4) {
+  --print-section-rule: var(--print-mauve);
+}
+.binder-section:nth-of-type(5n + 5) {
+  --print-section-rule: var(--print-burgundy);
+}
+
+.binder-section:has(.binder-cues) {
+  --print-section-rule: var(--print-burgundy);
 }
 
 .binder-title {
   padding: 2.5rem 0 2rem;
-  border-bottom: 1px solid #d9d2c6;
 }
 
 .binder-kicker {
@@ -526,7 +578,7 @@ a {
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #5c574f;
+  color: var(--print-burgundy);
 }
 
 .binder-title h1 {
@@ -535,11 +587,41 @@ a {
   font-size: 2.4rem;
   line-height: 1.05;
   letter-spacing: -0.02em;
+  color: var(--print-ink);
 }
 
 .binder-date {
   margin-top: 0.75rem;
   font-size: 1.05rem;
+  color: var(--print-ink);
+}
+
+.binder-sunset {
+  display: flex;
+  width: 8rem;
+  margin-top: 1.15rem;
+}
+
+.binder-sunset span {
+  flex: 1 1 0;
+  height: 0;
+  border-top: 2px solid var(--print-burgundy);
+}
+
+.binder-sunset span:nth-child(1) {
+  border-top-color: var(--print-amber);
+}
+.binder-sunset span:nth-child(2) {
+  border-top-color: var(--print-terracotta);
+}
+.binder-sunset span:nth-child(3) {
+  border-top-color: var(--print-rose);
+}
+.binder-sunset span:nth-child(4) {
+  border-top-color: var(--print-mauve);
+}
+.binder-sunset span:nth-child(5) {
+  border-top-color: var(--print-burgundy);
 }
 
 .binder-section {
@@ -551,26 +633,48 @@ a {
   font-size: 1.65rem;
   line-height: 1.15;
   margin-bottom: 0.85rem;
+  color: var(--print-ink);
+}
+
+.binder-section h2::after {
+  content: "";
+  display: block;
+  width: 2.75rem;
+  height: 0;
+  margin-top: 0.4rem;
+  border-bottom: 2px solid var(--print-section-rule);
 }
 
 .binder-section h3 {
   font-family: var(--font-display), Georgia, serif;
   font-size: 1.1rem;
   margin: 1rem 0 0.5rem;
+  color: var(--print-ink);
 }
 
 .binder-lede,
-.binder-note,
-.binder-music {
+.binder-note {
   font-size: 0.95rem;
   line-height: 1.45;
-  color: #3f3a34;
+  color: var(--print-body);
+}
+
+.binder-music {
+  margin-top: 0.28rem;
+  padding-left: 0.65rem;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  letter-spacing: 0.03em;
+  color: var(--print-muted);
 }
 
 .binder-spoken {
   font-size: 1rem;
   line-height: 1.5;
-  margin-top: 0.35rem;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.55rem 0.2rem 0.65rem;
+  border-left: 2px solid var(--print-rose);
+  background: var(--print-callout);
 }
 
 .binder-time,
@@ -579,13 +683,14 @@ a {
 }
 
 .binder-time {
-  color: #2f5d50;
+  color: var(--print-burgundy);
   font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .binder-card {
   padding: 0.7rem 0;
-  border-bottom: 1px solid #ece7de;
+  border-bottom: 1px solid var(--print-hairline);
 }
 
 .binder-list,
@@ -596,12 +701,18 @@ a {
   padding: 0;
 }
 
+.binder-cue {
+  padding: 0.7rem 0 0.7rem 0.8rem;
+  border-bottom: 1px solid var(--print-hairline);
+  border-left: 2px solid var(--print-burgundy);
+}
+
 .binder-row {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.35rem 0;
-  border-bottom: 1px solid #ece7de;
+  border-bottom: 1px solid var(--print-hairline);
 }
 
 .binder-unassigned {
@@ -610,6 +721,7 @@ a {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--print-burgundy);
 }
 
 .binder-table {
@@ -622,10 +734,24 @@ a {
 .binder-table td {
   text-align: left;
   padding: 0.4rem 0.45rem 0.4rem 0;
-  border-bottom: 1px solid #ece7de;
+  border-bottom: 1px solid var(--print-hairline);
   vertical-align: top;
+}
+
+.binder-table th {
+  color: var(--print-burgundy);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-bottom: 1.5px solid var(--print-burgundy);
 }
 
 .binder-block {
   margin-bottom: 1rem;
+}
+
+.binder-block h3 {
+  padding-bottom: 0.28rem;
+  border-bottom: 1px solid var(--print-section-rule);
 }
