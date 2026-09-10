@@ -5,6 +5,7 @@ import {
   formatPrintTimeRange,
   musicAttachTarget,
   normalizePrintTime,
+  printContactRole,
   professionalizePrintLine,
   professionalizePrintLines,
   projectHouseholds,
@@ -507,7 +508,7 @@ export function groupPrintContacts(
   const seen = new Set<string>();
   const asPrint = (contact: (typeof ordered)[number]): PrintContact => ({
     name: contact.name,
-    role: contact.directoryLabel?.trim() || null,
+    role: printContactRole(contact.name, contact.directoryLabel),
     phone: contact.phone?.trim() || null,
     email: contact.email?.trim() || null,
   });
@@ -555,7 +556,7 @@ export function setupTeardownFromCanonical(input: {
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name))
     .map((contact) => ({
       name: contact.name,
-      role: contact.directoryLabel?.trim() || null,
+      role: printContactRole(contact.name, contact.directoryLabel),
       phone: contact.phone?.trim() || null,
       email: contact.email?.trim() || null,
     }));

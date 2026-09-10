@@ -9,6 +9,8 @@ import {
   projectHairMakeup,
   projectHouseholds,
   projectKeyDates,
+  printContactRole,
+  projectCoordinatorRows,
   projectMealSections,
   projectRunSheet,
   projectShotGroups,
@@ -40,6 +42,12 @@ test("print projection strips reconstruction language and keeps operational mean
       "Avalon breaks down for the point person — Avalon does not own removal/transport.",
     ) ?? "",
     /Avalon handles décor breakdown/,
+  );
+  assert.equal(
+    professionalizePrintLine(
+      "Avalon is contracted to assist. Exact timing (before ceremony vs 4:00 PM) is still TBD.",
+    ),
+    "Avalon assists with the marriage-license signing. Time TBD.",
   );
 });
 
@@ -204,7 +212,7 @@ test("key dates keep rehearsal and wedding day, not bachelor weekend", () => {
     ],
     "America/Detroit",
     new Date("2026-10-16T12:00:00"),
-    true,
+    false,
   );
   assert.equal(rows.some((row) => /bachelor/i.test(row.title)), false);
   assert.equal(rows.some((row) => /Rehearsal Dinner/.test(row.title)), true);
@@ -235,4 +243,43 @@ test("quick reference uses current ceremony and close times", () => {
   assert.equal(ref.receptionEnds, "10:00 PM");
   assert.equal(ref.venueCloses, "11:00 PM");
   assert.equal(ref.coordinatorPhone, "386-589-7215");
+});
+
+test("quick reference fills Wendy and Kurt when directory roles are missing", () => {
+  const ref = buildQuickReference({
+    coupleNames: "David & Haley",
+    weddingDateLabel: "Friday, October 16, 2026",
+    weddingBlocks: [],
+    rehearsalBlocks: [],
+    contacts: [],
+    mistressOfCeremonies: null,
+    mcName: null,
+    coordinatorPhoneHint: null,
+    rsvp: null,
+  });
+  assert.equal(ref.mistressOfCeremonies, "Wendy Rush");
+  assert.equal(ref.mcName, "Kurt Huizenga");
+});
+
+test("coordinator print keeps operational scope and drops architecture notes", () => {
+  const rows = projectCoordinatorRows(playbookByKind(CANONICAL_PLAYBOOK, "coordinator"));
+  const blob = rows.flatMap((row) => [row.title, ...row.notes]).join("\n");
+  assert.equal(/money fact/i.test(blob), false);
+  assert.equal(/not a new task/i.test(blob), false);
+  assert.equal(/personally owning/i.test(blob), false);
+  assert.equal(/before ceremony vs/i.test(blob), false);
+  assert.equal(rows.some((row) => row.title === "The Sweet Spot — 8 hours"), true);
+  assert.match(
+    rows.find((row) => /breakdown/i.test(row.title))?.notes.join(" ") ?? "",
+    /Avalon handles décor breakdown/,
+  );
+  assert.match(
+    rows.find((row) => /Marriage license/i.test(row.title))?.notes.join(" ") ?? "",
+    /Time TBD/,
+  );
+});
+
+test("Kurt prints as MC even without a directory label", () => {
+  assert.equal(printContactRole("Kurt Huizenga", null), "MC");
+  assert.equal(printContactRole("Wendy Rush", null), "Mistress of Ceremonies");
 });

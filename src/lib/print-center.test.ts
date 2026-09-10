@@ -161,6 +161,23 @@ test("contact grouping avoids duplicate vendor/day-of cards", () => {
   );
 });
 
+test("day-of Kurt prints as MC without inventing a phone", () => {
+  const grouped = groupPrintContacts([
+    {
+      name: "Kurt Huizenga",
+      directoryLabel: null,
+      phone: null,
+      email: null,
+      isDayOfContact: true,
+      sortOrder: 1,
+    },
+  ]);
+  assert.equal(grouped.dayOf[0]?.name, "Kurt Huizenga");
+  assert.equal(grouped.dayOf[0]?.role, "MC");
+  assert.equal(grouped.dayOf[0]?.phone, null);
+  assert.equal(grouped.dayOf[0]?.email, null);
+});
+
 test("money fingerprint formats the current production totals", () => {
   const contracts: BudgetContractSnapshot[] = [
     {

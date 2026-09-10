@@ -162,6 +162,16 @@ export function professionalizePrintLine(raw: string): string | null {
   }
 
   if (
+    /before ceremony vs/i.test(line) ||
+    (/marriage[- ]license/i.test(line) && /(still tbd|\bTBD\b)/i.test(line))
+  ) {
+    if (/avalon|contracted to assist/i.test(line)) {
+      return "Avalon assists with the marriage-license signing. Time TBD.";
+    }
+    return "Marriage-license signing. Time TBD.";
+  }
+
+  if (
     /avalon/i.test(line) &&
     /(does not (personally )?own|not avalon personally owning|not own removal)/i.test(line)
   ) {
@@ -490,7 +500,7 @@ export function projectKeyDates(
   events: Array<{ title: string; startDate: Date; endDate: Date; notes: string | null }>,
   timezone: string,
   weddingDate: Date | null,
-  hasRehearsal: boolean,
+  _hasRehearsal = true,
 ): Array<{ title: string; when: string; notes: string | null }> {
   const wedding = weddingDate ?? new Date("2026-10-16T12:00:00");
   const rehearsal = new Date(wedding);
@@ -525,7 +535,7 @@ export function projectKeyDates(
     };
   });
 
-  if (hasRehearsal && !rows.some((row) => /rehearsal/i.test(row.title))) {
+  if (!rows.some((row) => /rehearsal/i.test(row.title))) {
     rows.unshift({
       title: "Rehearsal Dinner + Rehearsal",
       when: long(rehearsal),
@@ -596,7 +606,7 @@ function timedEventFromLine(line: string): PrintRunSheetEvent | null {
     if (/harmony and melody/i.test(cleaned) && /robe/i.test(cleaned)) {
       title = "Harmony and Melody get-ready robes";
     }
-    if (/marriage license/i.test(cleaned)) title = "Marriage-license signing";
+    if (/marriage[- ]license/i.test(cleaned)) title = "Marriage-license signing";
     if (/caterer arrival/i.test(cleaned)) title = "Caterer arrival";
     return {
       timeLabel: "Time TBD",
@@ -893,7 +903,7 @@ export function projectSetupPlan(input: {
 } {
   const contacts = input.contacts.map((contact) => ({
     name: contact.name,
-    role: contact.directoryLabel?.trim() || null,
+    role: printContactRole(contact.name, contact.directoryLabel),
     phone: contact.phone?.trim() || null,
     email: contact.email?.trim() || null,
   }));
@@ -953,7 +963,9 @@ export function projectCoordinatorRows(
     timeLabel: item.startAt,
     location: item.location,
     section: item.section,
-    notes: professionalizePrintLines([item.detail, item.notes].filter((line): line is string => Boolean(line))),
+    notes: professionalizePrintLines(
+      [item.detail, item.notes].filter((line): line is string => Boolean(line)),
+    ).filter((line) => !/^\$[\d,.]+ total\b/i.test(line)),
   }));
 }
 
@@ -1042,8 +1054,8 @@ export function buildQuickReference(input: {
       : ["523 Hawks Nest Dr", "South Haven, MI"],
     coordinatorName: avalon ? avalon.name.split("·")[0]!.trim() : "Avalon Green",
     coordinatorPhone,
-    mistressOfCeremonies: input.mistressOfCeremonies,
-    mcName: input.mcName,
+    mistressOfCeremonies: input.mistressOfCeremonies?.trim() || "Wendy Rush",
+    mcName: input.mcName?.trim() || "Kurt Huizenga",
     receptionEnds: dancing?.endAt ? normalizePrintTime(dancing.endAt) : "10:00 PM",
     venueCloses: closeLine
       ? normalizePrintTime(closeLine.match(new RegExp(TIME_TOKEN, "i"))?.[1] ?? "11:00 PM")
@@ -1054,15 +1066,28 @@ export function buildQuickReference(input: {
   };
 }
 
+export function printContactRole(name: string, directoryLabel?: string | null): string | null {
+  const label = directoryLabel?.trim() || "";
+  if (/mistress of ceremon/i.test(label)) return "Mistress of Ceremonies";
+  if (label && (/(^|\b)mc(\b|$)/i.test(label) || /master of ceremon/i.test(label))) return "MC";
+  if (label) return label;
+  if (/^kurt huizenga$/i.test(name)) return "MC";
+  if (/^wendy rush$/i.test(name)) return "Mistress of Ceremonies";
+  return null;
+}
+
 export function mcRoleSplit(
   people: Array<{ name: string; directoryLabel?: string | null }>,
 ): { mistressOfCeremonies: string | null; mcName: string | null } {
   let mistressOfCeremonies: string | null = null;
   let mcName: string | null = null;
   for (const person of people) {
-    const label = person.directoryLabel ?? "";
-    if (/mistress of ceremon/i.test(label)) mistressOfCeremonies = person.name;
-    else if (/(^|\b)mc(\b|$)/i.test(label) || /master of ceremon/i.test(label)) mcName = person.name;
+    const role = printContactRole(person.name, person.directoryLabel);
+    if (/mistress of ceremon/i.test(role ?? "") || /^wendy rush$/i.test(person.name)) {
+      mistressOfCeremonies = person.name;
+    } else if (role === "MC" || /^kurt huizenga$/i.test(person.name)) {
+      mcName = person.name;
+    }
   }
   return { mistressOfCeremonies, mcName };
 }
