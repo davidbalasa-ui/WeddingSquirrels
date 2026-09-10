@@ -1,9 +1,28 @@
 import { parseBlockNotes } from "@/lib/day-of-now";
 import { compareParsedTimes, parseDayOfTime, parseTimelineSchedule } from "@/lib/day-of-time";
-import { guestAddressLines } from "@/lib/guest-gifts";
-import { MEAL_SECTIONS } from "@/lib/meals";
 import { buildMoneySummary, contractPaidTotal, type BudgetContractSnapshot } from "@/lib/money";
-import { STAY_SECTIONS } from "@/lib/stay";
+import {
+  formatPrintTimeRange,
+  musicAttachTarget,
+  normalizePrintTime,
+  printContactRole,
+  professionalizePrintLine,
+  professionalizePrintLines,
+  projectHouseholds,
+  projectMealSections,
+  projectStaySections,
+  type PrintHairRoom,
+  type PrintHairRow,
+  type PrintHouseholdCard,
+  type PrintMealSectionView,
+  type PrintQuickReference,
+  type PrintRsvpSummary,
+  type PrintRunSheetPhase,
+  type PrintSetupConfirmed,
+  type PrintShotGroup,
+  type PrintStaySectionView,
+  type PrintTaskGroupView,
+} from "@/lib/print-projection";
 
 export const PRINT_SECTION_IDS = [
   "overview",
@@ -15,10 +34,11 @@ export const PRINT_SECTION_IDS = [
   "contacts",
   "assignments",
   "setup",
+  "coordinator",
+  "decor",
   "guests",
   "stay",
   "meals",
-  "shopping",
   "tasks",
   "calendar",
   "money",
@@ -28,21 +48,22 @@ export type PrintSectionId = (typeof PRINT_SECTION_IDS)[number];
 export type PrintPresetId = "binder" | "packet";
 
 export const PRINT_SECTION_LABELS: Record<PrintSectionId, string> = {
-  overview: "Wedding overview",
+  overview: "Quick reference",
   rehearsal: "Rehearsal dinner + rehearsal",
-  timeline: "Wedding-day timeline",
-  mc: "MC & music cues",
+  timeline: "Wedding-day run sheet",
+  mc: "MC Run of Show",
   hair: "Hair & makeup",
   shots: "Photo shot list",
   contacts: "Vendor & day-of contacts",
-  assignments: "Day assignments / responsibilities",
+  assignments: "Day-of jobs",
   setup: "Setup / teardown",
-  guests: "Guests / households",
+  coordinator: "Coordinator scope",
+  decor: "Décor / setup details",
+  guests: "Guests / RSVP",
   stay: "Stay",
-  meals: "Meals",
-  shopping: "Shopping",
-  tasks: "Tasks",
-  calendar: "Calendar",
+  meals: "Meals / food & supplies",
+  tasks: "Open work",
+  calendar: "Key dates",
   money: "Money",
 };
 
@@ -55,10 +76,12 @@ export const FULL_BINDER_SECTIONS: PrintSectionId[] = [
   "shots",
   "contacts",
   "assignments",
+  "setup",
+  "coordinator",
+  "decor",
   "guests",
   "stay",
   "meals",
-  "shopping",
   "tasks",
   "calendar",
   "money",
@@ -73,6 +96,8 @@ export const DAY_OF_PACKET_SECTIONS: PrintSectionId[] = [
   "contacts",
   "assignments",
   "setup",
+  "coordinator",
+  "decor",
 ];
 
 export type PrintTimelineRow = {
@@ -88,6 +113,10 @@ export type PrintMcCue = {
   momentTitle: string;
   spoken: string;
   music: string[];
+  kind?: "spoken" | "music";
+  nextTime?: string | null;
+  nextTitle?: string | null;
+  operatorNotes?: string[];
 };
 
 export type PrintContact = {
@@ -111,23 +140,11 @@ export type PrintAssignment = {
   assignees: string[];
 };
 
-export type PrintHousehold = {
-  names: string[];
-  addressLines: string[];
-  rsvp: string;
-};
+export type PrintHousehold = PrintHouseholdCard;
 
-export type PrintStaySection = {
-  title: string;
-  detail: string | null;
-  slots: Array<{ label: string; occupant: string }>;
-  notes: string[];
-};
+export type PrintStaySection = PrintStaySectionView;
 
-export type PrintMealSection = {
-  title: string;
-  guests: Array<{ name: string; selection: string | null }>;
-};
+export type PrintMealSection = PrintMealSectionView;
 
 export type PrintShoppingItem = {
   name: string;
@@ -162,8 +179,10 @@ export type PrintCenterDocument = {
   weddingDateLabel: string;
   timezone: string;
   mcNames: string[];
+  quickReference: PrintQuickReference;
   rehearsal: PrintTimelineRow[];
   timeline: PrintTimelineRow[];
+  runSheet: PrintRunSheetPhase[];
   mcCues: PrintMcCue[];
   vendorContacts: PrintContact[];
   dayOfContacts: PrintContact[];
@@ -171,17 +190,24 @@ export type PrintCenterDocument = {
   assignments: PrintAssignment[];
   setupContacts: PrintContact[];
   setupMoments: PrintTimelineRow[];
+  setupConfirmed: PrintSetupConfirmed[];
+  setupOpen: string[];
   setupDecor: PrintPlaybookRow[];
   coordinatorScope: PrintPlaybookRow[];
   hairMakeup: PrintPlaybookRow[];
+  hairRooms: PrintHairRoom[];
+  hairSchedule: PrintHairRow[];
   shots: PrintPlaybookRow[];
+  shotGroups: PrintShotGroup[];
   households: PrintHousehold[];
+  rsvpSummary: PrintRsvpSummary | null;
   stay: PrintStaySection[];
   mealsPublished: boolean;
   mealChoiceCount: number;
   meals: PrintMealSection[];
   shopping: PrintShoppingItem[];
   tasks: PrintTask[];
+  taskGroups: PrintTaskGroupView[];
   calendar: PrintCalendarEvent[];
   money: {
     committed: number;
@@ -244,6 +270,7 @@ export function formatPrintMoney(value: number): string {
 
 export function formatPrintWeddingDate(date: Date, timeZone: string): string {
   return date.toLocaleDateString("en-US", {
+    weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
@@ -252,8 +279,7 @@ export function formatPrintWeddingDate(date: Date, timeZone: string): string {
 }
 
 export function formatTimelineTimeLabel(startAt: string, endAt: string | null): string {
-  if (endAt?.trim()) return `${startAt} – ${endAt}`;
-  return startAt;
+  return formatPrintTimeRange(startAt, endAt);
 }
 
 export function isMcDirectoryLabel(label: string | null | undefined): boolean {
@@ -294,10 +320,12 @@ export function toPrintPlaybookRow(item: {
   detail: string | null;
   section: string;
 }): PrintPlaybookRow {
-  const notes = [item.detail, item.notes].filter((line): line is string => Boolean(line?.trim()));
+  const notes = professionalizePrintLines(
+    [item.detail, item.notes].filter((line): line is string => Boolean(line?.trim())),
+  );
   return {
-    timeLabel: item.startAt,
-    title: item.title,
+    timeLabel: item.startAt ? normalizePrintTime(item.startAt) : null,
+    title: professionalizePrintLine(item.title) ?? item.title,
     location: item.location,
     notes,
     section: item.section,
@@ -314,7 +342,7 @@ export function toPrintTimelineRow(block: {
     timeLabel: formatTimelineTimeLabel(block.startAt, block.endAt),
     title: parsed.title,
     location: parsed.location,
-    notes: parsed.detailLines,
+    notes: professionalizePrintLines(parsed.detailLines.filter((line) => !MUSIC_LINE.test(line) && !CUE_LINE.test(line))),
   };
 }
 
@@ -325,13 +353,13 @@ function parseCueLine(line: string, momentTitle: string): PrintMcCue | null {
   rest = rest.replace(/^at\s+/i, "");
 
   let time: string | null = null;
-  const immediate = rest.match(/^immediately after entrance\b/i);
+  const immediate = rest.match(/^immediately after(?: 5:00\s*pm)? entrance\b/i);
   const clock = rest.match(/^(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b/i);
   if (immediate) {
-    time = "Immediately after entrance";
+    time = "Immediately after 5:00 PM entrance";
     rest = rest.slice(immediate[0].length).trim();
   } else if (clock) {
-    time = clock[1]!.replace(/\s+/g, " ").trim();
+    time = normalizePrintTime(clock[1]!);
     rest = rest.slice(clock[0].length).trim();
   }
 
@@ -353,18 +381,68 @@ function parseCueLine(line: string, momentTitle: string): PrintMcCue | null {
     momentTitle,
     spoken,
     music: [],
+    kind: "spoken",
   };
 }
 
-function parseMusicLine(line: string): string | null {
+function parseMusicParts(line: string): { kind: string; value: string; label: string } | null {
   const match = line.match(MUSIC_LINE);
   if (!match) return null;
   const kind = match[1]!.trim();
   const value = match[2]!.trim();
   if (!value) return null;
-  return kind.toLowerCase() === "playlist" || kind.toLowerCase() === "music"
-    ? `${kind}: ${value}`
-    : `${kind}: ${value}`;
+  return { kind, value, label: `${kind}: ${value}` };
+}
+
+function spokenSimilar(a: string, b: string): boolean {
+  const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const left = normalize(a);
+  const right = normalize(b);
+  if (!left || !right) return false;
+  return left === right || left.startsWith(right) || right.startsWith(left);
+}
+
+function mergeDuplicateCues(cues: PrintMcCue[]): PrintMcCue[] {
+  const out: PrintMcCue[] = [];
+  for (const cue of cues) {
+    const existing = out.find(
+      (row) => row.time === cue.time && spokenSimilar(row.spoken, cue.spoken),
+    );
+    if (!existing) {
+      out.push({ ...cue, music: [...cue.music] });
+      continue;
+    }
+    if (cue.spoken.length > existing.spoken.length) existing.spoken = cue.spoken;
+    if (cue.heading && (!existing.heading || cue.heading.length > existing.heading.length)) {
+      existing.heading = cue.heading;
+    }
+    for (const line of cue.music) {
+      if (!existing.music.includes(line)) existing.music.push(line);
+    }
+  }
+  return out;
+}
+
+function cueMatchesTarget(cue: PrintMcCue, target: string): boolean {
+  const blob = `${cue.heading ?? ""} ${cue.momentTitle} ${cue.spoken} ${cue.time ?? ""}`.toLowerCase();
+  switch (target) {
+    case "entrance":
+      return /5:00 pm/.test(cue.time ?? "") || /welcome the wedding party|newlyweds/i.test(cue.spoken);
+    case "dollar":
+      return /dollar dance/i.test(blob);
+    case "last":
+      return /last call|final dance|last dance/i.test(blob) && !/conclusion/i.test(blob);
+    case "first-dance":
+      return /first dance/i.test(blob) || /center of the space/i.test(cue.spoken);
+    case "kids":
+      return /7:00 pm/.test(cue.time ?? "") || /dance floor is officially open/i.test(cue.spoken);
+    case "adults":
+      return /8:15 pm/.test(cue.time ?? "");
+    case "dinner-bed":
+      return /immediately after 5:00 pm entrance/i.test(cue.time ?? "") || /feast begin/i.test(cue.spoken);
+    default:
+      return false;
+  }
 }
 
 export function extractMcCues(
@@ -380,25 +458,30 @@ export function extractMcCues(
       .map((line) => line.trim())
       .filter(Boolean)
       .slice(1);
-    let pendingMusic: string[] = [];
-    let current: PrintMcCue | null = null;
+    const blockCues: PrintMcCue[] = [];
+    const musicItems: Array<{ kind: string; value: string; label: string }> = [];
     for (const line of lines) {
-      const music = parseMusicLine(line);
+      const music = parseMusicParts(line);
       if (music) {
-        if (current) current.music.push(music);
-        else pendingMusic.push(music);
+        musicItems.push(music);
         continue;
       }
       const cue = parseCueLine(line, parsed.title);
-      if (cue) {
-        cue.music = [...pendingMusic, ...cue.music];
-        pendingMusic = [];
-        current = cue;
-        cues.push(cue);
-      }
+      if (cue) blockCues.push(cue);
     }
+
+    for (const music of musicItems) {
+      const target = musicAttachTarget(music.kind, music.value);
+      if (target === "processional" || target === "waiting") continue;
+      const match = target
+        ? blockCues.find((cue) => cueMatchesTarget(cue, target))
+        : null;
+      if (match && !match.music.includes(music.label)) match.music.push(music.label);
+    }
+
+    cues.push(...blockCues);
   }
-  return cues;
+  return mergeDuplicateCues(cues);
 }
 
 export function groupPrintContacts(
@@ -425,7 +508,7 @@ export function groupPrintContacts(
   const seen = new Set<string>();
   const asPrint = (contact: (typeof ordered)[number]): PrintContact => ({
     name: contact.name,
-    role: contact.directoryLabel?.trim() || null,
+    role: printContactRole(contact.name, contact.directoryLabel),
     phone: contact.phone?.trim() || null,
     email: contact.email?.trim() || null,
   });
@@ -473,7 +556,7 @@ export function setupTeardownFromCanonical(input: {
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name))
     .map((contact) => ({
       name: contact.name,
-      role: contact.directoryLabel?.trim() || null,
+      role: printContactRole(contact.name, contact.directoryLabel),
       phone: contact.phone?.trim() || null,
       email: contact.email?.trim() || null,
     }));
@@ -511,41 +594,10 @@ export function moneyFingerprint(contracts: BudgetContractSnapshot[]): PrintCent
 }
 
 export function staySectionsFromSlots(
-  slots: Array<{ sectionId: string; label: string; occupant: string }>,
+  slots: Array<{ sectionId: string; label: string; occupant: string; optional?: boolean }>,
   notes: Array<{ sectionId: string; note: string }>,
 ): PrintStaySection[] {
-  const bySection = new Map<string, PrintStaySection>();
-  for (const def of STAY_SECTIONS) {
-    bySection.set(def.id, {
-      title: def.title,
-      detail: def.detail,
-      slots: [],
-      notes: [],
-    });
-  }
-  for (const slot of slots) {
-    const section =
-      bySection.get(slot.sectionId) ??
-      (() => {
-        const created: PrintStaySection = {
-          title: slot.sectionId,
-          detail: null,
-          slots: [],
-          notes: [],
-        };
-        bySection.set(slot.sectionId, created);
-        return created;
-      })();
-    section.slots.push({
-      label: slot.label,
-      occupant: slot.occupant.trim() || "—",
-    });
-  }
-  for (const note of notes) {
-    const section = bySection.get(note.sectionId);
-    if (section && note.note.trim()) section.notes.push(note.note.trim());
-  }
-  return [...bySection.values()].filter((section) => section.slots.length > 0);
+  return projectStaySections(slots, notes);
 }
 
 export function mealSectionsFromGuests(
@@ -556,54 +608,18 @@ export function mealSectionsFromGuests(
   }>,
   courses: Array<{ id: string; label: string; options: Array<{ id: string; label: string }> }>,
 ): PrintMealSection[] {
-  const optionLabel = (courseId: string, optionId: string | undefined) => {
-    if (!optionId) return null;
-    const course = courses.find((row) => row.id === courseId);
-    return course?.options.find((option) => option.id === optionId)?.label ?? null;
-  };
-  const bySection = new Map<string, PrintMealSection>();
-  for (const def of MEAL_SECTIONS) {
-    bySection.set(def.id, { title: def.title, guests: [] });
-  }
-  for (const guest of guests) {
-    const section =
-      bySection.get(guest.sectionId) ??
-      (() => {
-        const created: PrintMealSection = { title: guest.sectionId, guests: [] };
-        bySection.set(guest.sectionId, created);
-        return created;
-      })();
-    const selections = Object.entries(guest.choices)
-      .map(([courseId, optionId]) => optionLabel(courseId, optionId))
-      .filter((label): label is string => Boolean(label));
-    section.guests.push({
-      name: guest.name,
-      selection: selections.length ? selections.join(" · ") : null,
-    });
-  }
-  return [...bySection.values()].filter((section) => section.guests.length > 0);
+  return projectMealSections(guests, courses);
 }
 
 export function householdsFromGuests(
   guests: Array<{
-    street: string | null;
-    city: string | null;
-    state: string | null;
-    zip: string | null;
     rsvpStatus: string;
-    people: Array<{ name: string }>;
+    people: Array<{ name: string; rsvpStatus?: string }>;
     nameLine1?: string;
     nameLine2?: string | null;
   }>,
 ): PrintHousehold[] {
-  return guests.map((guest) => ({
-    names:
-      guest.people.length > 0
-        ? guest.people.map((person) => person.name).filter(Boolean)
-        : [guest.nameLine1, guest.nameLine2].filter((name): name is string => Boolean(name?.trim())),
-    addressLines: guestAddressLines(guest),
-    rsvp: guest.rsvpStatus,
-  }));
+  return projectHouseholds(guests).households;
 }
 
 export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId): boolean {
@@ -613,35 +629,37 @@ export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId):
     case "rehearsal":
       return doc.rehearsal.length > 0;
     case "timeline":
-      return doc.timeline.length > 0;
+      return doc.runSheet.length > 0 || doc.timeline.length > 0;
     case "mc":
       return doc.mcCues.length > 0 || doc.mcNames.length > 0;
     case "hair":
-      return doc.hairMakeup.length > 0;
+      return doc.hairRooms.length + doc.hairSchedule.length + doc.hairMakeup.length > 0;
     case "shots":
-      return doc.shots.length > 0;
+      return doc.shotGroups.length > 0 || doc.shots.length > 0;
     case "contacts":
-      return doc.vendorContacts.length + doc.dayOfContacts.length + doc.otherContacts.length > 0;
+      return doc.vendorContacts.length + doc.dayOfContacts.length > 0;
     case "assignments":
       return doc.assignments.length > 0;
     case "setup":
       return (
         doc.setupContacts.length +
           doc.setupMoments.length +
-          doc.setupDecor.length +
-          doc.coordinatorScope.length >
+          doc.setupConfirmed.length +
+          doc.setupOpen.length >
         0
       );
+    case "coordinator":
+      return doc.coordinatorScope.length > 0;
+    case "decor":
+      return doc.setupDecor.length > 0;
     case "guests":
       return doc.households.length > 0;
     case "stay":
       return doc.stay.length > 0;
     case "meals":
-      return doc.meals.length > 0;
-    case "shopping":
-      return doc.shopping.length > 0;
+      return doc.meals.length > 0 || doc.shopping.length > 0;
     case "tasks":
-      return doc.tasks.length > 0;
+      return doc.taskGroups.length > 0 || doc.tasks.length > 0;
     case "calendar":
       return doc.calendar.length > 0;
     case "money":
@@ -670,11 +688,30 @@ export function triggerBrowserPrint(api: { print: () => void } = globalThis): vo
 export function emptyPrintDocument(): PrintCenterDocument {
   return {
     coupleNames: "David & Haley",
-    weddingDateLabel: "October 16, 2026",
+    weddingDateLabel: "Friday, October 16, 2026",
     timezone: "America/Detroit",
     mcNames: [],
+    quickReference: {
+      coupleNames: "David & Haley",
+      weddingDateLabel: "Friday, October 16, 2026",
+      ceremonyTime: "3:30 PM",
+      venueName: "Black Sheep Shelter",
+      venueAddress: ["342 62nd St", "South Haven, MI 49090"],
+      airbnbName: "Airbnb",
+      airbnbAddress: ["10268 51st St", "Grand Junction, MI 49056"],
+      rehearsalDinnerName: "Hawkshead",
+      rehearsalDinnerAddress: ["523 Hawks Nest Dr", "South Haven, MI"],
+      coordinatorName: "Avalon Green",
+      coordinatorPhone: null,
+      mistressOfCeremonies: null,
+      mcName: null,
+      receptionEnds: "10:00 PM",
+      venueCloses: "11:00 PM",
+      rsvp: null,
+    },
     rehearsal: [],
     timeline: [],
+    runSheet: [],
     mcCues: [],
     vendorContacts: [],
     dayOfContacts: [],
@@ -682,17 +719,24 @@ export function emptyPrintDocument(): PrintCenterDocument {
     assignments: [],
     setupContacts: [],
     setupMoments: [],
+    setupConfirmed: [],
+    setupOpen: [],
     setupDecor: [],
     coordinatorScope: [],
     hairMakeup: [],
+    hairRooms: [],
+    hairSchedule: [],
     shots: [],
+    shotGroups: [],
     households: [],
+    rsvpSummary: null,
     stay: [],
     mealsPublished: false,
     mealChoiceCount: 0,
     meals: [],
     shopping: [],
     tasks: [],
+    taskGroups: [],
     calendar: [],
     money: { committed: 0, paid: 0, remaining: 0, items: [] },
     availableSections: [...PRINT_SECTION_IDS],

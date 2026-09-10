@@ -26,6 +26,16 @@ test("MC Run of Show projects timeline cues in order with next-cue pointers", ()
   assert.deepEqual(show.mcNames, ["Kurt Huizenga", "Wendy Rush"]);
 });
 
+test("processional playlist is a ceremony-start music bed, not the 4:00 conclusion speech", () => {
+  const show = buildMcRunOfShow(PRODUCTION_CUE_BLOCKS);
+  const aisle = show.cues.find((cue) => /Walking Down The Aisle/i.test(cue.music.join(" ")));
+  const conclusion = show.cues.find((cue) => /ceremony has concluded/i.test(cue.spoken));
+  assert.ok(aisle);
+  assert.equal(aisle.kind, "music");
+  assert.equal(aisle.time, "3:30 PM");
+  assert.equal(conclusion?.music.some((line) => /Walking Down The Aisle/i.test(line)), false);
+});
+
 test("waiting-playlist music bed is a separate 3:00 cue from the 3:25 spoken welcome", () => {
   const show = buildMcRunOfShow(PRODUCTION_CUE_BLOCKS);
   const wait = show.cues.find((cue) => cue.kind === "music" && /While They Wait/i.test(cue.music.join(" ")));

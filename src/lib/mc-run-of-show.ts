@@ -91,8 +91,11 @@ function musicBedsFromBlocks(
       if (!music) continue;
       const value = music[2]!.trim();
       const clock = value.match(TIME_IN_MUSIC);
-      if (!clock) continue;
-      const rawTime = clock[1]!.replace(/\s+/g, " ").trim();
+      const processional = /aisle|processional|walking down/i.test(value);
+      if (!clock && !processional) continue;
+      const rawTime = clock
+        ? clock[1]!.replace(/\s+/g, " ").trim()
+        : block.startAt;
       const timed = afternoonClock(rawTime);
       beds.push({
         time: timed.kind === "timed" ? timed.display : rawTime,

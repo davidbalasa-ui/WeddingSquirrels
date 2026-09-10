@@ -31,13 +31,18 @@ test("Print Center is a More entry, not a primary navigation tab", () => {
   assert.equal(print?.hideFromMore, true);
 });
 
-test("Full Binder preset includes money and guests; Day-of Packet excludes them", () => {
+test("Full Binder preset includes money, guests, setup, and coordinator; Day-of Packet excludes money and guests", () => {
   assert.equal(FULL_BINDER_SECTIONS.includes("money"), true);
   assert.equal(FULL_BINDER_SECTIONS.includes("guests"), true);
+  assert.equal(FULL_BINDER_SECTIONS.includes("setup"), true);
+  assert.equal(FULL_BINDER_SECTIONS.includes("coordinator"), true);
+  assert.equal(FULL_BINDER_SECTIONS.includes("decor"), true);
   assert.equal(DAY_OF_PACKET_SECTIONS.includes("money"), false);
   assert.equal(DAY_OF_PACKET_SECTIONS.includes("guests"), false);
   assert.equal(DAY_OF_PACKET_SECTIONS.includes("hair"), true);
   assert.equal(DAY_OF_PACKET_SECTIONS.includes("shots"), true);
+  assert.equal(DAY_OF_PACKET_SECTIONS.includes("setup"), true);
+  assert.equal(DAY_OF_PACKET_SECTIONS.includes("coordinator"), true);
   assert.equal(FULL_BINDER_SECTIONS.includes("hair"), true);
   assert.equal(FULL_BINDER_SECTIONS.includes("shots"), true);
   assert.equal(presetMatchesSelection("binder", sectionsForPreset("binder")), true);
@@ -57,26 +62,26 @@ test("MC extraction uses canonical note cues and does not invent Kurt contact da
   const times = cues.map((cue) => cue.time);
   assert.deepEqual(times, [
     "3:25 PM",
-    "4:00",
-    "4:55",
-    "5:00",
-    "Immediately after entrance",
-    "6:00",
-    "6:15",
-    "6:30",
-    "7:00",
-    "8:00",
-    "8:30",
-    "9:55",
-    "10:00",
+    "4:00 PM",
+    "4:55 PM",
+    "5:00 PM",
+    "Immediately after 5:00 PM entrance",
+    "6:00 PM",
+    "6:15 PM",
+    "6:30 PM",
+    "7:00 PM",
+    "8:00 PM",
+    "8:30 PM",
+    "9:55 PM",
+    "10:00 PM",
   ]);
   assert.equal(
     cues.some((cue) => /While They Wait/i.test(cue.music.join(" "))),
-    true,
+    false,
   );
   assert.equal(
     cues.some((cue) => /Walking Down The Aisle/i.test(cue.music.join(" "))),
-    true,
+    false,
   );
   assert.equal(
     cues.some((cue) => /Grand Entrance Song/i.test(cue.music.join(" "))),
@@ -88,10 +93,12 @@ test("MC extraction uses canonical note cues and does not invent Kurt contact da
   );
   assert.equal(cues.some((cue) => /First Dance/i.test(cue.music.join(" "))), true);
   assert.equal(cues.some((cue) => /Kids Section/i.test(cue.music.join(" "))), true);
-  assert.equal(cues.some((cue) => /Adults Section/i.test(cue.music.join(" "))), true);
+  assert.equal(cues.some((cue) => /Adults Section/i.test(cue.music.join(" "))), false);
   assert.equal(cues.some((cue) => /Dollar Dance Song/i.test(cue.music.join(" "))), true);
   assert.equal(cues.some((cue) => /Last Dance Song/i.test(cue.music.join(" "))), true);
   assert.equal(cues.every((cue) => !/Kurt/.test(cue.spoken)), true);
+  const conclusion = cues.find((cue) => /ceremony has concluded/i.test(cue.spoken));
+  assert.equal(conclusion?.music.some((line) => /Walking Down The Aisle/i.test(line)), false);
 });
 
 test("Kurt is MC from directory label; Wendy is Mistress of Ceremonies", () => {
@@ -154,6 +161,23 @@ test("contact grouping avoids duplicate vendor/day-of cards", () => {
   );
 });
 
+test("day-of Kurt prints as MC without inventing a phone", () => {
+  const grouped = groupPrintContacts([
+    {
+      name: "Kurt Huizenga",
+      directoryLabel: null,
+      phone: null,
+      email: null,
+      isDayOfContact: true,
+      sortOrder: 1,
+    },
+  ]);
+  assert.equal(grouped.dayOf[0]?.name, "Kurt Huizenga");
+  assert.equal(grouped.dayOf[0]?.role, "MC");
+  assert.equal(grouped.dayOf[0]?.phone, null);
+  assert.equal(grouped.dayOf[0]?.email, null);
+});
+
 test("money fingerprint formats the current production totals", () => {
   const contracts: BudgetContractSnapshot[] = [
     {
@@ -193,7 +217,7 @@ test("printable packet omits money and guests even if those sections have data",
       location: null,
       notes: [],
     })),
-    households: [{ names: ["Guest"], addressLines: [], rsvp: "pending" }],
+    households: [{ title: "Guest", members: [{ name: "Guest", rsvpLabel: "Awaiting RSVP" }] }],
     money: {
       committed: 21485.83,
       paid: 9167.22,
@@ -209,17 +233,21 @@ test("printable packet omits money and guests even if those sections have data",
   assert.equal(doc.rehearsal.length, 7);
 });
 
-test("packet prints hair and shot list when those projections have content", () => {
+test("packet prints hair, shots, and decor when those projections have content", () => {
   const doc: PrintCenterDocument = {
     ...emptyPrintDocument(),
     hairMakeup: [{ timeLabel: "9:00 AM", title: "Braxton — hair", location: "Bathroom 1", notes: [], section: "9:00 AM" }],
+    hairRooms: [{ title: "Bathroom 1", detail: "Hair · one station" }],
     shots: [{ timeLabel: null, title: "Invitations", location: null, notes: [], section: "Details" }],
+    shotGroups: [{ section: "Details", confirmationNote: null, items: [{ title: "Invitations", notes: [], completed: false, inferredPairing: false }] }],
     setupDecor: [{ timeLabel: null, title: "Storm clouds", location: null, notes: [], section: "Tables" }],
+    setupConfirmed: [{ owner: "Haley's parents", work: "Trash" }],
   };
   const printed = printableSections(doc, sectionsForPreset("packet"));
   assert.equal(printed.includes("hair"), true);
   assert.equal(printed.includes("shots"), true);
   assert.equal(printed.includes("setup"), true);
+  assert.equal(printed.includes("decor"), true);
 });
 
 test("print document text does not include PIN or session internals", () => {

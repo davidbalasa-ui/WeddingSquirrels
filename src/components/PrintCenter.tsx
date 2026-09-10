@@ -48,14 +48,14 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <PresetCard
             title="Full Wedding Binder"
-            body="The complete planning record: timeline, rehearsal, guests, stay, meals, shopping, tasks, calendar, and money."
+            body="Operations first, then guests, stay, meals, open work, key dates, and money."
             active={binderActive}
             testId="print-preset-binder"
             onClick={() => applyPreset("binder")}
           />
           <PresetCard
             title="Day-of Packet"
-            body="A helper packet for Kurt, Shelly, Wendy, or another day-of lead. Timeline, MC cues, contacts, and setup — not money or the full guest list."
+            body="A helper packet for Kurt, Shelly, Wendy, or another day-of lead. Run sheet, MC cues, contacts, and setup — not money or the guest list."
             active={packetActive}
             testId="print-preset-packet"
             onClick={() => applyPreset("packet")}
@@ -156,20 +156,7 @@ function PrintTitlePage({
 function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCenterDocument }) {
   switch (id) {
     case "overview":
-      return (
-        <section className="binder-section">
-          <h2>Overview</h2>
-          <p className="binder-lede">
-            {document.coupleNames}
-            {document.weddingDateLabel ? ` · ${document.weddingDateLabel}` : ""}
-          </p>
-          {document.mcNames.length ? (
-            <p className="binder-note">MC: {document.mcNames.join(" · ")}</p>
-          ) : (
-            <p className="binder-note">Master of ceremonies is listed on the wedding-day timeline notes.</p>
-          )}
-        </section>
-      );
+      return <QuickReferenceSection document={document} />;
     case "rehearsal":
       return (
         <section className="binder-section">
@@ -180,30 +167,55 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
     case "timeline":
       return (
         <section className="binder-section">
-          <h2>Wedding-day timeline</h2>
-          <TimelineList rows={document.timeline} />
+          <h2>Wedding-day run sheet</h2>
+          {document.runSheet.length ? (
+            <RunSheet phases={document.runSheet} />
+          ) : (
+            <TimelineList rows={document.timeline} />
+          )}
         </section>
       );
     case "mc":
       return (
         <section className="binder-section">
-          <h2>MC &amp; music cues</h2>
+          <h2>MC Run of Show</h2>
           {document.mcNames.length ? (
             <p className="binder-lede">{document.mcNames.join(" · ")}</p>
           ) : null}
           <ol className="binder-cues">
             {document.mcCues.map((cue, index) => (
-              <li key={`${cue.time ?? "cue"}-${index}`} className="binder-cue binder-card">
+              <li key={`${cue.time ?? "cue"}-${cue.kind ?? "spoken"}-${index}`} className="binder-cue binder-card">
                 <p className="binder-time">
                   {cue.time ?? "Cue"}
                   {cue.heading ? ` · ${cue.heading}` : ` · ${cue.momentTitle}`}
                 </p>
-                <p className="binder-spoken">“{cue.spoken}”</p>
-                {cue.music.map((line) => (
-                  <p key={line} className="binder-music">
+                {cue.kind === "music" || !cue.spoken ? null : (
+                  <>
+                    <p className="binder-label">Spoken</p>
+                    <p className="binder-spoken">“{cue.spoken}”</p>
+                  </>
+                )}
+                {cue.music.length ? (
+                  <>
+                    <p className="binder-label">Music</p>
+                    {cue.music.map((line) => (
+                      <p key={line} className="binder-music">
+                        {line}
+                      </p>
+                    ))}
+                  </>
+                ) : null}
+                {(cue.operatorNotes ?? []).map((line) => (
+                  <p key={line} className="binder-note">
                     {line}
                   </p>
                 ))}
+                {cue.nextTitle ? (
+                  <p className="binder-next">
+                    Next {cue.nextTime ? `${cue.nextTime} · ` : ""}
+                    {cue.nextTitle}
+                  </p>
+                ) : null}
               </li>
             ))}
           </ol>
@@ -213,14 +225,75 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
       return (
         <section className="binder-section">
           <h2>Hair &amp; makeup</h2>
-          <PlaybookPrintList rows={document.hairMakeup} />
+          {document.hairRooms.length ? (
+            <>
+              <h3>Room / station key</h3>
+              <ul className="binder-list">
+                {document.hairRooms.map((room) => (
+                  <li key={room.title} className="binder-row">
+                    <span>{room.title}</span>
+                    <span>{room.detail}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {document.hairSchedule.length ? (
+            <>
+              <h3>Schedule</h3>
+              <table className="binder-table binder-hair-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Person / group</th>
+                    <th>Service</th>
+                    <th>Location</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {document.hairSchedule.map((row, index) => (
+                    <tr key={`${row.timeLabel}-${row.person}-${index}`}>
+                      <td>{row.showTime ? row.timeLabel : ""}</td>
+                      <td>{row.person}</td>
+                      <td>{row.service ?? "—"}</td>
+                      <td>{row.location ?? "—"}</td>
+                      <td>{row.notes.join(" · ") || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            <PlaybookPrintList rows={document.hairMakeup} />
+          )}
         </section>
       );
     case "shots":
       return (
         <section className="binder-section">
           <h2>Photo shot list</h2>
-          <PlaybookPrintList rows={document.shots} />
+          {document.shotGroups.map((group) => (
+            <div key={group.section} className="binder-block">
+              <h3>{group.section}</h3>
+              {group.confirmationNote ? <p className="binder-note">{group.confirmationNote}</p> : null}
+              <ul className="binder-shot-grid">
+                {group.items.map((item) => (
+                  <li key={item.title} className="binder-shot">
+                    <span className="binder-check" aria-hidden>
+                      {item.completed ? "☑" : "☐"}
+                    </span>
+                    <span>
+                      {item.title}
+                      {item.notes.length ? (
+                        <span className="binder-note"> {item.notes.join(" · ")}</span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </section>
       );
     case "contacts":
@@ -239,18 +312,12 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
               <ContactList rows={document.dayOfContacts} />
             </>
           ) : null}
-          {document.otherContacts.length ? (
-            <>
-              <h3>Other contacts</h3>
-              <ContactList rows={document.otherContacts} />
-            </>
-          ) : null}
         </section>
       );
     case "assignments":
       return (
         <section className="binder-section">
-          <h2>Day assignments</h2>
+          <h2>Day-of jobs</h2>
           <ul className="binder-list">
             {document.assignments.map((row) => (
               <li key={row.title} className="binder-card">
@@ -268,40 +335,81 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
       return (
         <section className="binder-section">
           <h2>Setup / teardown</h2>
-          {document.setupContacts.length ? <ContactList rows={document.setupContacts} /> : null}
+          {document.setupContacts.length ? (
+            <>
+              <h3>Current cleanup contacts</h3>
+              <p className="binder-note">Support contacts — not assigned teardown owners.</p>
+              <ContactList rows={document.setupContacts} />
+            </>
+          ) : null}
+          {document.setupConfirmed.length ? (
+            <>
+              <h3>Confirmed responsibilities</h3>
+              <ul className="binder-list">
+                {document.setupConfirmed.map((row) => (
+                  <li key={`${row.owner}-${row.work}`} className="binder-row">
+                    <span>{row.owner}</span>
+                    <span>{row.work}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {document.setupOpen.length ? (
+            <>
+              <h3>Still open</h3>
+              <ul className="binder-list">
+                {document.setupOpen.map((row) => (
+                  <li key={row} className="binder-note">
+                    {row}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
           {document.setupMoments.length ? <TimelineList rows={document.setupMoments} /> : null}
-          {document.setupDecor.length ? (
-            <>
-              <h3>Decor</h3>
-              <PlaybookPrintList rows={document.setupDecor} />
-            </>
-          ) : null}
-          {document.coordinatorScope.length ? (
-            <>
-              <h3>Avalon / Green Garden scope</h3>
-              <PlaybookPrintList rows={document.coordinatorScope} />
-            </>
-          ) : null}
+        </section>
+      );
+    case "coordinator":
+      return (
+        <section className="binder-section">
+          <h2>Coordinator scope</h2>
+          <p className="binder-lede">Avalon Green · Green Garden Events</p>
+          <PlaybookPrintList rows={document.coordinatorScope} hideSection />
+        </section>
+      );
+    case "decor":
+      return (
+        <section className="binder-section">
+          <h2>Décor / setup details</h2>
+          {groupDecor(document.setupDecor).map((group) => (
+            <div key={group.section} className="binder-block">
+              <h3>{group.section}</h3>
+              <PlaybookPrintList rows={group.items} hideSection />
+            </div>
+          ))}
         </section>
       );
     case "guests":
       return (
         <section className="binder-section">
-          <h2>Guests / households</h2>
+          <h2>Guests / RSVP</h2>
+          {document.rsvpSummary ? (
+            <p className="binder-lede">
+              {document.rsvpSummary.attending} attending · {document.rsvpSummary.declined} declined ·{" "}
+              {document.rsvpSummary.awaiting} awaiting RSVP
+            </p>
+          ) : null}
           <ul className="binder-list">
             {document.households.map((house, index) => (
-              <li key={`${house.names.join("-")}-${index}`} className="binder-card">
-                <p className="binder-item-title">{house.names.join(" & ") || "Household"}</p>
-                {house.addressLines.length ? (
-                  house.addressLines.map((line) => (
-                    <p key={line} className="binder-note">
-                      {line}
-                    </p>
-                  ))
-                ) : (
-                  <p className="binder-note">No address on file</p>
-                )}
-                <p className="binder-kicker">{house.rsvp}</p>
+              <li key={`${house.title}-${index}`} className="binder-card">
+                <p className="binder-item-title">{house.title}</p>
+                {house.members.map((member) => (
+                  <p key={`${member.name}-${member.rsvpLabel}`} className="binder-row">
+                    <span>{member.name}</span>
+                    <span>{member.rsvpLabel}</span>
+                  </p>
+                ))}
               </li>
             ))}
           </ul>
@@ -335,21 +443,80 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
     case "meals":
       return (
         <section className="binder-section">
-          <h2>Meals</h2>
-          <p className="binder-lede">
-            {document.mealsPublished ? "Menu published." : "Meal choices are not published yet."}{" "}
-            {document.mealChoiceCount === 0
-              ? "No selections have been recorded."
-              : `${document.mealChoiceCount} selections recorded.`}
-          </p>
-          {document.meals.map((section) => (
-            <div key={section.title} className="binder-block">
-              <h3>{section.title}</h3>
+          <h2>Meals / food &amp; supplies</h2>
+          {document.meals.length ? (
+            document.mealsPublished ? (
+              document.meals.map((section) => (
+                <div key={section.title} className="binder-block">
+                  <h3>{section.title}</h3>
+                  <ul className="binder-list">
+                    {section.guests.map((guest) => (
+                      <li key={`${section.title}-${guest.name}`} className="binder-row">
+                        <span>{guest.name}</span>
+                        <span>{guest.selection ?? "No selection"}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            ) : (
+              <>
+                <h3>Rehearsal dinner meals</h3>
+                <p className="binder-lede">
+                  Menu not published yet
+                  {document.meals.reduce((sum, section) => sum + section.guests.length, 0)
+                    ? ` · ${document.meals.reduce((sum, section) => sum + section.guests.length, 0)} guests awaiting selections`
+                    : ""}
+                </p>
+                {document.meals.map((section) => (
+                  <div key={section.title} className="binder-block">
+                    <h3>{section.title}</h3>
+                    <p className="binder-note">{section.guests.map((guest) => guest.name).join(" · ")}</p>
+                  </div>
+                ))}
+              </>
+            )
+          ) : null}
+          {document.shopping.length ? (
+            <>
+              <h3>Food &amp; serving supplies</h3>
               <ul className="binder-list">
-                {section.guests.map((guest) => (
-                  <li key={`${section.title}-${guest.name}`} className="binder-row">
-                    <span>{guest.name}</span>
-                    <span>{guest.selection ?? "No selection"}</span>
+                {document.shopping.map((item) => (
+                  <li key={item.name} className="binder-card">
+                    <p className="binder-item-title">
+                      {item.name}
+                      {item.quantity ? ` · ${item.quantity}` : ""}
+                      {item.purchased ? " · purchased" : ""}
+                    </p>
+                    {item.note ? <p className="binder-note">{item.note}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </section>
+      );
+    case "tasks":
+      return (
+        <section className="binder-section">
+          <h2>Open work</h2>
+          {(document.taskGroups.length ? document.taskGroups : []).map((group) => (
+            <div key={group.title} className="binder-block">
+              <h3>{group.title}</h3>
+              <ul className="binder-list">
+                {group.items.map((item) => (
+                  <li key={item.title} className="binder-shot">
+                    <span className="binder-check" aria-hidden>
+                      {item.done ? "☑" : "☐"}
+                    </span>
+                    <span>
+                      <span className="binder-item-title">{item.title}</span>
+                      {item.dueLabel || item.assignees.length ? (
+                        <p className="binder-note">
+                          {[item.dueLabel, item.assignees.join(" · ")].filter(Boolean).join(" · ")}
+                        </p>
+                      ) : null}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -357,46 +524,10 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
           ))}
         </section>
       );
-    case "shopping":
-      return (
-        <section className="binder-section">
-          <h2>Shopping</h2>
-          <ul className="binder-list">
-            {document.shopping.map((item) => (
-              <li key={item.name} className="binder-card">
-                <p className="binder-item-title">
-                  {item.name}
-                  {item.quantity ? ` · ${item.quantity}` : ""}
-                  {item.purchased ? " · purchased" : ""}
-                </p>
-                {item.note ? <p className="binder-note">{item.note}</p> : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      );
-    case "tasks":
-      return (
-        <section className="binder-section">
-          <h2>Tasks</h2>
-          <ul className="binder-list">
-            {document.tasks.map((task) => (
-              <li key={task.title} className="binder-card">
-                <p className="binder-item-title">{task.title}</p>
-                <p className="binder-note">
-                  {task.status}
-                  {task.dueLabel ? ` · ${task.dueLabel}` : ""}
-                  {task.assignees.length ? ` · ${task.assignees.join(" · ")}` : ""}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      );
     case "calendar":
       return (
         <section className="binder-section">
-          <h2>Calendar</h2>
+          <h2>Key dates</h2>
           <ul className="binder-list">
             {document.calendar.map((event) => (
               <li key={event.title} className="binder-card">
@@ -442,6 +573,78 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
   }
 }
 
+function QuickReferenceSection({ document }: { document: PrintCenterDocument }) {
+  const ref = document.quickReference;
+  return (
+    <section className="binder-section">
+      <h2>Quick reference</h2>
+      <p className="binder-lede">
+        {ref.coupleNames}
+        {ref.weddingDateLabel ? ` · ${ref.weddingDateLabel}` : ""}
+      </p>
+      <dl className="binder-ref">
+        <RefBlock label="Ceremony" lines={[ref.ceremonyTime, ref.venueName, ...ref.venueAddress]} />
+        <RefBlock label="Airbnb" lines={[ref.airbnbName, ...ref.airbnbAddress]} />
+        <RefBlock label="Rehearsal dinner" lines={[ref.rehearsalDinnerName, ...ref.rehearsalDinnerAddress]} />
+        <RefBlock label="Coordinator" lines={[ref.coordinatorName, ref.coordinatorPhone]} />
+        <RefBlock label="Mistress of Ceremonies" lines={[ref.mistressOfCeremonies]} />
+        <RefBlock label="MC" lines={[ref.mcName]} />
+        <RefBlock label="Reception concludes" lines={[ref.receptionEnds]} />
+        <RefBlock label="Venue closes" lines={[ref.venueCloses]} />
+      </dl>
+      {ref.rsvp ? (
+        <p className="binder-lede">
+          {ref.rsvp.attending} attending · {ref.rsvp.declined} declined · {ref.rsvp.awaiting} awaiting RSVP
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function RefBlock({ label, lines }: { label: string; lines: Array<string | null | undefined> }) {
+  const visible = lines.filter((line): line is string => Boolean(line?.trim()));
+  if (!visible.length) return null;
+  return (
+    <div className="binder-ref-item">
+      <dt>{label}</dt>
+      {visible.map((line) => (
+        <dd key={line}>{line}</dd>
+      ))}
+    </div>
+  );
+}
+
+function RunSheet({ phases }: { phases: PrintCenterDocument["runSheet"] }) {
+  return (
+    <div className="binder-run">
+      {phases.map((phase) => (
+        <div key={phase.title} className="binder-block">
+          <h3>{phase.title}</h3>
+          {phase.location ? <p className="binder-note">{phase.location}</p> : null}
+          {phase.notes.map((line) => (
+            <p key={line} className="binder-note">
+              {line}
+            </p>
+          ))}
+          <ol className="binder-timeline">
+            {phase.events.map((event, index) => (
+              <li key={`${event.timeLabel}-${event.title}-${index}`} className="binder-card">
+                {event.timeLabel ? <p className="binder-time">{event.timeLabel}</p> : null}
+                <p className="binder-item-title">{event.title}</p>
+                {event.notes.map((line) => (
+                  <p key={line} className="binder-note">
+                    {line}
+                  </p>
+                ))}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function BinderSunsetRule() {
   return (
     <div className="binder-sunset" aria-hidden="true">
@@ -473,12 +676,18 @@ function TimelineList({ rows }: { rows: PrintCenterDocument["timeline"] }) {
   );
 }
 
-function PlaybookPrintList({ rows }: { rows: PrintCenterDocument["hairMakeup"] }) {
+function PlaybookPrintList({
+  rows,
+  hideSection = false,
+}: {
+  rows: PrintCenterDocument["hairMakeup"];
+  hideSection?: boolean;
+}) {
   return (
     <ol className="binder-timeline">
       {rows.map((row, index) => (
         <li key={`${row.section}-${row.title}-${index}`} className="binder-card">
-          <p className="binder-kicker">{row.section}</p>
+          {!hideSection ? <p className="binder-kicker">{row.section}</p> : null}
           {row.timeLabel ? <p className="binder-time">{row.timeLabel}</p> : null}
           <p className="binder-item-title">{row.title}</p>
           {row.location ? <p className="binder-note">{row.location}</p> : null}
@@ -493,6 +702,21 @@ function PlaybookPrintList({ rows }: { rows: PrintCenterDocument["hairMakeup"] }
   );
 }
 
+function groupDecor(rows: PrintCenterDocument["setupDecor"]) {
+  const groups: Array<{ section: string; items: PrintCenterDocument["setupDecor"] }> = [];
+  const index = new Map<string, number>();
+  for (const row of rows) {
+    const existing = index.get(row.section);
+    if (existing == null) {
+      index.set(row.section, groups.length);
+      groups.push({ section: row.section, items: [row] });
+    } else {
+      groups[existing]!.items.push(row);
+    }
+  }
+  return groups;
+}
+
 function ContactList({ rows }: { rows: PrintCenterDocument["vendorContacts"] }) {
   return (
     <ul className="binder-list">
@@ -502,7 +726,6 @@ function ContactList({ rows }: { rows: PrintCenterDocument["vendorContacts"] }) 
           {row.role ? <p className="binder-note">{row.role}</p> : null}
           {row.phone ? <p className="binder-note">{row.phone}</p> : null}
           {row.email ? <p className="binder-note">{row.email}</p> : null}
-          {!row.phone && !row.email ? <p className="binder-note">No phone or email on file</p> : null}
         </li>
       ))}
     </ul>
