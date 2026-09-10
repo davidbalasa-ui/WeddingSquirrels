@@ -755,3 +755,77 @@ a {
   padding-bottom: 0.28rem;
   border-bottom: 1px solid var(--print-section-rule);
 }
+
+.binder-ref {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.5rem;
+  margin: 1rem 0;
+}
+
+.binder-ref-item dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--print-burgundy);
+}
+
+.binder-ref-item dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.binder-label {
+  margin-top: 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--print-muted);
+}
+
+.binder-next {
+  margin-top: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--print-muted);
+}
+
+.binder-hair-table td:first-child {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  color: var(--print-burgundy);
+}
+
+.binder-shot-grid {
+  columns: 2;
+  column-gap: 1.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.binder-shot {
+  display: flex;
+  gap: 0.45rem;
+  break-inside: avoid;
+  padding: 0.22rem 0;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.binder-check {
+  flex: none;
+  width: 1rem;
+  color: var(--print-burgundy);
+}
+
+@media (max-width: 640px) {
+  .binder-ref,
+  .binder-shot-grid {
+    grid-template-columns: 1fr;
+    columns: 1;
+  }
+}

@@ -10,7 +10,7 @@ test.describe("print center", () => {
     await expect(page.getByTestId("print-preset-binder")).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator('[data-print-section="money"]')).toBeChecked();
     await expect(page.locator('[data-print-section="guests"]')).toBeChecked();
-    await expect(page.locator('[data-print-section="setup"]')).not.toBeChecked();
+    await expect(page.locator('[data-print-section="setup"]')).toBeChecked();
 
     const binder = page.locator(".binder-doc");
     expect(await countVisibleTitles(page, WEDDING_TITLES)).toBe(19);
@@ -35,7 +35,7 @@ test.describe("print center", () => {
     await expect(page.locator('[data-print-section="shots"]')).toBeChecked();
     await expect(binder).toContainText("Wedding Day Packet");
     await expect(binder).not.toContainText(MONEY.committed);
-    await expect(binder).not.toContainText("Guests / households");
+    await expect(binder).not.toContainText("Guests / RSVP");
 
     await page.locator('[data-print-section="money"]').check();
     await expect(binder).toContainText(MONEY.committed);
