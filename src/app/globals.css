@@ -490,8 +490,8 @@ a {
       font-weight: 600;
       letter-spacing: 0.14em;
       color: var(--print-burgundy, #642c3b);
-      padding-top: 6pt;
-      border-top: 0.6pt solid var(--print-amber, #9a6b3f);
+      padding-top: 8pt;
+      border-top: 0.4pt solid #d4c7bc;
     }
   }
 
