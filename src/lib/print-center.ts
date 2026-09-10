@@ -10,6 +10,8 @@ export const PRINT_SECTION_IDS = [
   "rehearsal",
   "timeline",
   "mc",
+  "hair",
+  "shots",
   "contacts",
   "assignments",
   "setup",
@@ -30,6 +32,8 @@ export const PRINT_SECTION_LABELS: Record<PrintSectionId, string> = {
   rehearsal: "Rehearsal dinner + rehearsal",
   timeline: "Wedding-day timeline",
   mc: "MC & music cues",
+  hair: "Hair & makeup",
+  shots: "Photo shot list",
   contacts: "Vendor & day-of contacts",
   assignments: "Day assignments / responsibilities",
   setup: "Setup / teardown",
@@ -47,6 +51,8 @@ export const FULL_BINDER_SECTIONS: PrintSectionId[] = [
   "rehearsal",
   "timeline",
   "mc",
+  "hair",
+  "shots",
   "contacts",
   "assignments",
   "guests",
@@ -62,6 +68,8 @@ export const DAY_OF_PACKET_SECTIONS: PrintSectionId[] = [
   "overview",
   "timeline",
   "mc",
+  "hair",
+  "shots",
   "contacts",
   "assignments",
   "setup",
@@ -87,6 +95,14 @@ export type PrintContact = {
   role: string | null;
   phone: string | null;
   email: string | null;
+};
+
+export type PrintPlaybookRow = {
+  timeLabel: string | null;
+  title: string;
+  location: string | null;
+  notes: string[];
+  section: string;
 };
 
 export type PrintAssignment = {
@@ -155,6 +171,10 @@ export type PrintCenterDocument = {
   assignments: PrintAssignment[];
   setupContacts: PrintContact[];
   setupMoments: PrintTimelineRow[];
+  setupDecor: PrintPlaybookRow[];
+  coordinatorScope: PrintPlaybookRow[];
+  hairMakeup: PrintPlaybookRow[];
+  shots: PrintPlaybookRow[];
   households: PrintHousehold[];
   stay: PrintStaySection[];
   mealsPublished: boolean;
@@ -179,7 +199,8 @@ const SETUP_MOMENT = /venue opens|tear down|clean up|setup|teardown/i;
 const SETUP_ROLE = /setup|teardown|clean/i;
 const VENDOR_ROLE =
   /planner|venue|photo|video|cater|dj|florist|bar|coordinator|officiant/i;
-const MC_LABEL = /^\s*(mc|master of ceremonies|mistress of ceremonies)\s*$/i;
+const MC_LABEL =
+  /(^|\b)(mc|master of ceremonies|mistress of ceremonies|mistress of ceremony)(\b|$)/i;
 
 function chronological<T extends { startAt: string; sortOrder?: number }>(rows: T[]): T[] {
   return [...rows].sort((a, b) => {
@@ -263,6 +284,24 @@ export function isSetupTeardownContact(contact: {
   directoryLabel?: string | null;
 }): boolean {
   return SETUP_ROLE.test(`${contact.directoryLabel ?? ""} ${contact.name}`);
+}
+
+export function toPrintPlaybookRow(item: {
+  startAt: string | null;
+  title: string;
+  location: string | null;
+  notes: string | null;
+  detail: string | null;
+  section: string;
+}): PrintPlaybookRow {
+  const notes = [item.detail, item.notes].filter((line): line is string => Boolean(line?.trim()));
+  return {
+    timeLabel: item.startAt,
+    title: item.title,
+    location: item.location,
+    notes,
+    section: item.section,
+  };
 }
 
 export function toPrintTimelineRow(block: {
@@ -577,12 +616,22 @@ export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId):
       return doc.timeline.length > 0;
     case "mc":
       return doc.mcCues.length > 0 || doc.mcNames.length > 0;
+    case "hair":
+      return doc.hairMakeup.length > 0;
+    case "shots":
+      return doc.shots.length > 0;
     case "contacts":
       return doc.vendorContacts.length + doc.dayOfContacts.length + doc.otherContacts.length > 0;
     case "assignments":
       return doc.assignments.length > 0;
     case "setup":
-      return doc.setupContacts.length + doc.setupMoments.length > 0;
+      return (
+        doc.setupContacts.length +
+          doc.setupMoments.length +
+          doc.setupDecor.length +
+          doc.coordinatorScope.length >
+        0
+      );
     case "guests":
       return doc.households.length > 0;
     case "stay":
@@ -633,6 +682,10 @@ export function emptyPrintDocument(): PrintCenterDocument {
     assignments: [],
     setupContacts: [],
     setupMoments: [],
+    setupDecor: [],
+    coordinatorScope: [],
+    hairMakeup: [],
+    shots: [],
     households: [],
     stay: [],
     mealsPublished: false,

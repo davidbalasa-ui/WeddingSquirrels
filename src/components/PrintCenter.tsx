@@ -188,7 +188,7 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
         <section className="binder-section">
           <h2>MC &amp; music cues</h2>
           {document.mcNames.length ? (
-            <p className="binder-lede">{document.mcNames.join(" · ")} · MC</p>
+            <p className="binder-lede">{document.mcNames.join(" · ")}</p>
           ) : null}
           <ol className="binder-cues">
             {document.mcCues.map((cue, index) => (
@@ -206,6 +206,20 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
               </li>
             ))}
           </ol>
+        </section>
+      );
+    case "hair":
+      return (
+        <section className="binder-section">
+          <h2>Hair &amp; makeup</h2>
+          <PlaybookPrintList rows={document.hairMakeup} />
+        </section>
+      );
+    case "shots":
+      return (
+        <section className="binder-section">
+          <h2>Photo shot list</h2>
+          <PlaybookPrintList rows={document.shots} />
         </section>
       );
     case "contacts":
@@ -255,6 +269,18 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
           <h2>Setup / teardown</h2>
           {document.setupContacts.length ? <ContactList rows={document.setupContacts} /> : null}
           {document.setupMoments.length ? <TimelineList rows={document.setupMoments} /> : null}
+          {document.setupDecor.length ? (
+            <>
+              <h3>Decor</h3>
+              <PlaybookPrintList rows={document.setupDecor} />
+            </>
+          ) : null}
+          {document.coordinatorScope.length ? (
+            <>
+              <h3>Avalon / Green Garden scope</h3>
+              <PlaybookPrintList rows={document.coordinatorScope} />
+            </>
+          ) : null}
         </section>
       );
     case "guests":
@@ -421,6 +447,26 @@ function TimelineList({ rows }: { rows: PrintCenterDocument["timeline"] }) {
       {rows.map((row, index) => (
         <li key={`${row.timeLabel}-${row.title}-${index}`} className="binder-card">
           <p className="binder-time">{row.timeLabel}</p>
+          <p className="binder-item-title">{row.title}</p>
+          {row.location ? <p className="binder-note">{row.location}</p> : null}
+          {row.notes.map((line) => (
+            <p key={line} className="binder-note">
+              {line}
+            </p>
+          ))}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function PlaybookPrintList({ rows }: { rows: PrintCenterDocument["hairMakeup"] }) {
+  return (
+    <ol className="binder-timeline">
+      {rows.map((row, index) => (
+        <li key={`${row.section}-${row.title}-${index}`} className="binder-card">
+          <p className="binder-kicker">{row.section}</p>
+          {row.timeLabel ? <p className="binder-time">{row.timeLabel}</p> : null}
           <p className="binder-item-title">{row.title}</p>
           {row.location ? <p className="binder-note">{row.location}</p> : null}
           {row.notes.map((line) => (

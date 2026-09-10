@@ -92,6 +92,28 @@ export async function supportsBudgetFundingSources(): Promise<boolean> {
   return budgetFundingAvailable;
 }
 
+/** True when Prisma reports the PlaybookItem table is missing. */
+export function isMissingPlaybookItemTable(error: unknown): boolean {
+  const code = prismaErrorCode(error);
+  if (code === "P2021" || code === "P2010") return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return /PlaybookItem|relation.*PlaybookItem/i.test(message);
+}
+
+let playbookItemsAvailable: boolean | null = null;
+
+export async function supportsPlaybookItems(): Promise<boolean> {
+  if (playbookItemsAvailable !== null) return playbookItemsAvailable;
+  try {
+    await prisma.playbookItem.count();
+    playbookItemsAvailable = true;
+  } catch (error) {
+    playbookItemsAvailable = isMissingPlaybookItemTable(error) ? false : null;
+    if (playbookItemsAvailable === null) throw error;
+  }
+  return playbookItemsAvailable;
+}
+
 export const databaseTransport = selectDatabaseTransport(process.env.DATABASE_URL);
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();

@@ -36,7 +36,7 @@ export function morningOverlapFixtureBlocks(): DayOfBlock[] {
   return [
     block("settle", "9:00 AM", "11:00 AM", "Settle in at Airbnb", 0),
     block("vendor", "10:30 AM", "12:30 PM", "Vendor + Wedding Party Arrival", 1),
-    block("diy", "11:00 AM", "11:45 AM", "Wedding party DIY hair & makeup", 2),
+    block("diy", "11:00 AM", "11:45 AM", "Hair & makeup at Airbnb", 2),
     block("pack", "11:45 AM", null, "Wedding party packs up", 3),
   ];
 }
@@ -51,7 +51,7 @@ export function productionWeddingTimelineFixtureBlocks(): DayOfBlock[] {
     block("wedding_settle_in", "9:00 AM", "11:00 AM", "Settle in at Airbnb", 0),
     block("wedding_venue_opens", "10:30 AM", null, "Venue Opens", 1),
     block("wedding_vendor_arrival", "10:30 AM", "12:30 PM", "Vendor + Wedding Party Arrival", 2),
-    block("wedding_diy_hair", "11:00 AM", "11:45 AM", "Wedding party DIY hair & makeup", 3),
+    block("wedding_diy_hair", "11:00 AM", "11:45 AM", "Hair & makeup at Airbnb", 3),
     block("wedding_pack_up", "11:45 AM", null, "Wedding party packs up", 4),
     block("wedding_party_leaves", "12:00 PM", null, "Wedding party leaves Airbnb", 5),
     block("wedding_quiet_time", "12:00 PM", "12:20 PM", "Quiet time at the Airbnb", 6),

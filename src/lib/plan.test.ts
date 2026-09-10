@@ -51,6 +51,7 @@ const now = new Date("2026-09-04T15:00:00");
 const populated: PlanCounts = {
   tasks: { open: 18, overdue: 0, dueSoon: 4 },
   timeline: { moments: 42, nextLabel: "Getting ready", nextTime: "10:00 AM" },
+  mc: { cues: 13, mcNames: ["Kurt Huizenga", "Wendy Rush"] },
   rehearsal: { moments: 7, mealGuests: 17, mealChoices: 11, published: true },
   stay: { assigned: 14, total: 18, open: 4 },
   shopping: { remaining: 7, purchased: 3 },
@@ -69,17 +70,18 @@ test("calendar hub copy uses weekday language without saying next tomorrow", () 
   assert.equal(tomorrow?.detail, "2 upcoming · tomorrow");
 });
 
-test("buildPlanDomainSummaries returns the six planning chapters with PLAN hrefs", () => {
+test("buildPlanDomainSummaries returns the planning chapters with PLAN hrefs", () => {
   const rows = buildPlanDomainSummaries(session(), populated);
   assert.deepEqual(
     rows.map((row) => row.key),
-    ["tasks", "timeline", "rehearsal", "stay", "shopping", "calendar"],
+    ["tasks", "timeline", "mc", "rehearsal", "stay", "shopping", "calendar"],
   );
   assert.deepEqual(
     rows.map((row) => row.href),
     [
       "/plan/tasks",
       "/plan/timeline",
+      "/day/mc",
       "/plan/rehearsal",
       "/plan/stay",
       "/plan/shopping",
@@ -87,7 +89,8 @@ test("buildPlanDomainSummaries returns the six planning chapters with PLAN hrefs
     ],
   );
   assert.equal(rows[0]?.detail, "18 open · 4 due this week");
-  assert.equal(rows[4]?.detail, "7 things left");
+  assert.equal(rows[2]?.href, "/day/mc");
+  assert.equal(rows[5]?.detail, "7 things left");
 });
 
 test("inaccessible domains do not leak summary data even when counts are present", () => {
@@ -106,6 +109,17 @@ test("inaccessible domains do not leak summary data even when counts are present
   );
   assert.deepEqual(rows.map((row) => row.key), []);
   assert.equal(rows.some((row) => /\d/.test(row.detail)), false);
+});
+
+test("MC Run of Show chapter requires timeline permission", () => {
+  const hidden = buildPlanDomainSummaries(
+    session({ canSeeTimeline: false }),
+    populated,
+  );
+  assert.equal(hidden.some((row) => row.key === "mc"), false);
+  const visible = buildPlanDomainSummaries(session(), populated).find((row) => row.key === "mc");
+  assert.equal(visible?.href, "/day/mc");
+  assert.match(visible?.detail ?? "", /13 cues/);
 });
 
 test("task summary counts only the visible tasks it is given", () => {

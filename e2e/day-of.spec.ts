@@ -12,7 +12,7 @@ test.describe("day of", () => {
     await expect(main).toContainText("Settle in at Airbnb");
     await expect(main).toContainText("Venue Opens");
     await expect(main).toContainText("Vendor + Wedding Party Arrival");
-    await expect(main).toContainText("Wedding party DIY hair & makeup");
+    await expect(main).toContainText("Hair & makeup at Airbnb");
     await expect(main).toContainText("Wedding party packs up");
     await expect(main.getByRole("paragraph").filter({ hasText: /^Now$/ })).toBeVisible();
     await expect(main.getByRole("heading", { name: /Next/ })).toBeVisible();
@@ -77,6 +77,9 @@ test.describe("day of", () => {
   test("day tabs, edit-timeline link, and preview harness extras", async ({ page }) => {
     const guards = await attachPageGuards(page);
     await page.goto("/day");
+    await page.getByRole("navigation", { name: "Day-of pages" }).getByRole("link", { name: "MC" }).click();
+    await expect(page).toHaveURL(/\/day\/mc/);
+    await page.getByRole("navigation", { name: "Day-of pages" }).getByRole("link", { name: "Day", exact: true }).click();
     await page.getByRole("navigation", { name: "Day-of pages" }).getByRole("link", { name: "Contacts" }).click();
     await expect(page).toHaveURL(/tab=day-of/);
     await page.goto("/day");

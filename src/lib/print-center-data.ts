@@ -3,6 +3,8 @@ import { canSeeDinnerTab } from "@/lib/access";
 import { sortTimelineBlocks } from "@/lib/day-of-time";
 import { guestInclude, mapGuestRecord } from "@/lib/guests";
 import { loadVisibleBudgetContracts } from "@/lib/money-page";
+import { playbookByKind } from "@/lib/playbook";
+import { loadPlaybookItems } from "@/lib/playbook-data";
 import { taskVisibilityWhere } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 import {
@@ -15,6 +17,7 @@ import {
   setupTeardownFromCanonical,
   staySectionsFromSlots,
   toPrintTimelineRow,
+  toPrintPlaybookRow,
   mcPeopleFromDirectory,
   type PrintCenterDocument,
   type PrintSectionId,
@@ -33,6 +36,8 @@ function availableForSession(session: SessionAccount): PrintSectionId[] {
         return dinner;
       case "timeline":
       case "mc":
+      case "hair":
+      case "shots":
       case "contacts":
       case "assignments":
       case "setup":
@@ -85,6 +90,7 @@ export async function loadPrintCenterDocument(
     mealCourses,
     mealGuests,
     contracts,
+    playbookRows,
   ] = await Promise.all([
     prisma.appSettings.findUnique({ where: { id: 1 } }),
     timeline
@@ -148,6 +154,7 @@ export async function loadPrintCenterDocument(
         })
       : Promise.resolve([]),
     moneyOn ? loadVisibleBudgetContracts(session) : Promise.resolve([]),
+    timeline ? loadPlaybookItems() : Promise.resolve([]),
   ]);
 
   const timezone = settings?.timezone || "America/Detroit";
@@ -180,6 +187,10 @@ export async function loadPrintCenterDocument(
     })),
     setupContacts: setup.contacts,
     setupMoments: setup.moments,
+    setupDecor: playbookByKind(playbookRows, "decor").map(toPrintPlaybookRow),
+    coordinatorScope: playbookByKind(playbookRows, "coordinator").map(toPrintPlaybookRow),
+    hairMakeup: playbookByKind(playbookRows, "hair_makeup").map(toPrintPlaybookRow),
+    shots: playbookByKind(playbookRows, "shot").map(toPrintPlaybookRow),
     households: householdsFromGuests(guestRows.map((guest) => mapGuestRecord(guest))),
     stay: staySectionsFromSlots(staySlots, stayNotes),
     mealsPublished: Boolean(mealSettings?.published),
