@@ -71,7 +71,7 @@ function normalizeAddressKey(guest: MergeGuestHousehold) {
     .trim();
 }
 
-function normalizePhoneKey(value: string | null | undefined) {
+export function normalizePhoneKey(value: string | null | undefined) {
   return (value ?? "").replace(/\D/g, "");
 }
 
