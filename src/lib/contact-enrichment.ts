@@ -164,11 +164,20 @@ export type EnrichmentDryRunRow = {
   nameAction: "PRESERVE_CANONICAL_NAME";
 };
 
+export type ContactCreatePlan = {
+  personId: string;
+  /** Must match canonical Person.name — never the source-file spelling. */
+  name: string;
+  phone: string;
+  directoryList: "guests";
+};
+
 export type EnrichmentApplyPlan = {
   rows: EnrichmentDryRunRow[];
   guestPhoneUpdates: Array<{ guestId: string; phone: string }>;
   guestLocationUpdates: Array<{ guestId: string; city: string; state: string }>;
   contactPhoneUpdates: Array<{ contactId: string; phone: string }>;
+  contactCreates: ContactCreatePlan[];
   guestPersonPhotoUpdates: Array<{ guestPersonId: string; photoData: string }>;
   contactPhotoUpdates: Array<{ contactId: string; photoData: string }>;
   blocked: boolean;
@@ -276,22 +285,42 @@ function resolveIdentity(
   };
 }
 
+type PhoneStoreOn = "contact" | "guest" | "create_contact" | null;
+
+function sharedGuestHouseholdIds(snapshot: EnrichmentSnapshot): Set<string> {
+  const counts = new Map<string, number>();
+  for (const guestPerson of snapshot.guestPeople) {
+    if (!guestPerson.personId) continue;
+    counts.set(guestPerson.guestId, (counts.get(guestPerson.guestId) ?? 0) + 1);
+  }
+  return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([guestId]) => guestId));
+}
+
 function planPhone(
   sourcePhone: string,
   contact: EnrichmentContactRow | undefined,
   guest: EnrichmentGuestRow | undefined,
-): { action: PhoneAction; storeOn: "contact" | "guest" | null } {
-  const current = profilePhone(contact, guest);
+  individualContact: boolean,
+): { action: PhoneAction; storeOn: PhoneStoreOn } {
   const sourceDigits = normalizePhoneKey(sourcePhone);
-  const currentDigits = normalizePhoneKey(current);
   if (!sourceDigits) return { action: "CANNOT_STORE", storeOn: null };
+
+  const contactPhone = contact?.phone?.trim() || null;
+  const guestPhone = guest?.phone?.trim() || null;
+  const current = individualContact ? contactPhone : profilePhone(contact, guest);
+  const currentDigits = normalizePhoneKey(current);
+
   if (currentDigits && currentDigits === sourceDigits) {
     return { action: "ALREADY_MATCHES", storeOn: null };
   }
   if (currentDigits && currentDigits !== sourceDigits) {
     return { action: "PHONE_CONFLICT", storeOn: null };
   }
+  if (individualContact && !contactPhone && normalizePhoneKey(guestPhone) === sourceDigits) {
+    return { action: "ALREADY_MATCHES", storeOn: null };
+  }
   if (contact) return { action: "ADD_PHONE", storeOn: "contact" };
+  if (individualContact) return { action: "ADD_PHONE", storeOn: "create_contact" };
   if (guest) return { action: "ADD_PHONE", storeOn: "guest" };
   return { action: "CANNOT_STORE", storeOn: null };
 }
@@ -324,51 +353,15 @@ function planPhoto(
   return "ADD_PHOTO";
 }
 
-type GuestPhoneUpdate = { guestId: string; phone: string; sourceName: string };
-
-/** Guest.phone is per household; two people on one Guest cannot get different numbers. */
-function reconcileSharedGuestPhoneUpdates(
-  rows: EnrichmentDryRunRow[],
-  guestPhoneUpdates: GuestPhoneUpdate[],
-): Array<{ guestId: string; phone: string }> {
-  const digitsByGuest = new Map<string, Set<string>>();
-  for (const update of guestPhoneUpdates) {
-    const digits = normalizePhoneKey(update.phone);
-    if (!digits) continue;
-    const set = digitsByGuest.get(update.guestId) ?? new Set<string>();
-    set.add(digits);
-    digitsByGuest.set(update.guestId, set);
-  }
-  const conflictGuestIds = new Set<string>();
-  for (const [guestId, digits] of digitsByGuest) {
-    if (digits.size > 1) conflictGuestIds.add(guestId);
-  }
-  if (!conflictGuestIds.size) {
-    return guestPhoneUpdates.map(({ guestId, phone }) => ({ guestId, phone }));
-  }
-  const conflictSources = new Set(
-    guestPhoneUpdates.filter((row) => conflictGuestIds.has(row.guestId)).map((row) => row.sourceName),
-  );
-  for (const row of rows) {
-    if (!conflictSources.has(row.sourceName)) continue;
-    row.phoneAction = "PHONE_CONFLICT";
-    const note = "Shared guest household allows only one Guest.phone";
-    row.matchReason = row.matchReason ? `${row.matchReason}; ${note}` : note;
-  }
-  return guestPhoneUpdates
-    .filter((row) => !conflictGuestIds.has(row.guestId))
-    .map(({ guestId, phone }) => ({ guestId, phone }));
-}
-
 function planContactAction(
   contact: EnrichmentContactRow | undefined,
-  phoneStoreOn: "contact" | "guest" | null,
+  phoneStoreOn: PhoneStoreOn,
   phoneAction: PhoneAction,
 ): ContactAction {
   if (contact) return "USE_EXISTING_CONTACT";
+  if (phoneAction === "ADD_PHONE" && phoneStoreOn === "create_contact") return "CREATE_LINKED_CONTACT";
   if (phoneAction === "ADD_PHONE" && phoneStoreOn === "guest") return "NO_CONTACT_NEEDED";
-  if (phoneAction === "ALREADY_MATCHES") return contact ? "USE_EXISTING_CONTACT" : "NO_CONTACT_NEEDED";
-  if (phoneAction === "CANNOT_STORE" && !contact) return "NO_CONTACT_NEEDED";
+  if (phoneAction === "ALREADY_MATCHES" && contact) return "USE_EXISTING_CONTACT";
   return "NO_CONTACT_NEEDED";
 }
 
@@ -377,21 +370,34 @@ export function planContactEnrichment(
   photoDataByFile: Map<string, string | null>,
 ): EnrichmentApplyPlan {
   const rows: EnrichmentDryRunRow[] = [];
-  const pendingGuestPhones: GuestPhoneUpdate[] = [];
+  const guestPhoneUpdates: EnrichmentApplyPlan["guestPhoneUpdates"] = [];
   const guestLocationUpdates: EnrichmentApplyPlan["guestLocationUpdates"] = [];
   const contactPhoneUpdates: EnrichmentApplyPlan["contactPhoneUpdates"] = [];
+  const contactCreates: ContactCreatePlan[] = [];
   const guestPersonPhotoUpdates: EnrichmentApplyPlan["guestPersonPhotoUpdates"] = [];
   const contactPhotoUpdates: EnrichmentApplyPlan["contactPhotoUpdates"] = [];
+  const sharedGuestIds = sharedGuestHouseholdIds(snapshot);
 
   for (const source of CONTACT_ENRICHMENT_SOURCES) {
     const identity = resolveIdentity(source, snapshot);
     const photoDataUrl = source.photoFile ? (photoDataByFile.get(source.photoFile) ?? null) : null;
     const photoFileFound = Boolean(photoDataUrl);
+    const individualContact = Boolean(
+      identity.guestPerson &&
+        identity.guest &&
+        sharedGuestIds.has(identity.guest.id) &&
+        !identity.contact,
+    );
 
     const phonePlan =
       identity.confidence === "HIGH"
-        ? planPhone(source.phone, identity.contact ?? undefined, identity.guest ?? undefined)
-        : { action: "CANNOT_STORE" as PhoneAction, storeOn: null as "contact" | "guest" | null };
+        ? planPhone(
+            source.phone,
+            identity.contact ?? undefined,
+            identity.guest ?? undefined,
+            individualContact,
+          )
+        : { action: "CANNOT_STORE" as PhoneAction, storeOn: null as PhoneStoreOn };
 
     const locationAction =
       identity.confidence === "HIGH"
@@ -425,7 +431,9 @@ export function planContactEnrichment(
       sourcePhone: source.phone,
       currentPhone:
         identity.confidence === "HIGH"
-          ? profilePhone(identity.contact ?? undefined, identity.guest ?? undefined)
+          ? individualContact
+            ? identity.contact?.phone?.trim() || null
+            : profilePhone(identity.contact ?? undefined, identity.guest ?? undefined)
           : null,
       phoneAction: phonePlan.action,
       sourceLocation: source.location,
@@ -448,12 +456,20 @@ export function planContactEnrichment(
     if (phonePlan.action === "ADD_PHONE" && phonePlan.storeOn === "contact" && identity.contact) {
       contactPhoneUpdates.push({ contactId: identity.contact.id, phone: source.phone });
     }
-    if (phonePlan.action === "ADD_PHONE" && phonePlan.storeOn === "guest" && identity.guest) {
-      pendingGuestPhones.push({
-        guestId: identity.guest.id,
+    if (
+      phonePlan.action === "ADD_PHONE" &&
+      phonePlan.storeOn === "create_contact" &&
+      identity.person
+    ) {
+      contactCreates.push({
+        personId: identity.person.id,
+        name: identity.person.name,
         phone: source.phone,
-        sourceName: source.sourceName,
+        directoryList: "guests",
       });
+    }
+    if (phonePlan.action === "ADD_PHONE" && phonePlan.storeOn === "guest" && identity.guest) {
+      guestPhoneUpdates.push({ guestId: identity.guest.id, phone: source.phone });
     }
 
     if (locationAction === "ADD_LOCATION" && identity.guest && source.location) {
@@ -482,8 +498,6 @@ export function planContactEnrichment(
     }
   }
 
-  const guestPhoneUpdates = reconcileSharedGuestPhoneUpdates(rows, pendingGuestPhones);
-
   const hasRename = rows.some((row) => row.nameAction !== "PRESERVE_CANONICAL_NAME");
   const blockedReason = hasRename ? "Invalid plan proposes name change" : null;
 
@@ -492,6 +506,7 @@ export function planContactEnrichment(
     guestPhoneUpdates,
     guestLocationUpdates,
     contactPhoneUpdates,
+    contactCreates,
     guestPersonPhotoUpdates,
     contactPhotoUpdates,
     blocked: Boolean(blockedReason),
@@ -528,9 +543,9 @@ export function enrichmentWriteCounts(plan: EnrichmentApplyPlan) {
     guestPhone: plan.guestPhoneUpdates.length,
     guestLocation: plan.guestLocationUpdates.length,
     contactPhone: plan.contactPhoneUpdates.length,
+    contactCreates: plan.contactCreates.length,
     guestPhoto: plan.guestPersonPhotoUpdates.length,
     contactPhoto: plan.contactPhotoUpdates.length,
-    creates: 0,
     deletes: 0,
   };
 }

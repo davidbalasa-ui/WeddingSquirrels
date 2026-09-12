@@ -171,7 +171,7 @@ test("formatEnrichmentDryRunRow always shows PRESERVE_CANONICAL_NAME", () => {
   assert.match(text, /NAME ACTION: PRESERVE_CANONICAL_NAME/);
 });
 
-test("planContactEnrichment conflicts when two people share one guest household phone", () => {
+test("planContactEnrichment uses guest-linked Contact rows on shared households", () => {
   const plan = planContactEnrichment(
     snapshot({
       persons: [
@@ -213,7 +213,11 @@ test("planContactEnrichment conflicts when two people share one guest household 
   );
   const bri = plan.rows.find((r) => r.sourceName === "Bri Ely");
   const trinity = plan.rows.find((r) => r.sourceName === "Trinity Medler");
-  assert.equal(bri?.phoneAction, "PHONE_CONFLICT");
-  assert.equal(trinity?.phoneAction, "PHONE_CONFLICT");
+  assert.equal(bri?.phoneAction, "ADD_PHONE");
+  assert.equal(bri?.contactAction, "CREATE_LINKED_CONTACT");
+  assert.equal(trinity?.phoneAction, "ADD_PHONE");
+  assert.equal(trinity?.contactAction, "CREATE_LINKED_CONTACT");
   assert.equal(plan.guestPhoneUpdates.length, 0);
+  assert.equal(plan.contactCreates.length, 2);
+  assert.equal(plan.contactCreates[0]?.name, "Bri Eling");
 });

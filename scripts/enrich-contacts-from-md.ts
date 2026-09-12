@@ -231,20 +231,20 @@ function printablePlan(plan: ReturnType<typeof planContactEnrichment>) {
   console.log("WRITE COUNTS", counts);
   console.log("DELETES: 0");
   console.log("PERSON/GUESTPERSON CREATES: 0");
-  console.log("CONTACT CREATES: 0");
+  console.log(`CONTACT CREATES (guest-linked): ${plan.contactCreates.length}`);
+  for (const row of plan.contactCreates) {
+    console.log(`  CONTACT CREATE personId=${row.personId} name=${JSON.stringify(row.name)} phone=${row.phone}`);
+  }
 }
 
 function applyablePlan(plan: ReturnType<typeof planContactEnrichment>) {
-  const highPersonIds = new Set(
-    plan.rows.filter((row) => row.matchConfidence === "HIGH" && row.personId).map((row) => row.personId!),
-  );
   return {
     guestPhoneUpdates: plan.guestPhoneUpdates,
     guestLocationUpdates: plan.guestLocationUpdates,
     contactPhoneUpdates: plan.contactPhoneUpdates,
+    contactCreates: plan.contactCreates,
     guestPersonPhotoUpdates: plan.guestPersonPhotoUpdates,
     contactPhotoUpdates: plan.contactPhotoUpdates,
-    highPersonIds,
   };
 }
 
@@ -306,6 +306,7 @@ async function main() {
       !applicable.guestPhoneUpdates.length &&
       !applicable.guestLocationUpdates.length &&
       !applicable.contactPhoneUpdates.length &&
+      !applicable.contactCreates.length &&
       !applicable.guestPersonPhotoUpdates.length &&
       !applicable.contactPhotoUpdates.length
     ) {
@@ -329,6 +330,20 @@ async function main() {
       }
       for (const row of applicable.contactPhoneUpdates) {
         await tx.contact.update({ where: { id: row.contactId }, data: { phone: row.phone } });
+      }
+      for (const row of applicable.contactCreates) {
+        const last = await tx.contact.findFirst({ orderBy: { sortOrder: "desc" } });
+        await tx.contact.create({
+          data: {
+            name: row.name,
+            personId: row.personId,
+            phone: row.phone,
+            email: null,
+            directoryList: row.directoryList,
+            isDayOfContact: false,
+            sortOrder: (last?.sortOrder ?? -1) + 1,
+          },
+        });
       }
       for (const row of applicable.guestPersonPhotoUpdates) {
         await tx.guestPerson.update({ where: { id: row.guestPersonId }, data: { photoData: row.photoData } });
@@ -376,6 +391,7 @@ async function main() {
     const idempotent =
       postCounts.guestPhone === 0 &&
       postCounts.contactPhone === 0 &&
+      postCounts.contactCreates === 0 &&
       postCounts.guestLocation === 0 &&
       postCounts.guestPhoto === 0 &&
       postCounts.contactPhoto === 0;
