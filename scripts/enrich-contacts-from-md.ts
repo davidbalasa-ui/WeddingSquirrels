@@ -155,9 +155,6 @@ function loadPhotoMap(): Map<string, string | null> {
       map.set(name, photoDataUrlFromFileBytes(bytes));
     }
   }
-  for (const name of wanted) {
-    if (!map.has(name)) map.set(name, null);
-  }
   return map;
 }
 

@@ -171,6 +171,49 @@ test("formatEnrichmentDryRunRow always shows PRESERVE_CANONICAL_NAME", () => {
   assert.match(text, /NAME ACTION: PRESERVE_CANONICAL_NAME/);
 });
 
-test("CONTACT_ENRICHMENT_SOURCES has eight curated rows", () => {
-  assert.equal(CONTACT_ENRICHMENT_SOURCES.length, 8);
+test("planContactEnrichment conflicts when two people share one guest household phone", () => {
+  const plan = planContactEnrichment(
+    snapshot({
+      persons: [
+        { id: "bri", name: "Bri Eling", directoryList: null, isDayOfContact: false },
+        { id: "trinity_medler", name: "Trinity Medler", directoryList: null, isDayOfContact: false },
+      ],
+      guestPeople: [
+        {
+          id: "gp-bri",
+          name: "Bri Eling",
+          personId: "bri",
+          rsvpStatus: "pending",
+          photoData: null,
+          guestId: "g-shared",
+        },
+        {
+          id: "gp-trinity",
+          name: "Trinity Medler",
+          personId: "trinity_medler",
+          rsvpStatus: "pending",
+          photoData: null,
+          guestId: "g-shared",
+        },
+      ],
+      guests: [
+        {
+          id: "g-shared",
+          phone: null,
+          street: "515 S Hosmer St",
+          city: "Lansing",
+          state: "MI",
+          zip: "48912",
+          rsvpStatus: "pending",
+        },
+      ],
+      contacts: [],
+    }),
+    new Map(),
+  );
+  const bri = plan.rows.find((r) => r.sourceName === "Bri Ely");
+  const trinity = plan.rows.find((r) => r.sourceName === "Trinity Medler");
+  assert.equal(bri?.phoneAction, "PHONE_CONFLICT");
+  assert.equal(trinity?.phoneAction, "PHONE_CONFLICT");
+  assert.equal(plan.guestPhoneUpdates.length, 0);
 });

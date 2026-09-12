@@ -318,10 +318,46 @@ function planPhoto(
   guestPerson: EnrichmentGuestPersonRow | undefined,
 ): PhotoAction {
   if (!sourcePhotoFile) return "CANNOT_STORE";
-  if (!photoFileFound || !photoDataUrl) return "PHOTO_FILE_MISSING";
   if (profilePhotoExists(contact, guestPerson)) return "PHOTO_ALREADY_PRESENT";
+  if (!photoFileFound || !photoDataUrl) return "PHOTO_FILE_MISSING";
   if (!guestPerson && !contact) return "CANNOT_STORE";
   return "ADD_PHOTO";
+}
+
+type GuestPhoneUpdate = { guestId: string; phone: string; sourceName: string };
+
+/** Guest.phone is per household; two people on one Guest cannot get different numbers. */
+function reconcileSharedGuestPhoneUpdates(
+  rows: EnrichmentDryRunRow[],
+  guestPhoneUpdates: GuestPhoneUpdate[],
+): Array<{ guestId: string; phone: string }> {
+  const digitsByGuest = new Map<string, Set<string>>();
+  for (const update of guestPhoneUpdates) {
+    const digits = normalizePhoneKey(update.phone);
+    if (!digits) continue;
+    const set = digitsByGuest.get(update.guestId) ?? new Set<string>();
+    set.add(digits);
+    digitsByGuest.set(update.guestId, set);
+  }
+  const conflictGuestIds = new Set<string>();
+  for (const [guestId, digits] of digitsByGuest) {
+    if (digits.size > 1) conflictGuestIds.add(guestId);
+  }
+  if (!conflictGuestIds.size) {
+    return guestPhoneUpdates.map(({ guestId, phone }) => ({ guestId, phone }));
+  }
+  const conflictSources = new Set(
+    guestPhoneUpdates.filter((row) => conflictGuestIds.has(row.guestId)).map((row) => row.sourceName),
+  );
+  for (const row of rows) {
+    if (!conflictSources.has(row.sourceName)) continue;
+    row.phoneAction = "PHONE_CONFLICT";
+    const note = "Shared guest household allows only one Guest.phone";
+    row.matchReason = row.matchReason ? `${row.matchReason}; ${note}` : note;
+  }
+  return guestPhoneUpdates
+    .filter((row) => !conflictGuestIds.has(row.guestId))
+    .map(({ guestId, phone }) => ({ guestId, phone }));
 }
 
 function planContactAction(
@@ -341,7 +377,7 @@ export function planContactEnrichment(
   photoDataByFile: Map<string, string | null>,
 ): EnrichmentApplyPlan {
   const rows: EnrichmentDryRunRow[] = [];
-  const guestPhoneUpdates: EnrichmentApplyPlan["guestPhoneUpdates"] = [];
+  const pendingGuestPhones: GuestPhoneUpdate[] = [];
   const guestLocationUpdates: EnrichmentApplyPlan["guestLocationUpdates"] = [];
   const contactPhoneUpdates: EnrichmentApplyPlan["contactPhoneUpdates"] = [];
   const guestPersonPhotoUpdates: EnrichmentApplyPlan["guestPersonPhotoUpdates"] = [];
@@ -349,8 +385,8 @@ export function planContactEnrichment(
 
   for (const source of CONTACT_ENRICHMENT_SOURCES) {
     const identity = resolveIdentity(source, snapshot);
-    const photoFileFound = source.photoFile ? photoDataByFile.has(source.photoFile) : false;
     const photoDataUrl = source.photoFile ? (photoDataByFile.get(source.photoFile) ?? null) : null;
+    const photoFileFound = Boolean(photoDataUrl);
 
     const phonePlan =
       identity.confidence === "HIGH"
@@ -413,7 +449,11 @@ export function planContactEnrichment(
       contactPhoneUpdates.push({ contactId: identity.contact.id, phone: source.phone });
     }
     if (phonePlan.action === "ADD_PHONE" && phonePlan.storeOn === "guest" && identity.guest) {
-      guestPhoneUpdates.push({ guestId: identity.guest.id, phone: source.phone });
+      pendingGuestPhones.push({
+        guestId: identity.guest.id,
+        phone: source.phone,
+        sourceName: source.sourceName,
+      });
     }
 
     if (locationAction === "ADD_LOCATION" && identity.guest && source.location) {
@@ -441,6 +481,8 @@ export function planContactEnrichment(
       }
     }
   }
+
+  const guestPhoneUpdates = reconcileSharedGuestPhoneUpdates(rows, pendingGuestPhones);
 
   const hasRename = rows.some((row) => row.nameAction !== "PRESERVE_CANONICAL_NAME");
   const blockedReason = hasRename ? "Invalid plan proposes name change" : null;
