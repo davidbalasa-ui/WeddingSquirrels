@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveProfileGuestRsvp } from "@/app/actions";
 import { parseRsvpStatus, RSVP_STATUSES, rsvpStatusLabel, type RsvpStatus } from "@/lib/guest-gifts";
@@ -16,15 +16,19 @@ export function PeopleRsvpEditor({
 }) {
   const router = useRouter();
   const serverRsvp = parseRsvpStatus(rsvpStatus);
-  const [optimisticRsvp, setOptimisticRsvp] = useOptimistic(serverRsvp);
+  const [currentRsvp, setCurrentRsvp] = useState<RsvpStatus>(serverRsvp);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setCurrentRsvp(parseRsvpStatus(rsvpStatus));
+  }, [rsvpStatus]);
 
   if (!canEdit) {
     return (
       <div className="flex min-h-14 items-start justify-between gap-3 border-b border-[var(--line)] py-3.5">
         <div className="min-w-0 flex-1">
-          <p className="text-[1.05rem] font-semibold leading-snug">{rsvpStatusLabel(optimisticRsvp)}</p>
+          <p className="text-[1.05rem] font-semibold leading-snug">{rsvpStatusLabel(currentRsvp)}</p>
           <p className="mt-1 text-sm text-muted">RSVP</p>
         </div>
       </div>
@@ -44,23 +48,26 @@ export function PeopleRsvpEditor({
             key={status}
             type="button"
             role="radio"
-            aria-checked={optimisticRsvp === status}
+            aria-checked={currentRsvp === status}
             disabled={pending}
             className={`min-w-0 whitespace-nowrap rounded-full px-1.5 py-1.5 text-[11px] font-semibold disabled:opacity-60 sm:px-2 sm:text-xs ${
-              optimisticRsvp === status
+              currentRsvp === status
                 ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                 : "text-muted"
             }`}
             onClick={() => {
-              if (status === optimisticRsvp) return;
+              if (status === currentRsvp) return;
               setError(null);
+              const previous = currentRsvp;
+              setCurrentRsvp(status);
               startTransition(async () => {
-                setOptimisticRsvp(status);
                 const result = await saveProfileGuestRsvp(profileId, status);
                 if (!result.ok) {
+                  setCurrentRsvp(previous);
                   setError("Couldn’t save RSVP — try again.");
                   return;
                 }
+                setCurrentRsvp(status);
                 router.refresh();
               });
             }}
@@ -70,7 +77,7 @@ export function PeopleRsvpEditor({
         ))}
       </div>
       <span className="sr-only" role="status" aria-live="polite">
-        {pending ? "Saving RSVP" : `RSVP ${rsvpStatusLabel(optimisticRsvp)}`}
+        {pending ? "Saving RSVP" : `RSVP ${rsvpStatusLabel(currentRsvp)}`}
       </span>
       {error ? <p className="mt-2 text-xs font-semibold text-[var(--danger)]">{error}</p> : null}
     </div>

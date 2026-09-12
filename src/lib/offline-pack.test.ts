@@ -7,6 +7,7 @@ import {
   offlineContactInputsFromPack,
   offlineDirectoryContactsFromPack,
   offlineGuestDisplayName,
+  offlineGuestPersonRsvpRows,
   refreshedOfflinePack,
   sourceFromPack,
 } from "./offline-pack";
@@ -174,6 +175,79 @@ test("canonical Person identity is preserved across JSON pack serialization", ()
   const source = sourceFromPack(snapshot, new Date("2026-10-16T16:00:00Z"));
   assert.equal(source.contacts[0]?.personId, "kurt_huizenga");
   assert.equal(source.canSeeContacts, true);
+});
+
+test("next offline pack refresh carries the updated guest name and RSVP", () => {
+  const previous = pack({
+    people: [{ id: "andi", name: "Andi Cartwright", isDayOfContact: false }],
+    guests: [
+      {
+        id: "g-andi",
+        nameLine1: "Andi Cartwright",
+        nameLine2: null,
+        rsvpStatus: "pending",
+        invitedCount: 1,
+        acceptedCount: 0,
+        people: [{ id: "gp-andi", name: "Andi Cartwright", personId: "andi", rsvpStatus: "pending" }],
+        gifts: [],
+      },
+    ],
+  });
+  const incoming = pack({
+    people: [{ id: "andi", name: "Andi C.", isDayOfContact: false }],
+    guests: [
+      {
+        id: "g-andi",
+        nameLine1: "Andi C.",
+        nameLine2: null,
+        rsvpStatus: "attending",
+        invitedCount: 1,
+        acceptedCount: 1,
+        people: [{ id: "gp-andi", name: "Andi C.", personId: "andi", rsvpStatus: "attending" }],
+        gifts: [],
+      },
+    ],
+  });
+  const current = refreshedOfflinePack(previous, incoming);
+  const guests = current.guests as Array<{
+    rsvpStatus: string;
+    people?: Array<{ name: string; rsvpStatus?: string }>;
+  }>;
+  const people = current.people as Array<{ id: string; name: string }>;
+  assert.equal(people[0]?.name, "Andi C.");
+  assert.equal(offlineGuestDisplayName(guests[0] as never), "Andi C.");
+  assert.equal(guests[0]?.rsvpStatus, "attending");
+  assert.equal(guests[0]?.people?.[0]?.rsvpStatus, "attending");
+});
+
+test("offline guest RSVP rows use GuestPerson status, not household status", () => {
+  const snapshot = pack({
+    guests: [
+      {
+        id: "g-cynthia",
+        nameLine1: "Cynthia Berman",
+        nameLine2: "Guest of Cynthia",
+        rsvpStatus: "attending",
+        invitedCount: 2,
+        acceptedCount: 1,
+        people: [
+          { id: "gp-cynthia", name: "Cynthia Berman", rsvpStatus: "attending" },
+          { id: "gp-guest", name: "Guest of Cynthia", rsvpStatus: "not_attending" },
+        ],
+        gifts: [],
+      },
+    ],
+  });
+  const rows = offlineGuestPersonRsvpRows(
+    (snapshot.guests as Array<{
+      rsvpStatus: string;
+      people?: Array<{ name: string; rsvpStatus?: string }>;
+    }>)[0] as never,
+  );
+  assert.deepEqual(
+    rows.map((row) => `${row.name}:${row.rsvpLabel}`),
+    ["Cynthia Berman:Attending", "Guest of Cynthia:Declined"],
+  );
 });
 
 test("GuestPerson names in the pack are used for offline guest display", () => {

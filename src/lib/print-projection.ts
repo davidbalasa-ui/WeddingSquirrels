@@ -312,21 +312,26 @@ export function projectHouseholds(
   }>,
 ): { households: PrintHouseholdCard[]; summary: PrintRsvpSummary } {
   const households: PrintHouseholdCard[] = guests.map((guest) => {
-    const people =
-      guest.people.length > 0
-        ? guest.people
-        : [guest.nameLine1, guest.nameLine2]
-            .filter((name): name is string => Boolean(name?.trim()))
-            .map((name) => ({ name, rsvpStatus: guest.rsvpStatus }));
-    const members = people
-      .map((person) => ({
-        name: printGuestDisplayName(person.name),
-        rsvpLabel: rsvpPrintLabel(person.rsvpStatus ?? guest.rsvpStatus),
-      }))
-      .filter((row) => row.name);
+    if (guest.people.length > 0) {
+      const members = guest.people
+        .map((person) => ({
+          name: printGuestDisplayName(person.name),
+          rsvpLabel: rsvpPrintLabel(person.rsvpStatus ?? "pending"),
+        }))
+        .filter((row) => row.name);
+      return {
+        title: householdPrintTitle(guest.people),
+        members: members.length
+          ? members
+          : [{ name: "Household", rsvpLabel: rsvpPrintLabel(guest.rsvpStatus) }],
+      };
+    }
+    const fallbackNames = [guest.nameLine1, guest.nameLine2]
+      .filter((name): name is string => Boolean(name?.trim()))
+      .map((name) => ({ name }));
     return {
-      title: householdPrintTitle(people),
-      members: members.length ? members : [{ name: "Household", rsvpLabel: rsvpPrintLabel(guest.rsvpStatus) }],
+      title: householdPrintTitle(fallbackNames.length ? fallbackNames : [{ name: "Household" }]),
+      members: [{ name: "Household", rsvpLabel: rsvpPrintLabel(guest.rsvpStatus) }],
     };
   });
   const summary = summarizePersonRsvp(

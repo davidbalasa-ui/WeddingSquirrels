@@ -6,6 +6,7 @@ import { PeopleDeleteButton } from "@/components/PeopleDeleteButton";
 import { PeopleMembershipEditor } from "@/components/PeopleMembershipEditor";
 import { PeopleProfilePhotoEditor } from "@/components/PeopleProfilePhotoEditor";
 import { PeopleRoleEditor } from "@/components/PeopleRoleEditor";
+import { PeopleNameEditor } from "@/components/PeopleNameEditor";
 import { PeopleRsvpEditor } from "@/components/PeopleRsvpEditor";
 import { formatBudgetContractDetail } from "@/lib/connections";
 import {
@@ -92,6 +93,7 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
             <h1 className="font-[family-name:var(--font-display)] text-[2rem] leading-[1.05] tracking-tight">
               {profile.name}
             </h1>
+            <PeopleNameEditor profileId={profile.profileId} name={profile.name} canEdit={profile.canEditName} />
             {displayLabel ? <p className="mt-2 text-base text-muted">{displayLabel}</p> : null}
             {chips.length > 0 ? (
               <p className="mt-3 text-sm font-semibold text-[var(--accent)]">{chips.join(" · ")}</p>

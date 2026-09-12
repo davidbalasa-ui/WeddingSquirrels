@@ -64,6 +64,17 @@ test("plus-one names are humanized only at print time", () => {
   );
 });
 
+test("print households use the canonical updated name and person RSVP", () => {
+  const { households } = projectHouseholds([
+    {
+      rsvpStatus: "attending",
+      people: [{ name: "Alex Smith", rsvpStatus: "not_attending" }],
+    },
+  ]);
+  assert.equal(households[0]?.members[0]?.name, "Alex Smith");
+  assert.equal(households[0]?.members[0]?.rsvpLabel, "Declined");
+});
+
 test("households use person-level RSVP instead of one household label", () => {
   const { households, summary } = projectHouseholds([
     {
@@ -81,6 +92,32 @@ test("households use person-level RSVP instead of one household label", () => {
   );
   assert.equal(summary.attending, 1);
   assert.equal(summary.declined, 1);
+});
+
+test("print never copies household RSVP onto individual members", () => {
+  const inherited = projectHouseholds([
+    {
+      rsvpStatus: "attending",
+      people: [{ name: "Cynthia Berman" }, { name: "Guest of Cynthia", rsvpStatus: "not_attending" }],
+    },
+  ]);
+  assert.deepEqual(
+    inherited.households[0]?.members.map((row) => `${row.name}:${row.rsvpLabel}`),
+    ["Cynthia Berman:Awaiting RSVP", "Guest of Cynthia:Declined"],
+  );
+
+  const legacy = projectHouseholds([
+    {
+      rsvpStatus: "attending",
+      people: [],
+      nameLine1: "Cynthia Berman",
+      nameLine2: "Guest of Cynthia",
+    },
+  ]);
+  assert.deepEqual(
+    legacy.households[0]?.members.map((row) => `${row.name}:${row.rsvpLabel}`),
+    ["Household:Attending"],
+  );
 });
 
 test("run sheet prefers precise timed details over the broad block window", () => {

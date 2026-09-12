@@ -72,6 +72,7 @@ function emptyProfile(overrides: Partial<PeopleProfile> = {}): PeopleProfile {
     canEditPrimaryList: false,
     canEditDayOf: false,
     canEditRsvp: false,
+    canEditName: false,
     canEditPhoto: false,
     canDelete: false,
     canSeeTasks: false,
@@ -99,7 +100,7 @@ test("ALL returns one card for Person + GuestPerson", () => {
   assert.equal(cards.length, 1);
   assert.equal(cards[0]?.profileId, profileIdForPerson("wendy_rush"));
   assert.equal(cards[0]?.roleContext, "Guest");
-  assert.equal(cards[0]?.secondary, "RSVP accepted");
+  assert.equal(cards[0]?.secondary, "Attending");
   assert.equal(peopleHubTabCounts(entries).all, 1);
 });
 
@@ -413,11 +414,83 @@ test("RSVP attendance filter is presentation-only", () => {
     contacts: [],
     guestPeople: [
       guestRow("gp-1", "Ada", { rsvpLabel: "Attending" }),
-      guestRow("gp-2", "Bea", { rsvpLabel: "No reply" }),
+      guestRow("gp-2", "Bea", { rsvpLabel: "Awaiting RSVP" }),
     ],
   });
   const attending = filterDirectoryByAttendance(entries, "attending");
   assert.equal(attending.length, 1);
   assert.equal(attending[0]?.name, "Ada");
   assert.equal(entries.length, 2);
+});
+
+test("main list RSVP labels are Attending, Declined, and Awaiting RSVP", () => {
+  const entries = buildDirectoryEntries({
+    persons: [
+      { id: "cynthia_berman", name: "Cynthia Berman" },
+    ],
+    contacts: [],
+    guestPeople: [
+      guestRow("gp-cynthia", "Cynthia Berman", { personId: "cynthia_berman", rsvpLabel: "Attending" }),
+      guestRow("gp-plus", "Guest of Cynthia", { rsvpLabel: "Declined" }),
+      guestRow("gp-pending", "Ada", { rsvpLabel: "Awaiting RSVP" }),
+    ],
+  });
+  const cards = presentDirectoryRows(entries);
+  const byName = Object.fromEntries(cards.map((card) => [card.name, card.secondary]));
+  assert.equal(byName["Cynthia Berman"], "Attending");
+  assert.equal(byName["Guest of Cynthia"], "Declined");
+  assert.equal(byName["Ada"], "Awaiting RSVP");
+  const rendered = cards.map((card) => card.secondary).join(" ");
+  assert.equal(rendered.includes("RSVP accepted"), false);
+  assert.equal(rendered.includes("not_attending"), false);
+  assert.equal(rendered.includes("NOT_ATTENDING"), false);
+  assert.equal(rendered.includes("pending"), false);
+});
+
+test("mixed household members keep their own RSVP on the people list", () => {
+  const entries = buildDirectoryEntries({
+    persons: [{ id: "cynthia_berman", name: "Cynthia Berman" }],
+    contacts: [],
+    guestPeople: [
+      guestRow("gp-cynthia", "Cynthia Berman", {
+        personId: "cynthia_berman",
+        householdLabel: "Cynthia Berman & Guest of Cynthia",
+        rsvpLabel: "Attending",
+      }),
+      guestRow("gp-plus", "Guest of Cynthia", {
+        householdLabel: "Cynthia Berman & Guest of Cynthia",
+        rsvpLabel: "Declined",
+      }),
+    ],
+  });
+  const cards = presentDirectoryRows(entries);
+  assert.equal(cards.find((card) => card.name === "Cynthia Berman")?.secondary, "Attending");
+  assert.equal(cards.find((card) => card.name === "Guest of Cynthia")?.secondary, "Declined");
+});
+
+test("renamed guest name is what the main list presents", () => {
+  const entries = buildDirectoryEntries({
+    persons: [],
+    contacts: [],
+    guestPeople: [guestRow("gp-plus", "Alex Smith", { rsvpLabel: "Declined" })],
+  });
+  const card = presentDirectoryRow(entries[0]!);
+  assert.equal(card.name, "Alex Smith");
+  assert.equal(card.secondary, "Declined");
+});
+
+test("raw RSVP enums and RSVP accepted never become the list secondary", () => {
+  const entries = buildDirectoryEntries({
+    persons: [],
+    contacts: [],
+    guestPeople: [
+      guestRow("gp-1", "Ada", { rsvpLabel: "not_attending" }),
+      guestRow("gp-2", "Bea", { rsvpLabel: "pending" }),
+      guestRow("gp-3", "Cara", { rsvpLabel: "RSVP accepted" }),
+    ],
+  });
+  const cards = presentDirectoryRows(entries);
+  assert.equal(cards.find((card) => card.name === "Ada")?.secondary, "Declined");
+  assert.equal(cards.find((card) => card.name === "Bea")?.secondary, "Awaiting RSVP");
+  assert.equal(cards.find((card) => card.name === "Cara")?.secondary, "Attending");
 });

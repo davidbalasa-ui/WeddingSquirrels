@@ -8,6 +8,7 @@ import {
   groupGuestsByTable,
   guestAddressLines,
   guestNameLines,
+  rsvpStatusLabel,
   summarizeGuestRsvp,
 } from "./guest-gifts";
 
@@ -136,6 +137,24 @@ test("RSVP report totals people and household replies", () => {
   assert.equal(report.awaiting, 4);
 });
 
+test("mixed household people counts use GuestPerson RSVP, not household status", () => {
+  const report = summarizeGuestRsvp([
+    {
+      nameLine2: "Guest of Cynthia",
+      rsvpStatus: "attending",
+      invitedCount: 2,
+      acceptedCount: 2,
+      people: [
+        { name: "Cynthia Berman", rsvpStatus: "attending" },
+        { name: "Guest of Cynthia", rsvpStatus: "not_attending" },
+      ],
+    },
+  ]);
+  assert.equal(report.attending, 1);
+  assert.equal(report.accepted, 1);
+  assert.equal(report.awaiting, 0);
+});
+
 test("table spot order prefers numeric seats", () => {
   assert.ok(compareTableSpot("3", "10") < 0);
   assert.ok(compareTableSpot("head", "3") > 0);
@@ -176,5 +195,12 @@ test("groupGuestsByTable sorts tables and seats", () => {
     groups[3]?.rows.map((row) => row.name),
     ["Sam"],
   );
+});
+
+test("rsvpStatusLabel never exposes raw enums", () => {
+  assert.equal(rsvpStatusLabel("attending"), "Attending");
+  assert.equal(rsvpStatusLabel("not_attending"), "Declined");
+  assert.equal(rsvpStatusLabel("pending"), "Awaiting RSVP");
+  assert.equal(rsvpStatusLabel("NOT_ATTENDING"), "Awaiting RSVP");
 });
 

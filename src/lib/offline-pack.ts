@@ -8,6 +8,7 @@ import {
   type DayOfPersonInput,
 } from "@/lib/day-of";
 import { weddingTimelineRows } from "@/lib/day-of-time";
+import { rsvpStatusLabel } from "@/lib/guest-gifts";
 import type { OfflinePack } from "@/lib/offline-db";
 
 type TimelineRow = {
@@ -57,8 +58,13 @@ export type OfflineGuestRow = {
   rsvpStatus: string;
   invitedCount: number;
   acceptedCount: number;
-  people?: Array<{ id: string; name: string; personId?: string | null }>;
+  people?: Array<{ id: string; name: string; personId?: string | null; rsvpStatus?: string }>;
   gifts: { id: string; description: string; thanked: boolean }[];
+};
+
+export type OfflineGuestPersonRsvpRow = {
+  name: string;
+  rsvpLabel: string;
 };
 
 export type OfflineDirectoryContact = {
@@ -179,6 +185,16 @@ export function offlineGuestDisplayName(guest: OfflineGuestRow): string {
   if (fromPeople.length > 0) return fromPeople.join(" & ");
   if (guest.nameLine2?.trim()) return `${guest.nameLine1} & ${guest.nameLine2.trim()}`;
   return guest.nameLine1;
+}
+
+/** Individual RSVP labels from GuestPerson only. Never copies Guest.rsvpStatus onto members. */
+export function offlineGuestPersonRsvpRows(guest: OfflineGuestRow): OfflineGuestPersonRsvpRow[] {
+  return (guest.people ?? [])
+    .map((person) => ({
+      name: person.name.trim(),
+      rsvpLabel: rsvpStatusLabel(person.rsvpStatus ?? "pending"),
+    }))
+    .filter((row) => row.name);
 }
 
 export function offlineAssignmentOwnerNames(assignment: OfflineAssignmentRow): string[] {

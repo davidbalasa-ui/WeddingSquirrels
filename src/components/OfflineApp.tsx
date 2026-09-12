@@ -6,12 +6,14 @@ import { OfflineDayOfPanel } from "@/components/OfflineDayOfPanel";
 import { weddingTimelineRows } from "@/lib/day-of-time";
 import { buildMcRunOfShow } from "@/lib/mc-run-of-show";
 import { formatFetchedAt, loadOfflinePack, type OfflinePack } from "@/lib/offline-db";
+import { rsvpStatusLabel } from "@/lib/guest-gifts";
 import {
   asOfflineAssignments,
   asOfflineGuests,
   offlineAssignmentOwnerNames,
   offlineDirectoryContactsFromPack,
   offlineGuestDisplayName,
+  offlineGuestPersonRsvpRows,
 } from "@/lib/offline-pack";
 import { playbookByKind, type PlaybookItemView, type PlaybookKind } from "@/lib/playbook";
 
@@ -414,24 +416,40 @@ function GuestsView({ pack }: { pack: OfflinePack }) {
   return (
     <div className="flex flex-col gap-3">
       <SectionTitle>Guests</SectionTitle>
-      {guests.map((guest) => (
-        <article key={guest.id} className="card p-4">
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-semibold leading-snug">{offlineGuestDisplayName(guest)}</p>
-            <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
-              {guest.rsvpStatus}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-muted">
-            {guest.acceptedCount} / {guest.invitedCount} attending
-          </p>
-          {guest.gifts.length > 0 ? (
-            <p className="mt-2 text-sm text-muted">
-              Gifts: {guest.gifts.filter((gift) => gift.thanked).length} thanked
+      {guests.map((guest) => {
+        const people = offlineGuestPersonRsvpRows(guest);
+        return (
+          <article key={guest.id} className="card p-4">
+            {people.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {people.map((person) => (
+                  <li key={`${guest.id}-${person.name}`} className="flex items-center justify-between gap-2">
+                    <p className="font-semibold leading-snug">{person.name}</p>
+                    <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+                      {person.rsvpLabel}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold leading-snug">{offlineGuestDisplayName(guest)}</p>
+                <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+                  Household · {rsvpStatusLabel(guest.rsvpStatus)}
+                </span>
+              </div>
+            )}
+            <p className="mt-1 text-sm text-muted">
+              {guest.acceptedCount} / {guest.invitedCount} attending
             </p>
-          ) : null}
-        </article>
-      ))}
+            {guest.gifts.length > 0 ? (
+              <p className="mt-2 text-sm text-muted">
+                Gifts: {guest.gifts.filter((gift) => gift.thanked).length} thanked
+              </p>
+            ) : null}
+          </article>
+        );
+      })}
     </div>
   );
 }
