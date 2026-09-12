@@ -177,8 +177,8 @@ export function guestSeatingSummary(guest: {
 export function rsvpStatusLabel(status: string): string {
   const parsed = parseRsvpStatus(status);
   if (parsed === "attending") return "Attending";
-  if (parsed === "not_attending") return "Not attending";
-  return "No reply";
+  if (parsed === "not_attending") return "Declined";
+  return "Awaiting RSVP";
 }
 
 export function giftDescriptions(gifts: GuestGiftFields[]): string[] {

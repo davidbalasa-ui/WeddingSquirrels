@@ -28,8 +28,10 @@ const RSVP_RANK: Record<string, number> = {
 
 function rsvpRankFromLabel(label: string | null): number {
   const normalized = label?.toLowerCase() ?? "";
-  if (normalized.includes("not")) return 2;
-  if (normalized.includes("attend")) return 1;
+  if (normalized.includes("declin") || normalized.includes("not attend") || normalized.includes("not_attend")) {
+    return 2;
+  }
+  if (normalized.includes("attend") && !normalized.includes("await")) return 1;
   return 0;
 }
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { RSVP_STATUSES } from "./guest-gifts";
+import { RSVP_STATUSES, type RsvpStatus } from "./guest-gifts";
 import {
   applyGuestPersonRsvpInStore,
   applyProfileGuestRsvpInStore,
@@ -319,6 +319,49 @@ test("household summary follows existing person-specific RSVP rules", () => {
   assert.equal(store.guestPeople.find((row) => row.id === "gp-evan")?.rsvpStatus, "pending");
   assert.equal(store.guestPeople.find((row) => row.id === "gp-plus")?.rsvpStatus, "pending");
   assert.equal(store.guestPeople.find((row) => row.id === "gp-plus")?.name, "Plus One");
+});
+
+test("RSVP persists in every supported direction on the same GuestPerson", () => {
+  const store = householdStore();
+  const steps: Array<[RsvpStatus, RsvpStatus]> = [
+    ["pending", "attending"],
+    ["pending", "not_attending"],
+    ["attending", "not_attending"],
+    ["not_attending", "attending"],
+    ["attending", "pending"],
+  ];
+  for (const [from, to] of steps) {
+    store.guestPeople.find((row) => row.id === "gp-bri")!.rsvpStatus = from;
+    const result = applyProfileGuestRsvpInStore(store, {
+      profileId: "person:bri",
+      rsvpStatus: to,
+      authorized: true,
+    });
+    assert.equal(result.ok, true);
+    if (result.ok) assert.equal(result.guestPersonId, "gp-bri");
+    assert.equal(readProfileRsvp(store, "person:bri"), to);
+    assert.equal(store.guestPeople.find((row) => row.id === "gp-evan")?.rsvpStatus, "pending");
+    assert.equal(store.guestPeople.find((row) => row.id === "gp-plus")?.rsvpStatus, "pending");
+    assert.deepEqual(
+      store.guestPeople.map((row) => row.id),
+      ["gp-bri", "gp-evan", "gp-plus"],
+    );
+    assert.deepEqual(
+      store.persons.map((row) => row.id),
+      ["bri", "evan_eling"],
+    );
+  }
+});
+
+test("read-only user cannot change RSVP", () => {
+  const store = householdStore();
+  const result = applyProfileGuestRsvpInStore(store, {
+    profileId: "person:bri",
+    rsvpStatus: "attending",
+    authorized: false,
+  });
+  assert.deepEqual(result, { ok: false, reason: "forbidden" });
+  assert.equal(store.guestPeople.find((row) => row.id === "gp-bri")?.rsvpStatus, "pending");
 });
 
 test("unknown RSVP values are rejected and existing statuses stay intact", () => {

@@ -13,8 +13,8 @@ const FILTERS: { key: PeopleTab; label: string }[] = [
 
 const ATTENDANCE: { key: PeopleAttendanceFilter; label: string }[] = [
   { key: "all", label: "Everyone" },
-  { key: "pending", label: "No reply" },
-  { key: "attending", label: "Accepted" },
+  { key: "pending", label: "Awaiting RSVP" },
+  { key: "attending", label: "Attending" },
   { key: "not_attending", label: "Declined" },
 ];
 

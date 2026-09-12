@@ -64,6 +64,17 @@ test("plus-one names are humanized only at print time", () => {
   );
 });
 
+test("print households use the canonical updated name and person RSVP", () => {
+  const { households } = projectHouseholds([
+    {
+      rsvpStatus: "attending",
+      people: [{ name: "Alex Smith", rsvpStatus: "not_attending" }],
+    },
+  ]);
+  assert.equal(households[0]?.members[0]?.name, "Alex Smith");
+  assert.equal(households[0]?.members[0]?.rsvpLabel, "Declined");
+});
+
 test("households use person-level RSVP instead of one household label", () => {
   const { households, summary } = projectHouseholds([
     {

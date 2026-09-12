@@ -12,9 +12,9 @@ import {
 import type { GuestPersonRecord, GuestRecord } from "@/lib/guests";
 
 const RSVP_OPTIONS: { id: RsvpStatus; label: string }[] = [
-  { id: "pending", label: "No reply" },
+  { id: "pending", label: "Awaiting RSVP" },
   { id: "attending", label: "Attending" },
-  { id: "not_attending", label: "Not attending" },
+  { id: "not_attending", label: "Declined" },
 ];
 
 function guestSnapshot(guest: GuestRecord, people: GuestPersonRecord[]) {

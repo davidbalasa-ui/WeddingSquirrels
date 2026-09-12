@@ -8,6 +8,7 @@ import {
   groupGuestsByTable,
   guestAddressLines,
   guestNameLines,
+  rsvpStatusLabel,
   summarizeGuestRsvp,
 } from "./guest-gifts";
 
@@ -176,5 +177,12 @@ test("groupGuestsByTable sorts tables and seats", () => {
     groups[3]?.rows.map((row) => row.name),
     ["Sam"],
   );
+});
+
+test("rsvpStatusLabel never exposes raw enums", () => {
+  assert.equal(rsvpStatusLabel("attending"), "Attending");
+  assert.equal(rsvpStatusLabel("not_attending"), "Declined");
+  assert.equal(rsvpStatusLabel("pending"), "Awaiting RSVP");
+  assert.equal(rsvpStatusLabel("NOT_ATTENDING"), "Awaiting RSVP");
 });
 

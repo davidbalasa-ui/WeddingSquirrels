@@ -1879,21 +1879,41 @@ export async function cycleGuestPersonRsvp(guestPersonId: string): Promise<Guest
   return applyExistingGuestPersonRsvp(guestPersonId, next);
 }
 
-export async function saveGuestPersonName(
+async function persistExistingGuestPersonName(
   guestPersonId: string,
-  name: string,
+  trimmed: string,
 ): Promise<GuestPersonWriteResult> {
-  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
-  const trimmed = name.trim();
-  if (!guestPersonId || !trimmed) return { ok: false, reason: "invalid" };
-
   const person = await prisma.guestPerson.findUnique({ where: { id: guestPersonId } });
   if (!person) return { ok: false, reason: "not_found" };
 
-  await prisma.guestPerson.update({
-    where: { id: guestPersonId },
-    data: { name: trimmed },
-  });
+  if (person.personId) {
+    const canonical = await prisma.person.findUnique({ where: { id: person.personId } });
+    if (!canonical) return { ok: false, reason: "not_found" };
+    const fromName = canonical.name;
+    if (fromName !== trimmed) {
+      await prisma.person.update({ where: { id: canonical.id }, data: { name: trimmed } });
+      await prisma.contact.updateMany({
+        where: { personId: canonical.id, name: fromName },
+        data: { name: trimmed },
+      });
+      await prisma.staySlot.updateMany({
+        where: { occupant: fromName },
+        data: { occupant: trimmed },
+      });
+      await prisma.mealGuest.updateMany({
+        where: { personId: canonical.id },
+        data: { name: trimmed },
+      });
+    }
+  }
+
+  if (person.name !== trimmed) {
+    await prisma.guestPerson.update({
+      where: { id: guestPersonId },
+      data: { name: trimmed },
+    });
+  }
+
   const household = await prisma.guest.findUnique({
     where: { id: person.guestId },
     include: { people: { orderBy: { sortOrder: "asc" } } },
@@ -1908,8 +1928,57 @@ export async function saveGuestPersonName(
     );
     await prisma.guest.update({ where: { id: person.guestId }, data: legacy });
   }
+
+  const profileId = person.personId ? profileIdForPerson(person.personId) : profileIdForGuestPerson(person.id);
   revalidateGuests();
-  return { ok: true, id: guestPersonId };
+  revalidatePeople(profileId);
+  refresh();
+  return { ok: true, id: guestPersonId, profileId };
+}
+
+export async function saveGuestPersonName(
+  guestPersonId: string,
+  name: string,
+): Promise<GuestPersonWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  const trimmed = name.trim();
+  if (!guestPersonId || !trimmed) return { ok: false, reason: "invalid" };
+  return persistExistingGuestPersonName(guestPersonId, trimmed);
+}
+
+export async function saveProfileGuestName(
+  profileId: string,
+  name: string,
+): Promise<GuestPersonWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, reason: "invalid" };
+
+  const guestPerson = await resolveExistingGuestPersonForProfile(profileId);
+  if (guestPerson) return persistExistingGuestPersonName(guestPerson.id, trimmed);
+
+  const parsed = parseProfileId(profileId);
+  if (parsed?.kind !== "person") return { ok: false, reason: "not_found" };
+  const canonical = await prisma.person.findUnique({ where: { id: parsed.id } });
+  if (!canonical) return { ok: false, reason: "not_found" };
+  if (canonical.name !== trimmed) {
+    await prisma.person.update({ where: { id: canonical.id }, data: { name: trimmed } });
+    await prisma.contact.updateMany({
+      where: { personId: canonical.id, name: canonical.name },
+      data: { name: trimmed },
+    });
+    await prisma.staySlot.updateMany({
+      where: { occupant: canonical.name },
+      data: { occupant: trimmed },
+    });
+    await prisma.mealGuest.updateMany({
+      where: { personId: canonical.id },
+      data: { name: trimmed },
+    });
+  }
+  revalidatePeople(profileId);
+  refresh();
+  return { ok: true, id: canonical.id, profileId };
 }
 
 export async function saveGuestPersonPhoto(
@@ -2126,6 +2195,8 @@ function revalidateGuests() {
   revalidatePath("/guests");
   revalidatePath("/guests/print");
   revalidatePath("/people");
+  revalidatePath("/today");
+  revalidatePath("/print");
 }
 
 export async function addGuestGift(guestId: string): Promise<GuestGiftWriteResult> {
@@ -3002,6 +3073,8 @@ function revalidatePeople(profileId?: string) {
     revalidatePath(`/people/${encodeURIComponent(profileId)}`);
   }
   revalidatePath("/guests");
+  revalidatePath("/today");
+  revalidatePath("/print");
   revalidateDayData();
 }
 

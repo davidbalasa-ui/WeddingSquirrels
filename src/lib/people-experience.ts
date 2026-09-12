@@ -77,9 +77,30 @@ export function directoryRoleContext(entry: DirectoryEntry): string | null {
 function rsvpSecondary(label: string | null): string | null {
   if (!label) return null;
   const normalized = label.trim().toLowerCase();
-  if (normalized === "attending" || normalized === "yes") return "RSVP accepted";
-  if (normalized === "not attending" || normalized === "no") return "Not attending";
-  if (normalized === "no reply" || normalized === "pending") return "No reply yet";
+  if (
+    normalized === "attending" ||
+    normalized === "yes" ||
+    normalized === "rsvp accepted" ||
+    normalized.includes("accepted")
+  ) {
+    return "Attending";
+  }
+  if (
+    normalized === "declined" ||
+    normalized === "not attending" ||
+    normalized === "not_attending" ||
+    normalized === "no"
+  ) {
+    return "Declined";
+  }
+  if (
+    normalized === "awaiting rsvp" ||
+    normalized === "no reply" ||
+    normalized === "no reply yet" ||
+    normalized === "pending"
+  ) {
+    return "Awaiting RSVP";
+  }
   return `RSVP · ${label}`;
 }
 
@@ -128,12 +149,12 @@ export function filterDirectoryByAttendance(
   return entries.filter((entry) => {
     const label = entry.rsvpLabel?.trim().toLowerCase() ?? "";
     if (attendance === "pending") {
-      return !label || label === "no reply" || label === "pending";
+      return !label || label === "no reply" || label === "pending" || label === "awaiting rsvp" || label === "no reply yet";
     }
     if (attendance === "attending") {
-      return label === "attending" || label === "yes" || label.includes("accepted");
+      return label === "attending" || label === "yes";
     }
-    return label === "not attending" || label === "no";
+    return label === "declined" || label === "not attending" || label === "not_attending" || label === "no";
   });
 }
 

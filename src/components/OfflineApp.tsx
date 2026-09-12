@@ -6,6 +6,7 @@ import { OfflineDayOfPanel } from "@/components/OfflineDayOfPanel";
 import { weddingTimelineRows } from "@/lib/day-of-time";
 import { buildMcRunOfShow } from "@/lib/mc-run-of-show";
 import { formatFetchedAt, loadOfflinePack, type OfflinePack } from "@/lib/offline-db";
+import { rsvpStatusLabel } from "@/lib/guest-gifts";
 import {
   asOfflineAssignments,
   asOfflineGuests,
@@ -419,7 +420,7 @@ function GuestsView({ pack }: { pack: OfflinePack }) {
           <div className="flex items-center justify-between gap-2">
             <p className="font-semibold leading-snug">{offlineGuestDisplayName(guest)}</p>
             <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
-              {guest.rsvpStatus}
+              {rsvpStatusLabel(guest.rsvpStatus)}
             </span>
           </div>
           <p className="mt-1 text-sm text-muted">

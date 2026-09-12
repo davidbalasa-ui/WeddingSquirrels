@@ -126,7 +126,6 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
   const guestPeople = guests.flatMap((guest) => {
     const mapped = mapGuestRecord(guest);
     const address = guestAddressLine(mapped) || null;
-    const rsvpLabel = rsvpStatusLabel(mapped.rsvpStatus);
     return mapped.people.map((person) => ({
       id: person.id,
       name: person.name,
@@ -135,7 +134,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
       isDayOfContact: person.isDayOfContact,
       photoData: person.photoData ?? null,
       address,
-      rsvpLabel,
+      rsvpLabel: rsvpStatusLabel(person.rsvpStatus),
       tableLabel:
         person.tableNumber != null
           ? person.tableSpot?.trim()
