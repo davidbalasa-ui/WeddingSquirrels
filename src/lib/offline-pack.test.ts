@@ -7,6 +7,7 @@ import {
   offlineContactInputsFromPack,
   offlineDirectoryContactsFromPack,
   offlineGuestDisplayName,
+  offlineGuestPersonRsvpRows,
   refreshedOfflinePack,
   sourceFromPack,
 } from "./offline-pack";
@@ -217,6 +218,36 @@ test("next offline pack refresh carries the updated guest name and RSVP", () => 
   assert.equal(offlineGuestDisplayName(guests[0] as never), "Andi C.");
   assert.equal(guests[0]?.rsvpStatus, "attending");
   assert.equal(guests[0]?.people?.[0]?.rsvpStatus, "attending");
+});
+
+test("offline guest RSVP rows use GuestPerson status, not household status", () => {
+  const snapshot = pack({
+    guests: [
+      {
+        id: "g-cynthia",
+        nameLine1: "Cynthia Berman",
+        nameLine2: "Guest of Cynthia",
+        rsvpStatus: "attending",
+        invitedCount: 2,
+        acceptedCount: 1,
+        people: [
+          { id: "gp-cynthia", name: "Cynthia Berman", rsvpStatus: "attending" },
+          { id: "gp-guest", name: "Guest of Cynthia", rsvpStatus: "not_attending" },
+        ],
+        gifts: [],
+      },
+    ],
+  });
+  const rows = offlineGuestPersonRsvpRows(
+    (snapshot.guests as Array<{
+      rsvpStatus: string;
+      people?: Array<{ name: string; rsvpStatus?: string }>;
+    }>)[0] as never,
+  );
+  assert.deepEqual(
+    rows.map((row) => `${row.name}:${row.rsvpLabel}`),
+    ["Cynthia Berman:Attending", "Guest of Cynthia:Declined"],
+  );
 });
 
 test("GuestPerson names in the pack are used for offline guest display", () => {

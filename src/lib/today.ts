@@ -789,7 +789,7 @@ export async function loadTodayPageData(
               acceptedCount: true,
               nameLine1: true,
               nameLine2: true,
-              people: { select: { name: true } },
+              people: { select: { name: true, rsvpStatus: true } },
             },
           }),
         )

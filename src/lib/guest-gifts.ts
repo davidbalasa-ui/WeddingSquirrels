@@ -4,6 +4,7 @@ export type GuestPersonFields = {
   name: string;
   tableNumber?: number | null;
   tableSpot?: string | null;
+  rsvpStatus?: string;
 };
 
 export type GuestNameFields = {
@@ -108,6 +109,12 @@ export type GuestRsvpReport = {
   awaiting: number;
 };
 
+function peopleHaveIndividualRsvp(
+  people: GuestPersonFields[] | undefined,
+): people is Array<GuestPersonFields & { rsvpStatus: string }> {
+  return Boolean(people?.length && people.every((person) => person.rsvpStatus != null));
+}
+
 export function summarizeGuestRsvp(guests: GuestRsvpFields[]): GuestRsvpReport {
   const report: GuestRsvpReport = {
     households: guests.length,
@@ -124,9 +131,18 @@ export function summarizeGuestRsvp(guests: GuestRsvpFields[]): GuestRsvpReport {
     else if (status === "not_attending") report.notAttending += 1;
     else report.pending += 1;
     report.invited += effectiveInvitedCount(guest);
-    report.accepted += effectiveAcceptedCount(guest);
+    if (peopleHaveIndividualRsvp(guest.people)) {
+      for (const person of guest.people) {
+        const personStatus = parseRsvpStatus(person.rsvpStatus);
+        if (personStatus === "attending") report.accepted += 1;
+        else if (personStatus === "pending") report.awaiting += 1;
+      }
+    } else {
+      const accepted = effectiveAcceptedCount(guest);
+      report.accepted += accepted;
+      report.awaiting += Math.max(0, effectiveInvitedCount(guest) - accepted);
+    }
   }
-  report.awaiting = Math.max(0, report.invited - report.accepted);
   return report;
 }
 
