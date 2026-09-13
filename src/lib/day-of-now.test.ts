@@ -5,10 +5,12 @@ import {
   formatNowClock,
   isWeddingDay,
   matchBlockContacts,
+  mergeEditorNotesBody,
   nowMinuteKey,
   parseBlockNotes,
   pickNowNextBlocks,
   shouldShowDayNowTab,
+  updateBlockLocation,
 } from "./day-of-now";
 
 const BLOCKS = [
@@ -50,6 +52,24 @@ test("isWeddingDay and shouldShowDayNowTab", () => {
   assert.equal(shouldShowDayNowTab(0), true);
   assert.equal(shouldShowDayNowTab(1), true);
   assert.equal(shouldShowDayNowTab(2), false);
+});
+
+test("updateBlockLocation and mergeEditorNotesBody preserve MC and music lines", () => {
+  const original =
+    "First Dance\nlocation: Old Hall\nMC: cue parent dances\n· Playlist: slow songs\nDetail line";
+  const withNewLocation = updateBlockLocation(original, "New Shelter");
+  const parsed = parseBlockNotes(withNewLocation);
+  assert.equal(parsed.title, "First Dance");
+  assert.equal(parsed.location, "New Shelter");
+  assert.ok(parsed.detailLines.some((line) => /MC:/i.test(line)));
+  assert.ok(parsed.detailLines.some((line) => /Playlist/i.test(line)));
+  assert.ok(parsed.detailLines.includes("Detail line"));
+
+  const editedBody = mergeEditorNotesBody(withNewLocation, "First Dance\nMC: cue parent dances\n· Playlist: slow songs\nDetail line\nExtra");
+  const afterEdit = parseBlockNotes(editedBody);
+  assert.equal(afterEdit.location, "New Shelter");
+  assert.equal(afterEdit.title, "First Dance");
+  assert.ok(afterEdit.detailLines.some((line) => line.includes("Extra")));
 });
 
 test("parseBlockNotes extracts title, location, and bullet names", () => {

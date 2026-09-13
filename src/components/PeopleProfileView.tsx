@@ -8,6 +8,7 @@ import { PeopleProfilePhotoEditor } from "@/components/PeopleProfilePhotoEditor"
 import { PeopleRoleEditor } from "@/components/PeopleRoleEditor";
 import { PeopleNameEditor } from "@/components/PeopleNameEditor";
 import { PeopleContactEditor } from "@/components/PeopleContactEditor";
+import { PeopleGuestAddressEditor } from "@/components/PeopleGuestAddressEditor";
 import { PeopleGuestPhoneEditor } from "@/components/PeopleGuestPhoneEditor";
 import { PeopleRsvpEditor } from "@/components/PeopleRsvpEditor";
 import { formatBudgetContractDetail } from "@/lib/connections";
@@ -157,6 +158,19 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
           <SectionTitle>Guest</SectionTitle>
           <div className="mt-1 border-t border-[var(--line)]">
             {household ? <ProfileRow title={household} detail="Household" href="/people?tab=guests" /> : null}
+            {profile.guestInfo.mailingLabel ? (
+              <ProfileRow title={profile.guestInfo.mailingLabel} detail="Mailing address" />
+            ) : profile.canEditGuestAddress ? (
+              <p className="py-3 text-sm text-muted">No mailing address yet.</p>
+            ) : null}
+            <PeopleGuestAddressEditor
+              profileId={profile.profileId}
+              street={profile.guestInfo.mailingStreet}
+              city={profile.guestInfo.mailingCity}
+              state={profile.guestInfo.mailingState}
+              zip={profile.guestInfo.mailingZip}
+              canEdit={profile.canEditGuestAddress}
+            />
             <PeopleRsvpEditor
               profileId={profile.profileId}
               rsvpStatus={profile.guestInfo.rsvpStatus}

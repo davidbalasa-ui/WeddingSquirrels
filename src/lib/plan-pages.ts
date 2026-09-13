@@ -109,6 +109,7 @@ export async function loadPlanCalendarPage() {
       id: event.id,
       title: event.title,
       notes: event.notes,
+      location: event.location,
       startDate: event.startDate.toISOString(),
       endDate: event.endDate.toISOString(),
       color: event.color,

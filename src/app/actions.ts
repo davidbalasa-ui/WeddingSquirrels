@@ -2191,6 +2191,46 @@ export async function saveProfileGuestPhone(
   return result;
 }
 
+/** Profile entry point — writes canonical `Guest` mailing fields via `saveGuestPeople`. */
+export async function saveProfileGuestAddress(
+  profileId: string,
+  input: { street: string; city: string; state: string; zip: string },
+): Promise<GuestPersonWriteResult> {
+  if (!(await requireGuestViewer())) return { ok: false, reason: "forbidden" };
+
+  const guestId = await resolveGuestHouseholdIdForProfile(profileId);
+  if (!guestId) return { ok: false, reason: "not_found" };
+
+  const guest = await prisma.guest.findUnique({
+    where: { id: guestId },
+    include: {
+      people: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+  if (!guest) return { ok: false, reason: "not_found" };
+
+  const result = await saveGuestPeople({
+    guestId,
+    people: guest.people.map((person) => ({
+      id: person.id,
+      name: person.name,
+      tableNumber: person.tableNumber,
+      tableSpot: person.tableSpot,
+      isDayOfContact: person.isDayOfContact,
+    })),
+    street: input.street,
+    city: input.city,
+    state: input.state,
+    zip: input.zip,
+  });
+
+  if (result.ok) {
+    revalidatePeople(profileId);
+    refresh();
+  }
+  return result;
+}
+
 export async function setGuestGiftThankYou(
   giftId: string,
   field: "written" | "sent",
@@ -3363,10 +3403,50 @@ export async function togglePlaybookCompleted(
   revalidateDayData();
 }
 
+function trimPlaceField(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+export async function saveWeddingPlaceSettings(
+  input: import("@/lib/wedding-venue").WeddingPlaceFields,
+): Promise<{ ok: boolean }> {
+  if (!(await requireDayDataEditor())) return { ok: false };
+
+  await prisma.appSettings.update({
+    where: { id: 1 },
+    data: {
+      venueName: trimPlaceField(input.venueName),
+      venueStreet: trimPlaceField(input.venueStreet),
+      venueCity: trimPlaceField(input.venueCity),
+      venueState: trimPlaceField(input.venueState),
+      venueZip: trimPlaceField(input.venueZip),
+      rehearsalDinnerName: trimPlaceField(input.rehearsalDinnerName),
+      rehearsalDinnerStreet: trimPlaceField(input.rehearsalDinnerStreet),
+      rehearsalDinnerCity: trimPlaceField(input.rehearsalDinnerCity),
+      rehearsalDinnerState: trimPlaceField(input.rehearsalDinnerState),
+      rehearsalDinnerZip: trimPlaceField(input.rehearsalDinnerZip),
+      airbnbName: trimPlaceField(input.airbnbName),
+      airbnbStreet: trimPlaceField(input.airbnbStreet),
+      airbnbCity: trimPlaceField(input.airbnbCity),
+      airbnbState: trimPlaceField(input.airbnbState),
+      airbnbZip: trimPlaceField(input.airbnbZip),
+    },
+  });
+
+  revalidatePath("/plan/timeline");
+  revalidatePath("/plan/rehearsal");
+  revalidatePath("/today");
+  revalidatePath("/print");
+  refresh();
+  return { ok: true };
+}
+
 export async function saveCalendarEvent(input: {
   id: string;
   title: string;
   notes: string;
+  location?: string;
   startDate: string;
   endDate: string;
 }): Promise<{ ok: boolean }> {
@@ -3389,6 +3469,7 @@ export async function saveCalendarEvent(input: {
     data: {
       title,
       notes: input.notes.trim() || null,
+      location: input.location !== undefined ? trimPlaceField(input.location) : existing.location,
       startDate,
       endDate: endDate < startDate ? startDate : endDate,
     },

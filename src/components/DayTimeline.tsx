@@ -11,6 +11,12 @@ import {
 } from "@/app/actions";
 import { DayTimeRange } from "@/components/DayTimeStepper";
 import {
+  mergeEditorNotesBody,
+  notesBodyForEditor,
+  parseBlockNotes,
+  updateBlockLocation,
+} from "@/lib/day-of-now";
+import {
   DAY_OF_BUCKETS,
   applyPeerOrder,
   bucketForTime,
@@ -51,6 +57,7 @@ type Draft = {
   startAt: string;
   endAt: string;
   notes: string;
+  location: string;
 };
 
 function toRow(block: TimelineBlockView): Row {
@@ -288,10 +295,14 @@ export function DayTimeline({
     if (draftSavingRef.current) return { ok: false as const };
     draftSavingRef.current = true;
 
+    const notesWithLocation = openDraft.location.trim()
+      ? updateBlockLocation(prepared.notes, openDraft.location)
+      : prepared.notes;
+
     const result = await createTimelineBlock({
       startAt: prepared.startAt,
       endAt: prepared.endAt ?? "",
-      notes: prepared.notes,
+      notes: notesWithLocation,
       schedule,
     });
     draftSavingRef.current = false;
@@ -310,7 +321,7 @@ export function DayTimeline({
       id: result.id,
       startAt: prepared.startAt,
       endAt: prepared.endAt,
-      notes: prepared.notes,
+      notes: notesWithLocation,
     });
     setRows((prev) => {
       const next = applyOrder(prev, result.order, created);
@@ -338,6 +349,28 @@ export function DayTimeline({
           ? { ...item, notes, status: "dirty", error: null, localRev: item.localRev + 1 }
           : item,
       ),
+    );
+    scheduleNotesSave(id);
+  }
+
+  function patchLocation(id: string, location: string) {
+    setRows((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const notes = updateBlockLocation(item.notes, location || null);
+        return { ...item, notes, status: "dirty", error: null, localRev: item.localRev + 1 };
+      }),
+    );
+    scheduleNotesSave(id);
+  }
+
+  function patchNotesBody(id: string, editorBody: string) {
+    setRows((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const notes = mergeEditorNotesBody(item.notes, editorBody);
+        return { ...item, notes, status: "dirty", error: null, localRev: item.localRev + 1 };
+      }),
     );
     scheduleNotesSave(id);
   }
@@ -386,7 +419,7 @@ export function DayTimeline({
       document.getElementById(`${idPrefix}-draft`)?.scrollIntoView({ block: "center", behavior: "smooth" });
       return;
     }
-    setDraft({ startAt: "", endAt: "", notes: "" });
+    setDraft({ startAt: "", endAt: "", notes: "", location: "" });
     setConfirmDeleteId(null);
   }
 
@@ -496,7 +529,8 @@ export function DayTimeline({
             visible={visible}
             confirmDeleteId={confirmDeleteId}
             onCommitTimes={commitTimes}
-            onPatchNotes={patchNotes}
+            onPatchNotes={patchNotesBody}
+            onPatchLocation={patchLocation}
             onFlushNotes={(id) => void flushNotes(id)}
             onRetry={(row) => void persistRow(row, { reorder: true })}
             onAskDelete={setConfirmDeleteId}
@@ -524,6 +558,12 @@ export function DayTimeline({
               placeholder="Set time"
               onCommit={(next) => setDraft({ ...draft, ...next })}
               onOpenChange={handleStepperOpenChange}
+            />
+            <input
+              value={draft.location}
+              placeholder="Location (optional)"
+              onChange={(event) => setDraft({ ...draft, location: event.target.value })}
+              className="mt-2 w-full border-0 bg-transparent p-0 text-sm text-muted outline-none"
             />
             <textarea
               value={draft.notes}
@@ -673,6 +713,7 @@ function EditSections({
   confirmDeleteId,
   onCommitTimes,
   onPatchNotes,
+  onPatchLocation,
   onFlushNotes,
   onRetry,
   onAskDelete,
@@ -687,6 +728,7 @@ function EditSections({
   confirmDeleteId: string | null;
   onCommitTimes: (id: string, patch: Partial<Pick<Row, "startAt" | "endAt">>) => void;
   onPatchNotes: (id: string, notes: string) => void;
+  onPatchLocation: (id: string, location: string) => void;
   onFlushNotes: (id: string) => void;
   onRetry: (row: Row) => void;
   onAskDelete: (id: string) => void;
@@ -718,6 +760,7 @@ function EditSections({
                   confirmDelete={confirmDeleteId === row.id}
                   onCommitTimes={onCommitTimes}
                   onPatchNotes={onPatchNotes}
+                  onPatchLocation={onPatchLocation}
                   onFlushNotes={onFlushNotes}
                   onRetry={() => onRetry(row)}
                   onAskDelete={() => onAskDelete(row.id)}
@@ -743,6 +786,7 @@ function EditCard({
   confirmDelete,
   onCommitTimes,
   onPatchNotes,
+  onPatchLocation,
   onFlushNotes,
   onRetry,
   onAskDelete,
@@ -758,6 +802,7 @@ function EditCard({
   confirmDelete: boolean;
   onCommitTimes: (id: string, patch: Partial<Pick<Row, "startAt" | "endAt">>) => void;
   onPatchNotes: (id: string, notes: string) => void;
+  onPatchLocation: (id: string, location: string) => void;
   onFlushNotes: (id: string) => void;
   onRetry: () => void;
   onAskDelete: () => void;
@@ -769,6 +814,8 @@ function EditCard({
 }) {
   const endWarn = row.endAt.trim() ? endsBeforeStart(row.startAt, row.endAt) : false;
   const label = statusLabel(row.status, row.error);
+  const location = parseBlockNotes(row.notes).location ?? "";
+  const notesBody = notesBodyForEditor(row.notes);
 
   return (
     <article
@@ -806,9 +853,23 @@ function EditCard({
         )}
       </div>
       {endWarn ? <p className="text-[11px] font-semibold text-[var(--warn)]">Ends before it starts</p> : null}
+      <label className="mt-1 block text-xs text-muted">
+        Location
+        <input
+          value={location}
+          placeholder="Where this happens"
+          onChange={(event) => onPatchLocation(row.id, event.target.value)}
+          onFocus={() => onNoteFocusChange(true)}
+          onBlur={() => {
+            onNoteFocusChange(false);
+            onFlushNotes(row.id);
+          }}
+          className="mt-0.5 w-full border-0 bg-transparent p-0 text-sm text-ink outline-none"
+        />
+      </label>
       <textarea
-        value={row.notes}
-        rows={Math.min(8, Math.max(2, row.notes.split(/\r?\n/).length))}
+        value={notesBody}
+        rows={Math.min(8, Math.max(2, notesBody.split(/\r?\n/).length))}
         onChange={(event) => onPatchNotes(row.id, event.target.value)}
         onFocus={(event) => {
           onNoteFocusChange(true);

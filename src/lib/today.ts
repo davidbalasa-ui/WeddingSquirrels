@@ -34,6 +34,7 @@ import {
   type WeddingPhase,
 } from "@/lib/wedding-phase";
 import { composeExecutionToday, type ExecutionTodayModel } from "@/lib/execution-today";
+import { todayVenueLabel } from "@/lib/wedding-venue";
 
 export type TodayHeroPhase = "future" | "wedding-day" | "after";
 
@@ -266,7 +267,16 @@ function accountLinkedPersonId(accounts: AccountOption[] | undefined, accountId:
 }
 
 export function buildTodayHero(
-  settings: { weddingDate: Date; coupleNames: string; timezone: string; venue?: string | null } | null,
+  settings: {
+    weddingDate: Date;
+    coupleNames: string;
+    timezone: string;
+    venueName?: string | null;
+    venueStreet?: string | null;
+    venueCity?: string | null;
+    venueState?: string | null;
+    venueZip?: string | null;
+  } | null,
   sessionName: string,
   now = new Date(),
 ): TodayHeroData {
@@ -313,7 +323,7 @@ export function buildTodayHero(
     countdownLabel,
     countdownSupport,
     weddingDateLabel,
-    venue: settings?.venue?.trim() || null,
+    venue: todayVenueLabel(settings),
   };
 }
 

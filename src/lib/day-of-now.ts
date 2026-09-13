@@ -120,6 +120,51 @@ export function parseBlockNotes(notes: string): ParsedBlockNotes {
   return { title, detailLines, location, involvedNames };
 }
 
+/** Rebuild notes with title, optional `location:` line, and detail lines in order. */
+export function composeBlockNotes(input: {
+  title: string;
+  location?: string | null;
+  detailLines: string[];
+}): string {
+  const lines: string[] = [input.title.trim() || "Timeline moment"];
+  const location = input.location?.trim();
+  if (location) lines.push(`location: ${location}`);
+  for (const line of input.detailLines) {
+    const trimmed = line.trim();
+    if (trimmed) lines.push(trimmed);
+  }
+  return lines.join("\n");
+}
+
+export function updateBlockLocation(notes: string, location: string | null): string {
+  const parsed = parseBlockNotes(notes);
+  return composeBlockNotes({
+    title: parsed.title,
+    location: location?.trim() || null,
+    detailLines: parsed.detailLines,
+  });
+}
+
+/** Editor textarea: title + details without the `location:` line. */
+export function notesBodyForEditor(notes: string): string {
+  const parsed = parseBlockNotes(notes);
+  return composeBlockNotes({
+    title: parsed.title,
+    location: null,
+    detailLines: parsed.detailLines,
+  });
+}
+
+export function mergeEditorNotesBody(notes: string, editorBody: string): string {
+  const location = parseBlockNotes(notes).location;
+  const parsed = parseBlockNotes(editorBody);
+  return composeBlockNotes({
+    title: parsed.title,
+    location,
+    detailLines: parsed.detailLines,
+  });
+}
+
 function noteMentionsName(notes: string, involvedNames: string[], candidateName: string): boolean {
   const primary = vendorPrimaryName(candidateName);
   const normalized = normalizePersonName(primary);

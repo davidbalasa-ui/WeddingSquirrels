@@ -256,6 +256,34 @@ test("key dates keep rehearsal and wedding day, not bachelor weekend", () => {
   assert.equal(rows.some((row) => row.title === "Wedding Day"), true);
 });
 
+test("quick reference prefers canonical venue over timeline regex fallbacks", () => {
+  const ref = buildQuickReference({
+    coupleNames: "David & Haley",
+    weddingDateLabel: "Friday, October 16, 2026",
+    weddingBlocks: [
+      { startAt: "3:30 PM", endAt: "4:00 PM", notes: "Ceremony\nlocation: Legacy parsed name" },
+    ],
+    rehearsalBlocks: [],
+    contacts: [],
+    mistressOfCeremonies: null,
+    mcName: null,
+    coordinatorPhoneHint: null,
+    rsvp: null,
+    canonicalPlaces: {
+      venueName: "Canonical Venue",
+      venueAddress: ["100 Canon St", "City, ST 00000"],
+      rehearsalDinnerName: "Canonical Dinner",
+      rehearsalDinnerAddress: ["200 Dinner Rd"],
+      airbnbName: "Stay Hub",
+      airbnbAddress: ["300 Stay Ln"],
+    },
+  });
+  assert.equal(ref.venueName, "Canonical Venue");
+  assert.deepEqual(ref.venueAddress, ["100 Canon St", "City, ST 00000"]);
+  assert.equal(ref.rehearsalDinnerName, "Canonical Dinner");
+  assert.equal(ref.airbnbName, "Stay Hub");
+});
+
 test("quick reference uses current ceremony and close times", () => {
   const ref = buildQuickReference({
     coupleNames: "David & Haley",
