@@ -17,8 +17,6 @@ function PlaybookEditForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  if (!item.id) return null;
-
   return (
     <form
       className="mt-2 flex flex-col gap-2 rounded-xl border border-line bg-[var(--bg)] p-3"
@@ -26,7 +24,8 @@ function PlaybookEditForm({
         event.preventDefault();
         const form = event.currentTarget;
         const formData = new FormData(form);
-        formData.set("id", item.id!);
+        if (item.id) formData.set("id", item.id);
+        else formData.set("sourceKey", item.sourceKey);
         startTransition(async () => {
           await savePlaybookItem(formData);
           onDone();
@@ -130,7 +129,7 @@ export function PlaybookBoard({
                           {item.completed ? "Done" : "Open"}
                         </span>
                       ) : null}
-                      {canEdit && item.id ? (
+                      {canEdit ? (
                         <div className="flex flex-col items-end gap-1">
                           <button
                             type="button"
@@ -144,7 +143,7 @@ export function PlaybookBoard({
                             className="text-xs font-semibold text-muted"
                             onClick={() =>
                               startTransition(async () => {
-                                await togglePlaybookCompleted(item.id!, !item.completed);
+                                await togglePlaybookCompleted(item.id ?? "", !item.completed, item.sourceKey);
                                 router.refresh();
                               })
                             }

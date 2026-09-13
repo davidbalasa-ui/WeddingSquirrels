@@ -15,9 +15,7 @@ Severity: **P0** critical truth blocked · **P1** expected edit missing · **P2*
 | Meals | `/plan/rehearsal` | — | — | EDITABLE_NOW |
 | BudgetItem | `/money/[id]` | — | — | EDITABLE_NOW |
 | TimelineBlock | `/plan/timeline` | — | — | EDITABLE_NOW (edit mode) |
-| PlaybookItem | Canonical fallback (no DB `id`) | Seed-only rows | — | DERIVED_READ_ONLY — requires DB row |
+| PlaybookItem | Canonical fallback (no DB `id`) | View-only until first edit | P1 | **Fixed** — materialize-on-first-edit by `sourceKey` |
+| Guest household phone | People profile (guest-only) | Not editable on profile | P1 | **Fixed** — `PeopleGuestPhoneEditor` → `saveGuestPhone` |
 | DayAssignment | `targetTime` | Not in schema | — | SCHEMA_READ_ONLY |
 | Budget rollups | Money | Computed | — | DERIVED_READ_ONLY |
-| Guest household phone | Profile (guest-only) | Edit on guest list, not profile | P2 | EDIT_ELSEWHERE — `saveGuestPhone` on guests UI |
-
-Implementation path for remaining P2: link guest household phone on profile or inline `saveGuestPhone` when `guestInfo` and no `contactId`.
