@@ -99,6 +99,22 @@ test("buildTodayHero uses AppSettings fields and does not invent venue", () => {
   assert.equal(hero.countdownSupport, "until we celebrate.");
   assert.equal(hero.venue, null);
   assert.match(hero.weddingDateLabel ?? "", /October 16, 2026/);
+
+  const withVenue = buildTodayHero(
+    {
+      weddingDate: new Date("2026-10-16T12:00:00"),
+      coupleNames: "David & Haley",
+      timezone: "America/Detroit",
+      venueName: "Shelter",
+      venueStreet: "342 62nd St",
+      venueCity: "South Haven",
+      venueState: "MI",
+      venueZip: "49090",
+    },
+    "David",
+    new Date("2026-09-03T12:00:00"),
+  );
+  assert.match(withVenue.venue ?? "", /Shelter/);
 });
 
 test("countdown handles future, wedding day, and post-wedding", () => {

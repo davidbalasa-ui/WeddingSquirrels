@@ -12,6 +12,21 @@ model AppSettings {
   weddingDate DateTime
   timezone    String   @default("America/Detroit")
   coupleNames String   @default("David & Haley")
+  venueName   String?
+  venueStreet String?
+  venueCity   String?
+  venueState  String?
+  venueZip    String?
+  rehearsalDinnerName   String?
+  rehearsalDinnerStreet String?
+  rehearsalDinnerCity   String?
+  rehearsalDinnerState  String?
+  rehearsalDinnerZip    String?
+  airbnbName   String?
+  airbnbStreet String?
+  airbnbCity   String?
+  airbnbState  String?
+  airbnbZip    String?
   updatedAt   DateTime @updatedAt
 }
 
@@ -232,6 +247,7 @@ model CalendarEvent {
   id        String   @id @default(cuid())
   title     String
   notes     String?
+  location  String?
   startDate DateTime
   endDate   DateTime
   eventKey  String?  @unique

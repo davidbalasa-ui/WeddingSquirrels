@@ -9,6 +9,14 @@ export type OfflinePack = {
   weddingDate: string | null;
   coupleNames: string | null;
   timezone: string | null;
+  weddingPlaces?: {
+    venueName: string | null;
+    venueAddress: string[];
+    rehearsalDinnerName: string | null;
+    rehearsalDinnerAddress: string[];
+    airbnbName: string | null;
+    airbnbAddress: string[];
+  } | null;
   tasks: unknown[];
   people: unknown[];
   timeline: unknown[];

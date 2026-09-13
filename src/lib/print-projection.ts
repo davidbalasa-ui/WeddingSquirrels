@@ -1027,6 +1027,14 @@ export function buildQuickReference(input: {
   mcName: string | null;
   coordinatorPhoneHint: string | null;
   rsvp: PrintRsvpSummary | null;
+  canonicalPlaces?: {
+    venueName?: string | null;
+    venueAddress?: string[];
+    rehearsalDinnerName?: string | null;
+    rehearsalDinnerAddress?: string[];
+    airbnbName?: string | null;
+    airbnbAddress?: string[];
+  } | null;
 }): PrintQuickReference {
   const all = [...input.rehearsalBlocks, ...input.weddingBlocks];
   const ceremony = input.weddingBlocks.find((block) => /^ceremony$/i.test(parseBlockNotes(block.notes).title));
@@ -1041,22 +1049,35 @@ export function buildQuickReference(input: {
   let coordinatorPhone = avalon?.phone?.trim() || input.coordinatorPhoneHint;
   if (coordinatorPhone) coordinatorPhone = coordinatorPhone.replace(/\./g, "-");
 
+  const canonical = input.canonicalPlaces;
+  const legacyVenueAddress =
+    venueLine && /342/.test(venueLine)
+      ? addressesFromLine(venueLine.replace(/^.*?(342)/, "342"))
+      : ["342 62nd St", "South Haven, MI 49090"];
+  const legacyAirbnbAddress =
+    airbnbLine && /10268/.test(airbnbLine)
+      ? addressesFromLine(airbnbLine)
+      : ["10268 51st St", "Grand Junction, MI 49056"];
+  const legacyRehearsalAddress =
+    hawksLine && /523/.test(hawksLine)
+      ? addressesFromLine(hawksLine.replace(/^.*?(523)/, "523"))
+      : ["523 Hawks Nest Dr", "South Haven, MI"];
+
   return {
     coupleNames: input.coupleNames,
     weddingDateLabel: input.weddingDateLabel,
     ceremonyTime: ceremony ? normalizePrintTime(ceremony.startAt) : "3:30 PM",
-    venueName: "Black Sheep Shelter",
-    venueAddress: venueLine && /342/.test(venueLine)
-      ? addressesFromLine(venueLine.replace(/^.*?(342)/, "342"))
-      : ["342 62nd St", "South Haven, MI 49090"],
-    airbnbName: "Airbnb",
-    airbnbAddress: airbnbLine && /10268/.test(airbnbLine)
-      ? addressesFromLine(airbnbLine)
-      : ["10268 51st St", "Grand Junction, MI 49056"],
-    rehearsalDinnerName: "Hawkshead",
-    rehearsalDinnerAddress: hawksLine && /523/.test(hawksLine)
-      ? addressesFromLine(hawksLine.replace(/^.*?(523)/, "523"))
-      : ["523 Hawks Nest Dr", "South Haven, MI"],
+    venueName: canonical?.venueName?.trim() || "Black Sheep Shelter",
+    venueAddress:
+      canonical?.venueAddress?.length ? canonical.venueAddress : legacyVenueAddress,
+    airbnbName: canonical?.airbnbName?.trim() || "Airbnb",
+    airbnbAddress:
+      canonical?.airbnbAddress?.length ? canonical.airbnbAddress : legacyAirbnbAddress,
+    rehearsalDinnerName: canonical?.rehearsalDinnerName?.trim() || "Hawkshead",
+    rehearsalDinnerAddress:
+      canonical?.rehearsalDinnerAddress?.length
+        ? canonical.rehearsalDinnerAddress
+        : legacyRehearsalAddress,
     coordinatorName: avalon ? avalon.name.split("·")[0]!.trim() : "Avalon Green",
     coordinatorPhone,
     mistressOfCeremonies: input.mistressOfCeremonies?.trim() || "Wendy Rush",

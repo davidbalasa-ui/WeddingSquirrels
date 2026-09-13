@@ -30,6 +30,7 @@ import { profileOperationalLinks } from "@/lib/playbook";
 import { countOpenActionableTasks, dueLabel, listAssignedTasksForPerson } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
 import { STAY_SECTIONS } from "@/lib/stay";
+import { placeAddressLines } from "@/lib/wedding-venue";
 
 export type ProfileTaskRow = {
   id: string;
@@ -77,7 +78,13 @@ export type PeopleProfile = {
     household: string;
     rsvpStatus: string;
     table: string | null;
+    mailingStreet: string | null;
+    mailingCity: string | null;
+    mailingState: string | null;
+    mailingZip: string | null;
+    mailingLabel: string | null;
   } | null;
+  canEditGuestAddress: boolean;
   gifts: string[];
   vendorContext: string | null;
   stayLabel: string | null;
@@ -180,6 +187,53 @@ function tableLabel(tableNumber: number | null, tableSpot: string | null) {
   if (tableNumber == null) return null;
   const spot = tableSpot?.trim();
   return spot ? `Table ${tableNumber} · ${spot}` : `Table ${tableNumber}`;
+}
+
+function guestMailingSnapshot(guest: {
+  street: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+}) {
+  const lines = placeAddressLines({
+    street: guest.street,
+    city: guest.city,
+    state: guest.state,
+    zip: guest.zip,
+  });
+  return {
+    mailingStreet: guest.street?.trim() || null,
+    mailingCity: guest.city?.trim() || null,
+    mailingState: guest.state?.trim() || null,
+    mailingZip: guest.zip?.trim() || null,
+    mailingLabel: lines.length ? lines.join(", ") : null,
+  };
+}
+
+function guestInfoForHousehold(
+  guest: {
+    street: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    people: Array<{ name: string }>;
+  },
+  personName: string,
+  rsvpStatus: string,
+  tableNumber: number | null,
+  tableSpot: string | null,
+): NonNullable<PeopleProfile["guestInfo"]> {
+  return {
+    household: guestHouseholdLabel({
+      nameLine1: guest.people[0]?.name ?? personName,
+      nameLine2: guest.people[1]?.name ?? null,
+      street: guest.street,
+      city: guest.city,
+    }),
+    rsvpStatus,
+    table: tableLabel(tableNumber, tableSpot),
+    ...guestMailingSnapshot(guest),
+  };
 }
 
 export async function loadPeopleProfile(
@@ -321,16 +375,13 @@ export async function loadPeopleProfile(
       }) ||
       resolveIsDayOfContact({ isDayOfContact: linkedGuest?.person.isDayOfContact });
     const guestInfo = linkedGuest
-      ? {
-          household: guestHouseholdLabel({
-            nameLine1: linkedGuest.guest.people[0]?.name ?? person.name,
-            nameLine2: linkedGuest.guest.people[1]?.name ?? null,
-            street: linkedGuest.guest.street,
-            city: linkedGuest.guest.city,
-          }),
-          rsvpStatus: linkedGuest.person.rsvpStatus,
-          table: tableLabel(linkedGuest.person.tableNumber, linkedGuest.person.tableSpot),
-        }
+      ? guestInfoForHousehold(
+          linkedGuest.guest,
+          person.name,
+          linkedGuest.person.rsvpStatus,
+          linkedGuest.person.tableNumber,
+          linkedGuest.person.tableSpot,
+        )
       : null;
     const stayLabel = stayLabelForExactName(person.name, staySlots);
     const gifts = linkedGuest ? giftDescriptions(linkedGuest.guest.gifts) : [];
@@ -369,6 +420,8 @@ export async function loadPeopleProfile(
       canEditContact: Boolean(linkedContact) && editable,
       guestHouseholdId: linkedGuest?.guest.id ?? null,
       canEditGuestPhone:
+        session.canSeeGuests && Boolean(linkedGuest) && !linkedContact,
+      canEditGuestAddress:
         session.canSeeGuests && Boolean(linkedGuest) && !linkedContact,
       canDelete: editable && !["david", "haley"].includes(person.id),
       canSeeTasks: session.canSeeTasks,
@@ -432,6 +485,7 @@ export async function loadPeopleProfile(
       canEditContact: editable,
       guestHouseholdId: null,
       canEditGuestPhone: false,
+      canEditGuestAddress: false,
       canDelete: editable,
       canSeeTasks: false,
       openTasks: [],
@@ -510,21 +564,19 @@ export async function loadPeopleProfile(
     canEditContact: false,
     guestHouseholdId: guestPerson.guest.id,
     canEditGuestPhone: session.canSeeGuests,
+    canEditGuestAddress: session.canSeeGuests,
     canDelete: editable,
     canSeeTasks: false,
     openTasks: [],
     completedTaskCount: 0,
     assignments: [],
-    guestInfo: {
-      household: guestHouseholdLabel({
-        nameLine1: guestPerson.guest.people[0]?.name ?? guestPerson.person.name,
-        nameLine2: guestPerson.guest.people[1]?.name ?? null,
-        street: guestPerson.guest.street,
-        city: guestPerson.guest.city,
-      }),
-      rsvpStatus: guestPerson.person.rsvpStatus,
-      table: tableLabel(guestPerson.person.tableNumber, guestPerson.person.tableSpot),
-    },
+    guestInfo: guestInfoForHousehold(
+      guestPerson.guest,
+      guestPerson.person.name,
+      guestPerson.person.rsvpStatus,
+      guestPerson.person.tableNumber,
+      guestPerson.person.tableSpot,
+    ),
     gifts: giftDescriptions(guestPerson.guest.gifts),
     vendorContext: null,
     stayLabel,

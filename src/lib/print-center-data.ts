@@ -7,6 +7,7 @@ import { buildMcRunOfShow } from "@/lib/mc-run-of-show";
 import { loadVisibleBudgetContracts } from "@/lib/money-page";
 import { playbookByKind } from "@/lib/playbook";
 import { loadPlaybookItems } from "@/lib/playbook-data";
+import { quickReferencePlaces } from "@/lib/wedding-venue";
 import {
   buildQuickReference,
   coordinatorPhoneFromPlaybook,
@@ -268,6 +269,7 @@ export async function loadPrintCenterDocument(
       rsvp: guestProjection.summary.attending + guestProjection.summary.declined + guestProjection.summary.awaiting
         ? guestProjection.summary
         : null,
+      canonicalPlaces: quickReferencePlaces(settings),
     }),
     rehearsal: rehearsalSorted.map(toPrintTimelineRow),
     timeline: weddingSorted.map(toPrintTimelineRow),

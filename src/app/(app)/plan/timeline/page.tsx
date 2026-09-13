@@ -1,7 +1,9 @@
 import { DayTimeline } from "@/components/DayTimeline";
 import { OperationalViewsNav } from "@/components/OperationalViewsNav";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
+import { WeddingPlacesEditor } from "@/components/WeddingPlacesEditor";
 import { timelineEditable } from "@/lib/access";
+import { prisma } from "@/lib/db";
 import { loadDayOfContext, loadWeddingTimelineBlocks } from "@/lib/day-of-page";
 import { loadTimelineRelatedTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
@@ -16,7 +18,11 @@ export default async function PlanTimelinePage({
   const params = await searchParams;
   const editParam = Array.isArray(params.edit) ? params.edit[0] : params.edit;
   const startInEdit = canEdit && editParam === "1";
-  const [blocks, context] = await Promise.all([loadWeddingTimelineBlocks(), loadDayOfContext()]);
+  const [blocks, context, placeSettings] = await Promise.all([
+    loadWeddingTimelineBlocks(),
+    loadDayOfContext(),
+    prisma.appSettings.findUnique({ where: { id: 1 } }),
+  ]);
   const relatedByBlockId = await loadTimelineRelatedTasks(
     session,
     blocks.map((block) => block.id),
@@ -30,6 +36,7 @@ export default async function PlanTimelinePage({
     <>
       <PlanChapterHeader title="Wedding Day" subtitle={subtitle} />
       <OperationalViewsNav current="/plan/timeline" />
+      <WeddingPlacesEditor initial={placeSettings} canEdit={canEdit} />
       <DayTimeline
         blocks={blocks}
         canEdit={canEdit}

@@ -22,6 +22,7 @@ export type PlanCalendarEventView = {
   id: string;
   title: string;
   notes: string | null;
+  location: string | null;
   startDate: string;
   endDate: string;
   color: string;
@@ -64,6 +65,7 @@ function CalendarEventCard({
           <div className="min-w-0">
             <p className="font-[family-name:var(--font-display)] text-xl leading-tight">{event.title}</p>
             {span ? <p className="mt-1 text-sm text-muted">{span}</p> : null}
+            {event.location ? <p className="mt-1 text-sm text-muted">{event.location}</p> : null}
             {event.notes ? <p className="mt-1 text-sm leading-relaxed text-muted">{event.notes}</p> : null}
           </div>
           {canEdit ? (
@@ -92,6 +94,7 @@ function CalendarEventCard({
             const result = await saveCalendarEvent({
               id: event.id,
               title: String(formData.get("title") || ""),
+              location: String(formData.get("location") || ""),
               notes: String(formData.get("notes") || ""),
               startDate: String(formData.get("startDate") || ""),
               endDate: String(formData.get("endDate") || ""),
@@ -117,6 +120,10 @@ function CalendarEventCard({
             <input name="endDate" type="date" required defaultValue={endValue} className="field-input" />
           </label>
         </div>
+        <label className="text-sm">
+          <span className="mb-1 block text-xs text-muted">Location</span>
+          <input name="location" defaultValue={event.location ?? ""} className="field-input" />
+        </label>
         <label className="text-sm">
           <span className="mb-1 block text-xs text-muted">Notes</span>
           <textarea name="notes" rows={2} defaultValue={event.notes ?? ""} className="field-input resize-y" />

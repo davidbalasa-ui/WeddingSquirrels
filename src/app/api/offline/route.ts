@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth";
 import { prisma, supportsBudgetPayments } from "@/lib/db";
 import { filterVisibleBudgetItems } from "@/lib/money";
 import { loadPlaybookItems } from "@/lib/playbook-data";
+import { quickReferencePlaces } from "@/lib/wedding-venue";
 import { requestVisibilityWhere } from "@/lib/requests";
 import { taskVisibilityWhere } from "@/lib/tasks";
 
@@ -107,6 +108,7 @@ export async function GET() {
     weddingDate: settings?.weddingDate?.toISOString() ?? null,
     coupleNames: settings?.coupleNames ?? null,
     timezone: settings?.timezone ?? null,
+    weddingPlaces: settings ? quickReferencePlaces(settings) : null,
     tasks,
     people,
     timeline,

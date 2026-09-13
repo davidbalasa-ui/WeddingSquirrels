@@ -56,6 +56,19 @@ function guestRow(
   };
 }
 
+function stubGuestInfo(
+  input: Pick<NonNullable<PeopleProfile["guestInfo"]>, "household" | "rsvpStatus" | "table">,
+): NonNullable<PeopleProfile["guestInfo"]> {
+  return {
+    ...input,
+    mailingStreet: null,
+    mailingCity: null,
+    mailingState: null,
+    mailingZip: null,
+    mailingLabel: null,
+  };
+}
+
 function emptyProfile(overrides: Partial<PeopleProfile> = {}): PeopleProfile {
   return {
     profileId: "person:sarah",
@@ -78,6 +91,7 @@ function emptyProfile(overrides: Partial<PeopleProfile> = {}): PeopleProfile {
     canEditContact: false,
     guestHouseholdId: null,
     canEditGuestPhone: false,
+    canEditGuestAddress: false,
     canDelete: false,
     canSeeTasks: false,
     openTasks: [],
@@ -207,7 +221,7 @@ test("Person-only profile does not display fake role metadata", () => {
 
 test("canonical profile includes guest role data without inventing extra roles", () => {
   const profile = emptyProfile({
-    guestInfo: { household: "Sarah & Alex · Chicago", rsvpStatus: "attending", table: "Table 4" },
+    guestInfo: stubGuestInfo({ household: "Sarah & Alex · Chicago", rsvpStatus: "attending", table: "Table 4" }),
     gifts: ["Crystal vase"],
   });
   assert.deepEqual(profileRoleChips(profile), ["Guest"]);
@@ -243,7 +257,7 @@ test("Kurt-style day-of profile renders the role label without inventing contact
     isDayOfContact: true,
     phone: null,
     email: null,
-    guestInfo: { household: "Kurt Huizenga", rsvpStatus: "attending", table: null },
+    guestInfo: stubGuestInfo({ household: "Kurt Huizenga", rsvpStatus: "attending", table: null }),
   });
   assert.deepEqual(profileRoleChips(profile), ["Guest", "Day-of contact"]);
   assert.equal(profileDisplayLabel(profile), "MC");
@@ -255,7 +269,7 @@ test("canonical profile includes both guest and contact when both are linked", (
   const profile = emptyProfile({
     primaryList: "vendors",
     isDayOfContact: true,
-    guestInfo: { household: "Bri & Evan", rsvpStatus: "attending", table: null },
+    guestInfo: stubGuestInfo({ household: "Bri & Evan", rsvpStatus: "attending", table: null }),
     vendorContext: "Planner",
     phone: "555-0142",
   });
@@ -269,7 +283,7 @@ test("canonical profile includes both guest and contact when both are linked", (
 test("profile sections follow identity, work, day-of, then money", () => {
   const profile = emptyProfile({
     phone: "555-0100",
-    guestInfo: { household: "Sarah & Alex", rsvpStatus: "attending", table: "Table 4" },
+    guestInfo: stubGuestInfo({ household: "Sarah & Alex", rsvpStatus: "attending", table: "Table 4" }),
     vendorContext: "Photography",
     canSeeTasks: true,
     openTasks: [{ id: "t1", title: "Shot list", dueLabel: "Due today", href: "/work/t1", openStepCount: 1 }],
@@ -309,7 +323,7 @@ test("profile sections follow identity, work, day-of, then money", () => {
 
 test("role-specific data is not lost on the unified profile", () => {
   const profile = emptyProfile({
-    guestInfo: { household: "Wendy Rush", rsvpStatus: "attending", table: "Table 3 · A" },
+    guestInfo: stubGuestInfo({ household: "Wendy Rush", rsvpStatus: "attending", table: "Table 3 · A" }),
     mealStatus: "Bridal party",
     stayLabel: "House · Room 2",
     assignments: [
