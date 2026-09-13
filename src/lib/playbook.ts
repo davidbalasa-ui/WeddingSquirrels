@@ -490,6 +490,37 @@ export function playbookRecordByKey(sourceKey: string): PlaybookRecord | undefin
   return CANONICAL_PLAYBOOK.find((row) => row.sourceKey === sourceKey);
 }
 
+/** Prisma create payload for materializing a canonical fallback row by `sourceKey`. */
+export function playbookCreateInputFromSourceKey(sourceKey: string) {
+  const canonical = playbookRecordByKey(sourceKey);
+  if (!canonical) return null;
+  return {
+    kind: canonical.kind,
+    section: canonical.section,
+    startAt: canonical.startAt,
+    title: canonical.title,
+    detail: canonical.detail,
+    location: canonical.location,
+    notes: canonical.notes,
+    sortOrder: canonical.sortOrder,
+    completed: canonical.completed,
+    sourceKey: canonical.sourceKey,
+  };
+}
+
+/** Overlay persisted playbook rows onto canonical items (same `sourceKey` → gains `id`). */
+export function mergeCanonicalPlaybookWithPersisted(
+  canonical: PlaybookRecord[],
+  persisted: Array<PlaybookRecord & { id: string }>,
+): PlaybookItemView[] {
+  const byKey = new Map(persisted.map((row) => [row.sourceKey, row]));
+  return canonical.map((row) => {
+    const saved = byKey.get(row.sourceKey);
+    if (!saved) return { ...row };
+    return { ...saved, id: saved.id };
+  });
+}
+
 export function operationalViewLinks(): Array<{ href: string; label: string; detail: string }> {
   return [
     {

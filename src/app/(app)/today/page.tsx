@@ -43,20 +43,28 @@ export default async function TodayPage({
       <TodayHero session={session} hero={data.hero} />
       {execution ? (
         <>
-          <TodayContext
-            title="Today"
-            items={data.todayContext}
-            empty={data.todayEmpty}
-          />
-          <TodayAttentionQueue
-            session={session}
-            attention={data.attention}
-            tasks={data.inbox.tasks}
-          />
+          <Suspense>
+            <TodayContext
+              title="Today"
+              items={data.todayContext}
+              empty={data.todayEmpty}
+            />
+          </Suspense>
+          <Suspense>
+            <TodayAttentionQueue
+              session={session}
+              attention={data.attention}
+              tasks={data.inbox.tasks}
+            />
+          </Suspense>
           {data.phase.phase !== "wedding_day" ? (
-            <TodayContext title="Tomorrow" items={tomorrowContext} empty={data.tomorrowEmpty} />
+            <Suspense>
+              <TodayContext title="Tomorrow" items={tomorrowContext} empty={data.tomorrowEmpty} />
+            </Suspense>
           ) : null}
-          <TodayWaitingSection session={session} waiting={data.waiting} tasks={data.inbox.tasks} />
+          <Suspense>
+            <TodayWaitingSection session={session} waiting={data.waiting} tasks={data.inbox.tasks} />
+          </Suspense>
           <TodayPulseStrip stats={data.pulse} compact={data.pulseCompact} />
           {data.phase.phase !== "wedding_day" ? (
             <TodayComingUpList items={data.comingUp} title="Later this week" />
@@ -64,15 +72,23 @@ export default async function TodayPage({
         </>
       ) : (
         <>
-          <TodayAttentionQueue
-            session={session}
-            attention={data.attention}
-            tasks={data.inbox.tasks}
-          />
-          <TodayWaitingSection session={session} waiting={data.waiting} tasks={data.inbox.tasks} />
-          <TodayContext items={data.todayContext} />
+          <Suspense>
+            <TodayAttentionQueue
+              session={session}
+              attention={data.attention}
+              tasks={data.inbox.tasks}
+            />
+          </Suspense>
+          <Suspense>
+            <TodayWaitingSection session={session} waiting={data.waiting} tasks={data.inbox.tasks} />
+          </Suspense>
+          <Suspense>
+            <TodayContext items={data.todayContext} />
+          </Suspense>
           <TodayPulseStrip stats={data.pulse} compact={data.pulseCompact} />
-          <TodayComingUpList items={data.comingUp} />
+          <Suspense>
+            <TodayComingUpList items={data.comingUp} />
+          </Suspense>
         </>
       )}
       {showInbox ? (

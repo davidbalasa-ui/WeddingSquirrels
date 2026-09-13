@@ -1,12 +1,14 @@
 import { OperationalViewsNav } from "@/components/OperationalViewsNav";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
-import { PlaybookList } from "@/components/PlaybookList";
+import { PlaybookBoard } from "@/components/PlaybookBoard";
 import { loadPlaybookItems } from "@/lib/playbook-data";
+import { timelineEditable } from "@/lib/access";
 import { requirePageSession } from "@/lib/session";
 
 export default async function HairMakeupPage() {
-  await requirePageSession({ need: "canSeeTimeline" });
+  const session = await requirePageSession({ need: "canSeeTimeline" });
   const items = await loadPlaybookItems("hair_makeup");
+  const canEdit = timelineEditable(session);
 
   return (
     <>
@@ -17,7 +19,11 @@ export default async function HairMakeupPage() {
         backLabel="Day-of"
       />
       <OperationalViewsNav current="/day/hair-makeup" />
-      <PlaybookList items={items} empty="Hair and makeup stations have not been recorded yet." />
+      <PlaybookBoard
+        items={items}
+        empty="Hair and makeup stations have not been recorded yet."
+        canEdit={canEdit}
+      />
     </>
   );
 }

@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { withReturnTo } from "@/lib/return-to";
+import { useTodayOriginHref } from "@/lib/today-origin";
 import type { TodayContextItem } from "@/lib/today";
 
 export function TodayContext({
@@ -10,6 +14,8 @@ export function TodayContext({
   title?: string;
   empty?: { title: string; support: string } | null;
 }) {
+  const originHref = useTodayOriginHref();
+
   if (items.length === 0 && !empty) return null;
 
   return (
@@ -42,7 +48,7 @@ export function TodayContext({
             return (
               <Link
                 key={item.id}
-                href={item.href}
+                href={withReturnTo(item.href, originHref)}
                 className="block transition-colors hover:bg-[var(--accent-soft)]/25"
               >
                 {row}

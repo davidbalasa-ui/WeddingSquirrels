@@ -5,9 +5,11 @@ import { useState, useTransition } from "react";
 import { markRequestRead } from "@/app/actions";
 import { InboxRow } from "@/components/InboxRow";
 import { personProfileHref } from "@/lib/entity-links";
+import type { TaskOption } from "@/lib/inbox";
+import { withReturnTo } from "@/lib/return-to";
+import { useTodayOriginHref } from "@/lib/today-origin";
 import type { TodayWaitingItem } from "@/lib/today";
 import type { SessionAccount } from "@/lib/types";
-import type { TaskOption } from "@/lib/inbox";
 
 export function TodayWaitingSection({
   session,
@@ -20,6 +22,7 @@ export function TodayWaitingSection({
 }) {
   const [expandedAskId, setExpandedAskId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const originHref = useTodayOriginHref();
 
   if (!session.canSeeRequests) return null;
 
@@ -47,6 +50,7 @@ export function TodayWaitingSection({
                   item={entry.item}
                   session={session}
                   tasks={tasks}
+                  originHref={originHref}
                   expanded={expandedAskId === entry.item.id}
                   onToggleExpand={() =>
                     handleAskToggle(entry.item.id, entry.item.sourceId, expandedAskId !== entry.item.id)
@@ -56,7 +60,8 @@ export function TodayWaitingSection({
             }
 
             const peopleHref = entry.personId ? personProfileHref(entry.personId) : null;
-            const href = peopleHref ?? entry.href;
+            const rawHref = peopleHref ?? entry.href;
+            const href = rawHref ? withReturnTo(rawHref, originHref) : null;
             const body = (
               <div className="min-w-0 flex-1 py-3.5">
                 <p className="text-[1.05rem] leading-snug">{entry.title}</p>

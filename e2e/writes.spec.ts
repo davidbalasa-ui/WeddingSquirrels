@@ -165,8 +165,8 @@ test.describe("writable lifecycles", () => {
     await expect(page.getByRole("button", { name: "Save decision" })).toBeVisible();
     await page.locator('textarea[name="planNotes"]').fill("CERT workspace note");
     await page.getByRole("button", { name: "Save decision" }).click();
-    await expect(page).toHaveURL(/\/plan\/tasks/);
-    await page.goto(workspace);
+    await expect(page).toHaveURL(new RegExp(`/work/${created!.id}`));
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator('textarea[name="planNotes"]')).toHaveValue("CERT workspace note");
     guards.assertClean();
   });
@@ -381,6 +381,8 @@ test.describe("writable lifecycles", () => {
     await expect(page.getByRole("button", { name: "Save decision" })).toBeVisible();
     await page.locator('textarea[name="planNotes"]').fill("CERT plan origin note");
     await page.getByRole("button", { name: "Save decision" }).click();
+    await expect(page).toHaveURL(/\/work\/.+/);
+    await page.getByRole("link", { name: /^← Back/ }).click();
     await expect(page).toHaveURL(/\/plan\/tasks/);
     await expect(page.getByText(name)).toBeVisible();
     guards.assertClean();
@@ -401,6 +403,8 @@ test.describe("writable lifecycles", () => {
     await expect(page).toHaveURL(/returnTo=/);
     await page.locator('textarea[name="planNotes"]').fill("CERT today origin");
     await page.getByRole("button", { name: "Save decision" }).click();
+    await expect(page).toHaveURL(/\/work\//);
+    await page.getByRole("link", { name: /^← Back/ }).click();
     await expect(page).toHaveURL(/\/today/);
     await expect(page).toHaveURL(/filter=tasks/);
     guards.assertClean();

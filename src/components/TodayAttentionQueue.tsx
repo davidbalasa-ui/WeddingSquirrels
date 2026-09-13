@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { markRequestRead } from "@/app/actions";
 import { InboxRow } from "@/components/InboxRow";
+import type { TaskOption } from "@/lib/inbox";
+import { withReturnTo } from "@/lib/return-to";
+import { useTodayOriginHref } from "@/lib/today-origin";
 import type { TodayAttentionItem } from "@/lib/today";
 import type { SessionAccount } from "@/lib/types";
-import type { TaskOption } from "@/lib/inbox";
 
 function formatMoney(amount: number) {
   return amount.toLocaleString(undefined, {
@@ -62,6 +64,7 @@ export function TodayAttentionQueue({
 }) {
   const [expandedAskId, setExpandedAskId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const originHref = useTodayOriginHref();
 
   function handleAskToggle(itemId: string, sourceId: string, open: boolean) {
     setExpandedAskId(open ? itemId : null);
@@ -91,6 +94,7 @@ export function TodayAttentionQueue({
                   item={entry.item}
                   session={session}
                   tasks={tasks}
+                  originHref={originHref}
                   expanded={expandedAskId === entry.item.id}
                   onToggleExpand={() =>
                     handleAskToggle(entry.item.id, entry.item.sourceId, expandedAskId !== entry.item.id)
@@ -99,7 +103,7 @@ export function TodayAttentionQueue({
               );
             }
 
-            const href = entry.href;
+            const href = entry.href ? withReturnTo(entry.href, originHref) : null;
             const body = (
               <AttentionCopy
                 title={entry.title}

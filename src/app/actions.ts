@@ -69,6 +69,7 @@ import {
 } from "@/lib/guest-person-role";
 import { firstAllowedRoute } from "@/lib/routes";
 import { isStaySectionId, isStaySlotId } from "@/lib/stay";
+import { playbookCreateInputFromSourceKey } from "@/lib/playbook";
 import {
   canCompleteRequest,
   canDeclineRequest,
@@ -223,13 +224,9 @@ export async function saveTaskWorkspace(
       },
     });
 
-    if (canManageOwners) {
-      const people = await resolveAssigneeIds(assigneeIds, newPerson || null, {
-        fallback: task.assignees.map((a) => a.personId),
-      });
-      if (people.length > 0) {
-        await setTaskAssignees(id, people);
-      }
+    if (canManageOwners && formData.get("manageOwners") === "1") {
+      const people = await resolveAssigneeIds(assigneeIds, newPerson || null);
+      await setTaskAssignees(id, people);
     }
   } catch (err) {
     console.error(err);
@@ -238,12 +235,11 @@ export async function saveTaskWorkspace(
 
   revalidatePath("/today");
   revalidatePath("/people");
-  revalidatePath("/today");
   revalidatePath(`/work/${id}`);
   revalidatePath("/money");
   revalidatePath("/plan/tasks");
   const returnTo = safeReturnTo(String(formData.get("returnTo") || TASKS_HOME));
-  redirect(returnTo);
+  redirect(taskHref(id, { returnTo }));
 }
 
 export async function createTaskPackage(
@@ -2160,6 +2156,41 @@ export async function saveGuestPhone(guestId: string, phone: string): Promise<Gu
   return { ok: true, id: guestId };
 }
 
+async function resolveGuestHouseholdIdForProfile(profileId: string): Promise<string | null> {
+  const parsed = parseProfileId(profileId);
+  if (!parsed) return null;
+  if (parsed.kind === "guest") {
+    const guestPerson = await prisma.guestPerson.findUnique({
+      where: { id: parsed.id },
+      select: { guestId: true },
+    });
+    return guestPerson?.guestId ?? null;
+  }
+  if (parsed.kind === "person") {
+    const guestPerson = await prisma.guestPerson.findFirst({
+      where: { personId: parsed.id },
+      select: { guestId: true },
+    });
+    return guestPerson?.guestId ?? null;
+  }
+  return null;
+}
+
+/** Profile entry point — writes canonical `Guest.phone` via `saveGuestPhone`. */
+export async function saveProfileGuestPhone(
+  profileId: string,
+  phone: string,
+): Promise<GuestPersonWriteResult> {
+  const guestId = await resolveGuestHouseholdIdForProfile(profileId);
+  if (!guestId) return { ok: false, reason: "not_found" };
+  const result = await saveGuestPhone(guestId, phone);
+  if (result.ok) {
+    revalidatePeople(profileId);
+    refresh();
+  }
+  return result;
+}
+
 export async function setGuestGiftThankYou(
   giftId: string,
   field: "written" | "sent",
@@ -3257,6 +3288,173 @@ export async function deleteContact(contactId: string): Promise<void> {
 }
 
 /* ------------------------------ Day-of task assignments ------------------------------ */
+
+async function materializePlaybookItemBySourceKey(sourceKey: string) {
+  const key = sourceKey.trim();
+  if (!key) return null;
+
+  const existing = await prisma.playbookItem.findUnique({ where: { sourceKey: key } });
+  if (existing) return existing;
+
+  const createInput = playbookCreateInputFromSourceKey(key);
+  if (!createInput) return null;
+
+  return prisma.playbookItem.create({ data: createInput });
+}
+
+export async function savePlaybookItem(formData: FormData): Promise<void> {
+  if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");
+
+  let id = String(formData.get("id") || "").trim();
+  const sourceKey = String(formData.get("sourceKey") || "").trim();
+  const title = String(formData.get("title") || "").trim();
+  const startAt = String(formData.get("startAt") || "").trim();
+  const detail = String(formData.get("detail") || "").trim();
+  const location = String(formData.get("location") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
+  if (!title) return;
+
+  if (!id && sourceKey) {
+    const materialized = await materializePlaybookItemBySourceKey(sourceKey);
+    if (!materialized) return;
+    id = materialized.id;
+  }
+  if (!id) return;
+
+  const existing = await prisma.playbookItem.findUnique({ where: { id } });
+  if (!existing) return;
+
+  await prisma.playbookItem.update({
+    where: { id },
+    data: {
+      title,
+      startAt: startAt || null,
+      detail: detail || null,
+      location: location || null,
+      notes: notes || null,
+    },
+  });
+
+  revalidateDayData();
+}
+
+export async function togglePlaybookCompleted(
+  itemId: string,
+  completed: boolean,
+  sourceKey?: string | null,
+): Promise<void> {
+  if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");
+
+  let id = itemId.trim();
+  if (!id && sourceKey?.trim()) {
+    const materialized = await materializePlaybookItemBySourceKey(sourceKey.trim());
+    id = materialized?.id ?? "";
+  }
+  if (!id) return;
+
+  try {
+    await prisma.playbookItem.update({
+      where: { id },
+      data: { completed },
+    });
+  } catch {
+    return;
+  }
+  revalidateDayData();
+}
+
+export async function saveCalendarEvent(input: {
+  id: string;
+  title: string;
+  notes: string;
+  startDate: string;
+  endDate: string;
+}): Promise<{ ok: boolean }> {
+  const session = await getSession();
+  if (!session || !timelineEditable(session)) return { ok: false };
+
+  const id = input.id.trim();
+  const title = input.title.trim();
+  if (!id || !title) return { ok: false };
+
+  const existing = await prisma.calendarEvent.findUnique({ where: { id } });
+  if (!existing) return { ok: false };
+
+  const startDate = new Date(input.startDate);
+  const endDate = new Date(input.endDate || input.startDate);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return { ok: false };
+
+  await prisma.calendarEvent.update({
+    where: { id },
+    data: {
+      title,
+      notes: input.notes.trim() || null,
+      startDate,
+      endDate: endDate < startDate ? startDate : endDate,
+    },
+  });
+
+  revalidatePath("/plan/calendar");
+  revalidatePath("/today");
+  refresh();
+  return { ok: true };
+}
+
+export type ProfileContactWriteResult = { ok: true } | { ok: false; reason: string };
+
+async function resolveContactIdForProfile(profileId: string): Promise<string | null> {
+  const parsed = parseProfileId(profileId);
+  if (!parsed) return null;
+  if (parsed.kind === "contact") return parsed.id;
+  if (parsed.kind === "person") {
+    const contact = await prisma.contact.findFirst({ where: { personId: parsed.id } });
+    return contact?.id ?? null;
+  }
+  const guestPerson = await prisma.guestPerson.findUnique({ where: { id: parsed.id } });
+  if (guestPerson?.personId) {
+    const contact = await prisma.contact.findFirst({ where: { personId: guestPerson.personId } });
+    return contact?.id ?? null;
+  }
+  return null;
+}
+
+export async function saveProfileContact(
+  profileId: string,
+  input: { name?: string; phone?: string; email?: string },
+): Promise<ProfileContactWriteResult> {
+  if (!(await requireDayDataEditor())) return { ok: false, reason: "forbidden" };
+
+  const contactId = await resolveContactIdForProfile(profileId);
+  if (!contactId) return { ok: false, reason: "not_found" };
+
+  const existing = await prisma.contact.findUnique({ where: { id: contactId } });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  const name = input.name?.trim();
+  const phone = input.phone?.trim();
+  const email = input.email?.trim();
+
+  await prisma.contact.update({
+    where: { id: contactId },
+    data: {
+      ...(name ? { name } : {}),
+      ...(phone !== undefined ? { phone: phone || null } : {}),
+      ...(email !== undefined ? { email: email || null } : {}),
+    },
+  });
+
+  if (name && existing.personId) {
+    await prisma.person.update({
+      where: { id: existing.personId },
+      data: { name },
+    });
+  }
+
+  revalidatePeople(profileId);
+  revalidateDayData();
+  refresh();
+  return { ok: true };
+}
 
 export async function createDayAssignment(formData: FormData): Promise<void> {
   if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");

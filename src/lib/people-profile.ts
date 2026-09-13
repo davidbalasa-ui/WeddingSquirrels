@@ -63,6 +63,11 @@ export type PeopleProfile = {
   canEditRsvp: boolean;
   canEditName: boolean;
   canEditPhoto: boolean;
+  contactId: string | null;
+  canEditContact: boolean;
+  /** Household `Guest.id` when phone is stored on the guest record. */
+  guestHouseholdId: string | null;
+  canEditGuestPhone: boolean;
   canDelete: boolean;
   canSeeTasks: boolean;
   openTasks: ProfileTaskRow[];
@@ -360,6 +365,11 @@ export async function loadPeopleProfile(
       canEditName: Boolean(guestInfo) && session.canSeeGuests,
       canEditPhoto:
         (Boolean(linkedGuest) && canEditGuestPhoto) || (Boolean(linkedContact) && canEditContactPhoto),
+      contactId: linkedContact?.id ?? null,
+      canEditContact: Boolean(linkedContact) && editable,
+      guestHouseholdId: linkedGuest?.guest.id ?? null,
+      canEditGuestPhone:
+        session.canSeeGuests && Boolean(linkedGuest) && !linkedContact,
       canDelete: editable && !["david", "haley"].includes(person.id),
       canSeeTasks: session.canSeeTasks,
       openTasks,
@@ -418,6 +428,10 @@ export async function loadPeopleProfile(
       canEditRsvp: false,
       canEditName: false,
       canEditPhoto: canEditContactPhoto,
+      contactId: contact.id,
+      canEditContact: editable,
+      guestHouseholdId: null,
+      canEditGuestPhone: false,
       canDelete: editable,
       canSeeTasks: false,
       openTasks: [],
@@ -492,6 +506,10 @@ export async function loadPeopleProfile(
     canEditRsvp: session.canSeeGuests,
     canEditName: session.canSeeGuests,
     canEditPhoto: canEditGuestPhoto,
+    contactId: null,
+    canEditContact: false,
+    guestHouseholdId: guestPerson.guest.id,
+    canEditGuestPhone: session.canSeeGuests,
     canDelete: editable,
     canSeeTasks: false,
     openTasks: [],

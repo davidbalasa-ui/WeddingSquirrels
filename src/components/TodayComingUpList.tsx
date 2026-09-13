@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { withReturnTo } from "@/lib/return-to";
+import { useTodayOriginHref } from "@/lib/today-origin";
 import type { TodayComingUpItem } from "@/lib/today";
 
 function formatComingUpDate(date: Date) {
@@ -12,6 +16,8 @@ export function TodayComingUpList({
   items: TodayComingUpItem[];
   title?: string;
 }) {
+  const originHref = useTodayOriginHref();
+
   if (items.length === 0) return null;
 
   return (
@@ -19,7 +25,7 @@ export function TodayComingUpList({
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">{title}</p>
       <div className="mt-1 divide-y divide-[var(--line)] border-b border-t border-[var(--line)]">
         {items.map((item) => {
-          const href = item.href;
+          const href = item.href ? withReturnTo(item.href, originHref) : null;
           const row = (
             <div className="flex min-h-14 items-start justify-between gap-3 py-3.5">
               <div className="min-w-0 flex-1">

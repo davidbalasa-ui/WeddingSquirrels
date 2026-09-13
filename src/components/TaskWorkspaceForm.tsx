@@ -49,6 +49,7 @@ export function TaskWorkspaceForm({
       <form action={saveAction} className="card flex flex-col gap-4 p-4">
         <input type="hidden" name="id" value={task.id} />
         <input type="hidden" name="returnTo" value={returnTo} />
+        {canManageOwners ? <input type="hidden" name="manageOwners" value="1" /> : null}
 
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
