@@ -2,10 +2,12 @@ import { CalendarMonth } from "@/components/CalendarMonth";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { upcomingCalendarEvents } from "@/lib/plan";
 import { loadPlanCalendarPage } from "@/lib/plan-pages";
+import { timelineEditable } from "@/lib/access";
 import { requirePageSession } from "@/lib/session";
 
 export default async function PlanCalendarPage() {
-  await requirePageSession({ need: "canSeeCalendar" });
+  const session = await requirePageSession({ need: "canSeeCalendar" });
+  const canEdit = timelineEditable(session);
   const data = await loadPlanCalendarPage();
   const now = new Date();
   const upcoming = upcomingCalendarEvents(
@@ -27,7 +29,7 @@ export default async function PlanCalendarPage() {
   return (
     <>
       <PlanChapterHeader title="Calendar" subtitle={subtitle} />
-      <CalendarMonth events={data.events} initialMonth={data.initialMonth} />
+      <CalendarMonth events={data.events} initialMonth={data.initialMonth} canEdit={canEdit} />
     </>
   );
 }

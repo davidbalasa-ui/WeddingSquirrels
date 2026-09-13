@@ -1,12 +1,14 @@
 import { OperationalViewsNav } from "@/components/OperationalViewsNav";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
-import { PlaybookList } from "@/components/PlaybookList";
+import { PlaybookBoard } from "@/components/PlaybookBoard";
 import { loadPlaybookItems } from "@/lib/playbook-data";
+import { timelineEditable } from "@/lib/access";
 import { requirePageSession } from "@/lib/session";
 
 export default async function ShotListPage() {
-  await requirePageSession({ need: "canSeeTimeline" });
+  const session = await requirePageSession({ need: "canSeeTimeline" });
   const items = await loadPlaybookItems("shot");
+  const canEdit = timelineEditable(session);
 
   return (
     <>
@@ -17,10 +19,11 @@ export default async function ShotListPage() {
         backLabel="Day-of"
       />
       <OperationalViewsNav current="/day/shots" />
-      <PlaybookList
+      <PlaybookBoard
         items={items}
         empty="No shot list recorded yet."
         showCompleted
+        canEdit={canEdit}
       />
     </>
   );

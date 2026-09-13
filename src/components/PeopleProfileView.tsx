@@ -7,6 +7,7 @@ import { PeopleMembershipEditor } from "@/components/PeopleMembershipEditor";
 import { PeopleProfilePhotoEditor } from "@/components/PeopleProfilePhotoEditor";
 import { PeopleRoleEditor } from "@/components/PeopleRoleEditor";
 import { PeopleNameEditor } from "@/components/PeopleNameEditor";
+import { PeopleContactEditor } from "@/components/PeopleContactEditor";
 import { PeopleRsvpEditor } from "@/components/PeopleRsvpEditor";
 import { formatBudgetContractDetail } from "@/lib/connections";
 import {
@@ -130,8 +131,17 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
           <div className="mt-1 border-t border-[var(--line)]">
             {phone ? (
               <ProfileRow title={phone} detail="Phone" href={`tel:${phone.replace(/[^\d+]/g, "")}`} />
+            ) : profile.canEditContact ? (
+              <p className="py-3 text-sm text-muted">No phone yet.</p>
             ) : null}
             {email ? <ProfileRow title={email} detail="Email" href={`mailto:${email}`} /> : null}
+            <PeopleContactEditor
+              profileId={profile.profileId}
+              name={profile.name}
+              phone={profile.phone}
+              email={profile.email}
+              canEdit={profile.canEditContact}
+            />
           </div>
         </section>
       ) : null}

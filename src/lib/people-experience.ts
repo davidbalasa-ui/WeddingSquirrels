@@ -213,6 +213,7 @@ export function visibleProfileSections(
     PeopleProfile,
     | "phone"
     | "email"
+    | "canEditContact"
     | "guestInfo"
     | "openTasks"
     | "completedTaskCount"
@@ -229,7 +230,7 @@ export function visibleProfileSections(
   >,
 ): ProfileSectionId[] {
   const sections: ProfileSectionId[] = [];
-  if (profile.phone?.trim() || profile.email?.trim()) sections.push("contact");
+  if (profile.phone?.trim() || profile.email?.trim() || profile.canEditContact) sections.push("contact");
   if (profile.guestInfo) sections.push("guest");
   if (profile.vendorContext) sections.push("vendor");
   if (profile.canSeeTasks) sections.push("tasks");

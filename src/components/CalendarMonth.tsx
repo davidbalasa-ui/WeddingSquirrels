@@ -14,7 +14,9 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+import { saveCalendarEvent } from "@/app/actions";
 
 export type PlanCalendarEventView = {
   id: string;
@@ -37,12 +39,109 @@ function eventRange(event: PlanCalendarEventView) {
   };
 }
 
+function CalendarEventCard({
+  event,
+  canEdit,
+}: {
+  event: PlanCalendarEventView;
+  canEdit: boolean;
+}) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const { start, end } = eventRange(event);
+  const span =
+    start.getTime() !== end.getTime()
+      ? `${format(start, "MMM d")}–${format(end, "MMM d")}`
+      : null;
+  const startValue = format(start, "yyyy-MM-dd");
+  const endValue = format(end, "yyyy-MM-dd");
+
+  if (!editing || !canEdit) {
+    return (
+      <article className="py-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="font-[family-name:var(--font-display)] text-xl leading-tight">{event.title}</p>
+            {span ? <p className="mt-1 text-sm text-muted">{span}</p> : null}
+            {event.notes ? <p className="mt-1 text-sm leading-relaxed text-muted">{event.notes}</p> : null}
+          </div>
+          {canEdit ? (
+            <button
+              type="button"
+              className="shrink-0 text-xs font-semibold text-[var(--accent)]"
+              onClick={() => setEditing(true)}
+            >
+              Edit
+            </button>
+          ) : null}
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <article className="py-4">
+      <form
+        className="flex flex-col gap-2"
+        onSubmit={(submitEvent) => {
+          submitEvent.preventDefault();
+          const form = submitEvent.currentTarget;
+          const formData = new FormData(form);
+          startTransition(async () => {
+            const result = await saveCalendarEvent({
+              id: event.id,
+              title: String(formData.get("title") || ""),
+              notes: String(formData.get("notes") || ""),
+              startDate: String(formData.get("startDate") || ""),
+              endDate: String(formData.get("endDate") || ""),
+            });
+            if (result.ok) {
+              setEditing(false);
+              router.refresh();
+            }
+          });
+        }}
+      >
+        <label className="text-sm">
+          <span className="mb-1 block text-xs text-muted">Title</span>
+          <input name="title" required defaultValue={event.title} className="field-input" />
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-muted">Starts</span>
+            <input name="startDate" type="date" required defaultValue={startValue} className="field-input" />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-muted">Ends</span>
+            <input name="endDate" type="date" required defaultValue={endValue} className="field-input" />
+          </label>
+        </div>
+        <label className="text-sm">
+          <span className="mb-1 block text-xs text-muted">Notes</span>
+          <textarea name="notes" rows={2} defaultValue={event.notes ?? ""} className="field-input resize-y" />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button type="submit" className="btn-primary" disabled={pending}>
+            {pending ? "Saving…" : "Save event"}
+          </button>
+          <button type="button" className="btn-secondary" disabled={pending} onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+        </div>
+      </form>
+    </article>
+  );
+}
+
 export function CalendarMonth({
   events,
   initialMonth,
+  canEdit = false,
 }: {
   events: PlanCalendarEventView[];
   initialMonth: string;
+  canEdit?: boolean;
 }) {
   const [month, setMonth] = useState(() => startOfMonth(new Date(initialMonth)));
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
@@ -147,22 +246,7 @@ export function CalendarMonth({
           {selectedEvents.length === 0 ? (
             <p className="py-4 text-sm text-muted">Nothing on this day.</p>
           ) : (
-            selectedEvents.map((event) => {
-              const { start, end } = eventRange(event);
-              const span =
-                start.getTime() !== end.getTime()
-                  ? `${format(start, "MMM d")}–${format(end, "MMM d")}`
-                  : null;
-              return (
-                <article key={event.id} className="py-4">
-                  <p className="font-[family-name:var(--font-display)] text-xl leading-tight">
-                    {event.title}
-                  </p>
-                  {span ? <p className="mt-1 text-sm text-muted">{span}</p> : null}
-                  {event.notes ? <p className="mt-1 text-sm leading-relaxed text-muted">{event.notes}</p> : null}
-                </article>
-              );
-            })
+            selectedEvents.map((event) => <CalendarEventCard key={event.id} event={event} canEdit={canEdit} />)
           )}
         </div>
       </section>

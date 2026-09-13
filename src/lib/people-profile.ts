@@ -63,6 +63,8 @@ export type PeopleProfile = {
   canEditRsvp: boolean;
   canEditName: boolean;
   canEditPhoto: boolean;
+  contactId: string | null;
+  canEditContact: boolean;
   canDelete: boolean;
   canSeeTasks: boolean;
   openTasks: ProfileTaskRow[];
@@ -360,6 +362,8 @@ export async function loadPeopleProfile(
       canEditName: Boolean(guestInfo) && session.canSeeGuests,
       canEditPhoto:
         (Boolean(linkedGuest) && canEditGuestPhoto) || (Boolean(linkedContact) && canEditContactPhoto),
+      contactId: linkedContact?.id ?? null,
+      canEditContact: Boolean(linkedContact) && editable,
       canDelete: editable && !["david", "haley"].includes(person.id),
       canSeeTasks: session.canSeeTasks,
       openTasks,
@@ -418,6 +422,8 @@ export async function loadPeopleProfile(
       canEditRsvp: false,
       canEditName: false,
       canEditPhoto: canEditContactPhoto,
+      contactId: contact.id,
+      canEditContact: editable,
       canDelete: editable,
       canSeeTasks: false,
       openTasks: [],
@@ -492,6 +498,8 @@ export async function loadPeopleProfile(
     canEditRsvp: session.canSeeGuests,
     canEditName: session.canSeeGuests,
     canEditPhoto: canEditGuestPhoto,
+    contactId: null,
+    canEditContact: false,
     canDelete: editable,
     canSeeTasks: false,
     openTasks: [],
