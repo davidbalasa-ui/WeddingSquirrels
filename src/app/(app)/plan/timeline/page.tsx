@@ -3,7 +3,7 @@ import { OperationalViewsNav } from "@/components/OperationalViewsNav";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { WeddingPlacesEditor } from "@/components/WeddingPlacesEditor";
 import { timelineEditable } from "@/lib/access";
-import { prisma } from "@/lib/db";
+import { loadAppSettings } from "@/lib/db";
 import { loadDayOfContext, loadWeddingTimelineBlocks } from "@/lib/day-of-page";
 import { loadTimelineRelatedTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
@@ -21,7 +21,7 @@ export default async function PlanTimelinePage({
   const [blocks, context, placeSettings] = await Promise.all([
     loadWeddingTimelineBlocks(),
     loadDayOfContext(),
-    prisma.appSettings.findUnique({ where: { id: 1 } }),
+    loadAppSettings(),
   ]);
   const relatedByBlockId = await loadTimelineRelatedTasks(
     session,

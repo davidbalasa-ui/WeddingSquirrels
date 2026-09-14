@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { prisma, supportsBudgetPayments } from "@/lib/db";
+import { loadAppSettings, prisma, supportsBudgetPayments } from "@/lib/db";
 import { filterVisibleBudgetItems } from "@/lib/money";
 import { loadPlaybookItems } from "@/lib/playbook-data";
 import { quickReferencePlaces } from "@/lib/wedding-venue";
@@ -32,7 +32,7 @@ export async function GET() {
     stay,
     playbook,
   ] = await Promise.all([
-    prisma.appSettings.findUnique({ where: { id: 1 } }),
+    loadAppSettings(),
     session.canSeeTasks
       ? prisma.task.findMany({
           where: taskVisibilityWhere(session),

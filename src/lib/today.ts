@@ -1,6 +1,6 @@
 import { differenceInCalendarDays, startOfDay } from "date-fns";
 import { parseDayOfAsOf } from "@/lib/day-of";
-import { prisma } from "@/lib/db";
+import { loadAppSettings, prisma } from "@/lib/db";
 import {
   contractPaidTotal,
   contractRemaining,
@@ -776,7 +776,7 @@ export async function loadTodayPageData(
   session: SessionAccount,
   opts?: { now?: Date; asOfDateKey?: string },
 ) {
-  const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
+  const settings = await loadAppSettings();
   const timezone = settings?.timezone ?? "America/Detroit";
   const now =
     opts?.now ?? parseDayOfAsOf(opts?.asOfDateKey, timezone) ?? new Date();
