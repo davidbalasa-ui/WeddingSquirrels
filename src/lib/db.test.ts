@@ -4,6 +4,7 @@ import {
   isMissingBudgetFundingSourceTable,
   isMissingBudgetPaymentTable,
   isMissingPlaybookItemTable,
+  isMissingWeddingPlaceColumn,
 } from "./db";
 
 test("isMissingBudgetPaymentTable detects Prisma missing-table errors", () => {
@@ -29,4 +30,30 @@ test("isMissingPlaybookItemTable detects Prisma missing-table errors", () => {
     true,
   );
   assert.equal(isMissingPlaybookItemTable({ code: "P2002", message: "unique constraint" }), false);
+});
+
+test("isMissingWeddingPlaceColumn detects Prisma missing-column errors", () => {
+  assert.equal(
+    isMissingWeddingPlaceColumn({
+      code: "P2022",
+      meta: { column: "AppSettings.venueName" },
+      message: "The column `AppSettings.venueName` does not exist in the current database.",
+    }),
+    true,
+  );
+  assert.equal(
+    isMissingWeddingPlaceColumn(
+      new Error("The column `CalendarEvent.location` does not exist in the current database."),
+    ),
+    true,
+  );
+  assert.equal(
+    isMissingWeddingPlaceColumn({
+      code: "P2022",
+      meta: { column: "Person.directoryLabel" },
+      message: "The column `Person.directoryLabel` does not exist in the current database.",
+    }),
+    false,
+  );
+  assert.equal(isMissingWeddingPlaceColumn({ code: "P2002", message: "unique constraint" }), false);
 });

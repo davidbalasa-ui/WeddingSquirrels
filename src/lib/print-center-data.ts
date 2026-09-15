@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { loadAppSettings, prisma } from "@/lib/db";
 import { canSeeDinnerTab } from "@/lib/access";
 import { collectDayOfContactInputs } from "@/lib/day-of";
 import { sortTimelineBlocks } from "@/lib/day-of-time";
@@ -111,7 +111,7 @@ export async function loadPrintCenterDocument(
     contracts,
     playbookRows,
   ] = await Promise.all([
-    prisma.appSettings.findUnique({ where: { id: 1 } }),
+    loadAppSettings(),
     timeline
       ? prisma.timelineBlock.findMany({ where: { schedule: "wedding" } })
       : Promise.resolve([]),

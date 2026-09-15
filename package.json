@@ -31,6 +31,7 @@
     "db:directory-list": "tsx scripts/ensure-directory-list.ts",
     "db:directory-schema": "tsx scripts/ensure-directory-schema.ts",
     "db:guest-person-schema": "tsx scripts/ensure-guest-person-schema.ts",
+    "db:wedding-venue-schema": "tsx scripts/ensure-wedding-venue-schema.ts",
     "db:person-id-schema": "tsx scripts/ensure-person-id-schema.ts",
     "db:enrich-contacts": "tsx scripts/enrich-contacts-from-md.ts",
     "db:phase-1b1": "tsx scripts/phase-1b1-identity.ts",

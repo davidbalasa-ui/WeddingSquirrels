@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { loadAppSettings, prisma } from "@/lib/db";
 import {
   collectDayOfContactInputs,
   parseDayOfAsOf,
@@ -33,7 +33,7 @@ export async function loadWeddingTimelineBlocks() {
 }
 
 export async function loadDayOfContext(): Promise<DayOfPageContext> {
-  const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
+  const settings = await loadAppSettings();
   const timezone = settings?.timezone ?? "America/Detroit";
   const phase = getWeddingPhase({
     weddingDate: settings?.weddingDate ?? null,
@@ -128,7 +128,7 @@ export async function loadDayOfExperience(
   session: SessionAccount,
   opts?: { now?: Date; asOf?: string; fixture?: string },
 ): Promise<DayOfExperienceData> {
-  const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
+  const settings = await loadAppSettings();
   const timezone = settings?.timezone ?? "America/Detroit";
   const asOf = parseDayOfAsOf(opts?.asOf, timezone);
   const now = opts?.now ?? asOf ?? new Date();

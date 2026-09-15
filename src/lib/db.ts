@@ -1,5 +1,6 @@
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { Prisma, PrismaClient } from "@prisma/client";
+import type { WeddingPlaceFields } from "@/lib/wedding-venue";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
@@ -45,6 +46,70 @@ export function prismaErrorCode(error: unknown): string {
     return error.code;
   }
   return "";
+}
+
+function prismaErrorColumn(error: unknown): string {
+  if (!error || typeof error !== "object" || !("meta" in error)) return "";
+  const meta = error.meta;
+  if (!meta || typeof meta !== "object" || !("column" in meta)) return "";
+  return typeof meta.column === "string" ? meta.column : "";
+}
+
+/** Canonical place fields added after AppSettings already existed in production. */
+export const WEDDING_PLACE_COLUMNS = [
+  "venueName",
+  "venueStreet",
+  "venueCity",
+  "venueState",
+  "venueZip",
+  "rehearsalDinnerName",
+  "rehearsalDinnerStreet",
+  "rehearsalDinnerCity",
+  "rehearsalDinnerState",
+  "rehearsalDinnerZip",
+  "airbnbName",
+  "airbnbStreet",
+  "airbnbCity",
+  "airbnbState",
+  "airbnbZip",
+] as const;
+
+const APP_SETTINGS_CORE_SELECT = {
+  id: true,
+  weddingDate: true,
+  timezone: true,
+  coupleNames: true,
+  updatedAt: true,
+} as const;
+
+const EMPTY_WEDDING_PLACES: WeddingPlaceFields = {
+  venueName: null,
+  venueStreet: null,
+  venueCity: null,
+  venueState: null,
+  venueZip: null,
+  rehearsalDinnerName: null,
+  rehearsalDinnerStreet: null,
+  rehearsalDinnerCity: null,
+  rehearsalDinnerState: null,
+  rehearsalDinnerZip: null,
+  airbnbName: null,
+  airbnbStreet: null,
+  airbnbCity: null,
+  airbnbState: null,
+  airbnbZip: null,
+};
+
+const WEDDING_PLACE_COLUMN_RE =
+  /AppSettings\.(venue|rehearsalDinner|airbnb)|CalendarEvent\.location/i;
+
+/** True when Prisma reports a wedding-place / calendar location column is missing. */
+export function isMissingWeddingPlaceColumn(error: unknown): boolean {
+  const code = prismaErrorCode(error);
+  const message = error instanceof Error ? error.message : String(error);
+  const text = `${prismaErrorColumn(error)} ${message}`;
+  if (!WEDDING_PLACE_COLUMN_RE.test(text)) return false;
+  return code === "P2022" || /does not exist/i.test(message);
 }
 
 /** True when Prisma reports the BudgetPayment table/relation is missing (Phase 5 not migrated yet). */
@@ -119,3 +184,41 @@ export const databaseTransport = selectDatabaseTransport(process.env.DATABASE_UR
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+/** Idempotent ADD COLUMN for wedding places. Production can boot before the ensure script runs. */
+export async function ensureWeddingPlaceColumns(client: PrismaClient = prisma): Promise<void> {
+  const additions = WEDDING_PLACE_COLUMNS.map(
+    (column) => `ADD COLUMN IF NOT EXISTS "${column}" TEXT`,
+  ).join(", ");
+  await client.$executeRawUnsafe(`ALTER TABLE "AppSettings" ${additions}`);
+  await client.$executeRawUnsafe(
+    `ALTER TABLE "CalendarEvent" ADD COLUMN IF NOT EXISTS "location" TEXT`,
+  );
+}
+
+/**
+ * Load AppSettings without crashing Today when venue columns are not migrated yet.
+ * Best-effort: add the columns, then fall back to core fields only.
+ */
+export async function loadAppSettings() {
+  try {
+    return await prisma.appSettings.findUnique({ where: { id: 1 } });
+  } catch (error) {
+    if (!isMissingWeddingPlaceColumn(error)) throw error;
+    try {
+      await ensureWeddingPlaceColumns();
+    } catch {
+      // ALTER may be denied; still serve the home screen from core columns.
+    }
+    try {
+      return await prisma.appSettings.findUnique({ where: { id: 1 } });
+    } catch (retryError) {
+      if (!isMissingWeddingPlaceColumn(retryError)) throw retryError;
+      const core = await prisma.appSettings.findUnique({
+        where: { id: 1 },
+        select: APP_SETTINGS_CORE_SELECT,
+      });
+      return core ? { ...EMPTY_WEDDING_PLACES, ...core } : null;
+    }
+  }
+}

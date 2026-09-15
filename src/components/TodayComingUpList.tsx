@@ -5,8 +5,10 @@ import { withReturnTo } from "@/lib/return-to";
 import { useTodayOriginHref } from "@/lib/today-origin";
 import type { TodayComingUpItem } from "@/lib/today";
 
-function formatComingUpDate(date: Date) {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function formatComingUpDate(date: Date | string) {
+  const parsed = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export function TodayComingUpList({
