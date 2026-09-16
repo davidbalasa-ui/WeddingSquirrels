@@ -1,4 +1,6 @@
+import { loadMealPageData } from "@/lib/meal-data";
 import { loadAppSettings, prisma } from "@/lib/db";
+import { formatMealOrderSummary } from "@/lib/meal-order";
 import { canSeeDinnerTab } from "@/lib/access";
 import { collectDayOfContactInputs } from "@/lib/day-of";
 import { sortTimelineBlocks } from "@/lib/day-of-time";
@@ -19,6 +21,7 @@ import {
   projectHairMakeup,
   projectHouseholds,
   projectKeyDates,
+  projectMealOrderSections,
   projectMealSections,
   projectRunSheet,
   projectSetupPlan,
@@ -105,9 +108,7 @@ export async function loadPrintCenterDocument(
     shoppingRows,
     taskRows,
     calendarRows,
-    mealSettings,
-    mealCourses,
-    mealGuests,
+    mealPage,
     contracts,
     playbookRows,
   ] = await Promise.all([
@@ -172,19 +173,7 @@ export async function loadPrintCenterDocument(
           orderBy: [{ startDate: "asc" }, { endDate: "asc" }, { title: "asc" }],
         })
       : Promise.resolve([]),
-    mealsOn && dinner ? prisma.mealSettings.findUnique({ where: { id: 1 } }) : Promise.resolve(null),
-    mealsOn && dinner
-      ? prisma.mealCourse.findMany({
-          orderBy: { sortOrder: "asc" },
-          include: { options: { orderBy: { sortOrder: "asc" } } },
-        })
-      : Promise.resolve([]),
-    mealsOn && dinner
-      ? prisma.mealGuest.findMany({
-          orderBy: { sortOrder: "asc" },
-          include: { choices: true },
-        })
-      : Promise.resolve([]),
+    mealsOn && dinner ? loadMealPageData(prisma) : Promise.resolve(null),
     moneyOn ? loadVisibleBudgetContracts(session) : Promise.resolve([]),
     timeline ? loadPlaybookItems() : Promise.resolve([]),
   ]);
@@ -231,7 +220,9 @@ export async function loadPrintCenterDocument(
   const setup = setupTeardownFromCanonical({ contacts, blocks: weddingSorted });
   const mappedGuests = guestRows.map((guest) => mapGuestRecord(guest));
   const guestProjection = projectHouseholds(mappedGuests);
-  const mealChoiceCount = mealGuests.reduce((sum, guest) => sum + guest.choices.length, 0);
+  const mealChoiceCount = mealPage
+    ? mealPage.orders.reduce((sum, order) => sum + order.selections.length, 0)
+    : 0;
   const hairItems = playbookByKind(playbookRows, "hair_makeup");
   const shotItems = playbookByKind(playbookRows, "shot");
   const decorItems = playbookByKind(playbookRows, "decor");
@@ -320,20 +311,34 @@ export async function loadPrintCenterDocument(
       ? guestProjection.summary
       : null,
     stay: projectStaySections(staySlots, stayNotes),
-    mealsPublished: Boolean(mealSettings?.published),
+    mealsPublished: Boolean(mealPage?.published),
     mealChoiceCount,
-    meals: projectMealSections(
-      mealGuests.map((guest) => ({
-        name: guest.name,
-        sectionId: guest.sectionId,
-        choices: Object.fromEntries(guest.choices.map((choice) => [choice.courseId, choice.optionId])),
-      })),
-      mealCourses.map((course) => ({
-        id: course.id,
-        label: course.label,
-        options: course.options.map((option) => ({ id: option.id, label: option.label })),
-      })),
-    ),
+    meals: mealPage
+      ? mealPage.legacyOnly
+        ? projectMealSections(
+            mealPage.orders.map((order) => ({
+              name: order.name,
+              sectionId: order.sectionId,
+              choices: Object.fromEntries(
+                order.selections.map((row) => [row.courseId, row.optionId]),
+              ),
+            })),
+            mealPage.courses.map((course) => ({
+              id: course.id,
+              label: course.label,
+              options: course.options.map((option) => ({ id: option.id, label: option.label })),
+            })),
+          )
+        : projectMealOrderSections(
+            mealPage.orders.map((order) => ({
+              name: order.name,
+              sectionId: order.sectionId,
+              selection: order.selections.length
+                ? formatMealOrderSummary(mealPage.courses, order.selections)
+                : null,
+            })),
+          )
+      : [],
     shopping: shoppingRows.map((item) => ({
       name: item.name,
       quantity: item.quantity,

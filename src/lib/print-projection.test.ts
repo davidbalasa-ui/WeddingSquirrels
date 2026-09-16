@@ -11,6 +11,7 @@ import {
   projectKeyDates,
   printContactRole,
   projectCoordinatorRows,
+  projectMealOrderSections,
   projectMealSections,
   projectRunSheet,
   projectShotGroups,
@@ -216,6 +217,17 @@ test("meal groups print MC Team instead of Mr. & Mrs. of Ceremony", () => {
     [],
   );
   assert.equal(meals[0]?.title, "MC Team");
+});
+
+test("flexible meal orders print follow-up answers in one line", () => {
+  const meals = projectMealOrderSections([
+    {
+      name: "David",
+      sectionId: "couple",
+      selection: "Filet — Medium Rare · Mashed potatoes · Coke",
+    },
+  ]);
+  assert.equal(meals[0]?.guests[0]?.selection, "Filet — Medium Rare · Mashed potatoes · Coke");
 });
 
 test("open work groups children under the parent workspace", () => {

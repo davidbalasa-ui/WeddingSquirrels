@@ -223,6 +223,7 @@ model GuestPerson {
   /// Canonical human. Null until Phase 1B backfill.
   personId    String?
   person      Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  mealGuests  MealGuest[]
 
   @@index([guestId, sortOrder])
   @@index([personId])
@@ -339,55 +340,78 @@ model MealSettings {
 }
 
 model MealCourse {
-  id        String       @id @default(cuid())
-  label     String
-  sortOrder Int          @default(0)
-  options   MealOption[]
-  choices   MealChoice[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  label         String
+  sortOrder     Int          @default(0)
+  minSelections Int          @default(1)
+  maxSelections Int          @default(1)
+  options       MealOption[]
+  choices       MealChoice[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model MealOption {
-  id        String       @id @default(cuid())
-  courseId  String?
-  course    MealCourse?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  label     String
-  sortOrder Int          @default(0)
-  choices   MealChoice[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id             String                    @id @default(cuid())
+  courseId       String?
+  course         MealCourse?               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  label          String
+  sortOrder      Int                       @default(0)
+  followUpPrompt String?
+  followUpChoices MealOptionFollowUpChoice[]
+  choices        MealChoice[]
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
 
   @@index([courseId, sortOrder])
 }
 
-model MealGuest {
-  id        String       @id
-  sectionId String
-  name      String
-  optionId  String?
+model MealOptionFollowUpChoice {
+  id        String       @id @default(cuid())
+  optionId  String
+  option    MealOption   @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  label     String
   sortOrder Int          @default(0)
-  choices   MealChoice[]
-  updatedAt DateTime     @updatedAt
+  choices   MealChoice[] @relation("MealChoiceFollowUp")
+
+  @@index([optionId, sortOrder])
+}
+
+model MealGuest {
+  id            String       @id
+  sectionId     String
+  name          String
+  optionId      String?
+  sortOrder     Int          @default(0)
+  choices       MealChoice[]
+  updatedAt     DateTime     @updatedAt
   /// Canonical human. Null until Phase 1B backfill.
-  personId  String?
-  person    Person?      @relation(fields: [personId], references: [id], onDelete: SetNull)
+  personId      String?
+  person        Person?      @relation(fields: [personId], references: [id], onDelete: SetNull)
+  /// Wedding guest list row this order belongs to.
+  guestPersonId String?
+  guestPerson   GuestPerson? @relation(fields: [guestPersonId], references: [id], onDelete: SetNull)
 
   @@index([sectionId, sortOrder])
   @@index([personId])
+  @@index([guestPersonId])
 }
 
 model MealChoice {
-  guestId  String
-  guest    MealGuest  @relation(fields: [guestId], references: [id], onDelete: Cascade)
-  courseId String
-  course   MealCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  optionId String
-  option   MealOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  guestId          String
+  guest            MealGuest                 @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  courseId         String
+  course           MealCourse                @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  optionId         String
+  option           MealOption                @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  followUpChoiceId String?
+  followUpChoice   MealOptionFollowUpChoice? @relation("MealChoiceFollowUp", fields: [followUpChoiceId], references: [id], onDelete: SetNull)
+  followUpText     String?
 
-  @@id([guestId, courseId])
+  @@id([guestId, courseId, optionId])
   @@index([courseId])
   @@index([optionId])
+  @@index([followUpChoiceId])
 }
 
 model Request {

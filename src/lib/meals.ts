@@ -115,6 +115,8 @@ export function shouldDeleteMealOptionOnClear(existingLabel: string, nextLabel: 
 export type MealCourseView = {
   id: string;
   label: string;
+  minSelections?: number;
+  maxSelections?: number;
   options: Array<{ id: string; label: string }>;
 };
 
@@ -132,6 +134,13 @@ export function guestFinishedPicking(courses: MealCourseView[], choices: MealCho
 
 export function countFinishedGuests(courses: MealCourseView[], guests: Array<{ choices: MealChoiceMap }>) {
   return guests.filter((guest) => guestFinishedPicking(courses, guest.choices)).length;
+}
+
+export function isMissingFlexibleMealColumn(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /minSelections|maxSelections|followUpPrompt|guestPersonId|followUpChoiceId|MealOptionFollowUpChoice/i.test(
+    message,
+  );
 }
 
 export async function ensureMealLayout(client: PrismaClient) {
@@ -188,7 +197,13 @@ export async function ensureMealLayout(client: PrismaClient) {
     });
     if (!option?.courseId) continue;
     await client.mealChoice.upsert({
-      where: { guestId_courseId: { guestId: guest.id, courseId: option.courseId } },
+      where: {
+        guestId_courseId_optionId: {
+          guestId: guest.id,
+          courseId: option.courseId,
+          optionId: option.id,
+        },
+      },
       create: { guestId: guest.id, courseId: option.courseId, optionId: option.id },
       update: {},
     });

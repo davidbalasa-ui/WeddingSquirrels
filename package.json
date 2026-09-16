@@ -33,6 +33,7 @@
     "db:guest-person-schema": "tsx scripts/ensure-guest-person-schema.ts",
     "db:wedding-venue-schema": "tsx scripts/ensure-wedding-venue-schema.ts",
     "db:person-id-schema": "tsx scripts/ensure-person-id-schema.ts",
+    "db:meal-flexible-schema": "tsx scripts/ensure-meal-flexible-schema.ts",
     "db:enrich-contacts": "tsx scripts/enrich-contacts-from-md.ts",
     "db:phase-1b1": "tsx scripts/phase-1b1-identity.ts",
     "db:backfill-guest-rsvp": "tsx scripts/backfill-guest-person-rsvp.ts",

@@ -517,11 +517,19 @@ export async function loadPeopleProfile(
     if (person) return profileForPerson(person);
   }
 
-  const mealGuest = mealGuests.find(
-    (row) => !row.personId && namesMatch(row.name, guestPerson.person.name),
-  );
+  const mealGuest =
+    mealGuests.find((row) => row.guestPersonId === guestPerson.person.id) ??
+    (guestPerson.person.personId
+      ? mealGuests.find((row) => row.personId === guestPerson.person.personId)
+      : undefined) ??
+    mealGuests.find((row) => !row.personId && namesMatch(row.name, guestPerson.person.name));
   const mealStatus = mealGuest
-    ? mealSectionTitle(mealGuest.sectionId) ?? "Rehearsal dinner"
+    ? mealGuest.choices.length
+      ? `Rehearsal dinner · ${mealGuest.choices
+          .map((choice) => choice.option.label)
+          .filter(Boolean)
+          .join(" · ")}`
+      : mealSectionTitle(mealGuest.sectionId) ?? "Rehearsal dinner"
     : null;
 
   const stayLabel = stayLabelForName(guestPerson.person.name, staySlots);

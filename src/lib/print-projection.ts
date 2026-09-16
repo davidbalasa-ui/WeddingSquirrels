@@ -436,6 +436,32 @@ export function projectMealSections(
   return [...bySection.values()].filter((section) => section.guests.length > 0);
 }
 
+export function projectMealOrderSections(
+  orders: Array<{ name: string; sectionId: string; selection: string | null }>,
+): PrintMealSectionView[] {
+  const bySection = new Map<string, PrintMealSectionView>();
+  for (const def of MEAL_SECTIONS) {
+    bySection.set(def.id, { title: mealPrintTitle(def.id, def.title), guests: [] });
+  }
+  bySection.set("guest", { title: "Guests", guests: [] });
+
+  for (const order of orders) {
+    const sectionKey = MEAL_SECTIONS.some((row) => row.id === order.sectionId) ? order.sectionId : "guest";
+    const section =
+      bySection.get(sectionKey) ??
+      (() => {
+        const created: PrintMealSectionView = {
+          title: mealPrintTitle(order.sectionId, order.sectionId),
+          guests: [],
+        };
+        bySection.set(sectionKey, created);
+        return created;
+      })();
+    section.guests.push({ name: order.name, selection: order.selection });
+  }
+  return [...bySection.values()].filter((section) => section.guests.length > 0);
+}
+
 export function projectTaskGroups(
   tasks: Array<{
     id: string;
