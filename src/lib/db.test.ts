@@ -42,6 +42,22 @@ test("isMissingWeddingPlaceColumn detects Prisma missing-column errors", () => {
     true,
   );
   assert.equal(
+    isMissingWeddingPlaceColumn({
+      code: "P2022",
+      meta: { modelName: "AppSettings", column: "(not available)" },
+      message: "The column `(not available)` does not exist in the current database.",
+    }),
+    true,
+  );
+  assert.equal(
+    isMissingWeddingPlaceColumn({
+      code: "P2022",
+      meta: { modelName: "CalendarEvent", column: "(not available)" },
+      message: "The column `(not available)` does not exist in the current database.",
+    }),
+    true,
+  );
+  assert.equal(
     isMissingWeddingPlaceColumn(
       new Error("The column `CalendarEvent.location` does not exist in the current database."),
     ),
@@ -50,7 +66,7 @@ test("isMissingWeddingPlaceColumn detects Prisma missing-column errors", () => {
   assert.equal(
     isMissingWeddingPlaceColumn({
       code: "P2022",
-      meta: { column: "Person.directoryLabel" },
+      meta: { modelName: "Person", column: "Person.directoryLabel" },
       message: "The column `Person.directoryLabel` does not exist in the current database.",
     }),
     false,
