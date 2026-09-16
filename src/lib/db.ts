@@ -55,6 +55,13 @@ function prismaErrorColumn(error: unknown): string {
   return typeof meta.column === "string" ? meta.column : "";
 }
 
+function prismaErrorModelName(error: unknown): string {
+  if (!error || typeof error !== "object" || !("meta" in error)) return "";
+  const meta = error.meta;
+  if (!meta || typeof meta !== "object" || !("modelName" in meta)) return "";
+  return typeof meta.modelName === "string" ? meta.modelName : "";
+}
+
 /** Canonical place fields added after AppSettings already existed in production. */
 export const WEDDING_PLACE_COLUMNS = [
   "venueName",
@@ -82,6 +89,24 @@ const APP_SETTINGS_CORE_SELECT = {
   updatedAt: true,
 } as const;
 
+const APP_SETTINGS_PLACE_SELECT = {
+  venueName: true,
+  venueStreet: true,
+  venueCity: true,
+  venueState: true,
+  venueZip: true,
+  rehearsalDinnerName: true,
+  rehearsalDinnerStreet: true,
+  rehearsalDinnerCity: true,
+  rehearsalDinnerState: true,
+  rehearsalDinnerZip: true,
+  airbnbName: true,
+  airbnbStreet: true,
+  airbnbCity: true,
+  airbnbState: true,
+  airbnbZip: true,
+} as const;
+
 const EMPTY_WEDDING_PLACES: WeddingPlaceFields = {
   venueName: null,
   venueStreet: null,
@@ -107,6 +132,8 @@ const WEDDING_PLACE_COLUMN_RE =
 export function isMissingWeddingPlaceColumn(error: unknown): boolean {
   const code = prismaErrorCode(error);
   const message = error instanceof Error ? error.message : String(error);
+  const modelName = prismaErrorModelName(error);
+  if (code === "P2022" && /^(AppSettings|CalendarEvent)$/i.test(modelName)) return true;
   const text = `${prismaErrorColumn(error)} ${message}`;
   if (!WEDDING_PLACE_COLUMN_RE.test(text)) return false;
   return code === "P2022" || /does not exist/i.test(message);
@@ -185,7 +212,7 @@ export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-/** Idempotent ADD COLUMN for wedding places. Production can boot before the ensure script runs. */
+/** Idempotent ADD COLUMN helper for explicit schema setup. */
 export async function ensureWeddingPlaceColumns(client: PrismaClient = prisma): Promise<void> {
   const additions = WEDDING_PLACE_COLUMNS.map(
     (column) => `ADD COLUMN IF NOT EXISTS "${column}" TEXT`,
@@ -197,28 +224,28 @@ export async function ensureWeddingPlaceColumns(client: PrismaClient = prisma): 
 }
 
 /**
- * Load AppSettings without crashing Today when venue columns are not migrated yet.
- * Best-effort: add the columns, then fall back to core fields only.
+ * Read stable AppSettings fields first, then layer optional wedding-place fields on top.
+ * If production is temporarily behind the generated Prisma schema, the optional read may
+ * raise P2022; because that query contains only known-stable id plus optional place fields,
+ * falling back to null place values is safe and keeps Today/Print/Timeline available.
+ *
+ * Deliberately does not attempt DDL from a page read. Schema setup stays explicit.
  */
 export async function loadAppSettings() {
+  const core = await prisma.appSettings.findUnique({
+    where: { id: 1 },
+    select: APP_SETTINGS_CORE_SELECT,
+  });
+  if (!core) return null;
+
   try {
-    return await prisma.appSettings.findUnique({ where: { id: 1 } });
+    const places = await prisma.appSettings.findUnique({
+      where: { id: 1 },
+      select: APP_SETTINGS_PLACE_SELECT,
+    });
+    return { ...EMPTY_WEDDING_PLACES, ...core, ...(places ?? {}) };
   } catch (error) {
-    if (!isMissingWeddingPlaceColumn(error)) throw error;
-    try {
-      await ensureWeddingPlaceColumns();
-    } catch {
-      // ALTER may be denied; still serve the home screen from core columns.
-    }
-    try {
-      return await prisma.appSettings.findUnique({ where: { id: 1 } });
-    } catch (retryError) {
-      if (!isMissingWeddingPlaceColumn(retryError)) throw retryError;
-      const core = await prisma.appSettings.findUnique({
-        where: { id: 1 },
-        select: APP_SETTINGS_CORE_SELECT,
-      });
-      return core ? { ...EMPTY_WEDDING_PLACES, ...core } : null;
-    }
+    if (prismaErrorCode(error) !== "P2022") throw error;
+    return { ...EMPTY_WEDDING_PLACES, ...core };
   }
 }
