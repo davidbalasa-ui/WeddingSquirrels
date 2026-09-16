@@ -1,5 +1,6 @@
 import { startOfMonth } from "date-fns";
 import { isMissingWeddingPlaceColumn, prisma } from "@/lib/db";
+import { loadMealPageData } from "@/lib/meal-data";
 import { ensureMealLayout } from "@/lib/meals";
 import { ensureRehearsalSchedule } from "@/lib/rehearsal";
 import { ensureStayLayout } from "@/lib/stay";
@@ -10,32 +11,13 @@ import type { SessionAccount } from "@/lib/types";
 export async function loadPlanRehearsalPage() {
   await Promise.all([ensureMealLayout(prisma), ensureRehearsalSchedule(prisma)]);
 
-  const [settings, courseRows, guests, blocks] = await Promise.all([
-    prisma.mealSettings.findUnique({ where: { id: 1 } }),
-    prisma.mealCourse.findMany({
-      orderBy: { sortOrder: "asc" },
-      include: { options: { orderBy: { sortOrder: "asc" } } },
-    }),
-    prisma.mealGuest.findMany({
-      orderBy: { sortOrder: "asc" },
-      include: { choices: true },
-    }),
+  const [meal, blocks] = await Promise.all([
+    loadMealPageData(prisma),
     prisma.timelineBlock.findMany({ where: { schedule: "rehearsal" } }),
   ]);
 
   return {
-    published: Boolean(settings?.published),
-    courses: courseRows.map((course) => ({
-      id: course.id,
-      label: course.label,
-      options: course.options.map((option) => ({ id: option.id, label: option.label })),
-    })),
-    guests: guests.map((guest) => ({
-      id: guest.id,
-      sectionId: guest.sectionId,
-      name: guest.name,
-      choices: Object.fromEntries(guest.choices.map((choice) => [choice.courseId, choice.optionId])),
-    })),
+    ...meal,
     blocks: sortTimelineBlocks(blocks),
   };
 }

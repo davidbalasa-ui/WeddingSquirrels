@@ -58,7 +58,10 @@ import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { taskHref } from "@/lib/entity-links";
 import { safeReturnTo, TASKS_HOME } from "@/lib/return-to";
-import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
+import { loadMealPageData } from "@/lib/meal-data";
+import { isMealGuestId, isMissingFlexibleMealColumn, shouldDeleteMealOptionOnClear } from "@/lib/meals";
+import type { MealSelectionInput } from "@/lib/meal-order";
+import { persistMealOrder, resolveMealGuestForGuestPerson } from "@/lib/meal-server";
 import { applyRsvpChange, effectiveInvitedCount, isRsvpStatus, parseRsvpStatus, RSVP_STATUSES, syncLegacyGuestNames, type RsvpStatus } from "@/lib/guest-gifts";
 import { householdRsvpFromPeople } from "@/lib/guest-rsvp-import";
 import {
@@ -2985,6 +2988,114 @@ export async function setMealPublished(published: boolean): Promise<MealWriteRes
   return { ok: true, id: "1" };
 }
 
+export async function saveMealCourseSelectionRules(
+  courseId: string,
+  minSelections: number,
+  maxSelections: number,
+): Promise<MealWriteResult> {
+  if (!(await requireMealEditor())) return { ok: false, reason: "forbidden" };
+  const min = Math.max(0, Math.min(20, Math.floor(minSelections)));
+  const max = Math.max(min, Math.min(20, Math.floor(maxSelections)));
+  try {
+    await prisma.mealCourse.update({
+      where: { id: courseId },
+      data: { minSelections: min, maxSelections: max },
+    });
+  } catch (error) {
+    if (isMissingFlexibleMealColumn(error)) return { ok: false, reason: "invalid" };
+    return { ok: false, reason: "not_found" };
+  }
+  revalidateDinner({ layout: true });
+  return { ok: true, id: courseId };
+}
+
+export async function saveMealOptionFollowUp(
+  optionId: string,
+  prompt: string,
+  choices: Array<{ id?: string; label: string }>,
+): Promise<MealWriteResult> {
+  if (!(await requireMealEditor())) return { ok: false, reason: "forbidden" };
+
+  const existing = await prisma.mealOption.findUnique({ where: { id: optionId } });
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  const trimmedPrompt = prompt.trim();
+  const normalized = choices
+    .map((row, index) => ({ id: row.id?.trim() || "", label: row.label.trim(), sortOrder: index }))
+    .filter((row) => row.label);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.mealOption.update({
+        where: { id: optionId },
+        data: { followUpPrompt: trimmedPrompt || null },
+      });
+      const keepIds = normalized.map((row) => row.id).filter(Boolean);
+      if (keepIds.length) {
+        await tx.mealOptionFollowUpChoice.deleteMany({
+          where: { optionId, id: { notIn: keepIds } },
+        });
+      } else {
+        await tx.mealOptionFollowUpChoice.deleteMany({ where: { optionId } });
+      }
+      for (const row of normalized) {
+        if (row.id) {
+          await tx.mealOptionFollowUpChoice.upsert({
+            where: { id: row.id },
+            create: { id: row.id, optionId, label: row.label, sortOrder: row.sortOrder },
+            update: { label: row.label, sortOrder: row.sortOrder },
+          });
+        } else {
+          await tx.mealOptionFollowUpChoice.create({
+            data: { optionId, label: row.label, sortOrder: row.sortOrder },
+          });
+        }
+      }
+    });
+  } catch (error) {
+    if (isMissingFlexibleMealColumn(error)) return { ok: false, reason: "invalid" };
+    throw error;
+  }
+
+  revalidateDinner({ layout: true });
+  return { ok: true, id: optionId };
+}
+
+export async function saveMealOrder(
+  guestPersonId: string,
+  selections: MealSelectionInput[],
+  opts?: { requireComplete?: boolean },
+): Promise<MealWriteResult> {
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return { ok: false, reason: "forbidden" };
+  }
+  if (!canSeeDinnerTab(session)) return { ok: false, reason: "forbidden" };
+  const settings = await prisma.mealSettings.findUnique({ where: { id: 1 } });
+  if (!settings?.published && !mealsEditable(session)) {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  const mealGuest = await resolveMealGuestForGuestPerson(prisma, guestPersonId.trim());
+  if (!mealGuest) return { ok: false, reason: "not_found" };
+
+  const page = await loadMealPageData(prisma);
+  if (page.legacyOnly) {
+    return { ok: false, reason: "invalid" };
+  }
+
+  const result = await persistMealOrder(prisma, mealGuest.id, page.courses, selections, {
+    requireComplete: Boolean(opts?.requireComplete),
+  });
+  if (!result.ok) return { ok: false, reason: "invalid" };
+
+  revalidateDinner({ layout: true });
+  return { ok: true, id: mealGuest.id };
+}
+
+/** @deprecated Legacy single-choice toggle; flexible orders use saveMealOrder. */
 export async function saveMealChoice(
   guestId: string,
   optionId: string | null,
@@ -3001,6 +3112,12 @@ export async function saveMealChoice(
   if (!settings?.published && !mealsEditable(session)) {
     return { ok: false, reason: "forbidden" };
   }
+
+  const page = await loadMealPageData(prisma);
+  if (!page.legacyOnly) {
+    return { ok: false, reason: "invalid" };
+  }
+
   if (!isMealGuestId(guestId)) return { ok: false, reason: "invalid" };
 
   const existing = await prisma.mealGuest.findUnique({ where: { id: guestId } });
@@ -3017,10 +3134,9 @@ export async function saveMealChoice(
   if (!option?.courseId) return { ok: false, reason: "invalid" };
   if (courseId && option.courseId !== courseId) return { ok: false, reason: "invalid" };
 
-  await prisma.mealChoice.upsert({
-    where: { guestId_courseId: { guestId, courseId: option.courseId } },
-    create: { guestId, courseId: option.courseId, optionId: option.id },
-    update: { optionId: option.id },
+  await prisma.mealChoice.deleteMany({ where: { guestId, courseId: option.courseId } });
+  await prisma.mealChoice.create({
+    data: { guestId, courseId: option.courseId, optionId: option.id },
   });
   return { ok: true, id: guestId };
 }

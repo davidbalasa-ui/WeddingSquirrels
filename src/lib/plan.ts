@@ -1,7 +1,9 @@
 import { addDays, differenceInCalendarDays, endOfDay, format, startOfDay } from "date-fns";
 import { can, canSeeDinnerTab, canSeeStayTab } from "@/lib/access";
+import { loadMealPageData } from "@/lib/meal-data";
 import { prisma } from "@/lib/db";
 import { countFinishedGuests, type MealChoiceMap, type MealCourseView } from "@/lib/meals";
+import { summarizeMealOrders, type MealCourseConfig, type MealSelectionInput } from "@/lib/meal-order";
 import { reviewNoteLines, sortTimelineBlocks } from "@/lib/day-of-time";
 import { extractMcCues, mcPeopleFromDirectory } from "@/lib/print-center";
 import {
@@ -54,6 +56,7 @@ export type PlanRehearsalCounts = {
   moments: number;
   mealGuests: number;
   mealChoices: number;
+  mealStarted: number;
   published: boolean;
 };
 
@@ -213,15 +216,28 @@ export function summarizeMcRunOfShow(
 
 export function summarizeRehearsal(input: {
   blocks: Array<{ schedule?: string | null }>;
-  courses: MealCourseView[];
-  guests: Array<{ choices: MealChoiceMap }>;
+  courses: MealCourseView[] | MealCourseConfig[];
+  guests?: Array<{ choices: MealChoiceMap }>;
+  orders?: Array<{ selections: MealSelectionInput[] }>;
   published: boolean;
 }): PlanRehearsalCounts {
   const moments = input.blocks.filter((block) => block.schedule === "rehearsal").length;
+  if (input.orders) {
+    const stats = summarizeMealOrders(input.courses as MealCourseConfig[], input.orders);
+    return {
+      moments,
+      mealGuests: stats.participants,
+      mealChoices: stats.complete,
+      mealStarted: stats.started,
+      published: input.published,
+    };
+  }
+  const guests = input.guests ?? [];
   return {
     moments,
-    mealGuests: input.guests.length,
-    mealChoices: countFinishedGuests(input.courses, input.guests),
+    mealGuests: guests.length,
+    mealChoices: countFinishedGuests(input.courses as MealCourseView[], guests),
+    mealStarted: 0,
     published: input.published,
   };
 }
@@ -324,18 +340,21 @@ function rehearsalDetail(counts: PlanRehearsalCounts) {
   if (counts.moments === 0) parts.push("No walkthrough yet");
   else parts.push(`${counts.moments} walkthrough ${counts.moments === 1 ? "moment" : "moments"}`);
 
-  if (counts.mealGuests === 0) {
-    parts.push("Dinner not started");
-  } else if (counts.mealChoices === 0) {
+  if (!counts.published && counts.mealGuests === 0) {
+    parts.push("Menu not published");
+  } else if (counts.mealGuests === 0) {
+    parts.push("No dinner orders yet");
+  } else if (counts.mealChoices === 0 && counts.mealStarted === 0) {
     parts.push("Meal choices still open");
-  } else if (counts.mealChoices < counts.mealGuests) {
-    parts.push(`${counts.mealChoices} of ${counts.mealGuests} meals chosen`);
   } else {
-    parts.push("Meal choices complete");
+    const bits: string[] = [];
+    if (counts.mealChoices) bits.push(`${counts.mealChoices} complete`);
+    if (counts.mealStarted) bits.push(`${counts.mealStarted} started`);
+    parts.push(bits.join(" · ") || "Meal choices still open");
   }
 
-  if (counts.mealGuests > 0 && !counts.published) {
-    parts.push("not published");
+  if (!counts.published && counts.mealGuests > 0) {
+    parts.push("menu hidden");
   }
 
   return parts.join(" · ");
@@ -480,15 +499,7 @@ export async function loadPlanPageData(session: SessionAccount, now = new Date()
               where: { schedule: "rehearsal" },
               select: { schedule: true },
             }),
-            prisma.mealCourse.findMany({
-              orderBy: { sortOrder: "asc" },
-              include: { options: { orderBy: { sortOrder: "asc" } } },
-            }),
-            prisma.mealGuest.findMany({
-              include: { choices: true },
-              orderBy: { sortOrder: "asc" },
-            }),
-            prisma.mealSettings.findUnique({ where: { id: 1 }, select: { published: true } }),
+            loadMealPageData(prisma),
           ])
         : Promise.resolve(null),
       canSeeStayTab(session)
@@ -517,20 +528,9 @@ export async function loadPlanPageData(session: SessionAccount, now = new Date()
       ? {
           rehearsal: summarizeRehearsal({
             blocks: rehearsal[0],
-            courses: rehearsal[1].map((course) => ({
-              id: course.id,
-              label: course.label,
-              options: course.options.map((option) => ({
-                id: option.id,
-                label: option.label,
-              })),
-            })),
-            guests: rehearsal[2].map((guest) => ({
-              choices: Object.fromEntries(
-                guest.choices.map((choice) => [choice.courseId, choice.optionId]),
-              ),
-            })),
-            published: Boolean(rehearsal[3]?.published),
+            courses: rehearsal[1].courses,
+            orders: rehearsal[1].orders.map((order) => ({ selections: order.selections })),
+            published: rehearsal[1].published,
           }),
         }
       : {}),

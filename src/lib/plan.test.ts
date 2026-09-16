@@ -52,7 +52,7 @@ const populated: PlanCounts = {
   tasks: { open: 18, overdue: 0, dueSoon: 4 },
   timeline: { moments: 42, nextLabel: "Getting ready", nextTime: "10:00 AM" },
   mc: { cues: 13, mcNames: ["Kurt Huizenga", "Wendy Rush"] },
-  rehearsal: { moments: 7, mealGuests: 17, mealChoices: 11, published: true },
+  rehearsal: { moments: 7, mealGuests: 17, mealChoices: 11, mealStarted: 0, published: true },
   stay: { assigned: 14, total: 18, open: 4 },
   shopping: { remaining: 7, purchased: 3 },
   calendar: { upcoming: 3, nextTitle: "Bachelor party", nextWhen: "Saturday" },
@@ -295,7 +295,7 @@ test("empty domains produce intentional low-data summaries without fake dates or
   const rows = buildPlanDomainSummaries(session(), {
     tasks: { open: 0, overdue: 0, dueSoon: 0 },
     timeline: { moments: 0, nextLabel: null, nextTime: null },
-    rehearsal: { moments: 0, mealGuests: 0, mealChoices: 0, published: false },
+    rehearsal: { moments: 0, mealGuests: 0, mealChoices: 0, mealStarted: 0, published: false },
     stay: { assigned: 0, total: 0, open: 0 },
     shopping: { remaining: 0, purchased: 0 },
     calendar: { upcoming: 0, nextTitle: null, nextWhen: null },
@@ -305,7 +305,7 @@ test("empty domains produce intentional low-data summaries without fake dates or
   assert.equal(rows.find((row) => row.key === "timeline")?.detail, "Nothing scheduled yet");
   assert.equal(
     rows.find((row) => row.key === "rehearsal")?.detail,
-    "No walkthrough yet · Dinner not started",
+    "No walkthrough yet · Menu not published",
   );
   assert.equal(rows.find((row) => row.key === "stay")?.detail, "Beds are not laid out yet");
   assert.equal(rows.find((row) => row.key === "shopping")?.detail, "Nothing on the list yet");

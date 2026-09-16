@@ -51,7 +51,10 @@ export default async function PlanRehearsalPage({
         </p>
         <MealBoard
           courses={data.courses}
-          guests={data.guests}
+          guestPeople={data.guestPeople}
+          orders={data.orders}
+          legacyRoster={data.legacyRoster}
+          legacyOnly={data.legacyOnly}
           published={data.published}
           canEditMenu={canEditMenu}
           sessionName={session.name}
