@@ -303,19 +303,15 @@ export async function saveDinnerSelections(input: {
     return { ok: false, reason: "invalid" };
   }
 
-  const optionRules = uniqueSelections.length
-    ? await prisma.$queryRaw<
-        Array<{
-          optionId: string;
-          followUpOptionsJson: string | null;
-        }>
-      >`
-        SELECT "optionId", "followUpOptionsJson"
-        FROM "MealOptionRule"
-        WHERE "optionId" IN (${uniqueSelections.map((selection) => selection.optionId)})
-      `
-    : [];
-  const optionRuleById = new Map(optionRules.map((row) => [row.optionId, row]));
+  const allOptionRules = await prisma.$queryRaw<
+    Array<{ optionId: string; followUpOptionsJson: string | null }>
+  >`
+    SELECT "optionId", "followUpOptionsJson" FROM "MealOptionRule"
+  `;
+  const selectedOptionIds = new Set(uniqueSelections.map((selection) => selection.optionId));
+  const optionRuleById = new Map(
+    allOptionRules.filter((row) => selectedOptionIds.has(row.optionId)).map((row) => [row.optionId, row]),
+  );
 
   for (const selection of uniqueSelections) {
     const followUpValue = selection.followUpValue?.trim() || null;
