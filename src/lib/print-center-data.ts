@@ -162,6 +162,13 @@ export async function loadPrintCenterDocument(
       : Promise.resolve([]),
     calendarOn
       ? prisma.calendarEvent.findMany({
+          select: {
+            id: true,
+            title: true,
+            notes: true,
+            startDate: true,
+            endDate: true,
+          },
           orderBy: [{ startDate: "asc" }, { endDate: "asc" }, { title: "asc" }],
         })
       : Promise.resolve([]),

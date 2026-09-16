@@ -1,5 +1,5 @@
 import { startOfMonth } from "date-fns";
-import { prisma } from "@/lib/db";
+import { isMissingWeddingPlaceColumn, prisma } from "@/lib/db";
 import { ensureMealLayout } from "@/lib/meals";
 import { ensureRehearsalSchedule } from "@/lib/rehearsal";
 import { ensureStayLayout } from "@/lib/stay";
@@ -101,9 +101,28 @@ export async function loadPlanShoppingPage(
 }
 
 export async function loadPlanCalendarPage() {
-  const events = await prisma.calendarEvent.findMany({
-    orderBy: [{ startDate: "asc" }, { endDate: "asc" }, { title: "asc" }],
-  });
+  let events;
+  try {
+    events = await prisma.calendarEvent.findMany({
+      orderBy: [{ startDate: "asc" }, { endDate: "asc" }, { title: "asc" }],
+    });
+  } catch (error) {
+    if (!isMissingWeddingPlaceColumn(error)) throw error;
+    const legacyEvents = await prisma.calendarEvent.findMany({
+      orderBy: [{ startDate: "asc" }, { endDate: "asc" }, { title: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        notes: true,
+        startDate: true,
+        endDate: true,
+        eventKey: true,
+        color: true,
+      },
+    });
+    events = legacyEvents.map((event) => ({ ...event, location: null }));
+  }
+
   return {
     events: events.map((event) => ({
       id: event.id,
