@@ -2,7 +2,7 @@ import { DayTimeline } from "@/components/DayTimeline";
 import { MealBoard } from "@/components/MealBoard";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { mealsEditable, rehearsalScheduleEditable } from "@/lib/access";
-import { loadPlanRehearsalPage } from "@/lib/plan-pages";
+import { loadRehearsalDinnerPage } from "@/lib/rehearsal-dinner";
 import { loadTimelineRelatedTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
 
@@ -17,7 +17,7 @@ export default async function PlanRehearsalPage({
   const params = await searchParams;
   const editParam = Array.isArray(params.edit) ? params.edit[0] : params.edit;
   const startInEdit = canEditSchedule && editParam === "1";
-  const data = await loadPlanRehearsalPage();
+  const data = await loadRehearsalDinnerPage();
   const relatedByBlockId = await loadTimelineRelatedTasks(
     session,
     data.blocks.map((block) => block.id),
@@ -52,9 +52,12 @@ export default async function PlanRehearsalPage({
         <MealBoard
           courses={data.courses}
           guests={data.guests}
+          candidates={data.candidates}
           published={data.published}
           canEditMenu={canEditMenu}
           sessionName={session.name}
+          completed={data.completed}
+          advanced={data.advanced}
         />
       </section>
     </>
