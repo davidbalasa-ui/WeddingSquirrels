@@ -408,7 +408,15 @@ export function DayOfExperience({
     const tick = () => setNow(new Date());
     tick();
     const id = window.setInterval(tick, CLOCK_INTERVAL_MS);
-    return () => window.clearInterval(id);
+    // Timers are throttled while the phone sleeps; refresh as soon as the page is visible again.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [source.freezeClock]);
 
   const view = source.freezeClock || !now ? initialView : viewFromExperienceSource(source, now);
