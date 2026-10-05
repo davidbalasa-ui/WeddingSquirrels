@@ -109,6 +109,16 @@ export function OfflineApp() {
   const [pack, setPack] = useState<OfflinePack | null | "loading">("loading");
 
   useEffect(() => {
+    // Legacy installs still launch /offline?source=installed. When online, go to
+    // the real app instead of showing the offline copy.
+    if (
+      navigator.onLine &&
+      new URLSearchParams(window.location.search).get("source") === "installed"
+    ) {
+      window.location.replace("/");
+      return;
+    }
+
     let active = true;
     loadOfflinePack()
       .then((loaded) => {
