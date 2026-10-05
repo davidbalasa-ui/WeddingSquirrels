@@ -94,6 +94,7 @@ export const DISCOVERED_ROUTES = [
   "/offline",
   "/accounts",
   "/requests",
+  "/messages",
   "/shop",
   "/stay",
   "/calendar",
@@ -126,7 +127,7 @@ export const CONTROLS: InventoryControl[] = [
   auto("today-add-task", "/today", "Add task save", "Creates a disposable task visible in Tasks", ["create", "save"], "writes.spec.ts · today task"),
   auto("today-filter", "/today?filter=asks", "Inbox filter chips", "Asks / Tasks / Buy / Done change the board", ["filter"], "today.spec.ts · inbox filters"),
   auto("today-task-open", "/today?filter=tasks", "Task title", "Visible task title opens /work/{id}; Back returns to Today filter", ["navigation"], "today.spec.ts · task title"),
-  auto("today-alias", "/home /requests", "Today aliases", "/home and /requests reach Today", ["route"], "routes.spec.ts · aliases"),
+  auto("today-alias", "/home /requests", "Today aliases", "/home reaches Today; /requests reaches Messages", ["route"], "routes.spec.ts · aliases"),
 
   auto("day-load", "/day", "Day route", "Planning or live Day-of loads", ["route", "day"], "routes.spec.ts · authenticated routes"),
   auto("day-planning", "/day", "Planning schedule", "19 wedding rows, no live NOW", ["day"], "day-of.spec.ts · planning mode"),

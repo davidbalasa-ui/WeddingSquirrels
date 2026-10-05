@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { UNREAD_ASKS_EVENT } from "@/components/AskNotifier";
 import { ModuleIcon } from "@/components/ModuleIcon";
 import { canSeeNavTab, isNavTabActive, NAV_TABS } from "@/lib/modules";
 import { appendPreviewAsOf } from "@/lib/preview-clock";
@@ -20,11 +22,28 @@ export function V2BottomNav({
   const fixture = params.get("fixture");
   const tabs = NAV_TABS.filter((item) => canSeeNavTab(session, item.tab));
 
+  // The server count is the baseline; AskNotifier keeps it live between navigations.
+  const [liveUnread, setLiveUnread] = useState<number | null>(null);
+  const [baseline, setBaseline] = useState(unreadRequests);
+  if (unreadRequests !== baseline) {
+    setBaseline(unreadRequests);
+    setLiveUnread(null);
+  }
+  useEffect(() => {
+    const onUnread = (event: Event) => {
+      const detail = (event as CustomEvent<{ count: number }>).detail;
+      if (detail && typeof detail.count === "number") setLiveUnread(detail.count);
+    };
+    window.addEventListener(UNREAD_ASKS_EVENT, onUnread);
+    return () => window.removeEventListener(UNREAD_ASKS_EVENT, onUnread);
+  }, []);
+  const unread = liveUnread ?? unreadRequests;
+
   return (
     <nav className="nav-bar" aria-label="Primary">
       {tabs.map((item) => {
         const active = isNavTabActive(pathname, item.tab);
-        const showBadge = item.tab === "today" && unreadRequests > 0;
+        const showBadge = item.tab === "today" && unread > 0;
         return (
           <Link
             key={item.tab}
@@ -39,9 +58,9 @@ export function V2BottomNav({
               {showBadge ? (
                 <span
                   className="inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-bold leading-4 text-white"
-                  aria-label={`${unreadRequests} unread requests`}
+                  aria-label={`${unread} unread messages`}
                 >
-                  {unreadRequests > 9 ? "9+" : unreadRequests}
+                  {unread > 9 ? "9+" : unread}
                 </span>
               ) : null}
             </span>

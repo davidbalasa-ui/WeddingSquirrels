@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** @deprecated Stage B — Ask lives on Home. */
+/** Ask lives on Home; the conversation view is Messages. */
 export default function RequestsPage() {
-  redirect("/today?filter=asks");
+  redirect("/messages");
 }

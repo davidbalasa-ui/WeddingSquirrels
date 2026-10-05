@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import {
   addRequestMessage,
   completeRequest,
@@ -18,6 +19,7 @@ import {
   toggleShoppingPurchased,
   toggleTaskDone,
 } from "@/app/actions";
+import { requestUnreadRefresh } from "@/components/AskNotifier";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
 import { taskHref } from "@/lib/entity-links";
 import { canManageOwners, inboxDateLine, nextCoupleOwnerIds, type InboxItem } from "@/lib/inbox";
@@ -29,7 +31,9 @@ import {
   canEditRequest,
   canReopenRequest,
   canReplyToRequest,
+  isMessageNew,
   isRequestUnread,
+  readMarkerFor,
 } from "@/lib/requests";
 import type { SessionAccount } from "@/lib/types";
 import type { TaskOption } from "@/lib/inbox";
@@ -64,7 +68,10 @@ export function InboxRow({
   dragHandle?: React.ReactNode;
   originHref?: string;
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // Flip the checkbox immediately; the server state replaces it when the action lands.
+  const [done, setOptimisticDone] = useOptimistic(item.done);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(item.title);
   const [prevItemTitle, setPrevItemTitle] = useState(item.title);
@@ -142,6 +149,7 @@ export function InboxRow({
       }
     }
     runMutation(async () => {
+      setOptimisticDone(!item.done);
       if (item.kind === "ask") {
         if (item.done || item.declined) {
           await reopenRequest(item.sourceId);
@@ -179,14 +187,39 @@ export function InboxRow({
       return;
     }
     if (!canCycleOwners) {
-      if (item.href) window.location.href = item.href;
+      if (item.href) router.push(item.href);
       return;
     }
     runMutation(() => cycleTaskOwners(item.sourceId));
   }
 
   const unread = askPerm ? isRequestUnread(session, askPerm) : false;
-  const dateLine = inboxDateLine(item.dueDate, item.done);
+
+  // Snapshot which replies are new when the thread opens, so the highlight
+  // survives the read receipt that follows.
+  const [newMessageIds, setNewMessageIds] = useState<Set<string>>(() => new Set());
+  const [wasExpanded, setWasExpanded] = useState(expanded);
+  if (expanded !== wasExpanded) {
+    setWasExpanded(expanded);
+    if (expanded && askPerm && item.askData) {
+      const marker = readMarkerFor(session, askPerm);
+      setNewMessageIds(
+        new Set(
+          item.askData.messages
+            .filter((message) =>
+              isMessageNew(session, marker, {
+                authorAccountId: message.authorAccountId,
+                createdAt: new Date(message.createdAt),
+              }),
+            )
+            .map((message) => message.id),
+        ),
+      );
+    } else {
+      setNewMessageIds(new Set());
+    }
+  }
+  const dateLine = inboxDateLine(item.dueDate, done);
   const ownerTappable = item.kind === "buy" || canCycleOwners || Boolean(item.href);
   const workspaceHref =
     (item.kind === "task" || item.kind === "task_step" || item.kind === "org_step") && item.href
@@ -196,22 +229,22 @@ export function InboxRow({
         : null;
 
   return (
-    <article className={`flex items-start gap-1.5 py-2 ${item.done ? "opacity-60" : ""}`}>
+    <article className={`flex items-start gap-1.5 py-2 ${done ? "opacity-60" : ""}`}>
       {dragHandle}
 
       <button
         type="button"
-        aria-label={item.done ? "Mark not done" : item.kind === "buy" ? "Mark purchased" : "Mark done"}
+        aria-label={done ? "Mark not done" : item.kind === "buy" ? "Mark purchased" : "Mark done"}
         disabled={pending || askCheckboxDisabled}
         className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-line text-[11px] leading-none"
         style={{
-          background: item.done || item.declined ? "var(--accent)" : "transparent",
-          color: item.done || item.declined ? "white" : "transparent",
-          borderColor: item.done || item.declined ? "var(--accent)" : undefined,
+          background: done || item.declined ? "var(--accent)" : "transparent",
+          color: done || item.declined ? "white" : "transparent",
+          borderColor: done || item.declined ? "var(--accent)" : undefined,
         }}
         onClick={handleCheckbox}
       >
-        {item.done || item.declined ? "✓" : ""}
+        {done || item.declined ? "✓" : ""}
       </button>
 
       <div className="min-w-0 flex-1">
@@ -234,19 +267,19 @@ export function InboxRow({
               />
             ) : item.kind === "ask" ? (
               <button type="button" className="w-full text-left" onClick={onToggleExpand}>
-                <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
+                <p className={`text-[15px] font-semibold leading-snug ${done ? "line-through" : ""}`}>
                   {item.title}
                 </p>
               </button>
             ) : workspaceHref ? (
               <Link href={workspaceHref} className="block">
-                <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
+                <p className={`text-[15px] font-semibold leading-snug ${done ? "line-through" : ""}`}>
                   {item.title}
                 </p>
               </Link>
             ) : (
               <button type="button" className="w-full text-left" onClick={() => setEditingTitle(true)}>
-                <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
+                <p className={`text-[15px] font-semibold leading-snug ${done ? "line-through" : ""}`}>
                   {item.title}
                 </p>
               </button>
@@ -376,7 +409,13 @@ export function InboxRow({
 
         {item.kind === "ask" && expanded && item.askData ? (
           <div className="mt-2 border-t border-line pt-2">
-            <AskThread messages={item.askData.messages} sessionId={session.id} />
+            <AskThread messages={item.askData.messages} sessionId={session.id} newIds={newMessageIds} />
+            <Link
+              href={`/messages/${item.sourceId}`}
+              className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent)]"
+            >
+              Open conversation →
+            </Link>
 
             {item.linkedTaskId && item.linkedTaskTitle && session.canSeeTasks && !askPerms?.edit ? (
               <Link
@@ -437,6 +476,7 @@ export function InboxRow({
                     try {
                       await addRequestMessage(item.sourceId, body);
                       setReply("");
+                      requestUnreadRefresh();
                       setMutationError(null);
                     } catch {
                       setMutationError("Couldn't send reply — try again.");
@@ -505,9 +545,11 @@ export function InboxRow({
 function AskThread({
   messages,
   sessionId,
+  newIds,
 }: {
   messages: { id: string; body: string; authorAccountId: string; authorName: string; createdAt: string }[];
   sessionId: string;
+  newIds: Set<string>;
 }) {
   if (messages.length === 0) {
     return <p className="text-sm text-muted">No messages yet.</p>;
@@ -517,10 +559,16 @@ function AskThread({
     <div className="flex flex-col gap-1.5">
       {messages.map((message) => {
         const mine = message.authorAccountId === sessionId;
+        const isNew = newIds.has(message.id);
         return (
-          <div key={message.id} className="text-sm leading-5">
+          <div
+            key={message.id}
+            className={`text-sm leading-5 ${isNew ? "-mx-2 rounded-lg border border-[var(--accent)] bg-[var(--accent-soft)] px-2 py-1" : ""}`}
+            data-new={isNew}
+          >
             <p className="text-[11px] font-semibold text-muted">
               {mine ? "You" : message.authorName} · {formatTime(message.createdAt)}
+              {isNew ? <span className="ml-1 text-[var(--accent)]">New</span> : null}
             </p>
             <p className="whitespace-pre-wrap">{message.body}</p>
           </div>

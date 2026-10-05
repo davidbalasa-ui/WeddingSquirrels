@@ -12,6 +12,7 @@ const ALLOWED_PREFIXES = [
   "/work",
   "/home",
   "/requests",
+  "/messages",
   "/guests",
 ];
 

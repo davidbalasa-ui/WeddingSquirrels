@@ -1141,6 +1141,8 @@ export async function setTaskShares(taskId: string, pinAccountIds: string[]) {
 
 function revalidateRequests() {
   revalidatePath("/requests");
+  revalidatePath("/messages");
+  revalidatePath("/messages/[id]", "page");
   revalidatePath("/today");
   revalidatePath("/", "layout");
   refresh();
@@ -1247,7 +1249,8 @@ export async function markRequestRead(requestId: string): Promise<void> {
   if (!row || !canViewRequest(session, row)) throw new Error("FORBIDDEN");
 
   const markers = readMarkersForParticipant(session, row);
-  if (!markers.readAt && !markers.senderReadAt) throw new Error("FORBIDDEN");
+  // Masters may open threads they are not part of; nothing to mark there.
+  if (!markers.readAt && !markers.senderReadAt) return;
 
   await prisma.request.update({
     where: { id: requestId },

@@ -21,7 +21,7 @@ export const APP_ROUTES: AppRoute[] = MODULES.filter((m) => m.href).map((m) => (
           : (m.see ?? "canSeeTasks"),
 }));
 
-const SKIP_FIRST_ROUTE = new Set(["/today", "/requests", "/shop", "/people"]);
+const SKIP_FIRST_ROUTE = new Set(["/today", "/messages", "/shop", "/people"]);
 
 export function canSeeRoute(session: SessionAccount, route: AppRoute): boolean {
   if (session.isMaster) return true;

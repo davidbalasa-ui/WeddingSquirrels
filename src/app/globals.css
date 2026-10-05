@@ -829,3 +829,135 @@ a {
     columns: 1;
   }
 }
+
+/* New-message toast (AskNotifier) */
+.ask-toast {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  left: 12px;
+  right: 12px;
+  margin-inline: auto;
+  width: min(560px, calc(100vw - 24px));
+  z-index: 70;
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  animation: ask-toast-in 0.22s ease-out;
+}
+
+.ask-toast-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  color: var(--ink);
+}
+
+.ask-toast-from {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.ask-toast-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ask-toast-text {
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--muted);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ask-toast-close {
+  min-width: 44px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+@keyframes ask-toast-in {
+  from {
+    transform: translateY(-12px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Messages: conversation view */
+.chat-bubble {
+  max-width: 84%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-bubble[data-mine="true"] {
+  margin-left: auto;
+  background: var(--accent);
+  color: white;
+  border-bottom-right-radius: 6px;
+}
+
+.chat-bubble[data-mine="false"] {
+  margin-right: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 6px;
+}
+
+.chat-bubble[data-mine="false"][data-new="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.chat-composer {
+  position: sticky;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  margin: 16px -16px 0;
+  padding: 10px 16px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ask-toast {
+    animation: none;
+  }
+}
+
+/* Day-of tab row: one scrollable line, no visible scrollbar. */
+.day-tabs {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+
+.day-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.day-tabs > * {
+  scroll-snap-align: start;
+}
