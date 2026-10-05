@@ -1,4 +1,4 @@
-import { OperationalViewsNav } from "@/components/OperationalViewsNav";
+import { DayTabs } from "@/components/DayTabs";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { PlaybookBoard } from "@/components/PlaybookBoard";
 import { loadPlaybookItems } from "@/lib/playbook-data";
@@ -18,7 +18,7 @@ export default async function HairMakeupPage() {
         backHref="/day"
         backLabel="Day-of"
       />
-      <OperationalViewsNav current="/day/hair-makeup" />
+      <DayTabs />
       <PlaybookBoard
         items={items}
         empty="Hair and makeup stations have not been recorded yet."

@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { lockAction } from "@/app/actions";
 import { DayTabs } from "@/components/DayTabs";
 import { NeedSomeone } from "@/components/DayOfContacts";
-import { OperationalViewsNav } from "@/components/OperationalViewsNav";
 import {
   formatMinutesUntil,
   viewFromExperienceSource,
@@ -141,12 +140,12 @@ function FullDayList({ view }: { view: DayOfView }) {
   );
 }
 
-function LiveHero({ view }: { view: DayOfView }) {
+function LiveHero({ view, showLogout }: { view: DayOfView; showLogout: boolean }) {
   return (
     <header className="pt-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Today</p>
-        <LogoutButton />
+        {showLogout ? <LogoutButton /> : null}
       </div>
       <p
         className="mt-3 font-[family-name:var(--font-display)] text-[3.15rem] leading-none tracking-tight"
@@ -162,14 +161,14 @@ function LiveHero({ view }: { view: DayOfView }) {
   );
 }
 
-function PreviewHero({ view }: { view: DayOfView }) {
+function PreviewHero({ view, showLogout }: { view: DayOfView; showLogout: boolean }) {
   return (
     <header className="pt-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
           Wedding day
         </p>
-        <LogoutButton />
+        {showLogout ? <LogoutButton /> : null}
       </div>
       <h1 className="mt-3 font-[family-name:var(--font-display)] text-[2.15rem] leading-[1.05] tracking-tight">
         {view.weddingDateLabel ?? "The wedding day"}
@@ -180,14 +179,14 @@ function PreviewHero({ view }: { view: DayOfView }) {
   );
 }
 
-function CompletedHero({ view }: { view: DayOfView }) {
+function CompletedHero({ view, showLogout }: { view: DayOfView; showLogout: boolean }) {
   return (
     <header className="pt-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
           Wedding day
         </p>
-        <LogoutButton />
+        {showLogout ? <LogoutButton /> : null}
       </div>
       <h1 className="mt-3 font-[family-name:var(--font-display)] text-[2.15rem] leading-[1.05] tracking-tight">
         The day is yours
@@ -424,17 +423,16 @@ export function DayOfExperience({
   return (
     <div className="pb-6">
       {view.mode === "live" ? (
-        <LiveHero view={view} />
+        <LiveHero view={view} showLogout={showTabs} />
       ) : view.mode === "completed" ? (
-        <CompletedHero view={view} />
+        <CompletedHero view={view} showLogout={showTabs} />
       ) : (
-        <PreviewHero view={view} />
+        <PreviewHero view={view} showLogout={showTabs} />
       )}
 
       {showTabs ? (
         <div className="mt-6">
           <DayTabs />
-          <OperationalViewsNav current="/day" />
         </div>
       ) : null}
 

@@ -1,4 +1,4 @@
-import { OperationalViewsNav } from "@/components/OperationalViewsNav";
+import { DayTabs } from "@/components/DayTabs";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { PlaybookBoard } from "@/components/PlaybookBoard";
 import { loadPlaybookItems } from "@/lib/playbook-data";
@@ -21,7 +21,7 @@ export default async function DecorSetupPage() {
         backHref="/day"
         backLabel="Day-of"
       />
-      <OperationalViewsNav current="/day/decor" />
+      <DayTabs />
       <PlaybookBoard items={decor} empty="Decor decisions have not been recorded yet." canEdit={canEdit} />
       <section className="mt-10">
         <h2 className="font-[family-name:var(--font-display)] text-[1.65rem] leading-tight">
