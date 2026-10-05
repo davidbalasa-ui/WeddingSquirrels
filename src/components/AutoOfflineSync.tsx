@@ -9,7 +9,7 @@ import {
   type OfflinePack,
 } from "@/lib/offline-db";
 
-const OFFLINE_CACHE = "weddingsquirrels-v2";
+const OFFLINE_CACHE = "weddingsquirrels-v3";
 const PACK_UPDATED_EVENT = "weddingsquirrels:offline-pack-updated";
 const PACK_SYNC_ERROR_EVENT = "weddingsquirrels:offline-pack-error";
 const PACK_SYNC_REQUEST_EVENT = "weddingsquirrels:offline-sync-request";
