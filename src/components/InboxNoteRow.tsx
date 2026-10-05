@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import {
   createInboxChild,
   deleteShoppingItem,
@@ -40,8 +40,10 @@ export function InboxNoteRow({
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  // Flip the checkbox on tap; the server copy replaces it when the action lands.
+  const [done, setOptimisticDone] = useOptimistic(item.done);
 
-  const dateLine = inboxDateLine(item.dueDate, item.done);
+  const dateLine = inboxDateLine(item.dueDate, done);
   const canEditWho = canManageOwners(session) && item.kind !== "buy" ? session.canSeeTasks : session.canSeeShop;
   const workspaceHref =
     (item.kind === "task" || item.kind === "task_step" || item.kind === "org_step") && item.href
@@ -65,40 +67,41 @@ export function InboxNoteRow({
 
   function handleCheckbox() {
     runMutation(async () => {
+      setOptimisticDone(!item.done);
       if (item.kind === "buy") await toggleShoppingPurchased(item.sourceId);
       else await toggleTaskDone(item.sourceId);
     });
   }
 
   return (
-    <article className={`py-1.5 ${item.done ? "opacity-55" : ""}`}>
+    <article className={`py-1.5 ${done ? "opacity-55" : ""}`}>
       <div className="flex items-start gap-1.5">
         {dragHandle}
         <button
           type="button"
-          aria-label={item.done ? "Mark not done" : "Mark done"}
+          aria-label={done ? "Mark not done" : "Mark done"}
           disabled={pending}
           className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-line text-[10px] leading-none"
           style={{
-            background: item.done ? "var(--accent)" : "transparent",
-            color: item.done ? "white" : "transparent",
-            borderColor: item.done ? "var(--accent)" : undefined,
+            background: done ? "var(--accent)" : "transparent",
+            color: done ? "white" : "transparent",
+            borderColor: done ? "var(--accent)" : undefined,
           }}
           onClick={handleCheckbox}
         >
-          {item.done ? "✓" : ""}
+          {done ? "✓" : ""}
         </button>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             {workspaceHref ? (
               <Link href={workspaceHref} className="min-w-0 flex-1">
-                <p className={`text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
+                <p className={`text-[15px] font-semibold leading-snug ${done ? "line-through" : ""}`}>
                   {item.title}
                 </p>
               </Link>
             ) : (
-              <p className={`min-w-0 flex-1 text-[15px] font-semibold leading-snug ${item.done ? "line-through" : ""}`}>
+              <p className={`min-w-0 flex-1 text-[15px] font-semibold leading-snug ${done ? "line-through" : ""}`}>
                 {item.title}
               </p>
             )}

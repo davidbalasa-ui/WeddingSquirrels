@@ -60,8 +60,10 @@ export const PRIMARY_NAV = ["Today", "Plan", "People", "Money", "More"] as const
 
 export const AUTH_ROUTES: Array<{ path: string; expect: RegExp }> = [
   { path: "/today", expect: /David & Haley|Today/i },
+  { path: "/messages", expect: /Messages/i },
   { path: "/day", expect: /Wedding day|Here's how the day is planned|Today/i },
   { path: "/day/assignments", expect: /Assignments/i },
+  { path: "/day/contacts", expect: /Contacts/i },
   { path: "/day/mc", expect: /MC Run of Show/i },
   { path: "/day/hair-makeup", expect: /Hair & Makeup/i },
   { path: "/day/shots", expect: /Photo Shot List/i },
@@ -87,7 +89,7 @@ export const AUTH_ROUTES: Array<{ path: string; expect: RegExp }> = [
 
 export const ALIAS_ROUTES: Array<{ path: string; expectPath: RegExp }> = [
   { path: "/home", expectPath: /\/today/ },
-  { path: "/requests", expectPath: /\/today/ },
+  { path: "/requests", expectPath: /\/messages/ },
   { path: "/shop", expectPath: /\/plan\/shopping/ },
   { path: "/stay", expectPath: /\/plan\/stay/ },
   { path: "/calendar", expectPath: /\/plan\/calendar/ },
@@ -98,7 +100,6 @@ export const ALIAS_ROUTES: Array<{ path: string; expectPath: RegExp }> = [
   { path: "/people/contacts", expectPath: /\/people/ },
   { path: "/people/responsibilities", expectPath: /\/day\/assignments/ },
   { path: "/day/now", expectPath: /\/day/ },
-  { path: "/day/contacts", expectPath: /\/people/ },
 ];
 
 export const CERT_PREFIX = "CERT-WS";

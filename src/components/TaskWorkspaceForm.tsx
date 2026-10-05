@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useTransition } from "react";
+import { useActionState, useOptimistic, useTransition } from "react";
 import { saveStepNotes, saveTaskWorkspace, toggleTaskDone, renameTask, type TaskFormState } from "@/app/actions";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
 import { AssigneeFields } from "@/components/AssigneeFields";
@@ -21,7 +21,15 @@ export function TaskWorkspaceForm({
   canManageOwners: boolean;
   returnTo: string;
 }) {
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+  // Step checks flip on tap; the server copy replaces them after the action.
+  const [steps, toggleOptimisticStep] = useOptimistic(
+    task.children,
+    (current: typeof task.children, stepId: string) =>
+      current.map((step) =>
+        step.id === stepId ? { ...step, status: step.status === "done" ? "todo" : "done" } : step,
+      ),
+  );
   const [saveState, saveAction, saving] = useActionState(saveTaskWorkspace, {} as TaskFormState);
   const label = dueLabel(task.dueDate, task.status);
   const dueDateValue = dueDateInputValue(task.dueDate);
@@ -188,7 +196,7 @@ export function TaskWorkspaceForm({
           <p className="text-sm text-muted">
             Each step can have its own note. Check it when that piece is finished.
           </p>
-          {task.children.map((step) => {
+          {steps.map((step) => {
             const stepDone = step.status === "done";
             return (
               <article key={step.id} className={`card p-4 ${stepDone ? "opacity-70" : ""}`}>
@@ -196,8 +204,12 @@ export function TaskWorkspaceForm({
                   <button
                     type="button"
                     aria-label={stepDone ? "Mark step not done" : "Mark step done"}
-                    disabled={pending}
-                    onClick={() => startTransition(() => toggleTaskDone(step.id))}
+                    onClick={() =>
+                      startTransition(async () => {
+                        toggleOptimisticStep(step.id);
+                        await toggleTaskDone(step.id);
+                      })
+                    }
                     className="step-check mt-0.5 shrink-0"
                     style={{
                       background: stepDone ? "var(--accent)" : "transparent",

@@ -1,11 +1,11 @@
 /* WeddingSquirrels service worker — keeps the app shell available offline.
  * The app's actual data is stored in IndexedDB by the "Download for offline"
  * button; this worker only handles the static shell and navigation fallback. */
-const CACHE = "weddingsquirrels-v2";
-/** Install-time shell only. Authenticated pages such as /day are cached on visit. */
+const CACHE = "weddingsquirrels-v4";
+/** How long a navigation waits on the network before using the cached copy. */
+const NAVIGATION_TIMEOUT_MS = 3500;
+/** Install-time shell only. Authenticated or redirecting pages (/, /today, /day) are cached on visit. */
 const PRECACHE = [
-  "/",
-  "/today",
   "/offline",
   "/manifest.webmanifest",
   "/icon-192.png",
@@ -67,9 +67,25 @@ self.addEventListener("fetch", (event) => {
     }
 
     event.respondWith(
-      fetch(request)
+      new Promise((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error("navigation timeout")),
+          NAVIGATION_TIMEOUT_MS,
+        );
+        fetch(request).then(
+          (response) => {
+            clearTimeout(timer);
+            resolve(response);
+          },
+          (error) => {
+            clearTimeout(timer);
+            reject(error);
+          },
+        );
+      })
         .then((response) => {
-          if (response.ok) {
+          // A redirected response cannot be served to a navigation from cache.
+          if (response.ok && !response.redirected && response.type !== "opaqueredirect") {
             const copy = response.clone();
             caches.open(CACHE).then((cache) => cache.put(request, copy));
           }
@@ -85,7 +101,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets: cache-first with background fill.
+  // Next.js data fetches (client-side navigations, prefetches, router refreshes)
+  // must never be served from this cache: a cached payload would show stale
+  // data after an edit until the next hard reload. Let them go to the network;
+  // when it is down, Next falls back to a full navigation, which is handled above.
+  if (request.headers.get("RSC") || url.searchParams.has("_rsc")) return;
+
+  // Only immutable build assets and static files are cache-first.
+  const isBuildAsset = url.pathname.startsWith("/_next/static/");
+  const isStaticFile = /\.(png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|webmanifest)$/i.test(url.pathname);
+  if (!isBuildAsset && !isStaticFile) return;
+
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;

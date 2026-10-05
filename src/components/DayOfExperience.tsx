@@ -4,13 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { lockAction } from "@/app/actions";
 import { DayTabs } from "@/components/DayTabs";
-import { OperationalViewsNav } from "@/components/OperationalViewsNav";
-import { PersonAvatar } from "@/components/PersonAvatar";
+import { NeedSomeone } from "@/components/DayOfContacts";
 import {
-  contactChannelHref,
   formatMinutesUntil,
   viewFromExperienceSource,
-  type DayOfContact,
   type DayOfExperienceSource,
   type DayOfMoment,
   type DayOfResponsibility,
@@ -105,76 +102,6 @@ function TimelineRow({
   );
 }
 
-function ContactActions({ contact }: { contact: DayOfContact }) {
-  const actions: Array<{ href: string; label: string; sr: string }> = [];
-  if (contact.phone) {
-    actions.push({
-      href: contactChannelHref(contact.phone, "tel"),
-      label: "Call",
-      sr: `Call ${contact.name}`,
-    });
-    actions.push({
-      href: contactChannelHref(contact.phone, "sms"),
-      label: "Text",
-      sr: `Text ${contact.name}`,
-    });
-  }
-  if (contact.email) {
-    actions.push({
-      href: contactChannelHref(contact.email, "mailto"),
-      label: "Email",
-      sr: `Email ${contact.name}`,
-    });
-  }
-  if (actions.length === 0) return null;
-
-  return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      {actions.map((action) => (
-        <a
-          key={action.label}
-          href={action.href}
-          className="inline-flex min-h-12 min-w-[5.5rem] flex-1 items-center justify-center rounded-full border border-line bg-[var(--bg-elevated)] px-4 text-sm font-semibold text-[var(--accent)]"
-        >
-          <span className="sr-only">{action.sr}</span>
-          <span aria-hidden="true">{action.label}</span>
-        </a>
-      ))}
-    </div>
-  );
-}
-
-function NeedSomeone({ contacts }: { contacts: DayOfContact[] }) {
-  if (contacts.length === 0) return null;
-  return (
-    <section className="mt-10" aria-labelledby="need-someone-heading">
-      <h2 id="need-someone-heading" className="font-[family-name:var(--font-display)] text-xl tracking-tight">
-        Need someone?
-      </h2>
-      <ul className="mt-4 space-y-5">
-        {contacts.map((contact) => (
-          <li key={contact.id} className="card p-4">
-            <div className="flex items-start gap-3">
-              <PersonAvatar name={contact.name} photoSrc={contact.photoSrc} size="md" />
-              <div className="min-w-0 flex-1">
-                {contact.profileHref ? (
-                  <Link href={contact.profileHref} className="block font-semibold leading-snug underline-offset-4 hover:underline">
-                    {contact.name}
-                  </Link>
-                ) : (
-                  <p className="font-semibold leading-snug">{contact.name}</p>
-                )}
-                {contact.context ? <p className="mt-0.5 text-sm text-muted">{contact.context}</p> : null}
-              </div>
-            </div>
-            <ContactActions contact={contact} />
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 function Responsibilities({ items }: { items: DayOfResponsibility[] }) {
   if (items.length === 0) return null;
   return (
@@ -213,12 +140,12 @@ function FullDayList({ view }: { view: DayOfView }) {
   );
 }
 
-function LiveHero({ view }: { view: DayOfView }) {
+function LiveHero({ view, showLogout }: { view: DayOfView; showLogout: boolean }) {
   return (
     <header className="pt-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Today</p>
-        <LogoutButton />
+        {showLogout ? <LogoutButton /> : null}
       </div>
       <p
         className="mt-3 font-[family-name:var(--font-display)] text-[3.15rem] leading-none tracking-tight"
@@ -234,14 +161,14 @@ function LiveHero({ view }: { view: DayOfView }) {
   );
 }
 
-function PreviewHero({ view }: { view: DayOfView }) {
+function PreviewHero({ view, showLogout }: { view: DayOfView; showLogout: boolean }) {
   return (
     <header className="pt-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
           Wedding day
         </p>
-        <LogoutButton />
+        {showLogout ? <LogoutButton /> : null}
       </div>
       <h1 className="mt-3 font-[family-name:var(--font-display)] text-[2.15rem] leading-[1.05] tracking-tight">
         {view.weddingDateLabel ?? "The wedding day"}
@@ -252,14 +179,14 @@ function PreviewHero({ view }: { view: DayOfView }) {
   );
 }
 
-function CompletedHero({ view }: { view: DayOfView }) {
+function CompletedHero({ view, showLogout }: { view: DayOfView; showLogout: boolean }) {
   return (
     <header className="pt-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
           Wedding day
         </p>
-        <LogoutButton />
+        {showLogout ? <LogoutButton /> : null}
       </div>
       <h1 className="mt-3 font-[family-name:var(--font-display)] text-[2.15rem] leading-[1.05] tracking-tight">
         The day is yours
@@ -480,7 +407,15 @@ export function DayOfExperience({
     const tick = () => setNow(new Date());
     tick();
     const id = window.setInterval(tick, CLOCK_INTERVAL_MS);
-    return () => window.clearInterval(id);
+    // Timers are throttled while the phone sleeps; refresh as soon as the page is visible again.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [source.freezeClock]);
 
   const view = source.freezeClock || !now ? initialView : viewFromExperienceSource(source, now);
@@ -488,12 +423,18 @@ export function DayOfExperience({
   return (
     <div className="pb-6">
       {view.mode === "live" ? (
-        <LiveHero view={view} />
+        <LiveHero view={view} showLogout={showTabs} />
       ) : view.mode === "completed" ? (
-        <CompletedHero view={view} />
+        <CompletedHero view={view} showLogout={showTabs} />
       ) : (
-        <PreviewHero view={view} />
+        <PreviewHero view={view} showLogout={showTabs} />
       )}
+
+      {showTabs ? (
+        <div className="mt-6">
+          <DayTabs />
+        </div>
+      ) : null}
 
       {view.mode === "live" ? (
         <>
@@ -531,13 +472,6 @@ export function DayOfExperience({
             Edit timeline in Plan
           </Link>
         </p>
-      ) : null}
-
-      {showTabs ? (
-        <div className="mt-10">
-          <DayTabs />
-          <OperationalViewsNav current="/day" />
-        </div>
       ) : null}
     </div>
   );

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { AskNotifier } from "@/components/AskNotifier";
 import { AutoOfflineSync } from "@/components/AutoOfflineSync";
 import { PreviewTimeControl } from "@/components/PreviewTimeControl";
 import { V2BottomNav } from "@/components/V2BottomNav";
@@ -31,6 +32,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         Skip to content
       </a>
       <AutoOfflineSync />
+      {session.canSeeRequests ? (
+        <Suspense fallback={null}>
+          <AskNotifier accountId={session.id} />
+        </Suspense>
+      ) : null}
       <OfflineBanner />
       {showPreview ? (
         <Suspense fallback={null}>

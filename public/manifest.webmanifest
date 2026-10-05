@@ -3,7 +3,7 @@
   "short_name": "Squirrels",
   "description": "David & Haley wedding planner",
   "id": "/",
-  "start_url": "/offline?source=installed",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f3efe6",

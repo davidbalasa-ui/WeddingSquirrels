@@ -1,6 +1,5 @@
 import { DayTabs } from "@/components/DayTabs";
 import { McRunOfShowView } from "@/components/McRunOfShow";
-import { OperationalViewsNav } from "@/components/OperationalViewsNav";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { loadWeddingTimelineBlocks } from "@/lib/day-of-page";
 import { prisma } from "@/lib/db";
@@ -29,7 +28,6 @@ export default async function McRunOfShowPage() {
         backLabel="Day-of"
       />
       <DayTabs />
-      <OperationalViewsNav current="/day/mc" />
       <McRunOfShowView show={show} lineup={lineup} />
     </>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { saveWeddingPlaceSettings } from "@/app/actions";
 import type { WeddingPlaceFields } from "@/lib/wedding-venue";
 
@@ -84,6 +84,11 @@ function emptyFields(initial: WeddingPlaceFields | null | undefined): WeddingPla
   };
 }
 
+function subscribeToHash(onChange: () => void) {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+}
+
 export function WeddingPlacesEditor({
   initial,
   canEdit,
@@ -95,8 +100,21 @@ export function WeddingPlacesEditor({
   const [fields, setFields] = useState(() => emptyFields(initial));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Three address forms are a lot of screen above the timeline, so keep them
+  // folded unless the page was opened on #venues (the Today "Add wedding venue" link).
+  const openedByHash = useSyncExternalStore(
+    subscribeToHash,
+    () => window.location.hash === "#venues",
+    () => false,
+  );
+  const [openChoice, setOpen] = useState<boolean | null>(null);
+  const open = openChoice ?? openedByHash;
 
   if (!canEdit) return null;
+
+  const summaryParts = [fields.venueName, fields.rehearsalDinnerName, fields.airbnbName]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
 
   function patch(partial: Partial<WeddingPlaceFields>) {
     setFields((prev) => ({ ...prev, ...partial }));
@@ -104,10 +122,19 @@ export function WeddingPlacesEditor({
 
   return (
     <section id="venues" className="mb-6 scroll-mt-24">
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-        Wedding places
-      </p>
-      <p className="mb-3 text-sm text-muted">
+      <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3">
+          <span className="min-w-0">
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+              Wedding places
+            </span>
+            <span className="mt-0.5 block truncate text-sm text-muted">
+              {summaryParts.length > 0 ? summaryParts.join(" · ") : "Add venue, rehearsal dinner, and lodging addresses"}
+            </span>
+          </span>
+          <span className="shrink-0 text-sm font-semibold text-[var(--accent)]">{open ? "Close" : "Edit"}</span>
+        </summary>
+      <p className="mb-3 mt-2 text-sm text-muted">
         Canonical venue and lodging addresses for Today, print quick reference, and offline backup.
       </p>
       <form
@@ -170,6 +197,7 @@ export function WeddingPlacesEditor({
           {pending ? "Saving…" : "Save wedding places"}
         </button>
       </form>
+      </details>
     </section>
   );
 }

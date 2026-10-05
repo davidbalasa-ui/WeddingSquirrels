@@ -109,6 +109,16 @@ export function OfflineApp() {
   const [pack, setPack] = useState<OfflinePack | null | "loading">("loading");
 
   useEffect(() => {
+    // Legacy installs still launch /offline?source=installed. When online, go to
+    // the real app instead of showing the offline copy.
+    if (
+      navigator.onLine &&
+      new URLSearchParams(window.location.search).get("source") === "installed"
+    ) {
+      window.location.replace("/");
+      return;
+    }
+
     let active = true;
     loadOfflinePack()
       .then((loaded) => {
@@ -149,7 +159,15 @@ export function OfflineApp() {
     return available;
   }, [pack]);
 
-  const [tab, setTab] = useState<TabId>("tasks");
+  // The offline copy exists for the wedding day, so open on Day-of when it has a timeline.
+  const [tab, setTab] = useState<TabId>(() =>
+    pack && pack !== "loading" && weddingTimelineRows(asTimeline(pack)).length ? "day" : "tasks",
+  );
+  const [defaultedForPack, setDefaultedForPack] = useState<OfflinePack | null>(null);
+  if (pack && pack !== "loading" && defaultedForPack !== pack) {
+    setDefaultedForPack(pack);
+    if (weddingTimelineRows(asTimeline(pack)).length) setTab("day");
+  }
 
   if (pack === "loading") {
     return (

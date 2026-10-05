@@ -84,12 +84,11 @@ export const MODULES: ModuleDef[] = [
   },
   {
     key: "requests",
-    label: "Ask",
-    href: "/requests",
+    label: "Messages",
+    href: "/messages",
     group: "comm",
     navTab: "today",
     see: "canSeeRequests",
-    hideFromMore: true,
     icon: "ask",
   },
   {
@@ -191,7 +190,7 @@ export const NAV_TABS: { tab: NavTab; label: string; href: string; icon: ModuleI
 
 /** Path prefixes that belong to each V2 nav tab (for active-state detection). */
 export const NAV_TAB_PREFIXES: Record<NavTab, string[]> = {
-  today: ["/today", "/home", "/work"],
+  today: ["/today", "/home", "/work", "/messages"],
   plan: ["/plan", "/day", "/rehearsal", "/stay", "/shop", "/calendar"],
   people: ["/people", "/guests"],
   money: ["/money"],

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  canReplyToRequest,
+  isMessageNew,
   isRequestUnread,
+  readMarkerFor,
   readMarkersForParticipant,
   unreadMarkersForAuthor,
   unreadRequestsWhere,
@@ -87,4 +90,84 @@ test("readMarkersForParticipant updates the current side", () => {
   });
   assert.ok(markers.readAt instanceof Date);
   assert.equal(markers.senderReadAt, undefined);
+});
+
+test("unread survives the ask being marked done", () => {
+  const row = {
+    id: "1",
+    status: "done",
+    senderAccountId: "david",
+    recipientAccountId: "pam",
+    readAt: null,
+    senderReadAt: new Date(),
+  };
+  assert.equal(isRequestUnread(session(), row), true);
+});
+
+test("a master is never unread on someone else's thread", () => {
+  const row = {
+    id: "1",
+    status: "open",
+    senderAccountId: "david",
+    recipientAccountId: "haley",
+    readAt: null,
+    senderReadAt: null,
+  };
+  assert.equal(isRequestUnread(session({ isMaster: true }), row), false);
+  assert.equal(readMarkerFor(session({ isMaster: true }), row), null);
+});
+
+test("a master reading a third-party thread marks nothing", () => {
+  const markers = readMarkersForParticipant(session({ isMaster: true }), {
+    senderAccountId: "david",
+    recipientAccountId: "haley",
+  });
+  assert.equal(markers.readAt, undefined);
+  assert.equal(markers.senderReadAt, undefined);
+});
+
+test("an outsider's reply notifies both participants", () => {
+  const markers = unreadMarkersForAuthor("master", {
+    senderAccountId: "david",
+    recipientAccountId: "haley",
+  });
+  assert.equal(markers.readAt, null);
+  assert.equal(markers.senderReadAt, null);
+});
+
+test("replies are allowed on done and declined threads", () => {
+  for (const status of ["open", "done", "declined"]) {
+    assert.equal(
+      canReplyToRequest(session(), {
+        id: "1",
+        status,
+        senderAccountId: "pam",
+        recipientAccountId: "david",
+        readAt: null,
+      }),
+      true,
+      status,
+    );
+  }
+});
+
+test("isMessageNew flags only other people's messages after the read marker", () => {
+  const marker = new Date("2026-10-05T10:00:00Z");
+  const me = { id: "pam" };
+  assert.equal(
+    isMessageNew(me, marker, { authorAccountId: "david", createdAt: new Date("2026-10-05T10:05:00Z") }),
+    true,
+  );
+  assert.equal(
+    isMessageNew(me, marker, { authorAccountId: "david", createdAt: new Date("2026-10-05T09:55:00Z") }),
+    false,
+  );
+  assert.equal(
+    isMessageNew(me, marker, { authorAccountId: "pam", createdAt: new Date("2026-10-05T10:05:00Z") }),
+    false,
+  );
+  assert.equal(
+    isMessageNew(me, null, { authorAccountId: "david", createdAt: new Date("2026-10-05T09:00:00Z") }),
+    true,
+  );
 });

@@ -487,7 +487,10 @@ export function groupInboxItems(items: InboxItem[], session: SessionAccount): In
 
   for (const item of items) {
     if (item.kind === "ask") {
-      if (item.done || item.declined) {
+      if (item.unread && (item.done || item.declined)) {
+        // A new reply on a closed ask still needs a look.
+        needsYou.push(item);
+      } else if (item.done || item.declined) {
         done.push(item);
       } else if (item.needsMe) {
         needsYou.push(item);
