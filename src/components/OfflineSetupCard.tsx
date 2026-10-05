@@ -294,8 +294,8 @@ function installGuide(
         )}
 
         <p className="mt-5 rounded-2xl bg-[var(--accent-soft)] p-3 text-sm text-muted">
-          The Home Screen app opens your saved offline copy first. No login or internet is required
-          after this device has synced once.
+          The Home Screen app opens normally and falls back to your saved offline copy when there
+          is no connection. No login or internet is required after this device has synced once.
         </p>
       </div>
     </div>
