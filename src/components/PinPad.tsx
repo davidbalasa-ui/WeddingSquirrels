@@ -71,8 +71,9 @@ export function PinPad() {
               key={key}
               type="button"
               className="pin-key"
-              disabled={pending}
               onClick={() => {
+                // Keys stay enabled so taps are not swallowed; ignore them mid-unlock or at max length.
+                if (pending || pin.length >= 8) return;
                 const next = pin + key;
                 setPin(next);
                 if (next.length === 4) submit(next);
