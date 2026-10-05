@@ -54,6 +54,72 @@ export function TaskWorkspaceForm({
 
       <EscalatePriorityButton taskId={task.id} escalated={escalated} />
 
+      {task.children.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-[family-name:var(--font-display)] text-xl">Steps inside this</h2>
+            <p className="shrink-0 text-sm font-semibold text-[var(--accent)]">
+              {childDone}/{childTotal} done
+            </p>
+          </div>
+          <p className="text-sm text-muted">
+            Each step can have its own note. Check it when that piece is finished.
+          </p>
+          {steps.map((step) => {
+            const stepDone = step.status === "done";
+            return (
+              <article key={step.id} className={`card p-4 ${stepDone ? "opacity-70" : ""}`}>
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    aria-label={stepDone ? "Mark step not done" : "Mark step done"}
+                    onClick={() =>
+                      startTransition(async () => {
+                        toggleOptimisticStep(step.id);
+                        await toggleTaskDone(step.id);
+                      })
+                    }
+                    className="step-check mt-0.5 shrink-0"
+                    style={{
+                      background: stepDone ? "var(--accent)" : "transparent",
+                      color: stepDone ? "white" : "var(--muted)",
+                    }}
+                  >
+                    {stepDone ? "✓" : ""}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <input
+                      defaultValue={step.title}
+                      className="w-full border-0 bg-transparent p-0 text-[15px] font-semibold leading-snug outline-none focus:underline"
+                      onBlur={(event) => {
+                        const next = event.target.value.trim();
+                        if (!next || next === step.title) return;
+                        startTransition(() => renameTask(step.id, next));
+                      }}
+                    />
+                    <form action={saveStepNotes} className="mt-2">
+                      <input type="hidden" name="id" value={step.id} />
+                      <textarea
+                        name="planNotes"
+                        defaultValue={step.planNotes || ""}
+                        rows={2}
+                        placeholder="Notes for this step…"
+                        className="w-full resize-y rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                        onBlur={(e) => {
+                          const form = e.currentTarget.form;
+                          if (form) form.requestSubmit();
+                        }}
+                      />
+                    </form>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      ) : null}
+
+      {/* With steps, the checklist comes first; the decision form stays fully visible below it. */}
       <form action={saveAction} className="card flex flex-col gap-4 p-4">
         <input type="hidden" name="id" value={task.id} />
         <input type="hidden" name="returnTo" value={returnTo} />
@@ -190,65 +256,6 @@ export function TaskWorkspaceForm({
         </button>
       </form>
 
-      {task.children.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="font-[family-name:var(--font-display)] text-xl">Steps inside this</h2>
-          <p className="text-sm text-muted">
-            Each step can have its own note. Check it when that piece is finished.
-          </p>
-          {steps.map((step) => {
-            const stepDone = step.status === "done";
-            return (
-              <article key={step.id} className={`card p-4 ${stepDone ? "opacity-70" : ""}`}>
-                <div className="flex items-start gap-3">
-                  <button
-                    type="button"
-                    aria-label={stepDone ? "Mark step not done" : "Mark step done"}
-                    onClick={() =>
-                      startTransition(async () => {
-                        toggleOptimisticStep(step.id);
-                        await toggleTaskDone(step.id);
-                      })
-                    }
-                    className="step-check mt-0.5 shrink-0"
-                    style={{
-                      background: stepDone ? "var(--accent)" : "transparent",
-                      color: stepDone ? "white" : "var(--muted)",
-                    }}
-                  >
-                    {stepDone ? "✓" : ""}
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <input
-                      defaultValue={step.title}
-                      className="w-full border-0 bg-transparent p-0 text-[15px] font-semibold leading-snug outline-none focus:underline"
-                      onBlur={(event) => {
-                        const next = event.target.value.trim();
-                        if (!next || next === step.title) return;
-                        startTransition(() => renameTask(step.id, next));
-                      }}
-                    />
-                    <form action={saveStepNotes} className="mt-2">
-                      <input type="hidden" name="id" value={step.id} />
-                      <textarea
-                        name="planNotes"
-                        defaultValue={step.planNotes || ""}
-                        rows={2}
-                        placeholder="Notes for this step…"
-                        className="w-full resize-y rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-                        onBlur={(e) => {
-                          const form = e.currentTarget.form;
-                          if (form) form.requestSubmit();
-                        }}
-                      />
-                    </form>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </section>
-      ) : null}
     </div>
   );
 }
