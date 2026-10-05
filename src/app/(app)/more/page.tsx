@@ -2,13 +2,21 @@ import Link from "next/link";
 import { ModuleIcon } from "@/components/ModuleIcon";
 import { OfflineSetupCard } from "@/components/OfflineSetupCard";
 import { V2PageHeader } from "@/components/V2PageHeader";
-import { modulesForNavTab, moreGroups } from "@/lib/modules";
+import { modulesForNavTab, moreGroups, NAV_TABS } from "@/lib/modules";
 import { requirePageSession } from "@/lib/session";
 
 export default async function MoreHubPage() {
   const session = await requirePageSession();
   const moreModules = modulesForNavTab(session, "more").filter((item) => item.key !== "print");
-  const legacyGroups = moreGroups(session);
+  // Everything already reachable from the bottom bar or the Admin section above stays out of this list.
+  const legacyGroups = moreGroups(session)
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => item.navTab !== "more" && !NAV_TABS.some((tab) => tab.href === item.href),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <>

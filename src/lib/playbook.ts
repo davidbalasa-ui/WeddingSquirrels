@@ -521,35 +521,6 @@ export function mergeCanonicalPlaybookWithPersisted(
   });
 }
 
-export function operationalViewLinks(): Array<{ href: string; label: string; detail: string }> {
-  return [
-    {
-      href: "/plan/timeline",
-      label: "Timeline",
-      detail: "The full wedding-day schedule",
-    },
-    {
-      href: "/day/mc",
-      label: "MC Run of Show",
-      detail: "Spoken cues and music for Kurt and Wendy",
-    },
-    {
-      href: "/day/hair-makeup",
-      label: "Hair & Makeup",
-      detail: "Who is in which room, and when",
-    },
-    {
-      href: "/day/shots",
-      label: "Shot List",
-      detail: "Photographer checklist",
-    },
-    {
-      href: "/day/decor",
-      label: "Decor / Setup",
-      detail: "What goes out, and who owns cleanup",
-    },
-  ];
-}
 
 export function profilePlaybookMatches(name: string): PlaybookKind[] {
   const hay = name.toLowerCase();

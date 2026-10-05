@@ -1,5 +1,5 @@
 import { DayTimeline } from "@/components/DayTimeline";
-import { OperationalViewsNav } from "@/components/OperationalViewsNav";
+import { DayTabs } from "@/components/DayTabs";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { WeddingPlacesEditor } from "@/components/WeddingPlacesEditor";
 import { timelineEditable } from "@/lib/access";
@@ -35,7 +35,7 @@ export default async function PlanTimelinePage({
   return (
     <>
       <PlanChapterHeader title="Wedding Day" subtitle={subtitle} />
-      <OperationalViewsNav current="/plan/timeline" />
+      <DayTabs />
       <WeddingPlacesEditor initial={placeSettings} canEdit={canEdit} />
       <DayTimeline
         blocks={blocks}

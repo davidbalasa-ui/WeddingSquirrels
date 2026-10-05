@@ -33,7 +33,7 @@ export function TodayInboxAddBar({
       people={people}
       tasks={tasks}
       preferredAssigneeIds={preferredAssigneeIds}
-      pinToTop
+      pinToBottom
     />
   );
 }

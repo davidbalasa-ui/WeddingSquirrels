@@ -961,3 +961,15 @@ a {
 .day-tabs > * {
   scroll-snap-align: start;
 }
+
+/* Today compose bar docked above the bottom nav */
+.compose-dock {
+  position: sticky;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  margin: 16px -16px 0;
+  padding: 10px 16px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+}
