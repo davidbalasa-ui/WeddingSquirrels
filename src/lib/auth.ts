@@ -1,16 +1,14 @@
 import { compare, hash } from "bcryptjs";
-import { SignJWT, jwtVerify } from "jose";
+import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import {
+  SESSION_COOKIE as COOKIE,
+  sessionCookieOptions,
+  sessionSecret as secret,
+  signSessionToken,
+} from "@/lib/session-token";
 import type { SessionAccount } from "@/lib/types";
-
-const COOKIE = "ws_session";
-const MAX_AGE = 60 * 60 * 24 * 14; // 14 days
-
-function secret() {
-  const value = process.env.PIN_SESSION_SECRET || "dev-wedding-squirrels-secret-change-me";
-  return new TextEncoder().encode(value);
-}
 
 export async function hashPin(pin: string) {
   return hash(pin, 10);
@@ -102,20 +100,10 @@ function toSession(account: {
 }
 
 export async function createSession(accountId: string) {
-  const token = await new SignJWT({ accountId })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(`${MAX_AGE}s`)
-    .sign(secret());
+  const token = await signSessionToken(accountId);
 
   const jar = await cookies();
-  jar.set(COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: MAX_AGE,
-  });
+  jar.set(COOKIE, token, sessionCookieOptions());
 }
 
 export async function clearSession() {
