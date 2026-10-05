@@ -16,6 +16,9 @@ import {
  */
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
+  // Only renew on page loads. Server actions are POSTs and may be clearing the
+  // cookie (logout); a renewal on the same response would race that.
+  if (request.method !== "GET") return response;
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   if (!token) return response;
 
