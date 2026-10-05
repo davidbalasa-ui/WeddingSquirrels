@@ -81,7 +81,7 @@ test.describe("day of", () => {
     await expect(page).toHaveURL(/\/day\/mc/);
     await page.getByRole("navigation", { name: "Day-of pages" }).getByRole("link", { name: "Day", exact: true }).click();
     await page.getByRole("navigation", { name: "Day-of pages" }).getByRole("link", { name: "Contacts" }).click();
-    await expect(page).toHaveURL(/tab=day-of/);
+    await expect(page).toHaveURL(/\/day\/contacts/);
     await page.goto("/day");
     await page.getByRole("navigation", { name: "Day-of pages" }).getByRole("link", { name: "Assignments" }).click();
     await expect(page).toHaveURL(/\/day\/assignments/);

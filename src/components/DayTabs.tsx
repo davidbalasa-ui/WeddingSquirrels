@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 export function DayTabs({ showNowTab: _showNowTab = false }: { showNowTab?: boolean }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   const tabs = [
     { href: "/day", label: "Day" },
     { href: "/day/mc", label: "MC" },
-    { href: "/people?tab=day-of", label: "Contacts" },
+    { href: "/day/contacts", label: "Contacts" },
     { href: "/day/assignments", label: "Assignments" },
   ];
 
@@ -20,9 +19,7 @@ export function DayTabs({ showNowTab: _showNowTab = false }: { showNowTab?: bool
         const active =
           tab.href === "/day"
             ? pathname === "/day" || pathname === "/day/now"
-            : tab.href === "/people?tab=day-of"
-              ? pathname === "/people" && searchParams.get("tab") === "day-of"
-              : pathname.startsWith(tab.href);
+            : pathname.startsWith(tab.href);
         return (
           <Link
             key={tab.href}
