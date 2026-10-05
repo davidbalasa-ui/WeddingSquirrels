@@ -9,7 +9,7 @@ import {
   type OfflinePack,
 } from "@/lib/offline-db";
 
-const OFFLINE_CACHE = "weddingsquirrels-v3";
+const OFFLINE_CACHE = "weddingsquirrels-v4";
 const PACK_UPDATED_EVENT = "weddingsquirrels:offline-pack-updated";
 const PACK_SYNC_ERROR_EVENT = "weddingsquirrels:offline-pack-error";
 const PACK_SYNC_REQUEST_EVENT = "weddingsquirrels:offline-sync-request";
@@ -25,12 +25,12 @@ declare global {
 async function warmOfflineShell(): Promise<void> {
   if (!("caches" in window)) return;
 
-  const cache = await caches.open(OFFLINE_CACHE);
-  // Bypass the service worker's cache-first /offline handler so deploys refresh the shell.
-  await cache.delete("/offline");
-
-  const response = await fetch("/offline", { credentials: "same-origin" });
+  // Fetch the fresh shell first. Only replace the cached copy once we have a
+  // good response, so an unreachable server never deletes the offline fallback.
+  const response = await fetch("/offline", { credentials: "same-origin", cache: "no-store" });
   if (!response.ok) return;
+
+  const cache = await caches.open(OFFLINE_CACHE);
 
   const html = await response.clone().text();
   const document = new DOMParser().parseFromString(html, "text/html");
@@ -43,6 +43,7 @@ async function warmOfflineShell(): Promise<void> {
     .map((element) => element.getAttribute("src") ?? element.getAttribute("href"))
     .filter((url): url is string => Boolean(url?.startsWith("/")));
 
+  await cache.delete("/offline");
   await cache.put("/offline", response);
   await Promise.allSettled(
     [...new Set(assetUrls)].map(async (url) => {
