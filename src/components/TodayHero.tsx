@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { lockAction } from "@/app/actions";
+import { MessagesShortcut } from "@/components/MessagesShortcut";
 import type { TodayHeroData } from "@/lib/today";
 import type { SessionAccount } from "@/lib/types";
 
@@ -21,7 +22,7 @@ export function TodayHero({
         : null;
 
   return (
-    <header className="mb-8 pt-5">
+    <header className="mb-6 pt-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
           {hero.greeting}
@@ -41,7 +42,7 @@ export function TodayHero({
       </h1>
 
       {phase === "wedding_day" ? (
-        <div className="mt-7">
+        <div className="mt-5">
           <p className="font-[family-name:var(--font-display)] text-[2.35rem] leading-[1.05] tracking-tight text-[var(--accent)]">
             {hero.kicker}
           </p>
@@ -58,14 +59,14 @@ export function TodayHero({
           ) : null}
         </div>
       ) : phase === "day_before" ? (
-        <div className="mt-7">
+        <div className="mt-5">
           <p className="font-[family-name:var(--font-display)] text-[2.35rem] leading-[1.05] tracking-tight text-[var(--accent)]">
             {hero.kicker}
           </p>
           {hero.lede ? <p className="mt-2 text-base text-muted">{hero.lede}</p> : null}
         </div>
       ) : phase === "post_wedding" ? (
-        <div className="mt-7">
+        <div className="mt-5">
           <p className="font-[family-name:var(--font-display)] text-[2.35rem] leading-[1.05] tracking-tight text-[var(--accent)]">
             {hero.kicker}
           </p>
@@ -76,21 +77,21 @@ export function TodayHero({
           ) : null}
         </div>
       ) : daysNumber ? (
-        <div className="mt-7">
-          <p className="font-[family-name:var(--font-display)] text-[4.25rem] leading-none text-[var(--accent)]">
+        <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-0">
+          <p className="font-[family-name:var(--font-display)] text-[3rem] leading-none text-[var(--accent)]">
             {daysNumber}
           </p>
-          <p className="mt-1 font-[family-name:var(--font-display)] text-2xl leading-tight text-[var(--accent)]">
+          <p className="font-[family-name:var(--font-display)] text-2xl leading-tight text-[var(--accent)]">
             {hero.daysToGo === 1 ? "day" : "days"}
           </p>
           {phase === "wedding_week" && hero.lede ? (
-            <p className="mt-2 text-base text-muted">{hero.lede}</p>
+            <p className="basis-full text-base text-muted sm:basis-auto">{hero.lede}</p>
           ) : hero.countdownSupport ? (
-            <p className="mt-2 text-base text-muted">{hero.countdownSupport}</p>
+            <p className="basis-full text-base text-muted sm:basis-auto">{hero.countdownSupport}</p>
           ) : null}
         </div>
       ) : hero.countdownLabel ? (
-        <div className="mt-7">
+        <div className="mt-5">
           <p className="font-[family-name:var(--font-display)] text-4xl leading-tight text-[var(--accent)]">
             {hero.countdownLabel}
           </p>
@@ -103,7 +104,7 @@ export function TodayHero({
       ) : null}
 
       {hero.weddingDateLabel && phase !== "post_wedding" ? (
-        <p className="mt-6 text-sm text-muted">{hero.weddingDateLabel}</p>
+        <p className="mt-3 text-sm text-muted">{hero.weddingDateLabel}</p>
       ) : null}
       {hero.venue ? (
         <p className="mt-1 text-sm text-muted">
@@ -130,6 +131,7 @@ export function TodayHero({
           </Link>
         </p>
       ) : null}
+      {session.canSeeRequests ? <MessagesShortcut /> : null}
     </header>
   );
 }

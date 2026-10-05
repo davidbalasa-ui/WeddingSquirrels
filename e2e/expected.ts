@@ -64,6 +64,7 @@ export const AUTH_ROUTES: Array<{ path: string; expect: RegExp }> = [
   { path: "/day", expect: /Wedding day|Here's how the day is planned|Today/i },
   { path: "/day/assignments", expect: /Assignments/i },
   { path: "/day/contacts", expect: /Contacts/i },
+  { path: "/day/venue", expect: /Venue layout/i },
   { path: "/day/mc", expect: /MC Run of Show/i },
   { path: "/day/hair-makeup", expect: /Hair & Makeup/i },
   { path: "/day/shots", expect: /Photo Shot List/i },

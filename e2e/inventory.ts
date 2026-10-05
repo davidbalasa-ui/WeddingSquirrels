@@ -64,6 +64,7 @@ export const DISCOVERED_ROUTES = [
   "/day/now",
   "/day/assignments",
   "/day/contacts",
+  "/day/venue",
   "/day/mc",
   "/day/hair-makeup",
   "/day/shots",

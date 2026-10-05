@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createRequest, createShoppingItemFromInbox, createTaskFromInbox } from "@/app/actions";
 import { defaultAssigneeIds } from "@/lib/people";
 import type { PersonOption, TaskOption } from "@/lib/inbox";
@@ -17,6 +17,7 @@ export function InboxAddBar({
   tasks,
   preferredAssigneeIds,
   pinToTop = false,
+  pinToBottom = false,
 }: {
   session: SessionAccount;
   accounts: AccountOption[];
@@ -25,6 +26,8 @@ export function InboxAddBar({
   preferredAssigneeIds?: string[];
   /** When true, skip sticky positioning (e.g. add bar already at page top). */
   pinToTop?: boolean;
+  /** Dock the collapsed buttons just above the bottom nav so compose is always one tap away. */
+  pinToBottom?: boolean;
 }) {
   const kinds: ComposeKind[] = [];
   if (session.canSeeRequests) kinds.push("ask");
@@ -35,16 +38,24 @@ export function InboxAddBar({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const openRef = useRef<HTMLElement>(null);
+
+  // The docked bar opens its form in the page flow; bring it into view.
+  useEffect(() => {
+    if (open && pinToBottom) openRef.current?.scrollIntoView({ block: "nearest" });
+  }, [open, pinToBottom]);
 
   const recipients = accounts.filter((a) => a.id !== session.id);
 
   if (kinds.length === 0) return null;
 
-  const collapsedWrapClass = pinToTop
+  const collapsedWrapClass = pinToBottom
+    ? "compose-dock"
+    : pinToTop
     ? "-mx-1 mb-4 py-1"
     : "sticky top-[var(--header-offset,0px)] z-10 -mx-1 bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] py-1 backdrop-blur-sm";
 
-  const openWrapClass = pinToTop
+  const openWrapClass = pinToTop || pinToBottom
     ? "mb-4 overflow-hidden border border-line"
     : "sticky top-0 z-10 overflow-hidden border border-line";
 
@@ -84,7 +95,7 @@ export function InboxAddBar({
   }
 
   return (
-    <section className={openWrapClass}>
+    <section ref={openRef} className={openWrapClass}>
       {kinds.length > 1 ? (
         <div className="flex border-b border-line">
           {kinds.map((k) => (
