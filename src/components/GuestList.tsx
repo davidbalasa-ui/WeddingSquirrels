@@ -17,6 +17,7 @@ import {
 } from "@/lib/people-sort";
 import { GuestPersonCard } from "@/components/GuestPersonCard";
 import { PersonAvatar } from "@/components/PersonAvatar";
+import { VenueLayoutFigure } from "@/components/VenueLayoutFigure";
 
 export function GuestList({
   guests,
@@ -119,16 +120,7 @@ function GuestTableView({ guests, query }: { guests: GuestRecord[]; query: strin
 
   return (
     <div className="flex flex-col gap-3">
-      <figure className="card overflow-hidden">
-        <img
-          src="/seating-layout.png"
-          alt="Black Sheep Shelter floor plan with South tables on the left, North tables on the right, and the head table at the bar and band end"
-          className="w-full"
-        />
-        <figcaption className="border-t border-line px-3 py-2 text-xs text-muted">
-          South is left, North is right, Head is between the bar and band.
-        </figcaption>
-      </figure>
+      <VenueLayoutFigure />
       {groups.map((group) => (
         <section key={group.label}>
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
