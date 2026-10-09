@@ -4,6 +4,7 @@ import { parseBlockNotes } from "./day-of-now";
 import {
   RECONCILED_RETIRED_SEED_KEYS,
   RECONCILED_TIMELINE,
+  phaseForBlock,
   planReconciledTimeline,
   reconciledNotes,
   reconciledPlanIsEmpty,
@@ -71,4 +72,25 @@ test("the couple's 4:30 cocktail break and the drinks/apps runners are off the d
   assert.ok(RECONCILED_RETIRED_SEED_KEYS.includes("wedding_couple_cocktail"));
   const cocktail = RECONCILED_TIMELINE.find((moment) => moment.seedKey === "wedding_cocktail_hour");
   assert.equal(cocktail?.lines.some((line) => /bring David and Haley/i.test(line)), false);
+});
+
+test("renumbering the page (sortOrder) does not bring the update card back", () => {
+  const applied = planReconciledTimeline([]).inserts.map((row, index) => ({
+    id: row.seedKey,
+    seedKey: row.seedKey,
+    schedule: row.schedule,
+    startAt: row.startAt,
+    endAt: row.endAt,
+    notes: row.notes,
+    sortOrder: 500 - index,
+  }));
+  const plan = planReconciledTimeline(applied);
+  assert.equal(plan.updates.length, 0);
+  assert.equal(plan.inserts.length, 0);
+});
+
+test("a seeded moment moved to a new time follows its new time into the right section", () => {
+  assert.equal(phaseForBlock({ seedKey: "wedding_katie_arrives", startAt: "10:30 AM" }), "morning");
+  assert.equal(phaseForBlock({ seedKey: "wedding_katie_arrives", startAt: "1:30 PM" }), "photos");
+  assert.equal(phaseForBlock({ seedKey: "wedding_teardown", startAt: "10:00 PM" }), "evening");
 });

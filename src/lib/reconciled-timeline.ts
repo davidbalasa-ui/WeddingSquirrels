@@ -210,8 +210,9 @@ export function phaseForBlock(
   schedule: "wedding" | "rehearsal" = "wedding",
 ): string {
   if (schedule === "rehearsal") return "rehearsal";
-  const known = phaseForSeedKey(block.seedKey);
-  if (known) return known;
+  // The document's section holds while the moment keeps the document's time; a moved moment follows its new time.
+  const seeded = block.seedKey ? RECONCILED_TIMELINE.find((moment) => moment.seedKey === block.seedKey) : undefined;
+  if (seeded && seeded.startAt === block.startAt) return seeded.phase;
   const parsed = parseDayOfTime(block.startAt);
   if (parsed.kind !== "timed") return "untimed";
   const minutes = parsed.dayOffset * 1440 + parsed.minutes;
@@ -273,7 +274,9 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
       plan.inserts.push(write);
       return;
     }
-    if (row.startAt === write.startAt && (row.endAt ?? null) === write.endAt && row.notes === notes && row.sortOrder === index) {
+    // Position is not compared: every save on the page renumbers sortOrder per
+    // schedule, which would otherwise bring this card back for unchanged moments.
+    if (row.startAt === write.startAt && (row.endAt ?? null) === write.endAt && row.notes === notes) {
       plan.unchanged.push(moment.seedKey);
       return;
     }

@@ -208,7 +208,7 @@ export function DayTimeline({
       const prevById = new Map(prev.map((row) => [row.id, row]));
       return blocks.map((block) => {
         const existing = prevById.get(block.id);
-        if (existing && (existing.status === "dirty" || existing.status === "saving")) {
+        if (existing && (existing.status === "dirty" || existing.status === "saving" || existing.status === "error")) {
           return existing;
         }
         return toRow(block);
@@ -337,8 +337,12 @@ export function DayTimeline({
       error: null,
     };
 
+    setUnreachable(false);
     setRows((prev) => {
-      const next = applyOrder(prev, result.order, updated);
+      // Typing that landed while this save was in flight stays; its own save is already queued.
+      const current = prev.find((item) => item.id === row.id);
+      const keep = current && current.localRev !== row.localRev ? { ...current, lastSaved: updated.lastSaved } : updated;
+      const next = applyOrder(prev, result.order, keep);
       if (opts.reorder) scrollIfMoved(row.id, prev, next);
       return next;
     });
@@ -376,6 +380,7 @@ export function DayTimeline({
       return result;
     }
 
+    setUnreachable(false);
     const created = toRow({
       id: result.id,
       startAt: prepared.startAt,
@@ -495,6 +500,7 @@ export function DayTimeline({
       setBanner("Couldn’t remove that moment — try again.");
       return;
     }
+    setUnreachable(false);
     setRows((prev) => prev.filter((row) => row.id !== id));
     setConfirmDeleteId(null);
   }
@@ -508,6 +514,7 @@ export function DayTimeline({
       setBanner("Couldn’t reorder those moments — try again.");
       return;
     }
+    setUnreachable(false);
     setRows((prev) => applyOrder(prev, result.order));
   }
 
@@ -770,9 +777,11 @@ function ReviewSections({
     momentForRole(reviewMoment({ startAt: row.startAt, endAt: row.endAt || null, notes: row.notes }, roleNames), role);
   const all = [...timed, ...untimed].map((row) => ({ row, moment: view(row) })).filter((item) => item.moment);
   if (all.length === 0) {
+    // An empty page already shows its own "Nothing scheduled yet" card.
+    if (!role) return null;
     return (
       <div className="card p-6 text-center text-sm text-muted">
-        {role ? "Nothing on the timeline mentions this group yet." : "Nothing scheduled yet."}
+        Nothing on the timeline mentions this group yet.
       </div>
     );
   }
@@ -1110,6 +1119,8 @@ function PeerHandle({
 
   function onPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     const handle = event.currentTarget;
+    // Phones send no click after a touch drag, so clear the flag here too.
+    draggedRef.current = false;
     handle.setPointerCapture(event.pointerId);
     const startY = event.clientY;
     let current = [...peerIds];

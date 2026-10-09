@@ -3634,6 +3634,9 @@ export async function applyReconciledTimelineAction(): Promise<
   } catch {
     return { ok: false, reason: "failed" };
   }
+  // Same per-schedule numbering the page's own saves use.
+  await resequenceTimeline("wedding");
+  await resequenceTimeline("rehearsal");
   revalidateSchedule("wedding");
   revalidateSchedule("rehearsal");
   return { ok: true, inserted: plan.inserts.length, updated: plan.updates.length, removed: plan.removals.length };

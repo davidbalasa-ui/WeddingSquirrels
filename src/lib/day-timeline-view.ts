@@ -28,7 +28,7 @@ const ROLE_WORDS: Record<TimelineRole, RegExp> = {
   family:
     /\bmother\b|\bfather\b|\bmom\b|\bdad\b|\bFOB\b|\bMOB\b|\bFOG\b|\bMOG\b|\bparents?\b|grandm|grandp|family portraits|immediate family|first look with parent/i,
   helpers: /\bhelpers?\b|volunteers?|everyone helps|pack(?:s)? up|move chairs|set ?up|tear ?down|clean ?up|assignments?/i,
-  photo: /photograph|\bphotos?\b|candids|portraits|detail shots|videograph/i,
+  photo: /photograph|\bphotos?\b|candids|portraits?|detail shots|videograph/i,
   vendors:
     /\bvendors?\b|coordinator|florals?|florist|rentals?|cater|\bDJ\b|\bbar\b|trailer|officiant|decor|venue opens|hair ?(?:&|and) ?makeup artist|makeup artist|unloads gear/i,
 };

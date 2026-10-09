@@ -300,3 +300,9 @@ test("Print / Save PDF calls the browser print dialog", () => {
   triggerBrowserPrint({ print: () => { called += 1; } });
   assert.equal(called, 1);
 });
+
+test("a packet still counts as picked when the session cannot see one of its sections", () => {
+  const available = sectionsForPreset("bride").filter((id) => id !== "stay");
+  assert.equal(activePreset(available, "bride", available), "bride");
+  assert.equal(activePreset(available, "bride"), null);
+});
