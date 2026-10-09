@@ -17,7 +17,7 @@ export default async function DayVenuePage() {
         <Link href="/people?tab=guests" className="font-semibold text-[var(--accent)]">
           Guests
         </Link>
-        . To update this drawing, replace the file at <code>public/seating-layout.png</code>.
+        .
       </p>
     </>
   );

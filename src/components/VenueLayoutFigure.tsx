@@ -19,7 +19,9 @@ export function VenueLayoutFigure({ caption = true }: { caption?: boolean }) {
         <img
           src={VENUE_LAYOUT_SRC}
           alt="Black Sheep Shelter layout: Entry and Tyler tables at the top, South tables on the left, North tables on the right, the head table between the bar and the band, dessert table on the south wall and gift table on the north wall"
-          className="w-full"
+          width={527}
+          height={745}
+          className="h-auto w-full"
         />
       </a>
       {caption ? (

@@ -87,10 +87,10 @@ export function PlaybookBoard({
 
   return (
     <div className="space-y-8">
-      {groups.map((group) => (
-        <section key={group.section} aria-labelledby={`playbook-${group.section}`}>
+      {groups.map((group, groupIndex) => (
+        <section key={group.section} aria-labelledby={`playbook-section-${groupIndex}`}>
           <h2
-            id={`playbook-${group.section}`}
+            id={`playbook-section-${groupIndex}`}
             className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted"
           >
             {group.section}

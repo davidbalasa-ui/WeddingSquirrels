@@ -218,7 +218,7 @@ export function OfflineApp() {
             <button
               key={item.id}
               type="button"
-              className="filter-pill rounded-full border px-3.5 py-2 text-sm font-semibold"
+              className="filter-pill rounded-full border border-line px-3.5 py-2 text-sm font-semibold"
               data-active={item.id === active}
               style={
                 item.id === active
@@ -309,6 +309,7 @@ function OfflinePlaybookView({
             <p className="text-sm font-semibold text-[var(--accent)]">{item.startAt}</p>
           ) : null}
           <p className="font-semibold leading-snug">{item.title}</p>
+          {item.detail ? <p className="mt-1 text-sm text-muted">{item.detail}</p> : null}
           {item.location ? <p className="mt-1 text-sm text-muted">{item.location}</p> : null}
           {item.notes ? <p className="mt-1 text-sm text-muted">{item.notes}</p> : null}
         </article>

@@ -33,7 +33,7 @@ export function DayTabs({ showNowTab: _showNowTab = false }: { showNowTab?: bool
           <Link
             key={tab.href}
             href={tab.href}
-            className="filter-pill shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold"
+            className="filter-pill shrink-0 rounded-full border border-line px-3.5 py-2 text-sm font-semibold"
             data-active={active}
             aria-current={active ? "page" : undefined}
             style={

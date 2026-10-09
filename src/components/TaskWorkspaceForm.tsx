@@ -35,14 +35,17 @@ export function TaskWorkspaceForm({
   const dueDateValue = dueDateInputValue(task.dueDate);
   const ownerNames = assigneeDisplayNames(task.assignees);
   const childTotal = task.children.length;
-  const childDone = task.children.filter((c) => c.status === "done").length;
+  const childDone = steps.filter((c) => c.status === "done").length;
   const selectedIds = task.assignees.map((a) => a.personId);
   const escalated = Boolean(task.escalatedAt);
 
   return (
     <div className="flex flex-col gap-4 pb-8">
       {escalated ? (
-        <section className="card border-[var(--warn)] bg-[var(--warn-soft)] p-4">
+        <section
+          className="card p-4"
+          style={{ borderColor: "var(--warn)", background: "var(--warn-soft)" }}
+        >
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--warn)]">
             Priority pin active
           </p>

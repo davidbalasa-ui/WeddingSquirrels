@@ -26,7 +26,7 @@ export function ModulePermissionGrid({
 
   return (
     <fieldset disabled={locked} className="flex flex-col gap-4">
-      <legend className="mb-1 text-sm font-semibold">Access</legend>
+      <legend className="mb-1 text-sm font-semibold">3 · Access</legend>
       {GROUP_ORDER.map((group: ModuleGroup) => {
         const rows = permissionModules(group);
         if (rows.length === 0) return null;
