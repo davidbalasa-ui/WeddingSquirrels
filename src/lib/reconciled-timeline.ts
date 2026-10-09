@@ -246,6 +246,10 @@ export type ReconciledWrite = {
 
 export type ReconciledPlan = {
   inserts: ReconciledWrite[];
+  /**
+   * Moments on the page that read differently from the document (usually the
+   * owner's own edits). Apply leaves these alone; each can be switched back one at a time.
+   */
   updates: Array<ReconciledWrite & { id: string; before: { startAt: string; endAt: string | null; title: string } }>;
   unchanged: string[];
   removals: Array<{ id: string; seedKey: string; title: string }>;
@@ -300,5 +304,5 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
 }
 
 export function reconciledPlanIsEmpty(plan: ReconciledPlan): boolean {
-  return plan.inserts.length === 0 && plan.updates.length === 0 && plan.removals.length === 0;
+  return plan.inserts.length === 0 && plan.removals.length === 0;
 }

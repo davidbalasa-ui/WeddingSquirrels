@@ -1241,14 +1241,18 @@ export function projectWeddingParty(input: {
   const lineUpTime = ordered.find((row) => row.startAt)?.startAt ?? null;
 
   // Lineup rows carry first names only. A phone is printed only when exactly
-  // one contact shares that first name; two Evans print TBD rather than a guess.
+  // one person (by full name, with or without a phone) shares that first name;
+  // two Evans print TBD rather than a guess.
   const phoneFor = (name: string): string | null => {
     const first = name.toLowerCase();
-    const matches = input.contacts.filter((row) => {
-      const contactFirst = row.name.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
-      return contactFirst === first && Boolean(row.phone?.trim());
-    });
-    return matches.length === 1 ? matches[0]!.phone!.trim() : null;
+    const people = new Map<string, string | null>();
+    for (const row of input.contacts) {
+      // "Avalon Green · Planner" and "Avalon Green" are the same person.
+      const full = row.name.split("·")[0]!.trim().toLowerCase();
+      if ((full.split(/\s+/)[0] ?? "") !== first) continue;
+      people.set(full, people.get(full) || row.phone?.trim() || null);
+    }
+    return people.size === 1 ? [...people.values()][0]! : null;
   };
 
   const members: PrintPartyMember[] = [];

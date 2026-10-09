@@ -51,13 +51,13 @@ test("parents' schedules split by side: father-daughter dance for the bride's, c
   assert.equal(momentForAudience(moments.wedding.find((m) => m.title === "Haley makeup")!, "groomParents", "wedding"), null);
 });
 
-test("bride's copy keeps the getaway moment and drops only the vehicle details", () => {
-  const getaway = RECONCILED_TIMELINE.find((m) => m.title === "Getaway vehicle arrives")!;
-  const block = { notes: reconciledNotes(getaway) };
-  const lines = parseBlockNotes(withoutBrideSecrets(block).notes).detailLines;
-  assert.equal(parseBlockNotes(withoutBrideSecrets(block).notes).title, "Getaway vehicle arrives");
-  assert.equal(lines.some((line) => /secret from the bride/i.test(line)), false);
-  assert.ok(lines.some((line) => /meets San/.test(line)));
+test("bride's copy keeps the getaway moments as time and title only", () => {
+  for (const title of ["Getaway vehicle arrives", "Getaway vehicle photos"]) {
+    const moment = RECONCILED_TIMELINE.find((m) => m.title === title)!;
+    const parsed = parseBlockNotes(withoutBrideSecrets({ notes: reconciledNotes(moment) }).notes);
+    assert.equal(parsed.title, title);
+    assert.deepEqual(parsed.detailLines, []);
+  }
   const plain = { notes: reconciledNotes(RECONCILED_TIMELINE[0]!) };
   assert.equal(withoutBrideSecrets(plain), plain);
 });
@@ -67,4 +67,39 @@ test("David's first look with his parents goes to the groom's parents only", () 
   const bride = packetSchedule(moments, "brideParents");
   assert.ok(titles(groom.wedding).includes("David’s first look with his parents"));
   assert.ok(!titles(bride.wedding).includes("David’s first look with his parents"));
+});
+
+test("Parents of the Bride get the instruction that follows the MOB's getaway line", () => {
+  const bride = packetSchedule(moments, "brideParents");
+  const getaway = bride.wedding.find((row) => row.title === "Getaway vehicle arrives");
+  assert.ok(getaway?.lines.some((line) => /Show San where to park/.test(line)));
+});
+
+test("the wedding party's copy has the Thursday departures and the return", () => {
+  const party = packetSchedule(moments, "party");
+  for (const title of ["Depart for Hawkshead", "Depart for Black Sheep Shelter", "Return to the Airbnb"]) {
+    assert.ok(titles(party.rehearsal).includes(title), title);
+  }
+  assert.equal(titles(packetSchedule(moments, "mc").rehearsal).length, 0);
+});
+
+test("nothing in the bride's copy of the whole timeline mentions San, the sign or the secret", () => {
+  for (const moment of RECONCILED_TIMELINE) {
+    const notes = withoutBrideSecrets({ notes: reconciledNotes(moment) }).notes;
+    assert.doesNotMatch(notes, /\bSan\b|Just Married|secret from the bride/i, moment.title);
+  }
+});
+
+test("packets for each group keep the moments they had before, plus only the intended additions", () => {
+  // Every group still gets the ceremony and the dances; MC and photographer have no rehearsal.
+  for (const audience of ["party", "mc", "photo", "brideParents", "groomParents"] as const) {
+    const schedule = packetSchedule(moments, audience);
+    assert.ok(titles(schedule.wedding).includes("Ceremony"), audience);
+    assert.ok(titles(schedule.wedding).includes("Formal dances"), audience);
+  }
+  assert.equal(packetSchedule(moments, "photo").rehearsal.length, 0);
+  // The follow-on rule only adds a line that names the same person, so the
+  // bride's parents do not pick up the planning note under Formal dances.
+  const dances = packetSchedule(moments, "brideParents").wedding.find((row) => row.title === "Formal dances");
+  assert.deepEqual(dances?.lines, ["Father of the bride dance."]);
 });

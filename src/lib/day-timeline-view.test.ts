@@ -108,3 +108,8 @@ test("the photographer view keeps a moment whose only photo line is a single por
   );
   assert.ok(momentForRole(moment, "photo"));
 });
+
+test("every group view keeps the ceremony with its time and title", () => {
+  const ceremony = reviewMoment({ startAt: "3:30 PM", endAt: "4:00 PM", notes: "Ceremony\n@ Under the shelter" }, {});
+  for (const role of ["mc", "party", "family", "photo", "vendors"] as const) assert.ok(momentForRole(ceremony, role), role);
+});
