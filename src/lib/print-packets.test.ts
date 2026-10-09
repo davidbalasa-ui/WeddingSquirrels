@@ -82,3 +82,24 @@ test("the wedding party's copy has the Thursday departures and the return", () =
   }
   assert.equal(titles(packetSchedule(moments, "mc").rehearsal).length, 0);
 });
+
+test("nothing in the bride's copy of the whole timeline mentions San, the sign or the secret", () => {
+  for (const moment of RECONCILED_TIMELINE) {
+    const notes = withoutBrideSecrets({ notes: reconciledNotes(moment) }).notes;
+    assert.doesNotMatch(notes, /\bSan\b|Just Married|secret from the bride/i, moment.title);
+  }
+});
+
+test("packets for each group keep the moments they had before, plus only the intended additions", () => {
+  // Every group still gets the ceremony and the dances; MC and photographer have no rehearsal.
+  for (const audience of ["party", "mc", "photo", "brideParents", "groomParents"] as const) {
+    const schedule = packetSchedule(moments, audience);
+    assert.ok(titles(schedule.wedding).includes("Ceremony"), audience);
+    assert.ok(titles(schedule.wedding).includes("Formal dances"), audience);
+  }
+  assert.equal(packetSchedule(moments, "photo").rehearsal.length, 0);
+  // The follow-on rule only adds a line that names the same person, so the
+  // bride's parents do not pick up the planning note under Formal dances.
+  const dances = packetSchedule(moments, "brideParents").wedding.find((row) => row.title === "Formal dances");
+  assert.deepEqual(dances?.lines, ["Father of the bride dance."]);
+});

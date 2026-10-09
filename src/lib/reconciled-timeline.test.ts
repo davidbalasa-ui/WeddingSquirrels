@@ -8,6 +8,7 @@ import {
   planReconciledTimeline,
   reconciledNotes,
   reconciledPlanIsEmpty,
+  type ExistingTimelineRow,
 } from "./reconciled-timeline";
 
 test("every reconciled moment has a unique seedKey and a title", () => {
@@ -101,4 +102,18 @@ test("a seeded moment moved to a new time follows its new time into the right se
   assert.equal(phaseForBlock({ seedKey: "wedding_katie_arrives", startAt: "10:30 AM" }), "morning");
   assert.equal(phaseForBlock({ seedKey: "wedding_katie_arrives", startAt: "1:30 PM" }), "photos");
   assert.equal(phaseForBlock({ seedKey: "wedding_teardown", startAt: "10:00 PM" }), "evening");
+});
+
+test("Apply on an edited timeline writes only new and retired moments, never the edited ones", () => {
+  const applied = planReconciledTimeline([]).inserts.map((row) => ({ ...row, id: row.seedKey }));
+  const edited = applied.map((row) =>
+    row.seedKey === "wedding_ceremony" ? { ...row, notes: `${row.notes}\nDavid's own note`, startAt: "3:35 PM" } : row,
+  );
+  const withoutRing: ExistingTimelineRow[] = edited.filter((row) => row.seedKey !== "wedding_ring_security");
+  withoutRing.push({ id: "old", seedKey: "wedding_settle_in", schedule: "wedding", startAt: "9:00 AM", endAt: null, notes: "Settle in", sortOrder: 0 });
+  const plan = planReconciledTimeline(withoutRing);
+  assert.deepEqual(plan.inserts.map((row) => row.seedKey), ["wedding_ring_security"]);
+  assert.deepEqual(plan.removals.map((row) => row.seedKey), ["wedding_settle_in"]);
+  // Listed so the owner can switch it back by hand, but Apply does not write it.
+  assert.deepEqual(plan.updates.map((row) => row.seedKey), ["wedding_ceremony"]);
 });
