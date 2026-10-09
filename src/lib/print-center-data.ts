@@ -1,6 +1,6 @@
 import { loadAppSettings, prisma } from "@/lib/db";
 import { canSeeDinnerTab } from "@/lib/access";
-import { collectDayOfContactInputs } from "@/lib/day-of";
+import { collectDayOfContactInputs, guestPhoneByPersonId } from "@/lib/day-of";
 import { sortTimelineBlocks } from "@/lib/day-of-time";
 import { guestInclude, mapGuestRecord } from "@/lib/guests";
 import { buildMcRunOfShow } from "@/lib/mc-run-of-show";
@@ -211,11 +211,11 @@ export async function loadPrintCenterDocument(
       : Promise.resolve([]),
     moneyOn ? loadVisibleBudgetContracts(session) : Promise.resolve([]),
     timeline ? loadPlaybookItems() : Promise.resolve([]),
-    // Wedding party phones mostly live on guest household records (contact
-    // enrichment stores them there), not in Contacts, so the packet reads both.
-    availableSections.includes("party")
+    // Wedding party and day-of phones mostly live on guest household records
+    // (contact enrichment stores them there), not in Contacts, so print reads both.
+    availableSections.includes("party") || timeline
       ? prisma.guestPerson.findMany({
-          select: { name: true, guest: { select: { phone: true } } },
+          select: { name: true, personId: true, guest: { select: { phone: true } } },
           orderBy: { sortOrder: "asc" },
         })
       : Promise.resolve([]),
@@ -247,6 +247,7 @@ export async function loadPrintCenterDocument(
       isDayOfContact: person.isDayOfContact,
       sortOrder: person.sortOrder,
     })),
+    guestPhoneByPersonId: guestPhoneByPersonId(guestPeopleWithPhones),
   });
   const grouped = groupPrintContacts(contacts);
   const dayOfGrouped = groupPrintContacts(
