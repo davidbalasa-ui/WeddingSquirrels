@@ -1,4 +1,5 @@
 import { parseBlockNotes } from "@/lib/day-of-now";
+import { parseDayOfTime } from "@/lib/day-of-time";
 import { formatPrintTimeRange, isMcCueLine, isMusicLine, normalizePrintTime } from "@/lib/print-projection";
 import { OPEN_ITEMS_PREFIX } from "@/lib/reconciled-timeline";
 
@@ -154,19 +155,24 @@ function normalizeTitle(text: string): string {
     .trim();
 }
 
+const DUPLICATE_WINDOW_MINUTES = 30;
+
 export type DuplicateFlag = { kind: "same-title" | "title-in-notes"; otherId: string; otherTitle: string };
 
 /**
  * Flags moments that repeat each other so the owner can decide what to merge.
  * Same title twice, or one moment's title written as a detail line in another.
  * Short titles (fewer than 2 words) are skipped so "Ceremony" inside "Ceremony begins" never fires.
+ * Moments more than half an hour apart are never flagged.
  */
 export function findTimelineDuplicates(
-  blocks: Array<{ id: string; notes: string }>,
+  blocks: Array<{ id: string; notes: string; startAt?: string }>,
 ): Record<string, DuplicateFlag[]> {
   const parsed = blocks.map((block) => {
     const view = parseBlockNotes(block.notes);
+    const time = block.startAt ? parseDayOfTime(block.startAt) : null;
     return {
+      minutes: time?.kind === "timed" ? time.dayOffset * 1440 + time.minutes : null,
       id: block.id,
       title: view.title,
       key: normalizeTitle(view.title),
@@ -184,6 +190,8 @@ export function findTimelineDuplicates(
     if (!a.key) continue;
     for (const b of parsed) {
       if (a.id === b.id) continue;
+      // Two sets of open dancing, or the party lining up for the processional and again for the entrance, are separate moments.
+      if (a.minutes !== null && b.minutes !== null && Math.abs(a.minutes - b.minutes) > DUPLICATE_WINDOW_MINUTES) continue;
       if (a.key === b.key) {
         add(a.id, { kind: "same-title", otherId: b.id, otherTitle: b.title });
         continue;

@@ -61,3 +61,10 @@ test("bride's copy keeps the getaway moment and drops only the vehicle details",
   const plain = { notes: reconciledNotes(RECONCILED_TIMELINE[0]!) };
   assert.equal(withoutBrideSecrets(plain), plain);
 });
+
+test("David's first look with his parents goes to the groom's parents only", () => {
+  const groom = packetSchedule(moments, "groomParents");
+  const bride = packetSchedule(moments, "brideParents");
+  assert.ok(titles(groom.wedding).includes("David’s first look with his parents"));
+  assert.ok(!titles(bride.wedding).includes("David’s first look with his parents"));
+});

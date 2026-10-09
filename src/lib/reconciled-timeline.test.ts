@@ -42,3 +42,17 @@ test("planReconciledTimeline inserts missing, updates changed, retires folded ro
   assert.deepEqual(plan.untouched.map((r) => r.title), ["Something David added"]);
   assert.equal(reconciledPlanIsEmpty(plan), false);
 });
+
+test("David's 9 Oct edits: boutonniere first look with his parents, named party shots, family photos retired", () => {
+  const plan = planReconciledTimeline([
+    { id: "fam", seedKey: "wedding_family_photos_after", schedule: "wedding", startAt: "4:05 PM", endAt: "4:30 PM", notes: "Family photos after the ceremony", sortOrder: 0 },
+  ]);
+  assert.deepEqual(plan.removals.map((row) => row.seedKey), ["wedding_family_photos_after"]);
+  const firstLook = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_david_parents_first_look");
+  assert.equal(firstLook?.startAt, "1:00 PM");
+  const dressed = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_getting_dressed");
+  assert.equal(dressed?.lines.some((line) => /boutonniere/i.test(line)), false);
+  const party = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_party_photos");
+  assert.equal(party?.lines.filter((line) => /^(Bride|Groom) with [A-Z][a-z]+\.$/.test(line)).length, 14);
+  assert.equal(party?.openItems, undefined);
+});
