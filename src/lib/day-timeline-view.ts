@@ -1,5 +1,6 @@
 import { parseBlockNotes } from "@/lib/day-of-now";
-import { formatPrintTimeRange, isMcCueLine, isMusicLine } from "@/lib/print-projection";
+import { formatPrintTimeRange, isMcCueLine, isMusicLine, normalizePrintTime } from "@/lib/print-projection";
+import { OPEN_ITEMS_PREFIX } from "@/lib/reconciled-timeline";
 
 /**
  * Screen-side shape of one timeline moment, derived from its free-text notes.
@@ -53,7 +54,23 @@ export function inferLineRoles(text: string, context: RoleNameContext = {}): Tim
   return roles;
 }
 
-export type ReviewDetail = { kind: "note" | "cue" | "music"; text: string; roles: TimelineRole[] };
+export type ReviewDetail = {
+  kind: "note" | "cue" | "music" | "open";
+  text: string;
+  roles: TimelineRole[];
+  /** A clock time named inside the line ("Children arrive at 1:15 PM"), shown in the margin. */
+  time: string | null;
+};
+
+const LINE_TIME = /\b(\d{1,2}:\d{2}\s*(?:AM|PM))\b/i;
+
+/** A line that announces one thing at one clock time gets that time in the margin. */
+export function detailTime(text: string): string | null {
+  const matches = text.match(new RegExp(LINE_TIME.source, "gi"));
+  if (!matches || matches.length !== 1) return null;
+  if (!/\b(?:arrives?|arrive|begins?|starts?|at|until|by|leave|leaves|opens?)\b/i.test(text)) return null;
+  return normalizePrintTime(matches[0]!);
+}
 
 export type ReviewMoment = {
   timeLabel: string;
@@ -77,6 +94,7 @@ function stripTag(line: string, kind: ReviewDetail["kind"]): string {
   if (kind === "music") {
     return line.replace(/^(Playlist|Music|Grand Entrance Song|After Dollar Dance)\s*:\s*/i, "").trim();
   }
+  if (kind === "open") return line.replace(OPEN_ITEMS_PREFIX, "").trim();
   return line;
 }
 
@@ -87,13 +105,19 @@ export function reviewMoment(
   const parsed = parseBlockNotes(block.notes);
   const details: ReviewDetail[] = [];
   for (const raw of parsed.detailLines) {
-    // Legacy single-line notes used ";" between items.
-    for (const part of raw.split(";").map((line) => line.trim()).filter(Boolean)) {
+    if (OPEN_ITEMS_PREFIX.test(raw)) {
+      const text = stripTag(raw, "open");
+      if (text) details.push({ kind: "open", text, roles: [], time: null });
+      continue;
+    }
+    // Legacy single-line notes used ";" between items; the document's lines keep their own semicolons.
+    const parts = /^[•·]/.test(raw) || raw.includes(": ") ? [raw] : raw.split(";");
+    for (const part of parts.map((line) => line.replace(/^[•·]\s*/, "").trim()).filter(Boolean)) {
       const kind: ReviewDetail["kind"] = isMcCueLine(part) ? "cue" : isMusicLine(part) ? "music" : "note";
       const text = stripTag(part, kind);
       if (!text) continue;
       const roles = kind === "cue" ? ["mc" as const, ...inferLineRoles(text, context).filter((r) => r !== "mc")] : inferLineRoles(text, context);
-      details.push({ kind, text, roles });
+      details.push({ kind, text, roles, time: kind === "note" ? detailTime(text) : null });
     }
   }
   const timeLabel = formatPrintTimeRange(block.startAt, block.endAt);

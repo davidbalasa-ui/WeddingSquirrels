@@ -567,6 +567,8 @@ a {
     border-radius: 0;
     background: transparent;
     box-shadow: none;
+    overflow: visible;
+    break-inside: auto;
   }
 
   .day-timeline-list > * + * {

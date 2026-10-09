@@ -5,6 +5,9 @@ import { WeddingPlacesEditor } from "@/components/WeddingPlacesEditor";
 import { timelineEditable } from "@/lib/access";
 import { loadAppSettings } from "@/lib/db";
 import { loadTimelineRoleNames } from "@/lib/day-timeline-roles";
+import { ReconciledTimelineCard } from "@/components/ReconciledTimelineCard";
+import { prisma } from "@/lib/db";
+import { planReconciledTimeline } from "@/lib/reconciled-timeline";
 import { loadDayOfContext, loadWeddingTimelineBlocks } from "@/lib/day-of-page";
 import { loadTimelineRelatedTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
@@ -25,6 +28,13 @@ export default async function PlanTimelinePage({
     loadAppSettings(),
     loadTimelineRoleNames(),
   ]);
+  const reconciledPlan = session.isMaster
+    ? planReconciledTimeline(
+        await prisma.timelineBlock.findMany({
+          select: { id: true, seedKey: true, schedule: true, startAt: true, endAt: true, notes: true, sortOrder: true },
+        }),
+      )
+    : null;
   const relatedByBlockId = await loadTimelineRelatedTasks(
     session,
     blocks.map((block) => block.id),
@@ -41,6 +51,7 @@ export default async function PlanTimelinePage({
       <div className="print-hide">
         <WeddingPlacesEditor initial={placeSettings} canEdit={canEdit} />
       </div>
+      {reconciledPlan ? <ReconciledTimelineCard plan={reconciledPlan} /> : null}
       <DayTimeline
         blocks={blocks}
         canEdit={canEdit}

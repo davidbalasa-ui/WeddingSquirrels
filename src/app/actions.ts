@@ -57,6 +57,7 @@ import {
 import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { taskHref } from "@/lib/entity-links";
+import { planReconciledTimeline } from "@/lib/reconciled-timeline";
 import { safeReturnTo, TASKS_HOME } from "@/lib/return-to";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
 import { applyRsvpChange, effectiveInvitedCount, isRsvpStatus, parseRsvpStatus, RSVP_STATUSES, syncLegacyGuestNames, type RsvpStatus } from "@/lib/guest-gifts";
@@ -3612,4 +3613,28 @@ export async function deleteDayAssignment(assignmentId: string): Promise<void> {
     return;
   }
   revalidateDayData();
+}
+
+export async function applyReconciledTimelineAction(): Promise<
+  { ok: true; inserted: number; updated: number; removed: number } | { ok: false; reason: "forbidden" | "failed" }
+> {
+  const session = await requireScheduleEditor("wedding");
+  if (!session || !session.isMaster) return { ok: false, reason: "forbidden" };
+
+  const existing = await prisma.timelineBlock.findMany({
+    select: { id: true, seedKey: true, schedule: true, startAt: true, endAt: true, notes: true, sortOrder: true },
+  });
+  const plan = planReconciledTimeline(existing);
+  try {
+    await prisma.$transaction([
+      ...plan.removals.map((row) => prisma.timelineBlock.delete({ where: { id: row.id } })),
+      ...plan.updates.map(({ id, before: _before, ...data }) => prisma.timelineBlock.update({ where: { id }, data })),
+      ...plan.inserts.map((data) => prisma.timelineBlock.create({ data })),
+    ]);
+  } catch {
+    return { ok: false, reason: "failed" };
+  }
+  revalidateSchedule("wedding");
+  revalidateSchedule("rehearsal");
+  return { ok: true, inserted: plan.inserts.length, updated: plan.updates.length, removed: plan.removals.length };
 }

@@ -25,6 +25,7 @@ test("reviewMoment splits title, location, bullets, cues and music", () => {
   );
   assert.deepEqual(view.details[2]!.roles, ["mc"]);
   assert.deepEqual(view.details[0]!.roles, []);
+  assert.equal(view.details[2]!.time, null);
 });
 
 test("reviewMoment keeps untimed and single times as written", () => {
@@ -70,4 +71,20 @@ test("momentForRole keeps whole moments the title names and filters lines otherw
   assert.deepEqual(dinner.roles, []);
   assert.deepEqual(momentForRole(dinner, "mc")?.details.map((d) => d.text), ["Grand entrance"]);
   assert.equal(momentForRole(dinner, null), dinner);
+});
+
+test("reviewMoment reads open items, bullets with their own semicolons, and margin times", () => {
+  const view = reviewMoment({
+    startAt: "1:00 PM",
+    endAt: "1:30 PM",
+    notes: "Haley gets dressed\nHair: Braxton in Bathroom 1; Andi in Bathroom 2.\nChildren arrive at 1:15 PM.\nOpen items: Confirm who buttons the dress.",
+  });
+  assert.deepEqual(
+    view.details.map((d) => [d.kind, d.text, d.time]),
+    [
+      ["note", "Hair: Braxton in Bathroom 1; Andi in Bathroom 2.", null],
+      ["note", "Children arrive at 1:15 PM.", "1:15 PM"],
+      ["open", "Confirm who buttons the dress.", null],
+    ],
+  );
 });

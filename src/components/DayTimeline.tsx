@@ -16,6 +16,7 @@ import {
   parseBlockNotes,
   updateBlockLocation,
 } from "@/lib/day-of-now";
+import { TIMELINE_PHASES, phaseForBlock } from "@/lib/reconciled-timeline";
 import {
   TIMELINE_ROLES,
   duplicateFlagLabel,
@@ -41,6 +42,7 @@ import {
 
 export type TimelineBlockView = {
   id: string;
+  seedKey?: string | null;
   startAt: string;
   endAt: string | null;
   notes: string;
@@ -52,6 +54,7 @@ type RowStatus = "saved" | "saving" | "dirty" | "error";
 
 type Row = {
   id: string;
+  seedKey: string | null;
   startAt: string;
   endAt: string;
   notes: string;
@@ -77,6 +80,7 @@ function toRow(block: TimelineBlockView): Row {
   };
   return {
     id: block.id,
+    seedKey: block.seedKey ?? null,
     ...lastSaved,
     lastSaved,
     sortOrder: block.sortOrder ?? 0,
@@ -595,7 +599,7 @@ export function DayTimeline({
         </p>
       ) : null}
 
-      {!hideChips ? (
+      {!hideChips && editing ? (
         <div className="sticky top-[4.75rem] z-10 -mx-1 mb-2 flex gap-1.5 overflow-x-auto bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-1 py-1.5 backdrop-blur-md print-hide">
           {DAY_OF_BUCKETS.filter((bucket) => counts[bucket.id] > 0).map((bucket) => (
             <button
@@ -728,24 +732,24 @@ function ReviewSections({
 }) {
   const view = (row: Row) =>
     momentForRole(reviewMoment({ startAt: row.startAt, endAt: row.endAt || null, notes: row.notes }, roleNames), role);
-  const timedViews = timed.map((row) => ({ row, moment: view(row) })).filter((item) => item.moment);
-  const untimedViews = untimed.map((row) => ({ row, moment: view(row) })).filter((item) => item.moment);
-  if (role && timedViews.length === 0 && untimedViews.length === 0) {
+  const all = [...timed, ...untimed].map((row) => ({ row, moment: view(row) })).filter((item) => item.moment);
+  if (all.length === 0) {
     return (
       <div className="card p-6 text-center text-sm text-muted">
-        Nothing on the timeline mentions this group yet.
+        {role ? "Nothing on the timeline mentions this group yet." : "Nothing scheduled yet."}
       </div>
     );
   }
+  const phases = [...TIMELINE_PHASES.filter((phase) => phase.schedule === schedule), { id: "untimed", label: "Untimed", schedule }];
   return (
     <div className="flex flex-col gap-3">
-      {DAY_OF_BUCKETS.filter((bucket) => bucket.id !== "untimed").map((bucket) => {
-        const items = timedViews.filter(({ row }) => bucketForTime(row.startAt) === bucket.id);
+      {phases.map((phase) => {
+        const items = all.filter(({ row }) => phaseForBlock(row, schedule) === phase.id);
         if (items.length === 0) return null;
         return (
-          <section key={bucket.id} id={`${idPrefix}-bucket-${bucket.id}`} className="day-timeline-bucket">
+          <section key={phase.id} id={`${idPrefix}-bucket-${phase.id}`} className="day-timeline-bucket">
             <p className="day-timeline-bucket-label mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
-              {bucket.label}
+              {phase.label}
             </p>
             <div className="card day-timeline-list divide-y divide-[var(--line)] overflow-hidden">
               {items.map(({ row, moment }) => (
@@ -756,52 +760,17 @@ function ReviewSections({
                   related={relatedByBlockId[row.id]}
                   flags={duplicates[row.id]}
                   schedule={schedule}
-                  showRoles={role === null}
                 />
               ))}
             </div>
           </section>
         );
       })}
-      {untimedViews.length > 0 ? (
-        <details id={`${idPrefix}-bucket-untimed`} className="card day-timeline-untimed overflow-hidden">
-          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">
-            Untimed ({untimedViews.length})
-          </summary>
-          <div className="day-timeline-list divide-y divide-[var(--line)] border-t border-line">
-            {untimedViews.map(({ row, moment }) => (
-              <ReviewRow
-                key={row.id}
-                row={row}
-                moment={moment!}
-                related={relatedByBlockId[row.id]}
-                flags={duplicates[row.id]}
-                schedule={schedule}
-                showRoles={role === null}
-              />
-            ))}
-          </div>
-        </details>
-      ) : null}
     </div>
   );
 }
 
 const DETAIL_TAG: Record<"cue" | "music", string> = { cue: "MC cue", music: "Music" };
-const ROLE_SHORT = Object.fromEntries(TIMELINE_ROLES.map((item) => [item.id, item.short])) as Record<TimelineRole, string>;
-
-function RoleTags({ roles }: { roles: TimelineRole[] }) {
-  if (roles.length === 0) return null;
-  return (
-    <span className="day-timeline-roles ml-1.5 inline-flex flex-wrap gap-1 align-[1px]">
-      {roles.map((id) => (
-        <span key={id} className="day-timeline-tag rounded-sm bg-[var(--accent-soft)] px-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--accent)]">
-          {ROLE_SHORT[id]}
-        </span>
-      ))}
-    </span>
-  );
-}
 
 function ReviewRow({
   row,
@@ -809,14 +778,12 @@ function ReviewRow({
   related,
   flags,
   schedule,
-  showRoles,
 }: {
   row: Row;
   moment: ReturnType<typeof reviewMoment>;
   related?: { id: string; title: string };
   flags?: DuplicateFlag[];
   schedule?: TimelineSchedule;
-  showRoles: boolean;
 }) {
   return (
     <article id={`block-${row.id}`} className="day-timeline-row flex items-start gap-3 px-3 py-2">
@@ -832,26 +799,28 @@ function ReviewRow({
       <div className="min-w-0 flex-1">
         <p className="day-timeline-title text-[15px] font-semibold leading-5">
           {moment.title}
-          {showRoles ? <RoleTags roles={moment.roles} /> : null}
+          {moment.location ? (
+            <span className="day-timeline-location font-normal text-muted"> · {moment.location}</span>
+          ) : null}
         </p>
-        {moment.location ? (
-          <p className="day-timeline-location text-[13px] leading-5 text-muted">{moment.location}</p>
-        ) : null}
         {moment.details.length > 0 ? (
           <ul className="day-timeline-details mt-0.5 list-none space-y-0.5 p-0">
             {moment.details.map((detail, index) => (
               <li
                 key={`${index}-${detail.text}`}
-                className={`day-timeline-detail text-[14px] leading-5 ${detail.kind === "note" ? "" : "text-muted"}`}
+                className={`day-timeline-detail text-[14px] leading-5 ${detail.kind === "note" ? "" : "text-muted"} ${detail.kind === "open" ? "day-timeline-open italic" : ""}`}
                 data-kind={detail.kind}
               >
-                {detail.kind !== "note" ? (
+                {detail.kind === "cue" || detail.kind === "music" ? (
                   <span className="day-timeline-tag mr-1.5 rounded-sm border border-line px-1 text-[10px] font-semibold uppercase tracking-[0.08em] align-[1px]">
                     {DETAIL_TAG[detail.kind]}
                   </span>
                 ) : null}
+                {detail.kind === "open" ? <span className="not-italic font-semibold">Open: </span> : null}
+                {detail.time ? (
+                  <span className="day-timeline-subtime mr-2 font-semibold tabular-nums text-[var(--accent)]">{detail.time}</span>
+                ) : null}
                 {detail.text}
-                {showRoles && detail.kind === "note" ? <RoleTags roles={detail.roles} /> : null}
               </li>
             ))}
           </ul>
