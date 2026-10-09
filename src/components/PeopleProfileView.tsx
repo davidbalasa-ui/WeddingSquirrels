@@ -177,8 +177,8 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
               canEdit={profile.canEditRsvp}
             />
             {table ? <ProfileRow title={table} detail="Seating" /> : null}
-            {gifts.map((gift) => (
-              <ProfileRow key={gift} title={gift} detail="Gift" href="/people?tab=guests" />
+            {gifts.map((gift, index) => (
+              <ProfileRow key={`${index}-${gift}`} title={gift} detail="Gift" href="/people?tab=guests" />
             ))}
           </div>
         </section>
@@ -209,7 +209,7 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
             <p className="mt-3 text-sm text-muted">
               {workSummary}
               {profile.completedTaskCount > 0
-                ? `${workSummary ? " · " : ""}${profile.completedTaskCount} completed workspaces`
+                ? `${workSummary ? " · " : ""}${profile.completedTaskCount} completed ${profile.completedTaskCount === 1 ? "workspace" : "workspaces"}`
                 : ""}
             </p>
           ) : null}
@@ -252,7 +252,7 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
         <section className="mb-8">
           <SectionTitle>Meals</SectionTitle>
           <div className="mt-1 border-t border-[var(--line)]">
-            <ProfileRow title={mealStatus} detail="Rehearsal dinner" href="/rehearsal" />
+            <ProfileRow title={mealStatus} detail="Rehearsal dinner" href="/plan/rehearsal" />
           </div>
         </section>
       ) : null}

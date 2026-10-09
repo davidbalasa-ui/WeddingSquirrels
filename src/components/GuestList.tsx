@@ -63,7 +63,7 @@ export function GuestList({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search guests"
-          className="min-w-0 flex-1 rounded-xl border border-line bg-[var(--card)] px-3 py-2.5 text-sm outline-none ring-[var(--accent)] focus:ring-2"
+          className="min-w-0 flex-1 rounded-xl border border-line bg-[var(--bg-elevated)] px-3 py-2.5 text-sm outline-none ring-[var(--accent)] focus:ring-2"
           aria-label="Search guests"
         />
       </div>

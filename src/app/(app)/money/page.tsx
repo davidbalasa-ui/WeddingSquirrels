@@ -29,7 +29,7 @@ export default async function MoneyPage({
       <MoneyDueList
         title="Coming due"
         items={comingDue}
-        showAllHref="/money/due"
+        showAllHref={data.dueItems.length > comingDue.length ? "/money/due" : undefined}
         emptyTitle="Nothing coming due."
       />
       {data.historyItems.length > 0 ? (

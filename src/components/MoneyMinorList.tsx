@@ -39,22 +39,37 @@ export function MoneyMinorList({
                   <input type="hidden" name="id" value={item.id} />
                   <p className="font-semibold">{item.title}</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <input
-                      name="amountNeeded"
-                      inputMode="decimal"
-                      defaultValue={item.amountNeeded ?? ""}
-                      className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
-                    />
-                    <input
-                      name="amountSpent"
-                      inputMode="decimal"
-                      defaultValue={item.amountSpent || ""}
-                      className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
-                    />
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+                        Needed
+                      </span>
+                      <input
+                        name="amountNeeded"
+                        inputMode="decimal"
+                        defaultValue={item.amountNeeded ?? ""}
+                        className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+                        Spent
+                      </span>
+                      <input
+                        name="amountSpent"
+                        inputMode="decimal"
+                        defaultValue={item.amountSpent || ""}
+                        className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+                      />
+                    </label>
                   </div>
-                  <button type="submit" className="btn-primary self-start">
-                    Save
-                  </button>
+                  <div className="flex gap-2">
+                    <button type="submit" className="btn-primary">
+                      Save
+                    </button>
+                    <button type="button" className="btn-secondary" onClick={() => setEditingId(null)}>
+                      Cancel
+                    </button>
+                  </div>
                 </form>
               </article>
             );

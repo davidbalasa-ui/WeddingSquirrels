@@ -596,7 +596,7 @@ export function DayTimeline({
               ? "print-hide fixed left-1/2 z-[35] w-[min(560px,calc(100%-16px))] -translate-x-1/2 rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow)]"
               : "print-hide mt-1 rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow)]"
           }
-          style={fixedAdd ? { bottom: "calc(12px + 76px)" } : undefined}
+          style={fixedAdd ? { bottom: "calc(88px + env(safe-area-inset-bottom, 0px))" } : undefined}
         >
           + Add moment
         </button>

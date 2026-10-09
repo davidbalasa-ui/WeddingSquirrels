@@ -13,6 +13,7 @@
   --warn: #8a4b2a;
   --warn-soft: #f3e2d6;
   --danger: #8f2f2f;
+  --danger-soft: #f3dcdc;
   --ok: #2f5d50;
   --shadow: 0 10px 30px rgba(28, 36, 33, 0.06);
 }
@@ -114,7 +115,7 @@ a {
   border-color: var(--gold);
   box-shadow:
     var(--shadow),
-    0 0 0 3px color-mix(in_srgb, var(--gold) 32%, transparent);
+    0 0 0 3px color-mix(in srgb, var(--gold) 32%, transparent);
 }
 
 .pin-key {
@@ -311,6 +312,7 @@ a {
   background: transparent;
   padding: 12px;
   min-height: 48px;
+  font-size: 16px; /* keeps iOS Safari from zooming in on focus */
   outline: none;
 }
 

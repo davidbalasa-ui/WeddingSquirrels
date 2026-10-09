@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { ModuleIcon } from "@/components/ModuleIcon";
 import { pickAccountFlags } from "@/lib/account-flags";
-import { moreGroups, primaryModules } from "@/lib/modules";
+import { canSeeNavTab, moreGroups, NAV_TABS } from "@/lib/modules";
 import type { AccountPanelAccount, SessionAccount } from "@/lib/types";
 
 function sessionFromAccount(account: AccountPanelAccount): SessionAccount {
@@ -25,7 +25,7 @@ export function AccountPreview({
   onClose: () => void;
 }) {
   const session = sessionFromAccount(account);
-  const primary = primaryModules(session);
+  const tabs = NAV_TABS.filter((item) => canSeeNavTab(session, item.tab));
   const more = moreGroups(session);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -75,18 +75,12 @@ export function AccountPreview({
           className="nav-bar"
           style={{ position: "static", transform: "none", width: "100%", marginBottom: 8 }}
         >
-          {primary.map((item) => (
-            <span key={item.key} className="nav-link">
+          {tabs.map((item) => (
+            <span key={item.tab} className="nav-link">
               <ModuleIcon name={item.icon} className="nav-icon" />
               <span>{item.label}</span>
             </span>
           ))}
-          {more.length > 0 ? (
-            <span className="nav-link">
-              <ModuleIcon name="more" className="nav-icon" />
-              <span>More</span>
-            </span>
-          ) : null}
         </div>
 
         <div className="mt-3 flex flex-col gap-3">
