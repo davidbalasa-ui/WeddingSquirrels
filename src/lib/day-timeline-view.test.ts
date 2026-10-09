@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { duplicateFlagLabel, findTimelineDuplicates, reviewMoment } from "./day-timeline-view";
+import { duplicateFlagLabel, findTimelineDuplicates, inferLineRoles, momentForRole, reviewMoment } from "./day-timeline-view";
 
 test("reviewMoment splits title, location, bullets, cues and music", () => {
   const view = reviewMoment({
@@ -14,12 +14,17 @@ test("reviewMoment splits title, location, bullets, cues and music", () => {
   assert.equal(view.timeEnd, "5:00 PM");
   assert.equal(view.title, "Cocktail Hour");
   assert.equal(view.location, "Bar + trailer");
-  assert.deepEqual(view.details, [
-    { kind: "note", text: "Guests enjoy drinks" },
-    { kind: "note", text: "appetizers out" },
-    { kind: "cue", text: "4:45 PM: Cocktail hour is nearing its end" },
-    { kind: "music", text: "Cocktail mix" },
-  ]);
+  assert.deepEqual(
+    view.details.map((d) => ({ kind: d.kind, text: d.text })),
+    [
+      { kind: "note", text: "Guests enjoy drinks" },
+      { kind: "note", text: "appetizers out" },
+      { kind: "cue", text: "4:45 PM: Cocktail hour is nearing its end" },
+      { kind: "music", text: "Cocktail mix" },
+    ],
+  );
+  assert.deepEqual(view.details[2]!.roles, ["mc"]);
+  assert.deepEqual(view.details[0]!.roles, []);
 });
 
 test("reviewMoment keeps untimed and single times as written", () => {
@@ -43,4 +48,26 @@ test("findTimelineDuplicates flags repeated titles and titles echoed in notes", 
   assert.deepEqual(flags.d, [{ kind: "same-title", otherId: "c", otherTitle: "Ceremony" }]);
   assert.equal(flags.e, undefined);
   assert.equal(duplicateFlagLabel(flags.c![0]!), "Same title as “Ceremony”");
+});
+
+test("inferLineRoles reads roles from words already in the line and from known names", () => {
+  assert.deepEqual(inferLineRoles("Wedding party lines up"), ["party"]);
+  assert.deepEqual(inferLineRoles("Photographer captures robe photos"), ["party", "photo"]);
+  assert.deepEqual(inferLineRoles("Toasts (Best man, MOH, FOB)"), ["party", "family"]);
+  assert.deepEqual(inferLineRoles("Everyone helps pack up before the night is over"), ["helpers"]);
+  assert.deepEqual(inferLineRoles("Katie and Belle arrive at 11:00 AM", { party: ["Katie Smith"] }), ["party"]);
+  assert.deepEqual(inferLineRoles("Kurt gets the mic", { mc: ["Kurt Huizenga"] }), ["mc"]);
+  assert.deepEqual(inferLineRoles("Private vows"), []);
+});
+
+test("momentForRole keeps whole moments the title names and filters lines otherwise", () => {
+  const first = reviewMoment({ startAt: "2:45 PM", endAt: "3:15 PM", notes: "First Look + Portraits\nFirst look w/ David\nCouple portraits" });
+  assert.deepEqual(first.roles, ["photo"]);
+  assert.equal(momentForRole(first, "photo")?.details.length, 2);
+  assert.equal(momentForRole(first, "mc"), null);
+
+  const dinner = reviewMoment({ startAt: "5:00 PM", endAt: "6:00 PM", notes: "Dinner begins\nGuests seated\nGrand entrance\nDinner service starts" });
+  assert.deepEqual(dinner.roles, []);
+  assert.deepEqual(momentForRole(dinner, "mc")?.details.map((d) => d.text), ["Grand entrance"]);
+  assert.equal(momentForRole(dinner, null), dinner);
 });

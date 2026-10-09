@@ -4,6 +4,7 @@ import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { WeddingPlacesEditor } from "@/components/WeddingPlacesEditor";
 import { timelineEditable } from "@/lib/access";
 import { loadAppSettings } from "@/lib/db";
+import { loadTimelineRoleNames } from "@/lib/day-timeline-roles";
 import { loadDayOfContext, loadWeddingTimelineBlocks } from "@/lib/day-of-page";
 import { loadTimelineRelatedTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
@@ -18,10 +19,11 @@ export default async function PlanTimelinePage({
   const params = await searchParams;
   const editParam = Array.isArray(params.edit) ? params.edit[0] : params.edit;
   const startInEdit = canEdit && editParam === "1";
-  const [blocks, context, placeSettings] = await Promise.all([
+  const [blocks, context, placeSettings, roleNames] = await Promise.all([
     loadWeddingTimelineBlocks(),
     loadDayOfContext(),
     loadAppSettings(),
+    loadTimelineRoleNames(),
   ]);
   const relatedByBlockId = await loadTimelineRelatedTasks(
     session,
@@ -46,6 +48,7 @@ export default async function PlanTimelinePage({
         relatedByBlockId={relatedByBlockId}
         printTitle="Wedding Day"
         printSubtitle={context.weddingDateLabel}
+        roleNames={roleNames}
       />
     </div>
   );

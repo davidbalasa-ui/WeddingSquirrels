@@ -1206,7 +1206,7 @@ export const WEDDING_PARTY_OPEN_ITEMS: string[] = [
   "Parking and carpool plan for Friday.",
 ];
 
-function lineupRole(title: string): { names: string[]; role: string | null } {
+export function lineupRole(title: string): { names: string[]; role: string | null } {
   const dashRole = title.match(/^(.+?)\s*[—–-]\s*(.+)$/);
   if (dashRole) {
     return { names: [dashRole[1]!.trim()], role: dashRole[2]!.trim() };
