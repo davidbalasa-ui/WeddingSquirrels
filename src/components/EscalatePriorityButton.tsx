@@ -31,7 +31,12 @@ export function EscalatePriorityButton({
                 ? "border-[var(--warn)] bg-[var(--warn-soft)] text-[var(--warn)]"
                 : "border-line text-muted"
             }`
-          : `btn-secondary w-full ${escalated ? "border-[var(--warn)] bg-[var(--warn-soft)] text-[var(--warn)]" : ""}`
+          : "btn-secondary w-full"
+      }
+      style={
+        !compact && escalated
+          ? { borderColor: "var(--warn)", background: "var(--warn-soft)", color: "var(--warn)" }
+          : undefined
       }
     >
       {pending ? "…" : escalated ? "Remove priority pin" : "Escalate priority"}

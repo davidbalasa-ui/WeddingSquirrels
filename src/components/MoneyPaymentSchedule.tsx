@@ -251,6 +251,13 @@ export function MoneyPaymentSchedule({
                     }}
                   >
                     <PaymentFields payment={payment} submitLabel="Save payment" />
+                    <button
+                      type="button"
+                      className="mt-2 min-h-11 text-sm font-semibold text-muted"
+                      onClick={() => setEditingId(null)}
+                    >
+                      Cancel
+                    </button>
                   </form>
                 ) : (
                   <>

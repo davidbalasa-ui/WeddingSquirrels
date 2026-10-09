@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState, startTransition } from "react";
+import { useActionState, useState, startTransition } from "react";
 import { unlockAction, type UnlockState } from "@/app/actions";
 
 const initial: UnlockState = {};
@@ -8,11 +8,12 @@ const initial: UnlockState = {};
 export function PinPad() {
   const [pin, setPin] = useState("");
   const [state, formAction, pending] = useActionState(unlockAction, initial);
-  const formRef = useRef<HTMLFormElement>(null);
-  const [lastError, setLastError] = useState<string | undefined>(undefined);
-  if (state.error && state.error !== lastError) {
-    setLastError(state.error);
-    setPin("");
+  // Each failed attempt yields a new state object, so the pad clears even
+  // when the same "Incorrect PIN" message comes back twice in a row.
+  const [lastState, setLastState] = useState(state);
+  if (state !== lastState) {
+    setLastState(state);
+    if (state.error) setPin("");
   }
 
   function submit(value: string) {
@@ -44,11 +45,11 @@ export function PinPad() {
         ))}
       </div>
 
-      {state.error ? <p className="text-sm text-[var(--danger)]">{state.error}</p> : null}
-
-      <form ref={formRef} action={formAction} className="hidden">
-        <input name="pin" value={pin} readOnly />
-      </form>
+      {state.error ? (
+        <p role="alert" className="text-sm text-[var(--danger)]">
+          {state.error}
+        </p>
+      ) : null}
 
       <div className="grid w-full max-w-[280px] grid-cols-3 gap-3">
         {keys.map((key, idx) => {

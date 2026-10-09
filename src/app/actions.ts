@@ -754,7 +754,8 @@ export async function saveMinorExpense(formData: FormData): Promise<void> {
   const id = String(formData.get("id") || "");
   const amountNeeded = parseMoney(String(formData.get("amountNeeded") || ""));
   const amountSpent = parseMoney(String(formData.get("amountSpent") || "")) ?? 0;
-  const planNotes = String(formData.get("planNotes") || "");
+  // The Money list only sends amounts; never blank the plan notes from there.
+  const planNotes = formData.has("planNotes") ? String(formData.get("planNotes") || "") : undefined;
 
   if (!id) return;
 
@@ -763,7 +764,7 @@ export async function saveMinorExpense(formData: FormData): Promise<void> {
     data: {
       amountNeeded,
       amountSpent,
-      planNotes,
+      ...(planNotes !== undefined ? { planNotes } : {}),
     },
   });
 
@@ -3445,6 +3446,11 @@ export async function saveWeddingPlaceSettings(
   return { ok: true };
 }
 
+function parseCalendarDate(value: string): Date {
+  const trimmed = value.trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? new Date(`${trimmed}T12:00:00`) : new Date(trimmed);
+}
+
 export async function saveCalendarEvent(input: {
   id: string;
   title: string;
@@ -3463,8 +3469,10 @@ export async function saveCalendarEvent(input: {
   const existing = await prisma.calendarEvent.findUnique({ where: { id } });
   if (!existing) return { ok: false };
 
-  const startDate = new Date(input.startDate);
-  const endDate = new Date(input.endDate || input.startDate);
+  // Date-only values are stored at local noon (like the seeded events) so the
+  // calendar day survives the UTC round trip to phones west of UTC.
+  const startDate = parseCalendarDate(input.startDate);
+  const endDate = parseCalendarDate(input.endDate || input.startDate);
   if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return { ok: false };
 
   await prisma.calendarEvent.update({

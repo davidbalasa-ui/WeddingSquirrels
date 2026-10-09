@@ -35,14 +35,17 @@ export function TaskWorkspaceForm({
   const dueDateValue = dueDateInputValue(task.dueDate);
   const ownerNames = assigneeDisplayNames(task.assignees);
   const childTotal = task.children.length;
-  const childDone = task.children.filter((c) => c.status === "done").length;
+  const childDone = steps.filter((c) => c.status === "done").length;
   const selectedIds = task.assignees.map((a) => a.personId);
   const escalated = Boolean(task.escalatedAt);
 
   return (
     <div className="flex flex-col gap-4 pb-8">
       {escalated ? (
-        <section className="card border-[var(--warn)] bg-[var(--warn-soft)] p-4">
+        <section
+          className="card p-4"
+          style={{ borderColor: "var(--warn)", background: "var(--warn-soft)" }}
+        >
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--warn)]">
             Priority pin active
           </p>
@@ -120,7 +123,17 @@ export function TaskWorkspaceForm({
       ) : null}
 
       {/* With steps, the checklist comes first; the decision form stays fully visible below it. */}
-      <form action={saveAction} className="card flex flex-col gap-4 p-4">
+      <form
+        action={saveAction}
+        onSubmit={(event) => {
+          // Submitting through a transition keeps the typed values on screen
+          // if the save comes back with an error (a plain form action resets them).
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          startTransition(() => saveAction(data));
+        }}
+        className="card flex flex-col gap-4 p-4"
+      >
         <input type="hidden" name="id" value={task.id} />
         <input type="hidden" name="returnTo" value={returnTo} />
         {canManageOwners ? <input type="hidden" name="manageOwners" value="1" /> : null}

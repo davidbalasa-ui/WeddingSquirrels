@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function AppNotFound() {
   return (
-    <div className="app-shell py-10">
+    <div className="py-10">
       <div className="card p-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Not found</p>
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl leading-tight">

@@ -29,6 +29,13 @@ export type PlanCalendarEventView = {
   eventKey: string | null;
 };
 
+/** "yyyy-MM" from the server, read as a local month so the grid matches on every phone. */
+function parseMonth(value: string) {
+  const match = /^(\d{4})-(\d{2})/.exec(value);
+  if (match) return new Date(Number(match[1]), Number(match[2]) - 1, 1);
+  return startOfMonth(new Date(value));
+}
+
 function dayKey(day: Date) {
   return format(day, "yyyy-MM-dd");
 }
@@ -150,7 +157,7 @@ export function CalendarMonth({
   initialMonth: string;
   canEdit?: boolean;
 }) {
-  const [month, setMonth] = useState(() => startOfMonth(new Date(initialMonth)));
+  const [month, setMonth] = useState(() => parseMonth(initialMonth));
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
 
   const days = useMemo(() => {

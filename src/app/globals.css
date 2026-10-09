@@ -312,6 +312,7 @@ a {
   background: transparent;
   padding: 12px;
   min-height: 48px;
+  font-size: 16px; /* keeps iOS Safari from zooming in on focus */
   outline: none;
 }
 

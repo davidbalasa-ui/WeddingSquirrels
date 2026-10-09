@@ -1,4 +1,4 @@
-import { startOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { isMissingWeddingPlaceColumn, prisma } from "@/lib/db";
 import { ensureMealLayout } from "@/lib/meals";
 import { ensureRehearsalSchedule } from "@/lib/rehearsal";
@@ -134,6 +134,6 @@ export async function loadPlanCalendarPage() {
       color: event.color,
       eventKey: event.eventKey,
     })),
-    initialMonth: startOfMonth(new Date()).toISOString(),
+    initialMonth: format(new Date(), "yyyy-MM"),
   };
 }
