@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseBlockNotes } from "./day-of-now";
 import {
+  RECONCILED_RETIRED_SEED_KEYS,
   RECONCILED_TIMELINE,
   planReconciledTimeline,
   reconciledNotes,
@@ -63,4 +64,11 @@ test("Harmony is on ring security at the entry table the half hour before the ce
   assert.equal(ring?.startAt, "3:00 PM");
   assert.equal(ring?.endAt, ceremony?.startAt);
   assert.equal(ring?.location, "Entry table");
+});
+
+test("the couple's 4:30 cocktail break and the drinks/apps runners are off the day", () => {
+  assert.equal(RECONCILED_TIMELINE.some((moment) => moment.seedKey === "wedding_couple_cocktail"), false);
+  assert.ok(RECONCILED_RETIRED_SEED_KEYS.includes("wedding_couple_cocktail"));
+  const cocktail = RECONCILED_TIMELINE.find((moment) => moment.seedKey === "wedding_cocktail_hour");
+  assert.equal(cocktail?.lines.some((line) => /bring David and Haley/i.test(line)), false);
 });

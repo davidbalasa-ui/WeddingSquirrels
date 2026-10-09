@@ -130,12 +130,8 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
     lines: [
       "Bar service begins at 4:00 PM.",
       "Guests receive drinks and appetizers while photography continues.",
-      "Victoria and Bri (second in the processional) bring David and Haley drinks.",
-      "Kaylie and Evan (third in the processional) bring David and Haley appetizers.",
     ],
     openItems: "Confirm the bar will be ready at 4:00 PM." },
-  { seedKey: "wedding_couple_cocktail", schedule: W, phase: "ceremony", startAt: "4:30 PM", endAt: "4:45 PM", title: "David and Haley join cocktail hour",
-    lines: ["Drink, appetizers, guest greetings, and a short reset."] },
   { seedKey: "wedding_final_touchups", schedule: W, phase: "ceremony", startAt: "4:45 PM", endAt: "4:50 PM", title: "Final touch-ups",
     lines: ["Bathroom break, touch-ups, and prepare for entrance."] },
   { seedKey: "wedding_entrance_lineup", schedule: W, phase: "ceremony", startAt: "4:50 PM", endAt: "5:00 PM", title: "Wedding party lines up",
@@ -193,6 +189,8 @@ export const RECONCILED_RETIRED_SEED_KEYS = [
   "wedding_final_getting_ready",
   // David, 9 Oct 2026: the 4:00–4:30 family photos come off the day.
   "wedding_family_photos_after",
+  // David, 9 Oct 2026: no 4:30 break for the couple and no drinks/apps runners.
+  "wedding_couple_cocktail",
 ];
 
 export function reconciledNotes(moment: ReconciledMoment): string {
