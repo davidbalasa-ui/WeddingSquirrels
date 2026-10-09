@@ -59,7 +59,10 @@ export function MessageThreadList({
       {composing ? (
         <form
           className="card mb-5 flex flex-col gap-3 p-4"
-          action={(formData) => {
+          onSubmit={(event) => {
+            // Submitting by hand keeps the typed message on screen if sending fails.
+            event.preventDefault();
+            const formData = new FormData(event.currentTarget);
             setError(null);
             startTransition(async () => {
               try {

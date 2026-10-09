@@ -123,7 +123,17 @@ export function TaskWorkspaceForm({
       ) : null}
 
       {/* With steps, the checklist comes first; the decision form stays fully visible below it. */}
-      <form action={saveAction} className="card flex flex-col gap-4 p-4">
+      <form
+        action={saveAction}
+        onSubmit={(event) => {
+          // Submitting through a transition keeps the typed values on screen
+          // if the save comes back with an error (a plain form action resets them).
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          startTransition(() => saveAction(data));
+        }}
+        className="card flex flex-col gap-4 p-4"
+      >
         <input type="hidden" name="id" value={task.id} />
         <input type="hidden" name="returnTo" value={returnTo} />
         {canManageOwners ? <input type="hidden" name="manageOwners" value="1" /> : null}

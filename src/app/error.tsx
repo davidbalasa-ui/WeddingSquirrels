@@ -3,10 +3,15 @@
 export default function RootError({
   error,
   reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  reset?: () => void;
+  unstable_retry?: () => void;
 }) {
+  // reset() only re-renders; unstable_retry re-fetches, which is what a waking database needs.
+  const retry = unstable_retry ?? reset ?? (() => window.location.reload());
+
   return (
     <main className="app-shell">
       <div className="card mt-10 p-6 text-center">
@@ -14,7 +19,7 @@ export default function RootError({
         <p className="mt-2 text-sm text-muted">
           The wedding database may still be waking up. Wait a few seconds, then try again.
         </p>
-        <button type="button" className="btn-primary mt-4" onClick={() => reset()}>
+        <button type="button" className="btn-primary mt-4" onClick={() => retry()}>
           Try again
         </button>
         {error.digest ? (

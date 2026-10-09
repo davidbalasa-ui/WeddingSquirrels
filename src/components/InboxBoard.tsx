@@ -111,8 +111,9 @@ export function InboxBoard({
   const vendorOnly = session.canSeeRequests && !session.canSeeTasks && !session.canSeeShop;
 
   function toggleGroupCollapse(groupKey: string) {
+    const collapsed = !isGroupCollapsed(groupKey);
     setCollapsedGroups((prev) => {
-      const next = { ...prev, [groupKey]: !prev[groupKey] };
+      const next = { ...prev, [groupKey]: collapsed };
       localStorage.setItem(collapseKey(groupKey), next[groupKey] ? "1" : "0");
       return next;
     });

@@ -263,7 +263,7 @@ export function OfflineApp() {
 }
 
 function OfflineMcView({ pack }: { pack: OfflinePack }) {
-  const show = buildMcRunOfShow(asTimeline(pack), []);
+  const show = buildMcRunOfShow(weddingTimelineRows(asTimeline(pack)), []);
   return (
     <div className="flex flex-col gap-3">
       <SectionTitle>MC Run of Show</SectionTitle>

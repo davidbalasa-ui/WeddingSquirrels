@@ -430,6 +430,7 @@ export function DayTimeline({
       if (result.reason === "forbidden") {
         setBanner("You were logged out or lost edit access.");
         setMode("review");
+        return;
       }
       setBanner("Couldn’t remove that moment — try again.");
       return;
@@ -905,6 +906,7 @@ function PeerHandle({
   peerIds: string[];
   onReorder: (ids: string[], persist?: boolean) => void;
 }) {
+  const draggedRef = useRef(false);
   const index = peerIds.indexOf(rowId);
   if (peerIds.length < 2 || index < 0) return null;
 
@@ -924,6 +926,7 @@ function PeerHandle({
     const startY = event.clientY;
     let current = [...peerIds];
     let lastIndex = current.indexOf(rowId);
+    let moved = false;
 
     function yToIndex(clientY: number) {
       const mids = current.map((id) => {
@@ -949,6 +952,8 @@ function PeerHandle({
       const nextIndex = yToIndex(moveEvent.clientY);
       if (nextIndex === lastIndex) return;
       lastIndex = nextIndex;
+      moved = true;
+      draggedRef.current = true;
       const next = current.filter((id) => id !== rowId);
       next.splice(nextIndex, 0, rowId);
       current = next;
@@ -956,14 +961,17 @@ function PeerHandle({
     }
 
     function onUp() {
-      handle.releasePointerCapture(event.pointerId);
+      if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
       handle.removeEventListener("pointermove", onMove);
       handle.removeEventListener("pointerup", onUp);
-      onReorder(current, true);
+      handle.removeEventListener("pointercancel", onUp);
+      // A plain tap falls through to onClick (nudge one place); only a real drag saves here.
+      if (moved) onReorder(current, true);
     }
 
     handle.addEventListener("pointermove", onMove);
     handle.addEventListener("pointerup", onUp);
+    handle.addEventListener("pointercancel", onUp);
   }
 
   return (
@@ -973,6 +981,11 @@ function PeerHandle({
       className="print-hide mt-0.5 min-h-8 w-8 shrink-0 touch-none rounded-md text-sm font-semibold text-muted"
       onPointerDown={onPointerDown}
       onClick={() => {
+        // The click that follows a drag must not nudge the row a second time.
+        if (draggedRef.current) {
+          draggedRef.current = false;
+          return;
+        }
         if (index < peerIds.length - 1) move(1);
         else if (index > 0) move(-1);
       }}
