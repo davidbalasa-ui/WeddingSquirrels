@@ -56,3 +56,11 @@ test("David's 9 Oct edits: boutonniere first look with his parents, named party 
   assert.equal(party?.lines.filter((line) => /^(Bride|Groom) with [A-Z][a-z]+\.$/.test(line)).length, 14);
   assert.equal(party?.openItems, undefined);
 });
+
+test("Harmony is on ring security at the entry table the half hour before the ceremony", () => {
+  const ring = RECONCILED_TIMELINE.find((moment) => moment.seedKey === "wedding_ring_security");
+  const ceremony = RECONCILED_TIMELINE.find((moment) => moment.seedKey === "wedding_ceremony");
+  assert.equal(ring?.startAt, "3:00 PM");
+  assert.equal(ring?.endAt, ceremony?.startAt);
+  assert.equal(ring?.location, "Entry table");
+});
