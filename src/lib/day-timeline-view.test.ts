@@ -100,3 +100,11 @@ test("findTimelineDuplicates leaves moments more than half an hour apart alone",
   ]);
   assert.deepEqual(Object.keys(flags).sort(), ["c1", "c2"]);
 });
+
+test("the photographer view keeps a moment whose only photo line is a single portrait", () => {
+  const moment = reviewMoment(
+    { startAt: "1:00 PM", endAt: "1:30 PM", notes: "Haley gets dressed\nMom buttons the dress; bride-with-veil portrait." },
+    {},
+  );
+  assert.ok(momentForRole(moment, "photo"));
+});

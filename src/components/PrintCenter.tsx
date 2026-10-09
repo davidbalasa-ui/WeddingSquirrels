@@ -25,7 +25,9 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
   const [selected, setSelected] = useState<PrintSectionId[]>([...FULL_BINDER_SECTIONS]);
   const [chosen, setChosen] = useState<PrintPresetId | null>("binder");
   const visible = useMemo(() => printableSections(document, selected), [document, selected]);
-  const preset = activePreset(selected, chosen);
+  const preset = activePreset(selected, chosen, document.availableSections);
+  // Once the bride's packet is picked, ticking sections on or off never brings back the getaway details.
+  const forBride = preset === "bride" || chosen === "bride";
   const packet = preset ? printPacket(preset) : null;
   // A hand-picked "schedule" section keeps the audience of the last packet chosen.
   const audience = printPacket(chosen ?? "party").audience ?? "party";
@@ -101,7 +103,7 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
       <article className={packet?.compact ? "binder-doc binder-doc--compact mt-8" : "binder-doc mt-8"}>
         <PrintTitlePage document={document} kicker={printTitleKicker(preset)} />
         {visible.map((id) => (
-          <PrintSection key={id} id={id} document={document} preset={preset} audience={audience} />
+          <PrintSection key={id} id={id} document={document} preset={preset} audience={audience} forBride={forBride} />
         ))}
       </article>
     </div>
@@ -162,11 +164,13 @@ function PrintSection({
   document,
   preset,
   audience,
+  forBride,
 }: {
   id: PrintSectionId;
   document: PrintCenterDocument;
   preset: PrintPresetId | null;
   audience: ScheduleAudience;
+  forBride: boolean;
 }) {
   switch (id) {
     case "overview":
@@ -187,7 +191,7 @@ function PrintSection({
         <section className="binder-section">
           <h2>Wedding-day run sheet</h2>
           {document.runSheet.length ? (
-            <RunSheet phases={preset === "bride" ? document.brideRunSheet : document.runSheet} />
+            <RunSheet phases={forBride ? document.brideRunSheet : document.runSheet} />
           ) : (
             <TimelineList rows={document.timeline} />
           )}
@@ -315,9 +319,9 @@ function PrintSection({
         </section>
       );
     case "contacts": {
-      // Short packets skip the wedding party's own numbers: the party packet already lists them in its roster.
+      // The party packet skips the wedding party's own numbers: it already lists them in its roster.
       const roster = new Set(
-        preset && printPacket(preset).compact
+        preset === "party"
           ? document.weddingParty.members.map((member) => member.name.toLowerCase())
           : [],
       );

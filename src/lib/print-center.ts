@@ -368,10 +368,11 @@ export function sectionsForPreset(preset: PrintPresetId): PrintSectionId[] {
 export function activePreset(
   selected: Iterable<PrintSectionId>,
   current: PrintPresetId | null = null,
+  available?: readonly PrintSectionId[],
 ): PrintPresetId | null {
   const have = [...selected];
-  if (current && presetMatchesSelection(current, have)) return current;
-  return PRINT_PRESET_IDS.find((preset) => presetMatchesSelection(preset, have)) ?? null;
+  if (current && presetMatchesSelection(current, have, available)) return current;
+  return PRINT_PRESET_IDS.find((preset) => presetMatchesSelection(preset, have, available)) ?? null;
 }
 
 export function printTitleKicker(preset: PrintPresetId | null): string {
@@ -381,8 +382,10 @@ export function printTitleKicker(preset: PrintPresetId | null): string {
 export function presetMatchesSelection(
   preset: PrintPresetId,
   selected: Iterable<PrintSectionId>,
+  /** Sections this session can print; a packet missing one it cannot see still counts. */
+  available?: readonly PrintSectionId[],
 ): boolean {
-  const wanted = sectionsForPreset(preset);
+  const wanted = sectionsForPreset(preset).filter((id) => !available || available.includes(id));
   const have = new Set(selected);
   if (have.size !== wanted.length) return false;
   return wanted.every((id) => have.has(id));
