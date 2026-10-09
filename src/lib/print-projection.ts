@@ -1204,13 +1204,11 @@ const PARTY_MOMENT =
  * party. They print on purpose so nobody assumes an answer that was never given.
  */
 export const WEDDING_PARTY_OPEN_ITEMS: string[] = [
-  "Maid of Honor and Best Man — not named in the plan yet.",
   "Which side each person stands on at the front — not decided.",
   "Attire: who wears which color, where outfits come from, and the order-by date.",
   "Whether Harmony walks in the processional and joins the get-ready robe photos.",
   "Reception entrance order and wedding party seating at dinner.",
   "Who gives a toast, in what order, and how long each one runs.",
-  "Marriage-license witnesses, signed right after the recessional.",
   "Parking and carpool plan for Friday.",
 ];
 
