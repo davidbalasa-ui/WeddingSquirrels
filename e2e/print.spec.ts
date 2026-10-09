@@ -41,6 +41,21 @@ test.describe("print center", () => {
     await expect(binder).toContainText(MONEY.committed);
     await page.locator('[data-print-section="money"]').uncheck();
 
+    await page.getByTestId("print-preset-party").click();
+    await expect(page.getByTestId("print-preset-party")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator('[data-print-section="party"]')).toBeChecked();
+    await expect(page.locator('[data-print-section="hair"]')).toBeChecked();
+    await expect(page.locator('[data-print-section="stay"]')).toBeChecked();
+    await expect(page.locator('[data-print-section="mc"]')).not.toBeChecked();
+    await expect(page.locator('[data-print-section="assignments"]')).not.toBeChecked();
+    await expect(page.locator('[data-print-section="money"]')).not.toBeChecked();
+    await expect(binder).toContainText("Wedding Party Packet");
+    await expect(page.getByTestId("print-section-party")).toContainText("Skila");
+    await expect(page.getByTestId("print-section-party")).toContainText("Flower girl");
+    await expect(page.getByTestId("print-section-party")).toContainText("TBD");
+    await expect(binder).not.toContainText("MC Run of Show");
+    await expect(binder).not.toContainText("UNASSIGNED");
+
     await page.getByTestId("print-preset-binder").click();
     for (const id of PRINT_SECTION_IDS) {
       const box = page.locator(`[data-print-section="${id}"]`);

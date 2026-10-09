@@ -25,6 +25,7 @@ import {
   projectShotGroups,
   projectStaySections,
   projectTaskGroups,
+  projectWeddingParty,
 } from "@/lib/print-projection";
 import {
   formatPrintWeddingDate,
@@ -53,6 +54,7 @@ function availableForSession(session: SessionAccount): PrintSectionId[] {
         return dinner;
       case "meals":
         return dinner || can(session.canSeeShop);
+      case "party":
       case "timeline":
       case "mc":
       case "hair":
@@ -236,6 +238,7 @@ export async function loadPrintCenterDocument(
   const shotItems = playbookByKind(playbookRows, "shot");
   const decorItems = playbookByKind(playbookRows, "decor");
   const coordinatorItems = playbookByKind(playbookRows, "coordinator");
+  const lineupItems = playbookByKind(playbookRows, "lineup");
   const hairProjected = projectHairMakeup(hairItems);
   const shotProjected = projectShotGroups(shotItems);
   const taskViews = taskRows.map((task) => ({
@@ -349,6 +352,12 @@ export async function loadPrintCenterDocument(
     taskGroups: projectTaskGroups(taskViews),
     calendar: projectKeyDates(calendarRows, timezone, settings?.weddingDate ?? null, rehearsalSorted.length > 0),
     money: moneyFingerprint(contracts),
+    weddingParty: projectWeddingParty({
+      lineup: lineupItems,
+      decor: decorItems,
+      weddingBlocks: weddingSorted,
+      contacts,
+    }),
     availableSections,
   };
 }

@@ -22,10 +22,12 @@ import {
   type PrintShotGroup,
   type PrintStaySectionView,
   type PrintTaskGroupView,
+  type PrintWeddingPartyView,
 } from "@/lib/print-projection";
 
 export const PRINT_SECTION_IDS = [
   "overview",
+  "party",
   "rehearsal",
   "timeline",
   "mc",
@@ -45,10 +47,11 @@ export const PRINT_SECTION_IDS = [
 ] as const;
 
 export type PrintSectionId = (typeof PRINT_SECTION_IDS)[number];
-export type PrintPresetId = "binder" | "packet";
+export type PrintPresetId = "binder" | "packet" | "party";
 
 export const PRINT_SECTION_LABELS: Record<PrintSectionId, string> = {
   overview: "Quick reference",
+  party: "Wedding party",
   rehearsal: "Rehearsal dinner + rehearsal",
   timeline: "Wedding-day run sheet",
   mc: "MC Run of Show",
@@ -69,6 +72,7 @@ export const PRINT_SECTION_LABELS: Record<PrintSectionId, string> = {
 
 export const FULL_BINDER_SECTIONS: PrintSectionId[] = [
   "overview",
+  "party",
   "rehearsal",
   "timeline",
   "mc",
@@ -98,6 +102,18 @@ export const DAY_OF_PACKET_SECTIONS: PrintSectionId[] = [
   "setup",
   "coordinator",
   "decor",
+];
+
+/** What a bridesmaid or groomsman needs in hand: no vendor scope, jobs, or money. */
+export const WEDDING_PARTY_PACKET_SECTIONS: PrintSectionId[] = [
+  "overview",
+  "party",
+  "rehearsal",
+  "timeline",
+  "hair",
+  "shots",
+  "contacts",
+  "stay",
 ];
 
 export type PrintTimelineRow = {
@@ -215,6 +231,7 @@ export type PrintCenterDocument = {
     remaining: number;
     items: PrintMoneyItem[];
   };
+  weddingParty: PrintWeddingPartyView;
   availableSections: PrintSectionId[];
 };
 
@@ -236,8 +253,34 @@ function chronological<T extends { startAt: string; sortOrder?: number }>(rows: 
   });
 }
 
+export const PRINT_PRESET_IDS: PrintPresetId[] = ["binder", "packet", "party"];
+
 export function sectionsForPreset(preset: PrintPresetId): PrintSectionId[] {
-  return preset === "packet" ? [...DAY_OF_PACKET_SECTIONS] : [...FULL_BINDER_SECTIONS];
+  switch (preset) {
+    case "packet":
+      return [...DAY_OF_PACKET_SECTIONS];
+    case "party":
+      return [...WEDDING_PARTY_PACKET_SECTIONS];
+    case "binder":
+      return [...FULL_BINDER_SECTIONS];
+  }
+}
+
+/** The preset whose section list exactly matches the current selection, if any. */
+export function activePreset(selected: Iterable<PrintSectionId>): PrintPresetId | null {
+  const have = [...selected];
+  return PRINT_PRESET_IDS.find((preset) => presetMatchesSelection(preset, have)) ?? null;
+}
+
+export function printTitleKicker(preset: PrintPresetId | null): string {
+  switch (preset) {
+    case "packet":
+      return "Wedding Day Packet";
+    case "party":
+      return "Wedding Party Packet";
+    default:
+      return "Wedding Binder";
+  }
 }
 
 export function presetMatchesSelection(
@@ -626,6 +669,8 @@ export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId):
   switch (id) {
     case "overview":
       return Boolean(doc.coupleNames || doc.weddingDateLabel);
+    case "party":
+      return doc.weddingParty.members.length + doc.weddingParty.processional.length > 0;
     case "rehearsal":
       return doc.rehearsal.length > 0;
     case "timeline":
@@ -739,6 +784,15 @@ export function emptyPrintDocument(): PrintCenterDocument {
     taskGroups: [],
     calendar: [],
     money: { committed: 0, paid: 0, remaining: 0, items: [] },
+    weddingParty: {
+      theme: null,
+      colors: [],
+      members: [],
+      processional: [],
+      lineUpTime: null,
+      moments: [],
+      openItems: [],
+    },
     availableSections: [...PRINT_SECTION_IDS],
   };
 }
