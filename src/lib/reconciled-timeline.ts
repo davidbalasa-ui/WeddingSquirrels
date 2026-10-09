@@ -122,7 +122,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_ceremony", schedule: W, phase: "ceremony", startAt: "3:30 PM", endAt: "4:00 PM", title: "Ceremony",
     location: "Under the shelter", lines: [] },
   { seedKey: "wedding_license_signing", schedule: W, phase: "ceremony", startAt: "4:00 PM", endAt: null, title: "Sign the marriage license",
-    lines: ["Immediately after the recessional.", "David, Haley, Marie, and the witnesses move directly to the signing table.", "The Best Man and Maid of Honor are the witnesses and are in charge of the license and pen."] },
+    lines: ["Immediately after the recessional.", "David, Haley, Marie, and the witnesses move directly to the signing table.", "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen."] },
   { seedKey: "wedding_cocktail_hour", schedule: W, phase: "ceremony", startAt: "4:00 PM", endAt: "5:00 PM", title: "Cocktail hour and bar opening",
     lines: [
       "Bar service begins at 4:00 PM.",
