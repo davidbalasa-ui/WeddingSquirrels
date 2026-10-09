@@ -1203,6 +1203,8 @@ export const WEDDING_PARTY_OPEN_ITEMS: string[] = [
   "Attire: who wears which color, where outfits come from, and the order-by date.",
   "Whether Harmony walks in the processional and joins the get-ready robe photos.",
   "Reception entrance order and wedding party seating at dinner.",
+  "Who gives a toast, in what order, and how long each one runs.",
+  "Marriage-license witnesses, signed right after the recessional.",
   "Parking and carpool plan for Friday.",
 ];
 
