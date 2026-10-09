@@ -5,8 +5,9 @@ import {
   FULL_BINDER_SECTIONS,
   PRINT_SECTION_IDS,
   PRINT_SECTION_LABELS,
+  activePreset,
   formatPrintMoney,
-  presetMatchesSelection,
+  printTitleKicker,
   printableSections,
   sectionsForPreset,
   toggleSection,
@@ -20,8 +21,10 @@ import {
 export function PrintCenter({ document }: { document: PrintCenterDocument }) {
   const [selected, setSelected] = useState<PrintSectionId[]>([...FULL_BINDER_SECTIONS]);
   const visible = useMemo(() => printableSections(document, selected), [document, selected]);
-  const packetActive = presetMatchesSelection("packet", selected);
-  const binderActive = presetMatchesSelection("binder", selected);
+  const preset = activePreset(selected);
+  const packetActive = preset === "packet";
+  const binderActive = preset === "binder";
+  const partyActive = preset === "party";
 
   function applyPreset(next: PrintPresetId) {
     setSelected(sectionsForPreset(next).filter((id) => document.availableSections.includes(id)));
@@ -40,12 +43,12 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
             Wedding Binder & Print
           </h1>
           <p className="mt-3 max-w-xl text-base text-muted">
-            Create a printable wedding binder or a focused day-of packet from your current
-            WeddingSquirrels information.
+            Create a printable wedding binder, a focused day-of packet, or a packet for the
+            wedding party from your current WeddingSquirrels information.
           </p>
         </header>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <PresetCard
             title="Full Wedding Binder"
             body="Operations first, then guests, stay, meals, open work, key dates, and money."
@@ -59,6 +62,13 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
             active={packetActive}
             testId="print-preset-packet"
             onClick={() => applyPreset("packet")}
+          />
+          <PresetCard
+            title="Wedding Party Packet"
+            body="What each bridesmaid and groomsman needs: who walks with whom, call times, hair & makeup, photos, contacts, and the Airbnb — with open questions marked TBD."
+            active={partyActive}
+            testId="print-preset-party"
+            onClick={() => applyPreset("party")}
           />
         </div>
 
@@ -95,7 +105,7 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
       </div>
 
       <article className="binder-doc mt-8">
-        <PrintTitlePage document={document} packet={packetActive && !binderActive} />
+        <PrintTitlePage document={document} kicker={printTitleKicker(preset)} />
         {visible.map((id) => (
           <PrintSection key={id} id={id} document={document} />
         ))}
@@ -138,14 +148,14 @@ function PresetCard({
 
 function PrintTitlePage({
   document,
-  packet,
+  kicker,
 }: {
   document: PrintCenterDocument;
-  packet: boolean;
+  kicker: string;
 }) {
   return (
     <header className="binder-title">
-      <p className="binder-kicker">{packet ? "Wedding Day Packet" : "Wedding Binder"}</p>
+      <p className="binder-kicker">{kicker}</p>
       <h1>{document.coupleNames}</h1>
       <p className="binder-date">{document.weddingDateLabel}</p>
       <BinderSunsetRule />
@@ -157,6 +167,8 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
   switch (id) {
     case "overview":
       return <QuickReferenceSection document={document} />;
+    case "party":
+      return <WeddingPartySection document={document} />;
     case "rehearsal":
       return (
         <section className="binder-section">
@@ -596,6 +608,85 @@ function QuickReferenceSection({ document }: { document: PrintCenterDocument }) 
         <p className="binder-lede">
           {ref.rsvp.attending} attending · {ref.rsvp.declined} declined · {ref.rsvp.awaiting} awaiting RSVP
         </p>
+      ) : null}
+    </section>
+  );
+}
+
+function WeddingPartySection({ document }: { document: PrintCenterDocument }) {
+  const party = document.weddingParty;
+  return (
+    <section className="binder-section" data-testid="print-section-party">
+      <h2>Wedding party</h2>
+      <p className="binder-lede">
+        {party.theme ? `${party.theme}` : "Wedding party"}
+        {party.colors.length ? ` · ${party.colors.join(" · ")}` : ""}
+      </p>
+      {party.members.length ? (
+        <>
+          <h3>Who&apos;s in the party</h3>
+          <table className="binder-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Walks with</th>
+                <th>Phone</th>
+              </tr>
+            </thead>
+            <tbody>
+              {party.members.map((member) => (
+                <tr key={member.name}>
+                  <td>{member.name}</td>
+                  <td>{member.role}</td>
+                  <td>{member.walksWith ?? "—"}</td>
+                  <td>{member.phone ?? "TBD"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : null}
+      {party.processional.length ? (
+        <>
+          <h3>Ceremony processional{party.lineUpTime ? ` · line up at ${party.lineUpTime}` : ""}</h3>
+          <ol className="binder-timeline">
+            {party.processional.map((step) => (
+              <li key={`${step.order}-${step.title}`} className="binder-card">
+                <p className="binder-time">{step.order}</p>
+                <p className="binder-item-title">{step.title}</p>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : null}
+      {party.moments.length ? (
+        <>
+          <h3>Your call times and moments</h3>
+          <TimelineList
+            rows={party.moments.map((moment) => ({
+              timeLabel: moment.timeLabel,
+              title: moment.title,
+              location: null,
+              notes: moment.notes,
+            }))}
+          />
+        </>
+      ) : null}
+      {party.openItems.length ? (
+        <>
+          <h3>Still to confirm (TBD)</h3>
+          <ul className="binder-list">
+            {party.openItems.map((item) => (
+              <li key={item} className="binder-shot">
+                <span className="binder-check" aria-hidden>
+                  ☐
+                </span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </>
       ) : null}
     </section>
   );

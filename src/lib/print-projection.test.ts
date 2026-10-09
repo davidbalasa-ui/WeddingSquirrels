@@ -16,6 +16,7 @@ import {
   projectShotGroups,
   projectStaySections,
   projectTaskGroups,
+  projectWeddingParty,
   rsvpPrintLabel,
 } from "./print-projection";
 import { extractMcCues } from "./print-center";
@@ -347,4 +348,65 @@ test("coordinator print keeps operational scope and drops architecture notes", (
 test("Kurt prints as MC even without a directory label", () => {
   assert.equal(printContactRole("Kurt Huizenga", null), "MC");
   assert.equal(printContactRole("Wendy Rush", null), "Mistress of Ceremonies");
+});
+
+test("wedding party packet lists the lineup pairs, colors, call times, and open TBDs", () => {
+  const view = projectWeddingParty({
+    lineup: playbookByKind(CANONICAL_PLAYBOOK, "lineup"),
+    decor: playbookByKind(CANONICAL_PLAYBOOK, "decor"),
+    weddingBlocks: [
+      { startAt: "3:15 PM", endAt: "3:30 PM", notes: "Pre-Ceremony Transition\nGuests begin arriving\nWedding party lines up\nTouch-ups" },
+      { startAt: "4:00 PM", endAt: "5:00 PM", notes: "Cocktail Hour\nGuests enjoy drinks + appetizers" },
+      { startAt: "6:00 PM", endAt: "6:30 PM", notes: "Toasts + Cake cutting\nToasts (Best man, MOH, FOB)" },
+    ],
+    contacts: [
+      { name: "Skila Goins", phone: "269-419-7847" },
+      { name: "Avalon Green · Planner", phone: "386.589.7215" },
+    ],
+  });
+
+  assert.deepEqual(
+    view.members.map((member) => [member.name, member.walksWith, member.role]),
+    [
+      ["Skila", "Trinity", "Wedding party"],
+      ["Trinity", "Skila", "Wedding party"],
+      ["Victoria", "Bri", "Wedding party"],
+      ["Bri", "Victoria", "Wedding party"],
+      ["Kaylie", "Evan", "Wedding party"],
+      ["Evan", "Kaylie", "Wedding party"],
+      ["Braxton", "Andi", "Wedding party"],
+      ["Andi", "Braxton", "Wedding party"],
+      ["Melody", null, "Flower girl"],
+    ],
+  );
+  assert.equal(view.members[0]?.phone, "269-419-7847");
+  assert.equal(view.members[1]?.phone, null);
+  assert.equal(view.processional.length, 9);
+  assert.equal(view.processional[0]?.title, "Mother of the Groom & Father of the Groom");
+  assert.equal(view.processional[8]?.title, "Haley with Dad");
+  assert.equal(view.lineUpTime, "3:20 PM");
+  assert.equal(view.theme, "Sunset dreams");
+  assert.deepEqual(view.colors, ["dark blue", "powder blue", "purple", "powder pink"]);
+  assert.deepEqual(
+    view.moments.map((moment) => moment.title),
+    ["Pre-Ceremony Transition", "Toasts + Cake cutting"],
+  );
+  assert.deepEqual(view.moments[0]?.notes, ["Wedding party lines up"]);
+  assert.ok(view.openItems.some((item) => /maid of honor/i.test(item)));
+  assert.ok(view.openItems.some((item) => /attire/i.test(item)));
+});
+
+test("wedding party phones print only on an unambiguous first-name match", () => {
+  const view = projectWeddingParty({
+    lineup: [{ title: "Kaylie & Evan", startAt: "3:20 PM", sortOrder: 0 }],
+    decor: [],
+    weddingBlocks: [],
+    contacts: [
+      { name: "Evan Eling", phone: "231-343-6924" },
+      { name: "Evan Wiewiora", phone: "231-000-0000" },
+      { name: "Kaylie Cartwright", phone: "231-329-3264" },
+    ],
+  });
+  assert.equal(view.members.find((m) => m.name === "Evan")?.phone, null);
+  assert.equal(view.members.find((m) => m.name === "Kaylie")?.phone, "231-329-3264");
 });

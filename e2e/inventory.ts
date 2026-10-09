@@ -201,7 +201,7 @@ export const CONTROLS: InventoryControl[] = [
   auto("accounts-dialog", "/accounts", "Add / Edit / Preview / Close", "Dialogs open and close without writing PINs", ["more", "dialog", "cancel"], "more.spec.ts · accounts"),
   skip("accounts-pin-write", "/accounts", "Save / Delete PIN account", "Would create extra local PIN identities", ["create", "delete", "more"], "Shared local auth fixtures must stay stable; dialogs are certified instead"),
 
-  auto("print-presets", "/print", "Full Binder / Day-of Packet", "Presets select the documented sections", ["print"], "print.spec.ts"),
+  auto("print-presets", "/print", "Full Binder / Day-of Packet / Wedding Party Packet", "Presets select the documented sections", ["print"], "print.spec.ts"),
   auto("print-toggles", "/print", "Every section checkbox", "Each available toggle shows/hides its section", ["print"], "print.spec.ts · every toggle"),
   auto("print-action", "/print", "Print / Save PDF", "Invokes window.print", ["print"], "print.spec.ts"),
   auto("print-css", "/print", "Print media", "Nav and controls hidden; binder remains", ["print"], "print.spec.ts"),

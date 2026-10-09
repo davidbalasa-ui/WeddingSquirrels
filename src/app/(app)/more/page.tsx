@@ -53,7 +53,7 @@ export default async function MoreHubPage() {
             <span className="min-w-0 flex-1">
               <span className="block font-semibold">Wedding Binder & Print</span>
               <span className="mt-0.5 block text-sm text-muted">
-                Create a binder or day-of packet from current information.
+                Create a binder, day-of packet, or wedding party packet from current information.
               </span>
             </span>
             <span className="text-sm text-muted" aria-hidden>

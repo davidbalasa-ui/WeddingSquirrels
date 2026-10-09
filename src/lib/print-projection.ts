@@ -1152,3 +1152,142 @@ export function musicAttachTarget(kind: string, value: string): string | null {
   if (isDinnerBedMusic(kind, value)) return "dinner-bed";
   return null;
 }
+
+/* ---------------------------------------------------------------------------
+ * Wedding party packet
+ * ------------------------------------------------------------------------- */
+
+export type PrintPartyMember = {
+  name: string;
+  role: string;
+  walksWith: string | null;
+  phone: string | null;
+};
+
+export type PrintPartyStep = {
+  order: number;
+  title: string;
+};
+
+export type PrintPartyMoment = {
+  timeLabel: string;
+  title: string;
+  notes: string[];
+};
+
+export type PrintWeddingPartyView = {
+  theme: string | null;
+  colors: string[];
+  members: PrintPartyMember[];
+  processional: PrintPartyStep[];
+  lineUpTime: string | null;
+  moments: PrintPartyMoment[];
+  openItems: string[];
+};
+
+/** Lineup rows that are family or the couple, not wedding party members. */
+const LINEUP_NOT_PARTY =
+  /mother|father|officiant|\bmom\b|\bdad\b|\bwith dad\b|^david$|^haley\b/i;
+
+/** Wedding-day moments where the wedding party has a job or a call time. */
+const PARTY_MOMENT =
+  /wedding party|bridal party|groomsmen|bridesmaid|lines? up|first look|portraits|toasts|first dances|grand entrance|tear down|clean up|leaves? (the )?airbnb|getting dressed/i;
+
+/**
+ * Open questions the planning sources still leave unanswered for the wedding
+ * party. They print on purpose so nobody assumes an answer that was never given.
+ */
+export const WEDDING_PARTY_OPEN_ITEMS: string[] = [
+  "Maid of Honor and Best Man — not named in the plan yet.",
+  "Which side each person stands on at the front — not decided.",
+  "Attire: who wears which color, where outfits come from, and the order-by date.",
+  "Whether Harmony walks in the processional and joins the get-ready robe photos.",
+  "Reception entrance order and wedding party seating at dinner.",
+  "Parking and carpool plan for Friday.",
+];
+
+function lineupRole(title: string): { names: string[]; role: string | null } {
+  const dashRole = title.match(/^(.+?)\s*[—–-]\s*(.+)$/);
+  if (dashRole) {
+    return { names: [dashRole[1]!.trim()], role: dashRole[2]!.trim() };
+  }
+  return {
+    names: title
+      .split(/\s*(?:&|\band\b)\s*/i)
+      .map((name) => name.trim())
+      .filter(Boolean),
+    role: null,
+  };
+}
+
+function titleCaseRole(role: string): string {
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+export function projectWeddingParty(input: {
+  lineup: Array<{ title: string; startAt: string | null; sortOrder: number }>;
+  decor: Array<{ title: string; notes: string | null }>;
+  weddingBlocks: Array<{ startAt: string; endAt: string | null; notes: string }>;
+  contacts: Array<{ name: string; phone: string | null }>;
+}): PrintWeddingPartyView {
+  const ordered = [...input.lineup].sort((a, b) => a.sortOrder - b.sortOrder);
+  const processional = ordered.map((row, index) => ({ order: index + 1, title: row.title }));
+  const lineUpTime = ordered.find((row) => row.startAt)?.startAt ?? null;
+
+  // Lineup rows carry first names only. A phone is printed only when exactly
+  // one contact shares that first name; two Evans print TBD rather than a guess.
+  const phoneFor = (name: string): string | null => {
+    const first = name.toLowerCase();
+    const matches = input.contacts.filter((row) => {
+      const contactFirst = row.name.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+      return contactFirst === first && Boolean(row.phone?.trim());
+    });
+    return matches.length === 1 ? matches[0]!.phone!.trim() : null;
+  };
+
+  const members: PrintPartyMember[] = [];
+  for (const row of ordered) {
+    if (LINEUP_NOT_PARTY.test(row.title)) continue;
+    const parsed = lineupRole(row.title);
+    for (const name of parsed.names) {
+      const partner = parsed.names.find((other) => other !== name) ?? null;
+      members.push({
+        name,
+        role: parsed.role ? titleCaseRole(parsed.role) : "Wedding party",
+        walksWith: partner,
+        phone: phoneFor(name),
+      });
+    }
+  }
+
+  const themeRow = input.decor.find((row) => /bridal party colors|wedding party colors/i.test(row.notes ?? ""));
+  const colorMatch = themeRow?.notes?.match(/colors?\s*:\s*([^.\n]+)/i);
+  const colors = colorMatch
+    ? colorMatch[1]!
+        .split(/\s*,\s*/)
+        .map((color) => color.trim())
+        .filter(Boolean)
+    : [];
+
+  const moments: PrintPartyMoment[] = [];
+  for (const block of input.weddingBlocks) {
+    const parsed = parseBlockNotes(block.notes);
+    const relevant = parsed.detailLines.filter((line) => PARTY_MOMENT.test(line));
+    if (!PARTY_MOMENT.test(parsed.title) && relevant.length === 0) continue;
+    moments.push({
+      timeLabel: formatPrintTimeRange(block.startAt, block.endAt),
+      title: parsed.title,
+      notes: professionalizePrintLines(relevant.length ? relevant : parsed.detailLines).slice(0, 4),
+    });
+  }
+
+  return {
+    theme: themeRow?.title ?? null,
+    colors,
+    members,
+    processional,
+    lineUpTime: lineUpTime ? normalizePrintTime(lineUpTime) : null,
+    moments,
+    openItems: [...WEDDING_PARTY_OPEN_ITEMS],
+  };
+}

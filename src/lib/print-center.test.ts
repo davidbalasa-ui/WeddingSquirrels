@@ -5,6 +5,8 @@ import { MODULES } from "./modules";
 import {
   DAY_OF_PACKET_SECTIONS,
   FULL_BINDER_SECTIONS,
+  WEDDING_PARTY_PACKET_SECTIONS,
+  activePreset,
   assignmentOwnerLabel,
   documentContainsInternalSecrets,
   emptyPrintDocument,
@@ -15,6 +17,7 @@ import {
   mcPeopleFromDirectory,
   moneyFingerprint,
   presetMatchesSelection,
+  printTitleKicker,
   printableSections,
   sectionsForPreset,
   toggleSection,
@@ -47,6 +50,37 @@ test("Full Binder preset includes money, guests, setup, and coordinator; Day-of 
   assert.equal(FULL_BINDER_SECTIONS.includes("shots"), true);
   assert.equal(presetMatchesSelection("binder", sectionsForPreset("binder")), true);
   assert.equal(presetMatchesSelection("packet", sectionsForPreset("packet")), true);
+});
+
+test("Wedding Party Packet preset carries the party section and leaves out jobs, MC cues, and money", () => {
+  assert.equal(WEDDING_PARTY_PACKET_SECTIONS[0], "overview");
+  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("party"), true);
+  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("rehearsal"), true);
+  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("timeline"), true);
+  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("hair"), true);
+  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("stay"), true);
+  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("mc"), false);
+  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("assignments"), false);
+  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("coordinator"), false);
+  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("money"), false);
+  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("guests"), false);
+  assert.equal(FULL_BINDER_SECTIONS.includes("party"), true);
+  assert.equal(DAY_OF_PACKET_SECTIONS.includes("party"), false);
+  assert.equal(presetMatchesSelection("party", sectionsForPreset("party")), true);
+  assert.equal(activePreset(sectionsForPreset("party")), "party");
+  assert.equal(activePreset(sectionsForPreset("packet")), "packet");
+  assert.equal(activePreset(sectionsForPreset("binder")), "binder");
+  assert.equal(activePreset(toggleSection(sectionsForPreset("party"), "money")), null);
+  assert.equal(printTitleKicker("party"), "Wedding Party Packet");
+  assert.equal(printTitleKicker("packet"), "Wedding Day Packet");
+  assert.equal(printTitleKicker(null), "Wedding Binder");
+});
+
+test("party section prints only when the document has lineup or member rows", () => {
+  const doc = emptyPrintDocument();
+  assert.equal(printableSections(doc, ["party"]).includes("party"), false);
+  doc.weddingParty.processional = [{ order: 1, title: "David" }];
+  assert.equal(printableSections(doc, ["party"]).includes("party"), true);
 });
 
 test("manual section toggles add and remove without preset persistence", () => {
