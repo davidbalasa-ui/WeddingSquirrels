@@ -154,7 +154,7 @@ function VendorBudgetPanel({
         </div>
       </div>
       <p className="mt-2 text-xs text-muted">
-        Balance remaining · <span className="font-semibold text-[var(--text)]">{formatMoney(remaining)}</span>
+        Balance remaining · <span className="font-semibold text-ink">{formatMoney(remaining)}</span>
       </p>
       <div className="mt-2 flex items-center gap-2">
         {budget.receiptData ? (
@@ -230,7 +230,7 @@ export function VendorEntryList({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={searchPlaceholder}
-        className="mb-3 w-full rounded-xl border border-line bg-[var(--card)] px-3 py-2.5 text-sm outline-none ring-[var(--accent)] focus:ring-2"
+        className="mb-3 w-full rounded-xl border border-line bg-[var(--bg-elevated)] px-3 py-2.5 text-sm outline-none ring-[var(--accent)] focus:ring-2"
         aria-label="Search vendors"
       />
 
