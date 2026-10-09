@@ -393,9 +393,8 @@ test("wedding party packet lists the lineup pairs, colors, call times, and open 
     ["Pre-Ceremony Transition", "Toasts + Cake cutting"],
   );
   assert.deepEqual(view.moments[0]?.notes, ["Wedding party lines up"]);
-  assert.ok(view.openItems.some((item) => /maid of honor/i.test(item)));
+  assert.equal(view.openItems.some((item) => /maid of honor|witnesses/i.test(item)), false);
   assert.ok(view.openItems.some((item) => /attire/i.test(item)));
-  assert.ok(view.openItems.some((item) => /witnesses/i.test(item)));
   assert.ok(view.openItems.some((item) => /toast/i.test(item)));
 });
 
