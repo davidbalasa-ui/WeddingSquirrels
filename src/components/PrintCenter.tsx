@@ -697,9 +697,10 @@ function WeddingPartySection({ document, preset }: { document: PrintCenterDocume
           />
         </>
       ) : null}
-      {party.openItems.length ? (
+      {/* Open questions stay in the groom's binder; the packets people carry read as settled. */}
+      {party.openItems.length && (preset === "binder" || preset === null) ? (
         <>
-          <h3>Still to confirm (TBD)</h3>
+          <h3>Still to confirm</h3>
           <ul className="binder-list">
             {party.openItems.map((item) => (
               <li key={item} className="binder-shot">

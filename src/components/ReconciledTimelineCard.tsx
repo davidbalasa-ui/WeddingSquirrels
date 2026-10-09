@@ -1,19 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { applyReconciledTimelineAction } from "@/app/actions";
-import type { ReconciledPlan } from "@/lib/reconciled-timeline";
+import { applyReconciledTimelineAction, restoreReconciledMomentAction } from "@/app/actions";
+import { reconciledPlanIsEmpty, type ReconciledPlan } from "@/lib/reconciled-timeline";
 
-/** Master-only: shows what the reconciled document would change and applies it in one tap. */
+/**
+ * Master-only: adds the reconciled document's new moments and removes the ones it
+ * folds away in one tap. Moments already on the page are never rewritten by that
+ * tap; any that read differently from the document can be switched back one at a time.
+ */
+function count(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? "" : "s"}`;
+}
+
 export function ReconciledTimelineCard({ plan }: { plan: ReconciledPlan }) {
   const [state, setState] = useState<"idle" | "working" | "done" | "error">("idle");
   const [open, setOpen] = useState(false);
-  const total = plan.inserts.length + plan.updates.length + plan.removals.length;
-  if (total === 0 || state === "done") return null;
+  const [restoring, setRestoring] = useState<string | null>(null);
+  const [restoreError, setRestoreError] = useState(false);
+  if (state === "done") return null;
+  const onlyDifferences = reconciledPlanIsEmpty(plan);
+  if (onlyDifferences && plan.updates.length === 0) return null;
 
   async function apply() {
     setState("working");
-    const result = await applyReconciledTimelineAction();
+    const result = await applyReconciledTimelineAction().catch(() => ({ ok: false as const }));
     if (!result.ok) {
       setState("error");
       return;
@@ -22,13 +33,62 @@ export function ReconciledTimelineCard({ plan }: { plan: ReconciledPlan }) {
     window.location.reload();
   }
 
+  async function restore(seedKey: string) {
+    setRestoring(seedKey);
+    setRestoreError(false);
+    const result = await restoreReconciledMomentAction(seedKey).catch(() => ({ ok: false as const }));
+    setRestoring(null);
+    if (!result.ok) {
+      setRestoreError(true);
+      return;
+    }
+    window.location.reload();
+  }
+
+  const differences = plan.updates.length ? (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Kept as you have them</p>
+      <p className="mt-0.5 text-xs text-muted">These read differently from the document. Apply leaves them alone.</p>
+      <ul className="mt-1 list-none space-y-1.5 p-0">
+        {plan.updates.map((row) => (
+          <li key={row.id} className="flex flex-wrap items-center gap-x-2">
+            <span>
+              {row.before.startAt}{row.before.endAt ? ` – ${row.before.endAt}` : ""} · {row.before.title}
+            </span>
+            <button
+              type="button"
+              className="min-h-9 text-left text-xs font-semibold text-[var(--accent)]"
+              disabled={restoring !== null}
+              onClick={() => void restore(row.seedKey)}
+            >
+              {restoring === row.seedKey ? "Switching…" : `Use the document’s version (${row.startAt}${row.endAt ? ` – ${row.endAt}` : ""} · ${row.notes.split("\n")[0]})`}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {restoreError ? <p className="mt-1 text-sm text-[var(--danger)]">Couldn’t switch that moment. Try again.</p> : null}
+    </div>
+  ) : null;
+
+  // Everything from the document is on the timeline; only the owner's own edits differ.
+  if (onlyDifferences) {
+    return (
+      <section className="mb-3 print-hide">
+        <button type="button" className="min-h-9 text-xs font-semibold text-muted" onClick={() => setOpen((v) => !v)}>
+          {open ? "Hide" : plan.updates.length === 1 ? "1 moment reads differently from the reconciled document" : `${plan.updates.length} moments read differently from the reconciled document`}
+        </button>
+        {open ? <div className="card mt-1 px-3 py-3 text-sm">{differences}</div> : null}
+      </section>
+    );
+  }
+
   return (
     <section className="card mb-3 px-3 py-3 print-hide">
       <p className="text-sm font-semibold">Reconciled timeline update ready</p>
       <p className="mt-0.5 text-xs text-muted">
-        From the “David and Haley Reconciled Wedding Timeline” document: {plan.inserts.length} new moments, {plan.updates.length} updated,
-        {" "}{plan.removals.length} folded into others. Moments the document does not mention are left as they are
-        {plan.untouched.length ? ` (${plan.untouched.length})` : ""}.
+        From the “David and Haley Reconciled Wedding Timeline” document: {count(plan.inserts.length, "new moment")},
+        {" "}{count(plan.removals.length, "moment")} folded into others. Moments already on the timeline keep your wording
+        {plan.updates.length ? ` (${plan.updates.length} ${plan.updates.length === 1 ? "reads" : "read"} differently from the document)` : ""}.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" className="btn-primary min-h-11 px-4 py-2 text-sm" onClick={() => void apply()} disabled={state === "working"}>
@@ -43,18 +103,6 @@ export function ReconciledTimelineCard({ plan }: { plan: ReconciledPlan }) {
       ) : null}
       {open ? (
         <div className="mt-3 space-y-2 text-sm">
-          {plan.updates.length ? (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Updated</p>
-              <ul className="mt-1 list-none space-y-0.5 p-0">
-                {plan.updates.map((row) => (
-                  <li key={row.id}>
-                    {row.before.title} ({row.before.startAt}{row.before.endAt ? ` – ${row.before.endAt}` : ""}) → {row.notes.split("\n")[0]} ({row.startAt}{row.endAt ? ` – ${row.endAt}` : ""})
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
           {plan.inserts.length ? (
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">New</p>
@@ -73,6 +121,7 @@ export function ReconciledTimelineCard({ plan }: { plan: ReconciledPlan }) {
               </ul>
             </div>
           ) : null}
+          {differences}
           {plan.untouched.length ? (
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Not in the document, left alone</p>

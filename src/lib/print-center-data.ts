@@ -84,8 +84,8 @@ function availableForSession(session: SessionAccount): PrintSectionId[] {
 }
 
 /**
- * Contacts first, then guest people whose household has a phone and whose
- * full name is not already a Contact. A household phone is attributed to each
+ * Contacts first, then guest people whose full name is not already a Contact
+ * (kept even without a phone, so a shared first name is never mistaken for one person). A household phone is attributed to each
  * named guest in it; the lineup only matches on first names, and an ambiguous
  * first name prints TBD rather than a guess.
  */
@@ -97,7 +97,7 @@ export function mergePartyPhoneSources(
   const seen = new Set(merged.map((row) => row.name.trim().toLowerCase()));
   for (const row of guestPeople) {
     const key = row.name.trim().toLowerCase();
-    if (!row.phone?.trim() || seen.has(key)) continue;
+    if (seen.has(key)) continue;
     seen.add(key);
     merged.push({ name: row.name, phone: row.phone });
   }

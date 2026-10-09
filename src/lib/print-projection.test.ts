@@ -431,6 +431,7 @@ test("wedding party phones fall back to guest household records when Contacts la
     { name: "Avalon Green · Planner", phone: "386.589.7215" },
     { name: "Skila Goins", phone: "269-419-7847" },
     { name: "Mykah Mckay", phone: "269-419-7847" },
+    { name: "Victoria Owens", phone: null },
   ]);
   const view = projectWeddingParty({
     lineup: [{ title: "Skila & Trinity", startAt: "3:20 PM", sortOrder: 0 }, { title: "Victoria & Bri", startAt: "3:20 PM", sortOrder: 1 }],
@@ -441,4 +442,20 @@ test("wedding party phones fall back to guest household records when Contacts la
   assert.equal(view.members.find((m) => m.name === "Skila")?.phone, "269-419-7847");
   assert.equal(view.members.find((m) => m.name === "Bri")?.phone, "231-769-3871");
   assert.equal(view.members.find((m) => m.name === "Victoria")?.phone, null);
+});
+
+test("a first name shared with someone who has no phone prints TBD, not the other person's number", () => {
+  const view = projectWeddingParty({
+    lineup: [{ title: "Kaylie & Evan", startAt: "3:20 PM", sortOrder: 0 }],
+    decor: [],
+    weddingBlocks: [],
+    contacts: [
+      { name: "Evan Brooks", phone: null },
+      { name: "Evan Miller", phone: "616-555-0101" },
+      { name: "Kaylie Cartwright", phone: null },
+      { name: "Kaylie Cartwright · Bridesmaid", phone: "231-329-3264" },
+    ],
+  });
+  assert.equal(view.members.find((m) => m.name === "Evan")?.phone, null);
+  assert.equal(view.members.find((m) => m.name === "Kaylie")?.phone, "231-329-3264");
 });

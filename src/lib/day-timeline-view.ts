@@ -24,7 +24,7 @@ export type RoleNameContext = Partial<Record<TimelineRole, string[]>>;
 const ROLE_WORDS: Record<TimelineRole, RegExp> = {
   mc: /\bMC\b|master of ceremon|mistress of ceremon|\bannounce|dinner cue|grand entrance|welcome everyone|silence your phones/i,
   party:
-    /wedding party|bridal party|bridesmaids?|groomsm[ae]n|maid of hono[u]?r|\bMOH\b|best man|flower girl|ring bearer|ring security|lines? up|processional|robe photos|wedding party portraits/i,
+    /wedding party|bridal party|bridesmaids?|groomsm[ae]n|maid of hono[u]?r|\bMOH\b|best man|flower girl|ring bearer|ring security|lines? up|processional|robe photos|wedding party portraits|groom-?party|bride-?party/i,
   family:
     /\bmother\b|\bfather\b|\bmom\b|\bdad\b|\bFOB\b|\bMOB\b|\bFOG\b|\bMOG\b|\bparents?\b|grandm|grandp|family portraits|immediate family|first look with parent/i,
   helpers: /\bhelpers?\b|volunteers?|everyone helps|pack(?:s)? up|move chairs|set ?up|tear ?down|clean ?up|assignments?/i,
@@ -134,15 +134,20 @@ export function reviewMoment(
   };
 }
 
+/** Wedding-day moments every group attends, shown in each group's view even with no line of their own. */
+export const SHARED_WEDDING_MOMENT =
+  /^ceremony$|grand entrance|^toasts?$|cake cutting|formal dances|last (?:open )?dance|reception ends/i;
+
 /**
  * The moment as one role sees it: everything when the title names the role,
- * only that role's lines otherwise, or null when nothing in it is theirs.
+ * only that role's lines otherwise, the time and title alone for a moment
+ * everyone attends, or null when nothing in it is theirs.
  */
 export function momentForRole(moment: ReviewMoment, role: TimelineRole | null): ReviewMoment | null {
   if (!role) return moment;
   if (moment.roles.includes(role)) return moment;
   const details = moment.details.filter((detail) => detail.roles.includes(role));
-  if (details.length === 0) return null;
+  if (details.length === 0 && !SHARED_WEDDING_MOMENT.test(moment.title.trim())) return null;
   return { ...moment, details };
 }
 

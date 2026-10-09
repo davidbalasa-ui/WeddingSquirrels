@@ -625,11 +625,15 @@ export function DayTimeline({
           className="print-hide fixed left-1/2 z-[40] flex w-[min(560px,calc(100%-16px))] -translate-x-1/2 items-center gap-3 rounded-2xl border border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_8%,white)] px-4 py-3 text-sm text-[var(--danger)] shadow-[var(--shadow)]"
           style={{ bottom: "calc(148px + env(safe-area-inset-bottom, 0px))" }}
         >
-          <span className="flex-1">The app was updated while this page was open, so changes can’t save. Reload to keep editing.</span>
+          <span className="flex-1">Changes aren’t saving right now. Check the connection, or reload if the app was just updated.</span>
           <button
             type="button"
             className="shrink-0 rounded-full bg-[var(--danger)] px-3 py-1.5 text-sm font-semibold text-white"
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              const unsaved = rowsRef.current.some((row) => row.status !== "saved");
+              if (unsaved && !window.confirm("Some changes haven’t saved yet and will be lost if you reload. Reload anyway?")) return;
+              window.location.reload();
+            }}
           >
             Reload
           </button>

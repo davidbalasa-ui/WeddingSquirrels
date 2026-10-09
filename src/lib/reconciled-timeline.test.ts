@@ -45,6 +45,14 @@ test("planReconciledTimeline inserts missing, updates changed, retires folded ro
   assert.equal(reconciledPlanIsEmpty(plan), false);
 });
 
+test("a moment edited on the page alone never brings the Apply card back", () => {
+  const applied = planReconciledTimeline([]).inserts.map((row) => ({ ...row, id: row.seedKey }));
+  applied[3] = { ...applied[3]!, notes: `${applied[3]!.notes}\nDavid's own note` };
+  const plan = planReconciledTimeline(applied);
+  assert.equal(plan.updates.length, 1);
+  assert.equal(reconciledPlanIsEmpty(plan), true);
+});
+
 test("David's 9 Oct edits: boutonniere first look with his parents, named party shots, family photos retired", () => {
   const plan = planReconciledTimeline([
     { id: "fam", seedKey: "wedding_family_photos_after", schedule: "wedding", startAt: "4:05 PM", endAt: "4:30 PM", notes: "Family photos after the ceremony", sortOrder: 0 },

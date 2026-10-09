@@ -3615,8 +3615,12 @@ export async function deleteDayAssignment(assignmentId: string): Promise<void> {
   revalidateDayData();
 }
 
+/**
+ * Adds the document's new moments and removes the ones it folds away. Moments
+ * already on the page are never rewritten here: the owner's own edits stay.
+ */
 export async function applyReconciledTimelineAction(): Promise<
-  { ok: true; inserted: number; updated: number; removed: number } | { ok: false; reason: "forbidden" | "failed" }
+  { ok: true; inserted: number; removed: number } | { ok: false; reason: "forbidden" | "failed" }
 > {
   const session = await requireScheduleEditor("wedding");
   if (!session || !session.isMaster) return { ok: false, reason: "forbidden" };
@@ -3628,7 +3632,6 @@ export async function applyReconciledTimelineAction(): Promise<
   try {
     await prisma.$transaction([
       ...plan.removals.map((row) => prisma.timelineBlock.delete({ where: { id: row.id } })),
-      ...plan.updates.map(({ id, before: _before, ...data }) => prisma.timelineBlock.update({ where: { id }, data })),
       ...plan.inserts.map((data) => prisma.timelineBlock.create({ data })),
     ]);
   } catch {
@@ -3639,5 +3642,28 @@ export async function applyReconciledTimelineAction(): Promise<
   await resequenceTimeline("rehearsal");
   revalidateSchedule("wedding");
   revalidateSchedule("rehearsal");
-  return { ok: true, inserted: plan.inserts.length, updated: plan.updates.length, removed: plan.removals.length };
+  return { ok: true, inserted: plan.inserts.length, removed: plan.removals.length };
+}
+
+/** Puts the document's wording back on one moment, only when the owner taps it for that moment. */
+export async function restoreReconciledMomentAction(
+  seedKey: string,
+): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "not_found" | "failed" }> {
+  const session = await requireScheduleEditor("wedding");
+  if (!session || !session.isMaster) return { ok: false, reason: "forbidden" };
+
+  const existing = await prisma.timelineBlock.findMany({
+    select: { id: true, seedKey: true, schedule: true, startAt: true, endAt: true, notes: true, sortOrder: true },
+  });
+  const update = planReconciledTimeline(existing).updates.find((row) => row.seedKey === seedKey);
+  if (!update) return { ok: false, reason: "not_found" };
+  const { id, before: _before, sortOrder: _sortOrder, ...data } = update;
+  try {
+    await prisma.timelineBlock.update({ where: { id }, data });
+  } catch {
+    return { ok: false, reason: "failed" };
+  }
+  await resequenceTimeline(update.schedule);
+  revalidateSchedule(update.schedule);
+  return { ok: true };
 }
