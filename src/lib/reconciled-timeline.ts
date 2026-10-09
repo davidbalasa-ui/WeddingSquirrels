@@ -68,14 +68,15 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_hair_rotation_2", schedule: W, phase: "morning", startAt: "10:00 AM", endAt: "11:00 AM", title: "Wedding party hair and makeup swap",
     lines: ["Makeup: Braxton in Bedroom 1; Andi and Kaylie in Bedroom 3.", "Hair: Bri and Trinity in Bathroom 1; Victoria in Bathroom 2; Skila in Bathroom 3."] },
   { seedKey: "wedding_katie_arrives", schedule: W, phase: "morning", startAt: "10:30 AM", endAt: null, title: "Katie arrives",
-    lines: ["Haley’s makeup should be finished. Haley eats, drinks, and takes a bathroom break before hair."],
-    openItems: "Confirm what time Katie starts and finishes Haley’s hair and which room she needs." },
+    location: "Airbnb, Bedroom 2",
+    lines: ["Katie arrives at the Airbnb and works with Haley in Bedroom 2.", "Haley’s makeup should be finished. Haley eats, drinks, and takes a bathroom break before hair."] },
   { seedKey: "wedding_venue_opens", schedule: W, phase: "morning", startAt: "10:30 AM", endAt: "11:00 AM", title: "Set up the venue",
     location: "Black Sheep Shelter",
-    lines: ["Black Sheep Shelter access begins at 10:30 AM.", "Wendy and Kurt begin setup; Avalon’s arrival is still to be confirmed."],
-    openItems: "Confirm when Avalon arrives, how long she stays, and what she is handling during setup." },
+    lines: ["Black Sheep Shelter access begins at 10:30 AM.", "Wendy and Kurt begin setup.", "Avalon arrives at 10:30 AM and is the main point of contact."],
+    openItems: "Confirm how late Avalon stays." },
   { seedKey: "wedding_belle_arrives", schedule: W, phase: "morning", startAt: "11:00 AM", endAt: null, title: "Belle arrives",
-    lines: ["Belle begins wedding-day video coverage."] },
+    location: "Airbnb",
+    lines: ["Belle arrives at the Airbnb and begins wedding-day video coverage."] },
   { seedKey: "wedding_diy_hair", schedule: W, phase: "morning", startAt: "11:00 AM", endAt: "11:30 AM", title: "Haley hair and wedding party final touches",
     lines: ["Wedding party finishes hair and makeup, cleans rooms, and gathers belongings."] },
   { seedKey: "wedding_pack_up", schedule: W, phase: "morning", startAt: "11:30 AM", endAt: "12:00 PM", title: "Clean, pack, eat and load cars",
@@ -93,20 +94,25 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
     lines: ["Haley retouches makeup and prepares for getting-ready photos."] },
 
   // Wedding photos
+  { seedKey: "wedding_david_parents_first_look", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: null, title: "David’s first look with his parents",
+    lines: ["David’s parents pin his boutonniere for their first look.", "Photos of David with his parents.", "Afterward, photos move to Haley getting dressed."] },
   { seedKey: "wedding_getting_dressed", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: "1:30 PM", title: "Haley gets dressed",
-    lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-veil portrait.", "David’s boutonniere is pinned.", "Children arrive at 1:15 PM."] },
+    lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-veil portrait.", "Children arrive at 1:15 PM."] },
   { seedKey: "wedding_haley_family_photos", schedule: W, phase: "photos", startAt: "1:30 PM", endAt: "1:45 PM", title: "Haley’s family photos",
     lines: ["Haley with parents.", "Haley with mom.", "Haley with dad.", "Haley first look with Dad."] },
   { seedKey: "wedding_david_photos", schedule: W, phase: "photos", startAt: "1:45 PM", endAt: "2:00 PM", title: "David’s photos",
-    lines: ["David solo portraits and groom-party candids.", "Barry positions David and clears the first-look area."],
-    openItems: "Add any photos wanted with David’s parents, grandparents, or extended family." },
+    lines: ["David solo portraits and groom-party candids.", "The children join David for photos.", "Barry positions David and clears the first-look area."] },
   { seedKey: "wedding_first_look", schedule: W, phase: "photos", startAt: "2:00 PM", endAt: "2:15 PM", title: "David and Haley first look",
     lines: ["Private first look followed by immediate couple portraits."] },
   { seedKey: "wedding_couple_parent_photos", schedule: W, phase: "photos", startAt: "2:15 PM", endAt: "2:30 PM", title: "Couple and parent photos",
     lines: ["Couple with parents.", "Couple with mom.", "Couple with dad.", "Additional couple portraits as time permits."] },
   { seedKey: "wedding_party_photos", schedule: W, phase: "photos", startAt: "2:30 PM", endAt: "3:00 PM", title: "Wedding party photos",
-    lines: ["Bride with wedding party.", "Groom with wedding party.", "Bride with each of wedding persons 1–7.", "Groom with each of wedding persons 1–7."],
-    openItems: "Add the seven wedding-party names and ask Barry if all the individual photos fit in 30 minutes." },
+    lines: [
+      "Bride with wedding party.",
+      "Groom with wedding party.",
+      ...["Skila", "Trinity", "Victoria", "Bri", "Kaylie", "Braxton", "Andi"].map((name) => `Bride with ${name}.`),
+      ...["Skila", "Trinity", "Victoria", "Bri", "Kaylie", "Evan", "Braxton"].map((name) => `Groom with ${name}.`),
+    ] },
   { seedKey: "wedding_quiet_time", schedule: W, phase: "photos", startAt: "3:00 PM", endAt: "3:15 PM", title: "Touch-ups and quiet time",
     lines: ["Wedding party moves out of guest view.", "Bathroom, water, touch-ups, and schedule recovery if portraits run long."] },
   { seedKey: "wedding_pre_ceremony", schedule: W, phase: "photos", startAt: "3:15 PM", endAt: "3:30 PM", title: "Get ready for the ceremony",
@@ -116,14 +122,15 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_ceremony", schedule: W, phase: "ceremony", startAt: "3:30 PM", endAt: "4:00 PM", title: "Ceremony",
     location: "Under the shelter", lines: [] },
   { seedKey: "wedding_license_signing", schedule: W, phase: "ceremony", startAt: "4:00 PM", endAt: null, title: "Sign the marriage license",
-    lines: ["Immediately after the recessional.", "David, Haley, Marie, and the required witnesses move directly to the signing table.", "A designated person keeps the license and pen ready and takes custody afterward."],
-    openItems: "Choose the witnesses and who will keep track of the license and pen." },
+    lines: ["Immediately after the recessional.", "David, Haley, Marie, and the witnesses move directly to the signing table.", "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen."] },
   { seedKey: "wedding_cocktail_hour", schedule: W, phase: "ceremony", startAt: "4:00 PM", endAt: "5:00 PM", title: "Cocktail hour and bar opening",
-    lines: ["Bar service begins at 4:00 PM.", "Guests receive drinks and appetizers while photography continues."],
-    openItems: "Confirm the bar will be ready at 4:00 PM and who brings David and Haley drinks and appetizers during photos." },
-  { seedKey: "wedding_family_photos_after", schedule: W, phase: "ceremony", startAt: "4:05 PM", endAt: "4:30 PM", title: "Family photos after the ceremony",
-    lines: ["Haley with Grandma; Haley with Grandpa; Haley with grandparents.", "Couple with grandparents.", "Couple with Haley’s paternal side of the family.", "Couple with Haley’s maternal side of the family."],
-    openItems: "Tell the grandparents and extended family to stay near the ceremony area, and choose someone to gather them." },
+    lines: [
+      "Bar service begins at 4:00 PM.",
+      "Guests receive drinks and appetizers while photography continues.",
+      "Victoria and Bri (second in the processional) bring David and Haley drinks.",
+      "Kaylie and Evan (third in the processional) bring David and Haley appetizers.",
+    ],
+    openItems: "Confirm the bar will be ready at 4:00 PM." },
   { seedKey: "wedding_couple_cocktail", schedule: W, phase: "ceremony", startAt: "4:30 PM", endAt: "4:45 PM", title: "David and Haley join cocktail hour",
     lines: ["Drink, appetizers, guest greetings, and a short reset."] },
   { seedKey: "wedding_final_touchups", schedule: W, phase: "ceremony", startAt: "4:45 PM", endAt: "4:50 PM", title: "Final touch-ups",
@@ -178,7 +185,12 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
 ];
 
 /** Bootstrap rows the document folds into other moments. Removed on apply so they do not show twice. */
-export const RECONCILED_RETIRED_SEED_KEYS = ["wedding_settle_in", "wedding_final_getting_ready"];
+export const RECONCILED_RETIRED_SEED_KEYS = [
+  "wedding_settle_in",
+  "wedding_final_getting_ready",
+  // David, 9 Oct 2026: the 4:00–4:30 family photos come off the day.
+  "wedding_family_photos_after",
+];
 
 export function reconciledNotes(moment: ReconciledMoment): string {
   const detailLines = [...moment.lines];

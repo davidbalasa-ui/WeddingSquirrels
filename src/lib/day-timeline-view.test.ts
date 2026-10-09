@@ -88,3 +88,15 @@ test("reviewMoment reads open items, bullets with their own semicolons, and marg
     ],
   );
 });
+
+test("findTimelineDuplicates leaves moments more than half an hour apart alone", () => {
+  const flags = findTimelineDuplicates([
+    { id: "pre", startAt: "3:15 PM", notes: "Get ready for the ceremony\nWedding party lines up." },
+    { id: "entrance", startAt: "4:50 PM", notes: "Wedding party lines up\nGuests move to dinner seating." },
+    { id: "dance1", startAt: "7:00 PM", notes: "Open dancing\nDance floor opens." },
+    { id: "dance2", startAt: "9:00 PM", notes: "Open dancing\nDavid and Haley return." },
+    { id: "c1", startAt: "3:30 PM", notes: "Ceremony\nUnder the shelter" },
+    { id: "c2", startAt: "3:45 PM", notes: "Ceremony\nVows" },
+  ]);
+  assert.deepEqual(Object.keys(flags).sort(), ["c1", "c2"]);
+});

@@ -1,6 +1,9 @@
 import { loadAppSettings, prisma } from "@/lib/db";
 import { canSeeDinnerTab } from "@/lib/access";
 import { collectDayOfContactInputs, guestPhoneByPersonId } from "@/lib/day-of";
+import { loadTimelineRoleNames } from "@/lib/day-timeline-roles";
+import { reviewMoment } from "@/lib/day-timeline-view";
+import { withoutBrideSecrets } from "@/lib/print-packets";
 import { sortTimelineBlocks } from "@/lib/day-of-time";
 import { guestInclude, mapGuestRecord } from "@/lib/guests";
 import { buildMcRunOfShow } from "@/lib/mc-run-of-show";
@@ -55,6 +58,7 @@ function availableForSession(session: SessionAccount): PrintSectionId[] {
       case "meals":
         return dinner || can(session.canSeeShop);
       case "party":
+      case "schedule":
       case "timeline":
       case "mc":
       case "hair":
@@ -134,6 +138,7 @@ export async function loadPrintCenterDocument(
     contracts,
     playbookRows,
     guestPeopleWithPhones,
+    roleNames,
   ] = await Promise.all([
     loadAppSettings(),
     timeline
@@ -219,6 +224,7 @@ export async function loadPrintCenterDocument(
           orderBy: { sortOrder: "asc" },
         })
       : Promise.resolve([]),
+    timeline ? loadTimelineRoleNames() : Promise.resolve({}),
   ]);
 
   const timezone = settings?.timezone || "America/Detroit";
@@ -315,6 +321,11 @@ export async function loadPrintCenterDocument(
     rehearsal: rehearsalSorted.map(toPrintTimelineRow),
     timeline: weddingSorted.map(toPrintTimelineRow),
     runSheet: projectRunSheet(weddingSorted),
+    brideRunSheet: projectRunSheet(weddingSorted.map(withoutBrideSecrets)),
+    moments: {
+      rehearsal: rehearsalSorted.map((block) => reviewMoment(block, roleNames)),
+      wedding: weddingSorted.map((block) => reviewMoment(block, roleNames)),
+    },
     mcCues: mcShow.cues.map((cue) => ({
       ...cue,
       operatorNotes: professionalizePrintLines(cue.operatorNotes),

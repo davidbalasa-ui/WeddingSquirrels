@@ -24,10 +24,13 @@ import {
   type PrintTaskGroupView,
   type PrintWeddingPartyView,
 } from "@/lib/print-projection";
+import type { ReviewMoment } from "@/lib/day-timeline-view";
+import type { ScheduleAudience } from "@/lib/print-packets";
 
 export const PRINT_SECTION_IDS = [
   "overview",
   "party",
+  "schedule",
   "rehearsal",
   "timeline",
   "mc",
@@ -47,11 +50,20 @@ export const PRINT_SECTION_IDS = [
 ] as const;
 
 export type PrintSectionId = (typeof PRINT_SECTION_IDS)[number];
-export type PrintPresetId = "binder" | "packet" | "party";
+export type PrintPresetId =
+  | "binder"
+  | "bride"
+  | "packet"
+  | "mc"
+  | "party"
+  | "photo"
+  | "brideParents"
+  | "groomParents";
 
 export const PRINT_SECTION_LABELS: Record<PrintSectionId, string> = {
   overview: "Quick reference",
   party: "Wedding party",
+  schedule: "Their schedule (packet only)",
   rehearsal: "Rehearsal dinner + rehearsal",
   timeline: "Wedding-day run sheet",
   mc: "MC Run of Show",
@@ -91,8 +103,10 @@ export const FULL_BINDER_SECTIONS: PrintSectionId[] = [
   "money",
 ];
 
+/** Avalon (coordinator) and Wendy (Mistress of Ceremonies): the whole day and everything they run. */
 export const DAY_OF_PACKET_SECTIONS: PrintSectionId[] = [
   "overview",
+  "rehearsal",
   "timeline",
   "mc",
   "hair",
@@ -104,17 +118,101 @@ export const DAY_OF_PACKET_SECTIONS: PrintSectionId[] = [
   "decor",
 ];
 
-/** What a bridesmaid or groomsman needs in hand: no vendor scope, jobs, or money. */
-export const WEDDING_PARTY_PACKET_SECTIONS: PrintSectionId[] = [
-  "overview",
-  "party",
-  "rehearsal",
-  "timeline",
-  "hair",
-  "shots",
-  "contacts",
-  "stay",
+/** What a bridesmaid or groomsman needs in hand, kept to a page or two. */
+export const WEDDING_PARTY_PACKET_SECTIONS: PrintSectionId[] = ["overview", "party", "schedule", "contacts"];
+
+export type PrintPacket = {
+  id: PrintPresetId;
+  /** Card title in the Print Center. */
+  title: string;
+  body: string;
+  /** Small caps line on the printed title. */
+  kicker: string;
+  sections: PrintSectionId[];
+  /** Whose schedule the "schedule" section prints. */
+  audience: ScheduleAudience | null;
+  /** Packets meant to stay short print continuously instead of one section per page. */
+  compact: boolean;
+};
+
+export const PRINT_PACKETS: PrintPacket[] = [
+  {
+    id: "binder",
+    title: "Groom's Binder",
+    body: "Everything: operations, guests, stay, meals, open work, key dates, and money.",
+    kicker: "Wedding Binder",
+    sections: FULL_BINDER_SECTIONS,
+    audience: null,
+    compact: false,
+  },
+  {
+    id: "bride",
+    title: "Bride's Packet",
+    body: "The whole day, rehearsal, wedding party, hair & makeup, shot list, décor, contacts, and the Airbnb. No money. Getaway vehicle details stay out.",
+    kicker: "Bride's Packet",
+    sections: ["overview", "party", "rehearsal", "timeline", "hair", "shots", "contacts", "decor", "stay"],
+    audience: null,
+    compact: false,
+  },
+  {
+    id: "packet",
+    title: "Avalon & Wendy",
+    body: "Coordinator and Mistress of Ceremonies: the full run sheet, rehearsal, MC cues, setup, Avalon's scope, décor, day-of jobs, and contacts.",
+    kicker: "Coordinator & Mistress of Ceremonies",
+    sections: DAY_OF_PACKET_SECTIONS,
+    audience: null,
+    compact: false,
+  },
+  {
+    id: "mc",
+    title: "MC Packet",
+    body: "Kurt's moments in order, every MC cue with what to say, setup and teardown, and contacts.",
+    kicker: "MC Packet",
+    sections: ["overview", "schedule", "mc", "setup", "contacts"],
+    audience: "mc",
+    compact: true,
+  },
+  {
+    id: "party",
+    title: "Wedding Party Packet",
+    body: "Who walks with whom, their own schedule from the rehearsal through the reception, and contacts. One to two pages.",
+    kicker: "Wedding Party Packet",
+    sections: WEDDING_PARTY_PACKET_SECTIONS,
+    audience: "party",
+    compact: true,
+  },
+  {
+    id: "photo",
+    title: "Photographer & Shot List",
+    body: "The shot list to check off, the photo moments in order, and contacts. Save as PDF to send to Barry and Belle.",
+    kicker: "Photographer · Shot List",
+    sections: ["overview", "schedule", "shots", "contacts"],
+    audience: "photo",
+    compact: true,
+  },
+  {
+    id: "brideParents",
+    title: "Parents of the Bride",
+    body: "Their schedule: getting Haley dressed, family photos, toasts, the father-daughter dance, the getaway, and the processional.",
+    kicker: "Parents of the Bride",
+    sections: ["overview", "party", "schedule", "contacts"],
+    audience: "brideParents",
+    compact: true,
+  },
+  {
+    id: "groomParents",
+    title: "Parents of the Groom",
+    body: "Their schedule: photos with David and Haley, the processional, and the shared moments of the day.",
+    kicker: "Parents of the Groom",
+    sections: ["overview", "party", "schedule", "contacts"],
+    audience: "groomParents",
+    compact: true,
+  },
 ];
+
+export function printPacket(id: PrintPresetId): PrintPacket {
+  return PRINT_PACKETS.find((packet) => packet.id === id) ?? PRINT_PACKETS[0]!;
+}
 
 export type PrintTimelineRow = {
   timeLabel: string;
@@ -199,6 +297,10 @@ export type PrintCenterDocument = {
   rehearsal: PrintTimelineRow[];
   timeline: PrintTimelineRow[];
   runSheet: PrintRunSheetPhase[];
+  /** The run sheet as the bride's packet prints it: getaway vehicle details left out. */
+  brideRunSheet: PrintRunSheetPhase[];
+  /** Every moment read for roles, so each packet can print its own schedule. */
+  moments: { rehearsal: ReviewMoment[]; wedding: ReviewMoment[] };
   mcCues: PrintMcCue[];
   vendorContacts: PrintContact[];
   dayOfContacts: PrintContact[];
@@ -253,34 +355,27 @@ function chronological<T extends { startAt: string; sortOrder?: number }>(rows: 
   });
 }
 
-export const PRINT_PRESET_IDS: PrintPresetId[] = ["binder", "packet", "party"];
+export const PRINT_PRESET_IDS: PrintPresetId[] = PRINT_PACKETS.map((packet) => packet.id);
 
 export function sectionsForPreset(preset: PrintPresetId): PrintSectionId[] {
-  switch (preset) {
-    case "packet":
-      return [...DAY_OF_PACKET_SECTIONS];
-    case "party":
-      return [...WEDDING_PARTY_PACKET_SECTIONS];
-    case "binder":
-      return [...FULL_BINDER_SECTIONS];
-  }
+  return [...printPacket(preset).sections];
 }
 
-/** The preset whose section list exactly matches the current selection, if any. */
-export function activePreset(selected: Iterable<PrintSectionId>): PrintPresetId | null {
+/**
+ * The preset still in force after a section toggle: the current one while the
+ * selection matches it, else the first preset whose sections match exactly.
+ */
+export function activePreset(
+  selected: Iterable<PrintSectionId>,
+  current: PrintPresetId | null = null,
+): PrintPresetId | null {
   const have = [...selected];
+  if (current && presetMatchesSelection(current, have)) return current;
   return PRINT_PRESET_IDS.find((preset) => presetMatchesSelection(preset, have)) ?? null;
 }
 
 export function printTitleKicker(preset: PrintPresetId | null): string {
-  switch (preset) {
-    case "packet":
-      return "Wedding Day Packet";
-    case "party":
-      return "Wedding Party Packet";
-    default:
-      return "Wedding Binder";
-  }
+  return preset ? printPacket(preset).kicker : "Wedding Binder";
 }
 
 export function presetMatchesSelection(
@@ -671,6 +766,8 @@ export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId):
       return Boolean(doc.coupleNames || doc.weddingDateLabel);
     case "party":
       return doc.weddingParty.members.length + doc.weddingParty.processional.length > 0;
+    case "schedule":
+      return doc.moments.wedding.length + doc.moments.rehearsal.length > 0;
     case "rehearsal":
       return doc.rehearsal.length > 0;
     case "timeline":
@@ -757,6 +854,8 @@ export function emptyPrintDocument(): PrintCenterDocument {
     rehearsal: [],
     timeline: [],
     runSheet: [],
+    brideRunSheet: [],
+    moments: { rehearsal: [], wedding: [] },
     mcCues: [],
     vendorContacts: [],
     dayOfContacts: [],
