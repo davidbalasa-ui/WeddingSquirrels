@@ -40,6 +40,20 @@ import {
   type TimelineSchedule,
 } from "@/lib/day-of-time";
 
+/**
+ * A server action that throws (usually because the app was redeployed while this
+ * page stayed open, so the old page's actions no longer exist) must not leave a
+ * row stuck on "Saving…" or a Remove tap doing nothing.
+ */
+const UNREACHABLE = { ok: false as const, reason: "unreachable" as const };
+async function runAction<T>(call: () => Promise<T>): Promise<T | typeof UNREACHABLE> {
+  try {
+    return await call();
+  } catch {
+    return UNREACHABLE;
+  }
+}
+
 export type TimelineBlockView = {
   id: string;
   seedKey?: string | null;
@@ -147,6 +161,7 @@ export function DayTimeline({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [unreachable, setUnreachable] = useState(false);
   const [stepperOpen, setStepperOpen] = useState(false);
   const [noteFocused, setNoteFocused] = useState(false);
   const [role, setRole] = useState<TimelineRole | null>(null);
@@ -278,16 +293,17 @@ export function DayTimeline({
       ),
     );
 
-    const result = await saveTimelineBlock({
+    const result = await runAction(() => saveTimelineBlock({
       id: row.id,
       startAt: prepared.startAt,
       endAt: prepared.endAt ?? "",
       notes: prepared.notes,
-    });
+    }));
 
     if (inflightRef.current.get(row.id) !== row.localRev) return;
 
     if (!result.ok) {
+      if (result.reason === "unreachable") setUnreachable(true);
       if (result.reason === "forbidden") {
         setBanner("You were logged out or lost edit access. Copy your text, then log in again.");
         setMode("review");
@@ -341,15 +357,16 @@ export function DayTimeline({
       ? updateBlockLocation(prepared.notes, openDraft.location)
       : prepared.notes;
 
-    const result = await createTimelineBlock({
+    const result = await runAction(() => createTimelineBlock({
       startAt: prepared.startAt,
       endAt: prepared.endAt ?? "",
       notes: notesWithLocation,
       schedule,
-    });
+    }));
     draftSavingRef.current = false;
 
     if (!result.ok) {
+      if (result.reason === "unreachable") setUnreachable(true);
       if (result.reason === "forbidden") {
         setBanner("You were logged out or lost edit access. Copy your text, then log in again.");
         setMode("review");
@@ -467,8 +484,9 @@ export function DayTimeline({
 
   async function removeRow(id: string) {
     clearTimer(id);
-    const result = await deleteTimelineBlock(id);
+    const result = await runAction(() => deleteTimelineBlock(id));
     if (!result.ok) {
+      if (result.reason === "unreachable") setUnreachable(true);
       if (result.reason === "forbidden") {
         setBanner("You were logged out or lost edit access.");
         setMode("review");
@@ -484,8 +502,9 @@ export function DayTimeline({
   async function persistPeerOrder(orderedPeerIds: string[], persist = true) {
     setRows((prev) => applyPeerOrder(prev, orderedPeerIds) ?? prev);
     if (!persist) return;
-    const result = await saveTimelinePeerOrder(orderedPeerIds);
+    const result = await runAction(() => saveTimelinePeerOrder(orderedPeerIds));
     if (!result.ok) {
+      if (result.reason === "unreachable") setUnreachable(true);
       setBanner("Couldn’t reorder those moments — try again.");
       return;
     }
@@ -591,6 +610,23 @@ export function DayTimeline({
         <p className="mb-2 text-xs text-muted">
           Tap the hour or minutes. AM/PM opens a picker — tap AM or PM to confirm. Click outside to cancel.
         </p>
+      ) : null}
+
+      {unreachable ? (
+        <div
+          role="alert"
+          className="print-hide fixed left-1/2 z-[40] flex w-[min(560px,calc(100%-16px))] -translate-x-1/2 items-center gap-3 rounded-2xl border border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_8%,white)] px-4 py-3 text-sm text-[var(--danger)] shadow-[var(--shadow)]"
+          style={{ bottom: "calc(148px + env(safe-area-inset-bottom, 0px))" }}
+        >
+          <span className="flex-1">The app was updated while this page was open, so changes can’t save. Reload to keep editing.</span>
+          <button
+            type="button"
+            className="shrink-0 rounded-full bg-[var(--danger)] px-3 py-1.5 text-sm font-semibold text-white"
+            onClick={() => window.location.reload()}
+          >
+            Reload
+          </button>
+        </div>
       ) : null}
 
       {banner ? (
