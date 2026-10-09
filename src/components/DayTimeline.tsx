@@ -954,8 +954,13 @@ function EditCard({
 }) {
   const endWarn = row.endAt.trim() ? endsBeforeStart(row.startAt, row.endAt) : false;
   const label = statusLabel(row.status, row.error);
-  const location = parseBlockNotes(row.notes).location ?? "";
-  const notesBody = notesBodyForEditor(row.notes);
+  // While a field has focus it shows exactly what was typed. The stored notes are
+  // tidied (lines trimmed, blank lines dropped), so rendering them back mid-typing
+  // would swallow every space typed at the end of a line and every new line.
+  const [locationDraft, setLocationDraft] = useState<string | null>(null);
+  const [notesDraft, setNotesDraft] = useState<string | null>(null);
+  const location = locationDraft ?? parseBlockNotes(row.notes).location ?? "";
+  const notesBody = notesDraft ?? notesBodyForEditor(row.notes);
 
   return (
     <article
@@ -998,9 +1003,13 @@ function EditCard({
         <input
           value={location}
           placeholder="Where this happens"
-          onChange={(event) => onPatchLocation(row.id, event.target.value)}
+          onChange={(event) => {
+            setLocationDraft(event.target.value);
+            onPatchLocation(row.id, event.target.value);
+          }}
           onFocus={() => onNoteFocusChange(true)}
           onBlur={() => {
+            setLocationDraft(null);
             onNoteFocusChange(false);
             onFlushNotes(row.id);
           }}
@@ -1010,12 +1019,16 @@ function EditCard({
       <textarea
         value={notesBody}
         rows={Math.min(8, Math.max(2, notesBody.split(/\r?\n/).length))}
-        onChange={(event) => onPatchNotes(row.id, event.target.value)}
+        onChange={(event) => {
+          setNotesDraft(event.target.value);
+          onPatchNotes(row.id, event.target.value);
+        }}
         onFocus={(event) => {
           onNoteFocusChange(true);
           event.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
         }}
         onBlur={() => {
+          setNotesDraft(null);
           onNoteFocusChange(false);
           onFlushNotes(row.id);
         }}
