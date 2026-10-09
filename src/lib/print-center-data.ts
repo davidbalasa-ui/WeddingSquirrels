@@ -79,6 +79,27 @@ function availableForSession(session: SessionAccount): PrintSectionId[] {
   });
 }
 
+/**
+ * Contacts first, then guest people whose household has a phone and whose
+ * full name is not already a Contact. A household phone is attributed to each
+ * named guest in it; the lineup only matches on first names, and an ambiguous
+ * first name prints TBD rather than a guess.
+ */
+export function mergePartyPhoneSources(
+  contacts: Array<{ name: string; phone: string | null }>,
+  guestPeople: Array<{ name: string; phone: string | null }>,
+): Array<{ name: string; phone: string | null }> {
+  const merged = contacts.map((row) => ({ name: row.name, phone: row.phone }));
+  const seen = new Set(merged.map((row) => row.name.trim().toLowerCase()));
+  for (const row of guestPeople) {
+    const key = row.name.trim().toLowerCase();
+    if (!row.phone?.trim() || seen.has(key)) continue;
+    seen.add(key);
+    merged.push({ name: row.name, phone: row.phone });
+  }
+  return merged;
+}
+
 export async function loadPrintCenterDocument(
   session: SessionAccount,
 ): Promise<PrintCenterDocument> {
@@ -112,6 +133,7 @@ export async function loadPrintCenterDocument(
     mealGuests,
     contracts,
     playbookRows,
+    guestPeopleWithPhones,
   ] = await Promise.all([
     loadAppSettings(),
     timeline
@@ -189,6 +211,14 @@ export async function loadPrintCenterDocument(
       : Promise.resolve([]),
     moneyOn ? loadVisibleBudgetContracts(session) : Promise.resolve([]),
     timeline ? loadPlaybookItems() : Promise.resolve([]),
+    // Wedding party phones mostly live on guest household records (contact
+    // enrichment stores them there), not in Contacts, so the packet reads both.
+    availableSections.includes("party")
+      ? prisma.guestPerson.findMany({
+          select: { name: true, guest: { select: { phone: true } } },
+          orderBy: { sortOrder: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
 
   const timezone = settings?.timezone || "America/Detroit";
@@ -356,7 +386,10 @@ export async function loadPrintCenterDocument(
       lineup: lineupItems,
       decor: decorItems,
       weddingBlocks: weddingSorted,
-      contacts,
+      contacts: mergePartyPhoneSources(
+        contacts,
+        guestPeopleWithPhones.map((row) => ({ name: row.name, phone: row.guest.phone })),
+      ),
     }),
     availableSections,
   };
