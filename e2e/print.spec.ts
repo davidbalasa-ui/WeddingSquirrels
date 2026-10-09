@@ -33,7 +33,7 @@ test.describe("print center", () => {
     await expect(page.locator('[data-print-section="mc"]')).toBeChecked();
     await expect(page.locator('[data-print-section="hair"]')).toBeChecked();
     await expect(page.locator('[data-print-section="shots"]')).toBeChecked();
-    await expect(binder).toContainText("Wedding Day Packet");
+    await expect(binder).toContainText("Coordinator & Mistress of Ceremonies");
     await expect(binder).not.toContainText(MONEY.committed);
     await expect(binder).not.toContainText("Guests / RSVP");
 
@@ -44,8 +44,8 @@ test.describe("print center", () => {
     await page.getByTestId("print-preset-party").click();
     await expect(page.getByTestId("print-preset-party")).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator('[data-print-section="party"]')).toBeChecked();
-    await expect(page.locator('[data-print-section="hair"]')).toBeChecked();
-    await expect(page.locator('[data-print-section="stay"]')).toBeChecked();
+    await expect(page.locator('[data-print-section="schedule"]')).toBeChecked();
+    await expect(page.locator('[data-print-section="contacts"]')).toBeChecked();
     await expect(page.locator('[data-print-section="mc"]')).not.toBeChecked();
     await expect(page.locator('[data-print-section="assignments"]')).not.toBeChecked();
     await expect(page.locator('[data-print-section="money"]')).not.toBeChecked();
@@ -53,6 +53,7 @@ test.describe("print center", () => {
     await expect(page.getByTestId("print-section-party")).toContainText("Skila");
     await expect(page.getByTestId("print-section-party")).toContainText("Flower girl");
     await expect(page.getByTestId("print-section-party")).toContainText("TBD");
+    await expect(page.getByTestId("print-section-schedule")).toBeVisible();
     await expect(binder).not.toContainText("MC Run of Show");
     await expect(binder).not.toContainText("UNASSIGNED");
 

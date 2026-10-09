@@ -1,12 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { packetSchedule, type PacketScheduleRow, type ScheduleAudience } from "@/lib/print-packets";
 import {
   FULL_BINDER_SECTIONS,
+  PRINT_PACKETS,
   PRINT_SECTION_IDS,
   PRINT_SECTION_LABELS,
   activePreset,
   formatPrintMoney,
+  printPacket,
   printTitleKicker,
   printableSections,
   sectionsForPreset,
@@ -20,13 +23,15 @@ import {
 
 export function PrintCenter({ document }: { document: PrintCenterDocument }) {
   const [selected, setSelected] = useState<PrintSectionId[]>([...FULL_BINDER_SECTIONS]);
+  const [chosen, setChosen] = useState<PrintPresetId | null>("binder");
   const visible = useMemo(() => printableSections(document, selected), [document, selected]);
-  const preset = activePreset(selected);
-  const packetActive = preset === "packet";
-  const binderActive = preset === "binder";
-  const partyActive = preset === "party";
+  const preset = activePreset(selected, chosen);
+  const packet = preset ? printPacket(preset) : null;
+  // A hand-picked "schedule" section keeps the audience of the last packet chosen.
+  const audience = printPacket(chosen ?? "party").audience ?? "party";
 
   function applyPreset(next: PrintPresetId) {
+    setChosen(next);
     setSelected(sectionsForPreset(next).filter((id) => document.availableSections.includes(id)));
   }
 
@@ -43,33 +48,22 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
             Wedding Binder & Print
           </h1>
           <p className="mt-3 max-w-xl text-base text-muted">
-            Create a printable wedding binder, a focused day-of packet, or a packet for the
-            wedding party from your current WeddingSquirrels information.
+            Pick who the packet is for. Each one prints only what that person needs, from your
+            current WeddingSquirrels information.
           </p>
         </header>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <PresetCard
-            title="Full Wedding Binder"
-            body="Operations first, then guests, stay, meals, open work, key dates, and money."
-            active={binderActive}
-            testId="print-preset-binder"
-            onClick={() => applyPreset("binder")}
-          />
-          <PresetCard
-            title="Day-of Packet"
-            body="A helper packet for Kurt, Shelly, Wendy, or another day-of lead. Run sheet, MC cues, contacts, and setup — not money or the guest list."
-            active={packetActive}
-            testId="print-preset-packet"
-            onClick={() => applyPreset("packet")}
-          />
-          <PresetCard
-            title="Wedding Party Packet"
-            body="What each bridesmaid and groomsman needs: who walks with whom, call times, hair & makeup, photos, contacts, and the Airbnb — with open questions marked TBD."
-            active={partyActive}
-            testId="print-preset-party"
-            onClick={() => applyPreset("party")}
-          />
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {PRINT_PACKETS.map((card) => (
+            <PresetCard
+              key={card.id}
+              title={card.title}
+              body={card.body}
+              active={preset === card.id}
+              testId={`print-preset-${card.id}`}
+              onClick={() => applyPreset(card.id)}
+            />
+          ))}
         </div>
 
         <fieldset className="mt-6">
@@ -104,10 +98,10 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
         </div>
       </div>
 
-      <article className="binder-doc mt-8">
+      <article className={packet?.compact ? "binder-doc binder-doc--compact mt-8" : "binder-doc mt-8"}>
         <PrintTitlePage document={document} kicker={printTitleKicker(preset)} />
         {visible.map((id) => (
-          <PrintSection key={id} id={id} document={document} />
+          <PrintSection key={id} id={id} document={document} preset={preset} audience={audience} />
         ))}
       </article>
     </div>
@@ -163,12 +157,24 @@ function PrintTitlePage({
   );
 }
 
-function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCenterDocument }) {
+function PrintSection({
+  id,
+  document,
+  preset,
+  audience,
+}: {
+  id: PrintSectionId;
+  document: PrintCenterDocument;
+  preset: PrintPresetId | null;
+  audience: ScheduleAudience;
+}) {
   switch (id) {
     case "overview":
-      return <QuickReferenceSection document={document} />;
+      return <QuickReferenceSection document={document} showRsvp={preset === "binder" || preset === null} />;
     case "party":
-      return <WeddingPartySection document={document} />;
+      return <WeddingPartySection document={document} preset={preset} />;
+    case "schedule":
+      return <PacketScheduleSection document={document} audience={audience} />;
     case "rehearsal":
       return (
         <section className="binder-section">
@@ -181,7 +187,7 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
         <section className="binder-section">
           <h2>Wedding-day run sheet</h2>
           {document.runSheet.length ? (
-            <RunSheet phases={document.runSheet} />
+            <RunSheet phases={preset === "bride" ? document.brideRunSheet : document.runSheet} />
           ) : (
             <TimelineList rows={document.timeline} />
           )}
@@ -308,7 +314,16 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
           ))}
         </section>
       );
-    case "contacts":
+    case "contacts": {
+      // Short packets skip the wedding party's own numbers: the party packet already lists them in its roster.
+      const roster = new Set(
+        preset && printPacket(preset).compact
+          ? document.weddingParty.members.map((member) => member.name.toLowerCase())
+          : [],
+      );
+      const dayOf = document.dayOfContacts.filter(
+        (row) => !roster.has(row.name.trim().split(/\s+/)[0]!.toLowerCase()),
+      );
       return (
         <section className="binder-section">
           <h2>Vendor &amp; day-of contacts</h2>
@@ -318,14 +333,15 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
               <ContactList rows={document.vendorContacts} />
             </>
           ) : null}
-          {document.dayOfContacts.length ? (
+          {dayOf.length ? (
             <>
               <h3>Day-of contacts</h3>
-              <ContactList rows={document.dayOfContacts} />
+              <ContactList rows={dayOf} />
             </>
           ) : null}
         </section>
       );
+    }
     case "assignments":
       return (
         <section className="binder-section">
@@ -585,7 +601,7 @@ function PrintSection({ id, document }: { id: PrintSectionId; document: PrintCen
   }
 }
 
-function QuickReferenceSection({ document }: { document: PrintCenterDocument }) {
+function QuickReferenceSection({ document, showRsvp }: { document: PrintCenterDocument; showRsvp: boolean }) {
   const ref = document.quickReference;
   return (
     <section className="binder-section">
@@ -604,7 +620,7 @@ function QuickReferenceSection({ document }: { document: PrintCenterDocument }) 
         <RefBlock label="Reception concludes" lines={[ref.receptionEnds]} />
         <RefBlock label="Venue closes" lines={[ref.venueCloses]} />
       </dl>
-      {ref.rsvp ? (
+      {showRsvp && ref.rsvp ? (
         <p className="binder-lede">
           {ref.rsvp.attending} attending · {ref.rsvp.declined} declined · {ref.rsvp.awaiting} awaiting RSVP
         </p>
@@ -613,8 +629,19 @@ function QuickReferenceSection({ document }: { document: PrintCenterDocument }) 
   );
 }
 
-function WeddingPartySection({ document }: { document: PrintCenterDocument }) {
+function WeddingPartySection({ document, preset }: { document: PrintCenterDocument; preset: PrintPresetId | null }) {
   const party = document.weddingParty;
+  // Parents walk in the processional; the roster and party call times are the party's own.
+  const parents = preset === "brideParents" || preset === "groomParents";
+  const ownSchedule = preset === "party" || parents;
+  if (parents) {
+    return party.processional.length ? (
+      <section className="binder-section" data-testid="print-section-party">
+        <h2>Ceremony processional{party.lineUpTime ? ` · line up at ${party.lineUpTime}` : ""}</h2>
+        <Processional steps={party.processional} />
+      </section>
+    ) : null;
+  }
   return (
     <section className="binder-section" data-testid="print-section-party">
       <h2>Wedding party</h2>
@@ -650,17 +677,10 @@ function WeddingPartySection({ document }: { document: PrintCenterDocument }) {
       {party.processional.length ? (
         <>
           <h3>Ceremony processional{party.lineUpTime ? ` · line up at ${party.lineUpTime}` : ""}</h3>
-          <ol className="binder-timeline">
-            {party.processional.map((step) => (
-              <li key={`${step.order}-${step.title}`} className="binder-card">
-                <p className="binder-time">{step.order}</p>
-                <p className="binder-item-title">{step.title}</p>
-              </li>
-            ))}
-          </ol>
+          <Processional steps={party.processional} />
         </>
       ) : null}
-      {party.moments.length ? (
+      {party.moments.length && !ownSchedule ? (
         <>
           <h3>Your call times and moments</h3>
           <TimelineList
@@ -689,6 +709,68 @@ function WeddingPartySection({ document }: { document: PrintCenterDocument }) {
         </>
       ) : null}
     </section>
+  );
+}
+
+function Processional({ steps }: { steps: PrintCenterDocument["weddingParty"]["processional"] }) {
+  return (
+    <ol className="binder-processional">
+      {steps.map((step) => (
+        <li key={`${step.order}-${step.title}`}>
+          <span className="binder-time">{step.order}</span>
+          <span>{step.title}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function PacketScheduleSection({
+  document,
+  audience,
+}: {
+  document: PrintCenterDocument;
+  audience: ScheduleAudience;
+}) {
+  const schedule = packetSchedule(document.moments, audience);
+  if (!schedule.rehearsal.length && !schedule.wedding.length) return null;
+  return (
+    <section className="binder-section" data-testid="print-section-schedule">
+      <h2>Your schedule</h2>
+      {schedule.rehearsal.length ? (
+        <>
+          <h3>Rehearsal day</h3>
+          <ScheduleRows rows={schedule.rehearsal} />
+        </>
+      ) : null}
+      {schedule.wedding.length ? (
+        <>
+          <h3>{document.weddingDateLabel || "Wedding day"}</h3>
+          <ScheduleRows rows={schedule.wedding} />
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+function ScheduleRows({ rows }: { rows: PacketScheduleRow[] }) {
+  return (
+    <ol className="binder-schedule">
+      {rows.map((row, index) => (
+        <li key={`${row.time}-${row.title}-${index}`}>
+          <p className="binder-time">{row.time}</p>
+          <div>
+            <p className="binder-item-title">{row.title}</p>
+            {row.location ? <p className="binder-note">{row.location}</p> : null}
+            {row.lines.map((line) => (
+              <p key={line} className="binder-note">
+                {line}
+              </p>
+            ))}
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -810,7 +892,7 @@ function groupDecor(rows: PrintCenterDocument["setupDecor"]) {
 
 function ContactList({ rows }: { rows: PrintCenterDocument["vendorContacts"] }) {
   return (
-    <ul className="binder-list">
+    <ul className="binder-list binder-contacts">
       {rows.map((row) => (
         <li key={`${row.name}-${row.phone ?? ""}-${row.email ?? ""}`} className="binder-card">
           <p className="binder-item-title">{row.name}</p>

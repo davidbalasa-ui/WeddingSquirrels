@@ -4,6 +4,7 @@ import type { BudgetContractSnapshot } from "./money";
 import { MODULES } from "./modules";
 import {
   DAY_OF_PACKET_SECTIONS,
+  PRINT_PACKETS,
   FULL_BINDER_SECTIONS,
   WEDDING_PARTY_PACKET_SECTIONS,
   activePreset,
@@ -52,18 +53,8 @@ test("Full Binder preset includes money, guests, setup, and coordinator; Day-of 
   assert.equal(presetMatchesSelection("packet", sectionsForPreset("packet")), true);
 });
 
-test("Wedding Party Packet preset carries the party section and leaves out jobs, MC cues, and money", () => {
-  assert.equal(WEDDING_PARTY_PACKET_SECTIONS[0], "overview");
-  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("party"), true);
-  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("rehearsal"), true);
-  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("timeline"), true);
-  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("hair"), true);
-  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("stay"), true);
-  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("mc"), false);
-  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("assignments"), false);
-  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("coordinator"), false);
-  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("money"), false);
-  assert.equal(WEDDING_PARTY_PACKET_SECTIONS.includes("guests"), false);
+test("Wedding Party Packet stays short: roster, their schedule, contacts; no jobs, MC cues, or money", () => {
+  assert.deepEqual(WEDDING_PARTY_PACKET_SECTIONS, ["overview", "party", "schedule", "contacts"]);
   assert.equal(FULL_BINDER_SECTIONS.includes("party"), true);
   assert.equal(DAY_OF_PACKET_SECTIONS.includes("party"), false);
   assert.equal(presetMatchesSelection("party", sectionsForPreset("party")), true);
@@ -72,8 +63,21 @@ test("Wedding Party Packet preset carries the party section and leaves out jobs,
   assert.equal(activePreset(sectionsForPreset("binder")), "binder");
   assert.equal(activePreset(toggleSection(sectionsForPreset("party"), "money")), null);
   assert.equal(printTitleKicker("party"), "Wedding Party Packet");
-  assert.equal(printTitleKicker("packet"), "Wedding Day Packet");
+  assert.equal(printTitleKicker("packet"), "Coordinator & Mistress of Ceremonies");
   assert.equal(printTitleKicker(null), "Wedding Binder");
+});
+
+test("only the groom's binder carries money; each packet keeps to its own group", () => {
+  for (const packet of PRINT_PACKETS) {
+    assert.equal(packet.sections.includes("money"), packet.id === "binder", packet.id);
+    assert.equal(packet.sections.includes("guests"), packet.id === "binder", packet.id);
+  }
+  assert.equal(sectionsForPreset("bride").includes("mc"), false);
+  assert.equal(sectionsForPreset("mc").includes("mc"), true);
+  assert.equal(sectionsForPreset("photo").includes("shots"), true);
+  // Both parents' packets share sections; the chosen one stays active.
+  assert.equal(activePreset(sectionsForPreset("groomParents"), "groomParents"), "groomParents");
+  assert.equal(activePreset(sectionsForPreset("groomParents"), "brideParents"), "brideParents");
 });
 
 test("party section prints only when the document has lineup or member rows", () => {

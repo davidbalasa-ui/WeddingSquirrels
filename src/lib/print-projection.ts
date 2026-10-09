@@ -1038,7 +1038,9 @@ export function buildQuickReference(input: {
 }): PrintQuickReference {
   const all = [...input.rehearsalBlocks, ...input.weddingBlocks];
   const ceremony = input.weddingBlocks.find((block) => /^ceremony$/i.test(parseBlockNotes(block.notes).title));
-  const dancing = input.weddingBlocks.find((block) => /open dancing/i.test(parseBlockNotes(block.notes).title));
+  // The reconciled day has two open-dancing sets; the reception ends at its own moment or after the last set.
+  const receptionEnd = input.weddingBlocks.find((block) => /^reception ends$/i.test(parseBlockNotes(block.notes).title));
+  const dancing = input.weddingBlocks.findLast((block) => /open dancing/i.test(parseBlockNotes(block.notes).title));
   const teardown = input.weddingBlocks.find((block) => /tear down|clean up/i.test(parseBlockNotes(block.notes).title));
   const avalon = input.contacts.find((contact) => /avalon/i.test(contact.name));
   const venueLine = firstMatchingLine(all, /342\s+62nd|black sheep shelter/i);
@@ -1082,7 +1084,11 @@ export function buildQuickReference(input: {
     coordinatorPhone,
     mistressOfCeremonies: input.mistressOfCeremonies?.trim() || "Wendy Rush",
     mcName: input.mcName?.trim() || "Kurt Huizenga",
-    receptionEnds: dancing?.endAt ? normalizePrintTime(dancing.endAt) : "10:00 PM",
+    receptionEnds: receptionEnd
+      ? normalizePrintTime(receptionEnd.startAt)
+      : dancing?.endAt
+        ? normalizePrintTime(dancing.endAt)
+        : "10:00 PM",
     venueCloses: closeLine
       ? normalizePrintTime(closeLine.match(new RegExp(TIME_TOKEN, "i"))?.[1] ?? "11:00 PM")
       : teardown?.endAt
