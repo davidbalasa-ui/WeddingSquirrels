@@ -22,7 +22,7 @@ export function DayTabs({ showNowTab: _showNowTab = false }: { showNowTab?: bool
   return (
     <nav
       aria-label="Day-of pages"
-      className="day-tabs -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1"
+      className="day-tabs print-hide -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1"
     >
       {TABS.map((tab) => {
         const active =

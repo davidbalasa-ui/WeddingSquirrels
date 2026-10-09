@@ -557,11 +557,11 @@ export function projectKeyDates(
   return rows;
 }
 
-function isMcCueLine(line: string): boolean {
+export function isMcCueLine(line: string): boolean {
   return CUE_LINE.test(line);
 }
 
-function isMusicLine(line: string): boolean {
+export function isMusicLine(line: string): boolean {
   return MUSIC_LINE.test(line);
 }
 
@@ -1208,7 +1208,7 @@ export const WEDDING_PARTY_OPEN_ITEMS: string[] = [
   "Parking and carpool plan for Friday.",
 ];
 
-function lineupRole(title: string): { names: string[]; role: string | null } {
+export function lineupRole(title: string): { names: string[]; role: string | null } {
   const dashRole = title.match(/^(.+?)\s*[—–-]\s*(.+)$/);
   if (dashRole) {
     return { names: [dashRole[1]!.trim()], role: dashRole[2]!.trim() };

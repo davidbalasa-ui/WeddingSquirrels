@@ -13,7 +13,7 @@ export function PlanChapterHeader({
   backLabel?: string;
 }) {
   return (
-    <header className="mb-6 pt-5">
+    <header className="plan-chapter-header mb-6 pt-5">
       <div className="flex items-center justify-between gap-3">
         <Link
           href={backHref}
