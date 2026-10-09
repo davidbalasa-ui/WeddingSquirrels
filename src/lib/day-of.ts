@@ -143,14 +143,36 @@ export type DayOfPersonInput = {
   sortOrder?: number;
 };
 
+/** personId -> household phone from guest records, first non-empty phone wins. */
+export function guestPhoneByPersonId(
+  rows: Array<{ personId: string | null; guest: { phone: string | null } }>,
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    const phone = row.guest.phone?.trim();
+    if (row.personId && phone && !map.has(row.personId)) map.set(row.personId, phone);
+  }
+  return map;
+}
+
 /**
  * Build the Day-of Contacts source list from existing Contact and Person rows.
  * Flagged Persons without a Contact still appear. Phone/email are never invented.
+ * Like the People profile, a phone is the Contact phone, else the linked guest
+ * household phone (`guestPhoneByPersonId`).
  */
 export function collectDayOfContactInputs(input: {
   contacts: DayOfContactInput[];
   persons: DayOfPersonInput[];
+  guestPhoneByPersonId?: Map<string, string>;
 }): DayOfContactInput[] {
+  const householdPhone = (personId: string | null | undefined) =>
+    (personId && input.guestPhoneByPersonId?.get(personId)?.trim()) || null;
+  const contacts = input.contacts.map((contact) =>
+    contact.phone?.trim() || !householdPhone(contact.personId)
+      ? contact
+      : { ...contact, phone: householdPhone(contact.personId) },
+  );
   const flaggedContactPersonIds = new Set(
     input.contacts
       .filter((contact) => contact.isDayOfContact && contact.personId)
@@ -172,7 +194,7 @@ export function collectDayOfContactInputs(input: {
         name: person.name,
         personName: person.name,
         directoryLabel: person.directoryLabel ?? null,
-        phone: linked?.phone ?? null,
+        phone: linked?.phone?.trim() || householdPhone(person.id),
         email: linked?.email ?? null,
         photoData: linked?.photoData ?? null,
         sortOrder: person.sortOrder ?? 0,
@@ -181,7 +203,7 @@ export function collectDayOfContactInputs(input: {
       };
     });
 
-  return [...input.contacts, ...fromPersons];
+  return [...contacts, ...fromPersons];
 }
 
 export type DayOfAssignmentInput = {

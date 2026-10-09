@@ -1,6 +1,7 @@
 import { loadAppSettings, prisma } from "@/lib/db";
 import {
   collectDayOfContactInputs,
+  guestPhoneByPersonId,
   parseDayOfAsOf,
   toDayOfBlock,
   viewFromExperienceSource,
@@ -141,7 +142,7 @@ export async function loadDayOfExperience(
 
   const canSeeContacts = Boolean(session.isMaster || session.canSeeTimeline);
   // Wedding execution only: no money, guests, rehearsal, or unrelated tasks.
-  const [blocks, contacts, flaggedPersons, assignments] = await Promise.all([
+  const [blocks, contacts, flaggedPersons, assignments, guestPhones] = await Promise.all([
     prisma.timelineBlock.findMany({
       where: { schedule: "wedding" },
       select: {
@@ -195,6 +196,13 @@ export async function loadDayOfExperience(
         assignees: { select: { personId: true } },
       },
     }),
+    canSeeContacts
+      ? prisma.guestPerson.findMany({
+          where: { personId: { not: null } },
+          select: { personId: true, guest: { select: { phone: true } } },
+          orderBy: { sortOrder: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
 
   const source: DayOfExperienceSource = {
@@ -221,6 +229,7 @@ export async function loadDayOfExperience(
         personId: contact.personId,
       })),
       persons: flaggedPersons,
+      guestPhoneByPersonId: guestPhoneByPersonId(guestPhones),
     }),
     assignments,
     linkedPersonId: session.linkedPersonId,

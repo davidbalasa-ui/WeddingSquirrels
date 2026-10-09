@@ -6,6 +6,7 @@ import {
   formatWeddingClock,
   parseDayOfAsOf,
   collectDayOfContactInputs,
+  guestPhoneByPersonId,
   pickDayOfContacts,
   pickResponsibilities,
   positionDayOfSchedule,
@@ -404,6 +405,32 @@ test("Need Someone does not invent phone or email for a Kurt-style Person", () =
   assert.equal(merged[0]?.directoryLabel, "MC");
   assert.equal(merged[0]?.isDayOfContact, true);
   assert.equal(merged[0]?.personId, "kurt_huizenga");
+});
+
+test("day-of contacts use the guest household phone when Contact has none", () => {
+  const phones = guestPhoneByPersonId([
+    { personId: "officiant_person", guest: { phone: "  " } },
+    { personId: "officiant_person", guest: { phone: "555-0101" } },
+    { personId: "mc_person", guest: { phone: "555-0102" } },
+    { personId: "vendor_person", guest: { phone: "555-0199" } },
+    { personId: null, guest: { phone: "555-0100" } },
+  ]);
+  const merged = collectDayOfContactInputs({
+    contacts: [
+      { id: "c_mc", name: "MC Contact", phone: null, email: null, isDayOfContact: true, personId: "mc_person" },
+      { id: "c_vendor", name: "Vendor", phone: "555-0200", email: null, isDayOfContact: true, personId: "vendor_person" },
+    ],
+    persons: [
+      { id: "officiant_person", name: "Officiant", directoryLabel: "Officiant", isDayOfContact: true },
+      { id: "nobody", name: "No Phone", directoryLabel: null, isDayOfContact: true },
+    ],
+    guestPhoneByPersonId: phones,
+  });
+  const phoneOf = (id: string) => merged.find((row) => row.id === id)?.phone;
+  assert.equal(phoneOf("person:officiant_person"), "555-0101");
+  assert.equal(phoneOf("c_mc"), "555-0102");
+  assert.equal(phoneOf("c_vendor"), "555-0200");
+  assert.equal(phoneOf("person:nobody"), null);
 });
 
 test("Need Someone does not duplicate a Person already represented by a flagged Contact", () => {
