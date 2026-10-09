@@ -33,16 +33,20 @@ export default async function PlanTimelinePage({
     : "What is supposed to happen throughout the wedding day.";
 
   return (
-    <>
+    <div className="timeline-print-page">
       <PlanChapterHeader title="Wedding Day" subtitle={subtitle} />
       <DayTabs />
-      <WeddingPlacesEditor initial={placeSettings} canEdit={canEdit} />
+      <div className="print-hide">
+        <WeddingPlacesEditor initial={placeSettings} canEdit={canEdit} />
+      </div>
       <DayTimeline
         blocks={blocks}
         canEdit={canEdit}
         startInEdit={startInEdit}
         relatedByBlockId={relatedByBlockId}
+        printTitle="Wedding Day"
+        printSubtitle={context.weddingDateLabel}
       />
-    </>
+    </div>
   );
 }

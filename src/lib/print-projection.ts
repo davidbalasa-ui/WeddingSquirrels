@@ -557,11 +557,11 @@ export function projectKeyDates(
   return rows;
 }
 
-function isMcCueLine(line: string): boolean {
+export function isMcCueLine(line: string): boolean {
   return CUE_LINE.test(line);
 }
 
-function isMusicLine(line: string): boolean {
+export function isMusicLine(line: string): boolean {
   return MUSIC_LINE.test(line);
 }
 

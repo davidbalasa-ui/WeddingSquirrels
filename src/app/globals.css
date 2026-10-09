@@ -431,6 +431,11 @@ a {
   }
 }
 
+/* Binder-style header for the Wedding Day page; only the printout shows it. */
+.day-timeline-print-header {
+  display: none;
+}
+
 @media print {
   body {
     background: white;
@@ -522,6 +527,96 @@ a {
   .binder-section h3,
   .binder-section h2::after {
     break-after: avoid;
+  }
+
+  /* Wedding Day page printed straight from the page: same ink and rules as the binder. */
+  .timeline-print-page .plan-chapter-header,
+  .timeline-print-page .day-tabs {
+    display: none !important;
+  }
+
+  .day-timeline-print-header {
+    display: block;
+    padding: 0 0 1.25rem;
+  }
+
+  .day-timeline-print-header h1 {
+    margin-top: 0.6rem;
+    font-family: var(--font-display), Georgia, serif;
+    font-size: 2.1rem;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--print-ink, #1c1916);
+  }
+
+  .day-timeline-bucket {
+    break-inside: auto;
+  }
+
+  .day-timeline-bucket-label {
+    margin-top: 0.9rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--print-burgundy, #642c3b);
+    color: var(--print-burgundy, #642c3b);
+    break-after: avoid;
+  }
+
+  .day-timeline-list,
+  .day-timeline-untimed {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .day-timeline-list > * + * {
+    border-color: #ece7de;
+  }
+
+  .day-timeline-untimed summary {
+    padding: 0.9rem 0 0.25rem;
+    border-bottom: 1px solid var(--print-burgundy, #642c3b);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--print-burgundy, #642c3b);
+    list-style: none;
+  }
+
+  .day-timeline-untimed summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .day-timeline-row {
+    padding: 0.55rem 0;
+    break-inside: avoid;
+  }
+
+  .day-timeline-time {
+    width: 9.5rem;
+    font-size: 10.5pt;
+    color: var(--print-burgundy, #642c3b);
+  }
+
+  .day-timeline-time-end {
+    display: inline;
+    color: inherit;
+  }
+
+  .day-timeline-title {
+    font-size: 11pt;
+    color: var(--print-ink, #1c1916);
+  }
+
+  .day-timeline-location,
+  .day-timeline-detail {
+    font-size: 10.5pt;
+    color: var(--print-body, #3f3a34);
+  }
+
+  .day-timeline-tag {
+    border-color: #d9d2c6;
+    color: var(--print-muted, #5c574f);
   }
 }
 
