@@ -15,6 +15,7 @@ import {
   dueDateLabel,
   filterVisibleBudgetItems,
   hasExplicitSchedule,
+  moneyInputProblem,
   nextUnpaidPayment,
   obligationsForContract,
   paymentIsOverdue,
@@ -463,4 +464,22 @@ test("buildMoneyLedgerSummary still separates funding and spending", () => {
 test("paymentRemaining and dueDateLabel helpers", () => {
   assert.equal(paymentRemaining({ amount: 100, paidAmount: 40 }), 60);
   assert.equal(dueDateLabel(new Date("2026-08-15T12:00:00"), today), "Due today");
+});
+
+test("moneyInputProblem accepts the ways people type dollars and names what is wrong otherwise", () => {
+  for (const ok of ["9", "007", "12.50", ".5", "1,000", "$1,250.50", " 250 ", "0"]) {
+    assert.equal(moneyInputProblem(ok), null, ok);
+  }
+  assert.equal(moneyInputProblem(""), null);
+  assert.equal(moneyInputProblem("   "), null);
+  assert.equal(moneyInputProblem("", { required: true }), "Enter an amount");
+  assert.equal(moneyInputProblem("   ", { required: true }), "Enter an amount");
+  assert.equal(moneyInputProblem("-5"), "An amount can’t be negative");
+  assert.equal(moneyInputProblem("$-5"), "An amount can’t be negative");
+  for (const bad of ["abc", "12abc", "1 000", "1.2.3", "<b>x</b>", "🎉"]) {
+    assert.equal(moneyInputProblem(bad), "Enter a number like 1,250.50", bad);
+  }
+  assert.equal(moneyInputProblem("0", { positive: true }), "Enter an amount greater than $0");
+  assert.equal(moneyInputProblem("0.00", { required: true, positive: true }), "Enter an amount greater than $0");
+  assert.equal(moneyInputProblem("0.01", { positive: true }), null);
 });

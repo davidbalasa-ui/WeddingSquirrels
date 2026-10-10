@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { saveMinorExpense } from "@/app/actions";
-import { formatMoney, type MinorExpenseSnapshot } from "@/lib/money";
+import { formatMoney, moneyInputProblem, type MinorExpenseSnapshot } from "@/lib/money";
 
 export function MoneyMinorList({
   minor,
@@ -47,6 +47,7 @@ export function MoneyMinorList({
                         name="amountNeeded"
                         inputMode="decimal"
                         defaultValue={item.amountNeeded ?? ""}
+                        onChange={(event) => event.currentTarget.setCustomValidity(moneyInputProblem(event.currentTarget.value) ?? "")}
                         className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
                       />
                     </label>
@@ -58,6 +59,7 @@ export function MoneyMinorList({
                         name="amountSpent"
                         inputMode="decimal"
                         defaultValue={item.amountSpent || ""}
+                        onChange={(event) => event.currentTarget.setCustomValidity(moneyInputProblem(event.currentTarget.value) ?? "")}
                         className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
                       />
                     </label>

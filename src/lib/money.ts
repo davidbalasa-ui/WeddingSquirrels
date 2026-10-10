@@ -106,6 +106,26 @@ export function formatMoney(amount: number, opts?: { maximumFractionDigits?: num
   });
 }
 
+/**
+ * What is wrong with a typed money amount, as the form should say it, or null when
+ * it is fine. Blank is fine unless `required`; "abc", "1 000" or "12abc" are not,
+ * so a typo never turns into a silent $0.
+ */
+export function moneyInputProblem(
+  raw: string,
+  opts: { required?: boolean; positive?: boolean } = {},
+): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return opts.required ? "Enter an amount" : null;
+  const cleaned = trimmed.replace(/^\$\s*/, "").replace(/,/g, "");
+  if (cleaned.startsWith("-")) return "An amount can’t be negative";
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(cleaned)) return "Enter a number like 1,250.50";
+  if (opts.positive && Number.parseFloat(cleaned) <= MONEY_EPSILON) {
+    return "Enter an amount greater than $0";
+  }
+  return null;
+}
+
 export function clampNonNegativeMoney(value: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, value);

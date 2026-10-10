@@ -713,12 +713,22 @@ export async function saveBudgetPayment(formData: FormData): Promise<void> {
 
   const payment = await prisma.budgetPayment.findUnique({
     where: { id },
-    select: { id: true, budgetItemId: true },
+    select: { id: true, budgetItemId: true, amount: true, paidAmount: true },
   });
   if (!payment) return;
   await requireWritableBudgetItem(payment.budgetItemId);
 
-  const nextPaid = markedPaid ? amount : paidAmount;
+  // The edit form only has a "Paid" box, no paid-amount field: ticking it pays the
+  // whole amount, clearing it on a fully paid row un-pays it, and leaving it clear on a
+  // partly paid row keeps what was already paid instead of resetting it to $0.
+  const wasFullyPaid = payment.paidAmount + MONEY_EPSILON >= payment.amount;
+  const nextPaid = markedPaid
+    ? amount
+    : formData.has("paidAmount")
+      ? paidAmount
+      : wasFullyPaid
+        ? 0
+        : Math.min(payment.paidAmount, amount);
   await prisma.budgetPayment.update({
     where: { id },
     data: {

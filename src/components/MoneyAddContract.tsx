@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createBudgetItem } from "@/app/actions";
 import { StarIcon } from "@/components/StarIcon";
+import { moneyInputProblem } from "@/lib/money";
 
 export function MoneyAddContract({ canEdit }: { canEdit: boolean }) {
   const router = useRouter();
@@ -47,6 +48,7 @@ export function MoneyAddContract({ canEdit }: { canEdit: boolean }) {
             inputMode="decimal"
             placeholder="Contract total"
             aria-label="Contract total"
+            onChange={(event) => event.currentTarget.setCustomValidity(moneyInputProblem(event.currentTarget.value) ?? "")}
             className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
           />
           <input
@@ -54,6 +56,7 @@ export function MoneyAddContract({ canEdit }: { canEdit: boolean }) {
             inputMode="decimal"
             placeholder="Paid so far"
             aria-label="Paid so far"
+            onChange={(event) => event.currentTarget.setCustomValidity(moneyInputProblem(event.currentTarget.value) ?? "")}
             className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
           />
         </div>

@@ -14,6 +14,7 @@ import {
   dueDateLabel,
   formatMoney,
   hasExplicitSchedule,
+  moneyInputProblem,
   openPayments,
   paymentDisplayLabel,
   paymentIsOverdue,
@@ -55,6 +56,7 @@ function PaymentFields({
           inputMode="decimal"
           required
           defaultValue={payment?.amount || ""}
+          onChange={(event) => event.currentTarget.setCustomValidity(moneyInputProblem(event.currentTarget.value, { required: true, positive: true }) ?? "")}
           className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
         />
       </label>
