@@ -101,7 +101,8 @@ export function AccountEditor({
       setError("Name is required");
       return;
     }
-    if (mode === "create" && !/^\d{4,8}$/.test(pin)) {
+    // The server checks this too, but a production build hides server error messages, so say it here.
+    if ((mode === "create" || pin) && !/^\d{4,8}$/.test(pin)) {
       setError("PIN must be 4–8 digits");
       return;
     }

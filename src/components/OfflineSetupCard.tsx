@@ -110,6 +110,16 @@ export function OfflineSetupCard({
     };
   }, []);
 
+  // Escape closes the install guide like every other overlay in the app.
+  useEffect(() => {
+    if (!showGuide) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowGuide(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [showGuide]);
+
   const install = async () => {
     if (!installPrompt) {
       setShowGuide(true);
