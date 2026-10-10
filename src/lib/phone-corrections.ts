@@ -13,9 +13,10 @@ export type PhoneCorrectionDef = {
   phone: string;
 };
 
-/** "Pam Balasa phone +12694753751", written the way the app's other numbers are. */
+/** As David sent them ("Pam Balasa phone +12694753751", "2317985825 John W"), written the way the app's other numbers are. */
 export const PHONE_CORRECTIONS: PhoneCorrectionDef[] = [
   { label: "Pam Balasa", names: ["Pam Balasa", "Pamela Balasa"], phone: "269-475-3751" },
+  { label: "John W", names: ["John Wiewiora", "John W"], phone: "231-798-5825" },
 ];
 
 export type PhoneWrite =

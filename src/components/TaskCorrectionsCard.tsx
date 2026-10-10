@@ -26,6 +26,7 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
   const plan = full.tasks;
   const phonesToAdd = full.phones.filter((row) => row.status === "add");
   const phonesDiffer = full.phones.filter((row) => row.status === "differs");
+  const phonesNotFound = full.phones.filter((row) => row.status === "not_found");
   const nothingToApply = taskCorrectionsPlanIsEmpty(plan) && phonesToAdd.length === 0;
   if (state === "done" || (nothingToApply && phonesDiffer.length === 0)) return null;
 
@@ -128,6 +129,17 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
             </div>
           ) : null}
           {differs}
+          {phonesNotFound.length ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Not matched to one person</p>
+              <p className="mt-0.5 text-xs text-muted">Add these on the person’s People page.</p>
+              <ul className="mt-1 list-none space-y-0.5 p-0">
+                {phonesNotFound.map((row) => (
+                  <li key={row.label}>{row.label} · {row.phone}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {plan.marks.length ? (
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Marked done</p>
