@@ -370,6 +370,11 @@ test("typing a digit into a full clock box starts over instead of being dropped"
   assert.equal(nextClockDigits("3", "30", 2, true), "0");
   assert.equal(nextClockDigits("12", "129", 2, true), "9");
   assert.equal(nextClockDigits("00", "003", 2, true), "3");
+  // Safari on an iPhone puts the caret before the old digits instead, so the digit arrives in front.
+  assert.equal(nextClockDigits("3", "13", 2, true), "1");
+  assert.equal(nextClockDigits("3", "03", 2, true), "0");
+  assert.equal(nextClockDigits("12", "912", 2, true), "9");
+  assert.equal(nextClockDigits("5", "15", 2, true), "1");
   // A replaced selection, or a second digit, is kept as typed.
   assert.equal(nextClockDigits("3", "1", 2, true), "1");
   assert.equal(nextClockDigits("1", "13", 2, false), "13");
