@@ -34,7 +34,7 @@ import {
   type WeddingPhase,
 } from "@/lib/wedding-phase";
 import { composeExecutionToday, type ExecutionTodayModel } from "@/lib/execution-today";
-import { todayVenueLabel } from "@/lib/wedding-venue";
+import { weddingPlacesFromPlan, weddingVenueLabel, type WeddingPlaces } from "@/lib/wedding-venue";
 
 export type TodayHeroPhase = "future" | "wedding-day" | "after";
 
@@ -272,14 +272,10 @@ export function buildTodayHero(
     weddingDate: Date;
     coupleNames: string;
     timezone: string;
-    venueName?: string | null;
-    venueStreet?: string | null;
-    venueCity?: string | null;
-    venueState?: string | null;
-    venueZip?: string | null;
   } | null,
   sessionName: string,
   now = new Date(),
+  places: WeddingPlaces | null = null,
 ): TodayHeroData {
   const timezone = settings?.timezone ?? "America/Detroit";
   const weddingDate = settings?.weddingDate ?? null;
@@ -324,7 +320,7 @@ export function buildTodayHero(
     countdownLabel,
     countdownSupport,
     weddingDateLabel,
-    venue: todayVenueLabel(settings),
+    venue: places ? weddingVenueLabel(places) : null,
   };
 }
 
@@ -781,7 +777,10 @@ export async function loadTodayPageData(
   const timezone = settings?.timezone ?? "America/Detroit";
   const now =
     opts?.now ?? parseDayOfAsOf(opts?.asOfDateKey, timezone) ?? new Date();
-  const hero = buildTodayHero(settings, session.name, now);
+  const places = weddingPlacesFromPlan(
+    await safeRead([], () => prisma.timelineBlock.findMany({ select: { notes: true } })),
+  );
+  const hero = buildTodayHero(settings, session.name, now, places);
   const phaseInfo = getWeddingPhase({
     weddingDate: settings?.weddingDate ?? null,
     timezone,

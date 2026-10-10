@@ -5,6 +5,7 @@ import { MEAL_SECTIONS } from "@/lib/meals";
 import { ceremonyLineUpTime, scheduleLines } from "@/lib/schedule-consistency";
 import { STAY_SECTIONS } from "@/lib/stay";
 import { taskStatusIsDone } from "@/lib/task-actionable";
+import { weddingPlacesFromPlan } from "@/lib/wedding-venue";
 
 export type PrintHairRoom = {
   title: string;
@@ -866,15 +867,6 @@ function firstMatchingLine(
   return null;
 }
 
-function addressesFromLine(line: string): string[] {
-  const cleaned = line.replace(/^(airbnb|venue|hawkshead)\s*[:—–-]\s*/i, "").trim();
-  const parts = cleaned.split(",").map((part) => part.trim()).filter(Boolean);
-  if (parts.length >= 2) {
-    return parts.length === 3 ? [parts[0]!, `${parts[1]}, ${parts[2]}`] : [cleaned];
-  }
-  return cleaned ? [cleaned] : [];
-}
-
 export function buildQuickReference(input: {
   coupleNames: string;
   weddingDateLabel: string;
@@ -885,14 +877,6 @@ export function buildQuickReference(input: {
   mcName: string | null;
   coordinatorPhoneHint: string | null;
   rsvp: PrintRsvpSummary | null;
-  canonicalPlaces?: {
-    venueName?: string | null;
-    venueAddress?: string[];
-    rehearsalDinnerName?: string | null;
-    rehearsalDinnerAddress?: string[];
-    airbnbName?: string | null;
-    airbnbAddress?: string[];
-  } | null;
 }): PrintQuickReference {
   const all = [...input.rehearsalBlocks, ...input.weddingBlocks];
   const ceremony = input.weddingBlocks.find((block) => /^ceremony$/i.test(parseBlockNotes(block.notes).title));
@@ -901,43 +885,23 @@ export function buildQuickReference(input: {
   const dancing = input.weddingBlocks.findLast((block) => /open dancing/i.test(parseBlockNotes(block.notes).title));
   const teardown = input.weddingBlocks.find((block) => /tear down|clean up/i.test(parseBlockNotes(block.notes).title));
   const avalon = input.contacts.find((contact) => /avalon/i.test(contact.name));
-  const venueLine = firstMatchingLine(all, /342\s+62nd|black sheep shelter/i);
-  const airbnbLine = firstMatchingLine(all, /10268\s+51st|airbnb:/i);
-  const hawksLine = firstMatchingLine(all, /hawkshead|523 hawks/i);
   const closeLine = firstMatchingLine(input.weddingBlocks, /venue closes/i);
 
   let coordinatorPhone = avalon?.phone?.trim() || input.coordinatorPhoneHint;
   if (coordinatorPhone) coordinatorPhone = coordinatorPhone.replace(/\./g, "-");
 
-  const canonical = input.canonicalPlaces;
-  const legacyVenueAddress =
-    venueLine && /342/.test(venueLine)
-      ? addressesFromLine(venueLine.replace(/^.*?(342)/, "342"))
-      : ["342 62nd St", "South Haven, MI 49090"];
-  const legacyAirbnbAddress =
-    airbnbLine && /10268/.test(airbnbLine)
-      ? addressesFromLine(airbnbLine)
-      : ["10268 51st St", "Grand Junction, MI 49056"];
-  const legacyRehearsalAddress =
-    hawksLine && /523/.test(hawksLine)
-      ? addressesFromLine(hawksLine.replace(/^.*?(523)/, "523"))
-      : ["523 Hawks Nest Dr", "South Haven, MI"];
+  const places = weddingPlacesFromPlan(all);
 
   return {
     coupleNames: input.coupleNames,
     weddingDateLabel: input.weddingDateLabel,
     ceremonyTime: ceremony ? normalizePrintTime(ceremony.startAt) : "3:30 PM",
-    venueName: canonical?.venueName?.trim() || "Black Sheep Shelter",
-    venueAddress:
-      canonical?.venueAddress?.length ? canonical.venueAddress : legacyVenueAddress,
-    airbnbName: canonical?.airbnbName?.trim() || "Airbnb",
-    airbnbAddress:
-      canonical?.airbnbAddress?.length ? canonical.airbnbAddress : legacyAirbnbAddress,
-    rehearsalDinnerName: canonical?.rehearsalDinnerName?.trim() || "Hawkshead",
-    rehearsalDinnerAddress:
-      canonical?.rehearsalDinnerAddress?.length
-        ? canonical.rehearsalDinnerAddress
-        : legacyRehearsalAddress,
+    venueName: places.venue.name,
+    venueAddress: places.venue.address,
+    airbnbName: places.lodging.name,
+    airbnbAddress: places.lodging.address,
+    rehearsalDinnerName: places.rehearsalDinner.name,
+    rehearsalDinnerAddress: places.rehearsalDinner.address,
     coordinatorName: avalon ? avalon.name.split("·")[0]!.trim() : "Avalon Green",
     coordinatorPhone,
     mistressOfCeremonies: input.mistressOfCeremonies?.trim() || "Wendy Rush",

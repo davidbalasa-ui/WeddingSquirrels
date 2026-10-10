@@ -17,6 +17,7 @@ import {
   todayPersonRef,
 } from "./today";
 import type { InboxItem, InboxSections } from "./inbox";
+import { weddingPlacesFromPlan } from "./wedding-venue";
 import type { SessionAccount } from "./types";
 
 function emptySections(overrides: Partial<InboxSections> = {}): InboxSections {
@@ -120,16 +121,12 @@ test("buildTodayHero uses AppSettings fields and does not invent venue", () => {
       weddingDate: new Date("2026-10-16T12:00:00"),
       coupleNames: "David & Haley",
       timezone: "America/Detroit",
-      venueName: "Shelter",
-      venueStreet: "342 62nd St",
-      venueCity: "South Haven",
-      venueState: "MI",
-      venueZip: "49090",
     },
     "David",
     new Date("2026-09-03T12:00:00"),
+    weddingPlacesFromPlan([]),
   );
-  assert.match(withVenue.venue ?? "", /Shelter/);
+  assert.equal(withVenue.venue, "Black Sheep Shelter · 342 62nd St, South Haven, MI 49090");
 });
 
 test("countdown handles future, wedding day, and post-wedding", () => {
