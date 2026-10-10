@@ -349,3 +349,21 @@ test("his one-week check-in retimes and rewords the moments the app wrote, and l
   assert.equal(edited.rewords.some((row) => row.id === "wedding_couple_departs"), false);
   assert.equal(edited.updates.some((row) => row.id === "wedding_couple_departs"), true);
 });
+
+// David, 2026-10-10 21:08: add Hawkshead's golf dress code to Thursday's rehearsal dinner.
+test("Thursday's rehearsal dinner gains the Hawkshead dress code only while it reads as the app wrote it", () => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "reh.dinner")!;
+  const written = reconciledNotes({ ...moment, lines: moment.lines.filter((line) => !/dress code/.test(line)) });
+  const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.map((m, index) => ({
+    id: m.seedKey,
+    seedKey: m.seedKey,
+    schedule: m.schedule,
+    startAt: m.startAt,
+    endAt: m.endAt,
+    notes: m === moment ? written : reconciledNotes(m),
+    sortOrder: index,
+  }));
+  assert.deepEqual(planReconciledTimeline(rows).rewords.map((row) => [row.id, row.correction]), [["reh.dinner", "Hawkshead dress code"]]);
+  const edited = planReconciledTimeline(rows.map((row) => (row.id === "reh.dinner" ? { ...row, notes: `${written}\nBring a jacket` } : row)));
+  assert.equal(edited.rewords.length, 0);
+});
