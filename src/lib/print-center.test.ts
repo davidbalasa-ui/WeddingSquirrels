@@ -21,6 +21,7 @@ import {
   masterContacts,
   masterHairNotes,
   masterPlaybookRows,
+  masterSectionHasContent,
   masterQuickReference,
   mcPeopleFromDirectory,
   moneyFingerprint,
@@ -430,4 +431,13 @@ test("the master packet keeps the hair plan's own notes and leaves the run sheet
   assert.deepEqual(masterHairNotes(doc), [
     { who: "Bridal party", notes: ["Steam dresses. Lay out shoes, jewelry, and accessories.", "Pull dresses from bags (steam if needed)."] },
   ]);
+});
+
+test("the master packet skips the meals page while the menu is unpublished and nothing is on the shopping list", () => {
+  const doc = emptyPrintDocument();
+  doc.meals = [{ title: "Bridal Party", guests: [{ name: "Skila", selection: null }] }] as typeof doc.meals;
+  doc.mealsPublished = false;
+  assert.equal(masterSectionHasContent(doc, "meals"), false);
+  doc.mealsPublished = true;
+  assert.equal(masterSectionHasContent(doc, "meals"), true);
 });

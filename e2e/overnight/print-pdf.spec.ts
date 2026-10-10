@@ -66,6 +66,9 @@ test.describe("Packets printed to Letter PDF", () => {
         })),
       );
       const headings = await doc.locator("h2, h3").allInnerTexts();
+      const contents = await doc.locator(".binder-contents li").evaluateAll((items) =>
+        items.map((item) => Array.from(item.querySelectorAll("span")).at(-1)?.textContent ?? ""),
+      );
 
       mkdirSync(PDF_DIR, { recursive: true });
       const slug = packet.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -129,7 +132,9 @@ test.describe("Packets printed to Letter PDF", () => {
         const lines = pageText(path, n + 1).split("\n").map((line) => squash(line)).filter(Boolean);
         const last = lines.at(-1) ?? "";
         const tail = /^\d+$/.test(last) ? lines.at(-2) ?? "" : last; // the page number prints last
-        if (headings.map(flat).includes(flat(tail))) orphaned.push(`page ${n + 1}: "${tail}"`);
+        // The master packet's cover ends with its contents, whose last line can read like a chapter heading.
+        const contentsLine = n === 0 && contents.map(flat).includes(flat(tail));
+        if (headings.map(flat).includes(flat(tail)) && !contentsLine) orphaned.push(`page ${n + 1}: "${tail}"`);
       }
       expect(orphaned, `${packet.title}: heading alone at the foot of a page`).toEqual([]);
 

@@ -14,6 +14,7 @@ import {
   masterContacts,
   masterHairNotes,
   masterPlaybookRows,
+  masterShowsMealChoices,
   masterQuickReference,
   contactRoleRepeatsName,
   printPacket,
@@ -537,7 +538,7 @@ function PrintSection({
       return (
         <section className="binder-section">
           <h2>Meals / food &amp; supplies</h2>
-          {document.meals.length ? (
+          {document.meals.length && (!master || masterShowsMealChoices(document)) ? (
             document.mealsPublished ? (
               document.meals.map((section) => (
                 <div key={section.title} className="binder-block">

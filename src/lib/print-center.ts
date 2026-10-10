@@ -1049,6 +1049,14 @@ export function masterHairNotes(doc: PrintCenterDocument): Array<{ who: string; 
  * keeps its room key and the plan's own notes there; its time table is left out, because
  * the run sheet is the one schedule and the table's times can disagree with it.
  */
+/**
+ * Before the menu is published the meals page is only the guest list again ("awaiting
+ * selections"), which the wedding party and guest pages already carry.
+ */
+export function masterShowsMealChoices(doc: PrintCenterDocument): boolean {
+  return doc.meals.length > 0 && doc.mealsPublished;
+}
+
 export function masterSectionHasContent(doc: PrintCenterDocument, id: PrintSectionId): boolean {
   switch (id) {
     case "hair":
@@ -1059,6 +1067,8 @@ export function masterSectionHasContent(doc: PrintCenterDocument, id: PrintSecti
     }
     case "coordinator":
       return masterPlaybookRows(doc).coordinator.length > 0;
+    case "meals":
+      return masterShowsMealChoices(doc) || doc.shopping.length > 0;
     default:
       return sectionHasContent(doc, id);
   }
