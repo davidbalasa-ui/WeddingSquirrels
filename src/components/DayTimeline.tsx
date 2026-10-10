@@ -376,7 +376,7 @@ export function DayTimeline({
   async function persistDraft(openDraft: Draft, opts: { abandon?: boolean } = {}) {
     const prepared = prepareTimelineCreate(openDraft);
     if (!prepared.ok) {
-      if (opts.abandon) setDraft(null);
+      if (opts.abandon) discardDraft();
       else setDraftError(DRAFT_NEEDS);
       return { ok: false as const };
     }
@@ -418,8 +418,15 @@ export function DayTimeline({
       scrollIfMoved(created.id, prev, next);
       return next;
     });
-    setDraft(null);
+    discardDraft();
     return result;
+  }
+
+  /** Closes the new-moment card. Its notes box may still be focused (see the Add and Discard buttons),
+   *  and a box removed while focused does not always fire blur, so the strip is shown again here. */
+  function discardDraft() {
+    setDraft(null);
+    setNoteFocused(false);
   }
 
   useEffect(() => {
@@ -763,10 +770,22 @@ export function DayTimeline({
               className="mt-1 w-full resize-y border-0 bg-transparent p-0 text-[15px] leading-snug outline-none"
             />
             <div className="mt-2 flex gap-2">
-              <button type="button" className="text-sm font-semibold text-[var(--accent)]" onClick={() => void persistDraft(draft)}>
+              {/* Keep the notes box focused through the press: on an iPhone the blur brings the bucket strip
+                  back above the list, which shifts these buttons away before the tap lands on them. */}
+              <button
+                type="button"
+                className="text-sm font-semibold text-[var(--accent)]"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => void persistDraft(draft)}
+              >
                 Add
               </button>
-              <button type="button" className="text-sm font-semibold text-muted" onClick={() => setDraft(null)}>
+              <button
+                type="button"
+                className="text-sm font-semibold text-muted"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={discardDraft}
+              >
                 Discard
               </button>
             </div>
