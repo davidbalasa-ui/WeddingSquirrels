@@ -159,7 +159,7 @@ export const CONTROLS: InventoryControl[] = [
   skip("people-delete-canonical", "/people/{id}", "Delete person", "Would permanently remove a Person", ["delete", "people"], "Must not delete canonical wedding people; no disposable Person fixture is created here"),
   skip("people-guest-photo-camera", "/people?tab=guests", "Take picture", "Would open device camera", ["people"], "Device camera cannot be operated in this runner"),
 
-  auto("plan-hub", "/plan", "Plan chapter cards", "Tasks / Wedding Day / Rehearsal / Stay / Shopping / Calendar", ["navigation", "plan"], "plan.spec.ts · hub"),
+  auto("plan-hub", "/plan", "Plan chapter cards", "Tasks / Wedding Day / Rehearsal / Shopping / Calendar", ["navigation", "plan"], "plan.spec.ts · hub"),
   auto("plan-tasks-filters", "/plan/tasks", "Task filters", "Open / Overdue / Soon / Mine / Finished; wedding-week work stays in the same universe", ["filter", "plan"], "plan.spec.ts · tasks"),
   auto("plan-task-add", "/plan/tasks", "Add Task", "Creates a package and opens /work/{id}", ["create", "plan"], "writes.spec.ts · plan add task"),
   auto("plan-task-open", "/plan/tasks", "Open task workspace", "Task card opens /work/{id}", ["plan", "navigation"], "plan.spec.ts · tasks"),
@@ -177,9 +177,6 @@ export const CONTROLS: InventoryControl[] = [
   auto("plan-rehearsal-edit", "/plan/rehearsal", "Walkthrough Review/Edit", "Edit exposes + Add moment", ["edit", "plan"], "plan.spec.ts · rehearsal"),
   auto("plan-rehearsal-menu-write", "/plan/rehearsal", "Add course / dish / publish menu", "Disposable course + dish, blur-save, publish toggle, then remove", ["create", "save", "plan"], "writes.spec.ts · meal menu"),
 
-  auto("plan-stay", "/plan/stay", "Stay slots", "Slots and occupants render", ["plan"], "plan.spec.ts · stay"),
-  auto("plan-stay-note", "/plan/stay", "Add / remove bathroom note", "Disposable note create + delete", ["create", "delete", "plan"], "writes.spec.ts · stay note"),
-  auto("plan-stay-occupant-cancel", "/plan/stay", "Occupant restore", "Change an empty/optional field then restore original", ["edit", "cancel", "plan"], "writes.spec.ts · stay note"),
 
   auto("plan-shop-list", "/plan/shopping", "Shopping list + filters", "3 production items; owner / purchased filters", ["plan", "filter"], "plan.spec.ts · shopping"),
   auto("plan-shop-crud", "/plan/shopping", "Add / edit / cancel / delete item", "CERT item full lifecycle", ["create", "edit", "save", "cancel", "delete", "plan"], "writes.spec.ts · shopping"),
@@ -207,7 +204,7 @@ export const CONTROLS: InventoryControl[] = [
   auto("print-css", "/print", "Print media", "Nav and controls hidden; binder remains", ["print"], "print.spec.ts"),
   skip("print-os-dialog", "/print", "Native print dialog", "OS print UI", ["print"], "Native dialog cannot be driven; window.print invocation is certified"),
 
-  auto("offline-tabs", "/offline", "Offline tabs", "Day-of · 19, Contacts, Shop, Stay, Assignments, others if packed", ["offline"], "offline.spec.ts"),
+  auto("offline-tabs", "/offline", "Offline tabs", "Day-of · 19, Contacts, Shop, Assignments, others if packed", ["offline"], "offline.spec.ts"),
   auto("offline-reload", "/offline", "Reload while offline", "Copy remains usable", ["offline"], "offline.spec.ts"),
   auto("offline-channels", "/offline", "Offline tel/mailto", "Contact hrefs when channels exist", ["offline", "external"], "offline.spec.ts"),
 

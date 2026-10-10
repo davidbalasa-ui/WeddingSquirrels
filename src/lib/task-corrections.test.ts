@@ -149,3 +149,13 @@ test("David's 16:33 'Keep kids at 115 for now' joins card 3's Harmony and Melody
   assert.equal(planTaskCorrections([{ ...row, summary: `${was} Ask Avalon Monday.` }]).noteFills.length, 0);
   assert.equal(planTaskCorrections([{ ...row, summary: item.summary }]).noteFills.length, 0);
 });
+
+test("the Airbnb sleeping assignments card and its bed step are ticked done (David, 16:36)", () => {
+  const plan = planTaskCorrections([
+    { id: "ab", title: "Finish Airbnb Sleeping Assignments", status: "todo", parentId: null },
+    { id: "ab1", title: "Assign the remaining required Airbnb beds", status: "todo", parentId: "ab" },
+  ]);
+  const ids = plan.marks.map((row) => row.id);
+  assert.ok(ids.includes("ab"));
+  assert.ok(ids.includes("ab1"));
+});

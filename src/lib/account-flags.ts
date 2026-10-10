@@ -86,7 +86,6 @@ export function accountSummaryLabel(
     account.canSeeBudget && (account.canEditBudget ? "Money (edit)" : "Money"),
     account.canSeeTimeline && (account.canEditTimeline ? "Day-of (edit)" : "Day-of"),
     account.canSeeGuests && "Guests",
-    account.canSeeStay && "Stay",
     account.canSeeDinner &&
       (account.canEditRehearsal || account.canEditDinner
         ? `Rehearsal${account.canEditRehearsal ? " schedule" : ""}${account.canEditDinner ? " dinner" : ""}`

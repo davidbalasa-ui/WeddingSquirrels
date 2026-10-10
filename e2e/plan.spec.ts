@@ -6,7 +6,7 @@ test.describe("plan", () => {
   test("hub chapters reach every exposed domain", async ({ page }) => {
     const guards = await attachPageGuards(page);
     await page.goto("/plan");
-    const expected = ["Tasks", "Wedding Day", "Rehearsal", "Stay", "Shopping", "Calendar"];
+    const expected = ["Tasks", "Wedding Day", "Rehearsal", "Shopping", "Calendar"];
     for (const label of expected) {
       await expect(page.getByRole("navigation", { name: "Wedding plan" }).getByRole("link", { name: new RegExp(label) })).toBeVisible();
     }
@@ -90,11 +90,10 @@ test.describe("plan", () => {
     guards.assertClean();
   });
 
-  test("stay slots render", async ({ page }) => {
+  test("the old Stay page goes to Plan", async ({ page }) => {
     const guards = await attachPageGuards(page);
     await page.goto("/plan/stay");
-    await expect(page.getByText(/Tap a name to claim a bed/)).toBeVisible();
-    expect(await page.locator("#main-content input").count()).toBeGreaterThan(0);
+    await expect(page).toHaveURL(/\/plan$/);
     guards.assertClean();
   });
 

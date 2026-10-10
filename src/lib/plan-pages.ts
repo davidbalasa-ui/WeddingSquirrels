@@ -2,7 +2,6 @@ import { format } from "date-fns";
 import { isMissingWeddingPlaceColumn, prisma } from "@/lib/db";
 import { ensureMealLayout } from "@/lib/meals";
 import { ensureRehearsalSchedule } from "@/lib/rehearsal";
-import { ensureStayLayout } from "@/lib/stay";
 import { sortTimelineBlocks } from "@/lib/day-of-time";
 import { summarizeShoppingItems } from "@/lib/plan";
 import type { SessionAccount } from "@/lib/types";
@@ -37,28 +36,6 @@ export async function loadPlanRehearsalPage() {
       choices: Object.fromEntries(guest.choices.map((choice) => [choice.courseId, choice.optionId])),
     })),
     blocks: sortTimelineBlocks(blocks),
-  };
-}
-
-export async function loadPlanStayPage() {
-  await ensureStayLayout(prisma);
-  const [slots, notes] = await Promise.all([
-    prisma.staySlot.findMany({ orderBy: { sortOrder: "asc" } }),
-    prisma.stayBathNote.findMany({ orderBy: { sortOrder: "asc" } }),
-  ]);
-  return {
-    slots: slots.map((slot) => ({
-      id: slot.id,
-      sectionId: slot.sectionId,
-      label: slot.label,
-      occupant: slot.occupant,
-      optional: slot.optional,
-    })),
-    notes: notes.map((note) => ({
-      id: note.id,
-      sectionId: note.sectionId,
-      note: note.note,
-    })),
   };
 }
 

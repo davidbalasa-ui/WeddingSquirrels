@@ -244,9 +244,8 @@ export async function loadPeopleProfile(
   if (!parsed) return null;
 
   const [staySlots, mealGuests, guests, assignments, budgetItems, contacts] = await Promise.all([
-    session.canSeeStay
-      ? prisma.staySlot.findMany({ select: { sectionId: true, label: true, occupant: true } })
-      : Promise.resolve([]),
+    // No sleeping arrangements (David, 2026-10-10): profiles no longer show a bed.
+    Promise.resolve([] as Array<{ sectionId: string; label: string; occupant: string }>),
     session.canSeeDinner
       ? prisma.mealGuest.findMany({
           include: {

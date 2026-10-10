@@ -122,16 +122,6 @@ export const MODULES: ModuleDef[] = [
     icon: "money",
   },
   {
-    key: "stay",
-    label: "Stay",
-    href: "/plan/stay",
-    group: "wedding",
-    navTab: "plan",
-    see: "canSeeStay",
-    hideFromMore: true,
-    icon: "stay",
-  },
-  {
     key: "rehearsal",
     label: "Rehearsal",
     href: "/plan/rehearsal",
