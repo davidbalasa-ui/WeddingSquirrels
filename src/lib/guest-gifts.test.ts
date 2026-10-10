@@ -8,6 +8,7 @@ import {
   groupGuestsByTable,
   guestAddressLines,
   guestNameLines,
+  parseTableNumberInput,
   rsvpStatusLabel,
   summarizeGuestRsvp,
 } from "./guest-gifts";
@@ -204,3 +205,15 @@ test("rsvpStatusLabel never exposes raw enums", () => {
   assert.equal(rsvpStatusLabel("NOT_ATTENDING"), "Awaiting RSVP");
 });
 
+
+test("table number input keeps 0 and leading zeros, rejects letters, blank means no table", () => {
+  assert.deepEqual(parseTableNumberInput("9"), { ok: true, value: 9 });
+  assert.deepEqual(parseTableNumberInput("0"), { ok: true, value: 0 });
+  assert.deepEqual(parseTableNumberInput("007"), { ok: true, value: 7 });
+  assert.deepEqual(parseTableNumberInput(" 12 "), { ok: true, value: 12 });
+  assert.deepEqual(parseTableNumberInput(""), { ok: true, value: null });
+  assert.deepEqual(parseTableNumberInput("   "), { ok: true, value: null });
+  assert.deepEqual(parseTableNumberInput("12b"), { ok: false });
+  assert.deepEqual(parseTableNumberInput("-5"), { ok: false });
+  assert.deepEqual(parseTableNumberInput("12.5"), { ok: false });
+});
