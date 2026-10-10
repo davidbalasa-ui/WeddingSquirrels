@@ -3756,7 +3756,7 @@ export async function applyTaskCorrectionsAction(): Promise<
   try {
     await prisma.$transaction(async (tx) => {
       for (const row of plan.inserts) {
-        await tx.task.create({ data: { title: row.title, summary: row.summary, dueDate: dueDateFor(row.due) } });
+        await tx.task.create({ data: { title: row.title, summary: row.summary, dueDate: row.due ? dueDateFor(row.due) : null } });
       }
       for (const row of plan.marks) {
         await tx.task.updateMany({ where: { id: row.id, status: { not: "done" } }, data: { status: "done", completedAt: now } });

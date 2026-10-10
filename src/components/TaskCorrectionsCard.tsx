@@ -111,8 +111,20 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
               <ul className="mt-1 list-none space-y-0.5 p-0">
                 {plan.inserts.map((row) => (
                   <li key={row.title}>
-                    {dayLabel(row.due)} · {row.title}
+                    {row.due ? `${dayLabel(row.due)} · ` : ""}{row.title}
                     {row.summary ? <span className="text-muted"> ({row.summary})</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {plan.alreadyListed.length ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Already on your list, not added</p>
+              <ul className="mt-1 list-none space-y-0.5 p-0">
+                {plan.alreadyListed.map((row) => (
+                  <li key={row.title}>
+                    {row.title} <span className="text-muted">(you have “{row.existing}”)</span>
                   </li>
                 ))}
               </ul>

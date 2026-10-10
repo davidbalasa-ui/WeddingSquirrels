@@ -5,7 +5,14 @@
  */
 import { titlesMatch } from "./curated-open-work";
 
-export type NewTaskDef = { title: string; summary?: string; due: string };
+/** `due` is a day ("2026-10-12"); left out when David gave no day. */
+export type NewTaskDef = {
+  title: string;
+  summary?: string;
+  due?: string;
+  /** A task already on his list in other words counts as this job; it is not added again. */
+  like?: RegExp;
+};
 export type DoneMarkDef = { card: string; step: string };
 
 /** Monday and Tuesday jobs, word for word from David's own list. */
@@ -20,6 +27,28 @@ export const NEW_TASKS: NewTaskDef[] = [
   },
   { title: "A Perfect Fit Alterations: Pick up Haley’s dress with the bustle completed", due: "2026-10-13" },
   { title: "Alpine Events: Pick up the rentals", due: "2026-10-13" },
+  // David, 2026-10-10 10:08, in his words.
+  { title: "Send the check to Precious Peony", due: "2026-10-10", like: /precious peony.*\b(check|pay)|\b(check|pay).*precious peony/i },
+  {
+    title: "Pick up the marriage license from the courthouse",
+    like: /marriage licen[cs]e/i,
+    summary: "Monday or Tuesday; you weren’t sure which.",
+  },
+  { title: "Get someone to deliver my vehicle to Victoria Resort", like: /\b(vehicle|car|truck)\b.*victoria|victoria.*\b(vehicle|car|truck)\b/i },
+  { title: "Finish building the table decor and pack it up", like: /table d[eé]cor/i },
+  {
+    title: "Print the instruction sheets for the head table, the favors and the gift table",
+    like: /instruction sheet/i,
+    summary: "Pack them up together with the tables.",
+  },
+  {
+    title: "Pack up the tables together: entryway table, gift box table, favors table",
+    like: /entryway table|gift box table|favou?rs? table/i,
+    summary: "You think you’re missing a table.",
+  },
+  { title: "Pack for the mini moon", like: /\bpack\b.*mini ?moon/i },
+  { title: "Pack for the wedding", like: /^pack (for )?(the )?wedding$/i },
+  { title: "Find my rehearsal outfit", like: /rehearsal (outfit|clothes)/i },
 ];
 
 /** Steps David ticked on the printout, and the rehearsal dinner menu he is not running through the app. */
@@ -49,7 +78,9 @@ export const DONE_CARDS = ["Ceremony Flower Sword", "Rehearsal Dinner Menu"];
 export type TaskRow = { id: string; title: string; status: string; parentId: string | null };
 
 export type TaskCorrectionsPlan = {
-  inserts: Array<{ title: string; summary: string | null; due: string }>;
+  inserts: Array<{ title: string; summary: string | null; due: string | null }>;
+  /** Jobs left out because a task already on his list reads like them. */
+  alreadyListed: Array<{ title: string; existing: string }>;
   marks: Array<{ id: string; card: string | null; title: string }>;
 };
 
@@ -63,11 +94,17 @@ export function planTaskCorrections(tasks: TaskRow[]): TaskCorrectionsPlan {
   const cardTitle = (task: TaskRow) => (task.parentId ? byId.get(task.parentId)?.title ?? null : null);
 
   // A job whose title is already on any task (open or done) is never added twice.
-  const inserts = NEW_TASKS.filter((def) => !tasks.some((task) => titlesMatch(task.title, def.title))).map((def) => ({
-    title: def.title,
-    summary: def.summary ?? null,
-    due: def.due,
-  }));
+  const inserts: TaskCorrectionsPlan["inserts"] = [];
+  const alreadyListed: TaskCorrectionsPlan["alreadyListed"] = [];
+  for (const def of NEW_TASKS) {
+    if (tasks.some((task) => titlesMatch(task.title, def.title))) continue;
+    const near = def.like ? tasks.find((task) => def.like!.test(task.title)) : undefined;
+    if (near) {
+      alreadyListed.push({ title: def.title, existing: near.title });
+      continue;
+    }
+    inserts.push({ title: def.title, summary: def.summary ?? null, due: def.due ?? null });
+  }
 
   const marks: TaskCorrectionsPlan["marks"] = [];
   const seen = new Set<string>();
@@ -87,7 +124,7 @@ export function planTaskCorrections(tasks: TaskRow[]): TaskCorrectionsPlan {
   for (const title of DONE_CARDS) {
     mark(tasks.find((task) => !task.parentId && titlesMatch(task.title, title)));
   }
-  return { inserts, marks };
+  return { inserts, alreadyListed, marks };
 }
 
 export function taskCorrectionsPlanIsEmpty(plan: TaskCorrectionsPlan): boolean {

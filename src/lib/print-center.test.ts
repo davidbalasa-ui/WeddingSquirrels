@@ -316,3 +316,19 @@ test("the MC Run of Show section prints only when there are cues, not for a name
     true,
   );
 });
+
+test("a binder prints open work first, then Thursday and Friday, then everything else", () => {
+  const doc = emptyPrintDocument();
+  const order = printableSections(
+    {
+      ...doc,
+      taskGroups: [{ title: "Monday, October 12", items: [{ title: "Total Wine", done: false, dueLabel: null, assignees: [] }] }],
+      rehearsal: [{ timeLabel: "1:00 PM", title: "Airbnb check in", location: null, notes: [] }],
+      timeline: [{ timeLabel: "3:30 PM", title: "Ceremony", location: null, notes: [] }],
+    } as typeof doc,
+    sectionsForPreset("binder"),
+  );
+  assert.deepEqual(order.slice(0, 3), ["tasks", "rehearsal", "timeline"]);
+  // A packet with no open work keeps its own order.
+  assert.deepEqual(printableSections(doc, ["overview", "timeline"]).indexOf("overview") <= 0, true);
+});
