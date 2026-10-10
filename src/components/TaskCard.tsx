@@ -37,20 +37,28 @@ export function TaskCard({
       } ${isOrg ? (isWeek ? "bg-[#f7f1e4]/80" : "bg-[#e7f0ec]/80") : ""}`}
     >
       <div className="min-w-0 flex-1">
-        <Link href={href} className="block">
-          {isOrg ? (
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
-              Shared · {isWeek ? "7 days out" : "1 day out"}
+        <Link href={href} className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            {isOrg ? (
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
+                Shared · {isWeek ? "7 days out" : "1 day out"}
+              </p>
+            ) : null}
+            <p className={`text-[15px] font-semibold leading-snug ${done ? "line-through" : ""}`}>
+              {task.title}
             </p>
-          ) : null}
-          <p className={`text-[15px] font-semibold leading-snug ${done ? "line-through" : ""}`}>
-            {task.title}
-          </p>
-          {preview ? (
-            <p className="mt-0.5 line-clamp-1 text-sm leading-snug text-muted">{preview}</p>
-          ) : null}
+          </div>
+          <span className="shrink-0 text-lg leading-snug text-muted" aria-hidden>
+            ›
+          </span>
         </Link>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+        {/* The preview uses the row's full width, so two lines show what is going on. */}
+        {preview ? (
+          <Link href={href} className="mt-0.5 block">
+            <p className="line-clamp-2 text-sm leading-snug text-muted">{preview}</p>
+          </Link>
+        ) : null}
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
           {assignees.length > 0 ? (
             <span className="inline-flex flex-wrap gap-x-1">
               {assignees.map((row, index) => (
@@ -110,14 +118,11 @@ export function TaskCard({
               {label}
             </span>
           ) : null}
+          {/* A small control at the end of the details row, so it no longer takes a column from the text. */}
+          <span className="ml-auto">
+            <EscalatePriorityButton taskId={task.id} escalated={escalated} compact />
+          </span>
         </div>
-      </div>
-
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        <Link href={href} className="text-lg text-muted" aria-hidden>
-          ›
-        </Link>
-        <EscalatePriorityButton taskId={task.id} escalated={escalated} compact />
       </div>
     </article>
   );
