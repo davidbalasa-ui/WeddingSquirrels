@@ -114,8 +114,13 @@ test.describe("Packets printed to Letter PDF", () => {
         );
       expect(missing, `${packet.title}: lines on screen but not in the PDF`).toEqual([]);
 
-      // A schedule row's time and title stay together on one page.
-      const split = rows.filter((row) => row.time && row.title && !pages.some((text) => text.includes(flat(row.time)) && text.includes(flat(row.title))));
+      // A schedule row's time and title stay together on one page (the end time prints under the start).
+      const split = rows.filter(
+        (row) =>
+          row.time &&
+          row.title &&
+          !pages.some((text) => text.includes(flat(row.time.split(" – ")[0]!)) && text.includes(flat(row.title))),
+      );
       expect(split, `${packet.title}: rows split across pages or missing`).toEqual([]);
 
       // No heading as the last thing on a page.
