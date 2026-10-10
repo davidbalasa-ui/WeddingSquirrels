@@ -234,7 +234,9 @@ export function InboxRow({
 
       <button
         type="button"
-        aria-label={done ? "Mark not done" : item.kind === "buy" ? "Mark purchased" : "Mark done"}
+        aria-label={
+          item.declined ? "Reopen" : done ? "Mark not done" : item.kind === "buy" ? "Mark purchased" : "Mark done"
+        }
         disabled={pending || askCheckboxDisabled}
         className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-line text-[11px] leading-none"
         style={{
@@ -427,7 +429,20 @@ export function InboxRow({
             ) : null}
 
             {askPerms?.edit ? (
-              <form action={saveRequest} className="mt-2 flex flex-col gap-2">
+              <form
+                action={saveRequest}
+                className="mt-2 flex flex-col gap-2"
+                onSubmit={(event) => {
+                  // The server ignores a blank title; say so instead of quietly resetting the form.
+                  const title = String(new FormData(event.currentTarget).get("title") || "");
+                  if (!title.trim()) {
+                    event.preventDefault();
+                    setMutationError("Add a title.");
+                    return;
+                  }
+                  setMutationError(null);
+                }}
+              >
                 <input type="hidden" name="id" value={item.sourceId} />
                 <input
                   name="title"
