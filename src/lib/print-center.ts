@@ -814,7 +814,8 @@ export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId):
     case "guests":
       return doc.households.length > 0;
     case "stay":
-      return doc.stay.length > 0;
+      // The mini moon always has something to say, even before the Airbnb rooms are set.
+      return true;
     case "meals":
       return doc.meals.length > 0 || doc.shopping.length > 0;
     case "tasks":

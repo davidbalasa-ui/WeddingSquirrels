@@ -27,7 +27,7 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
   const phonesToAdd = full.phones.filter((row) => row.status === "add");
   const phonesDiffer = full.phones.filter((row) => row.status === "differs");
   const phonesNotFound = full.phones.filter((row) => row.status === "not_found");
-  const nothingToApply = taskCorrectionsPlanIsEmpty(plan) && phonesToAdd.length === 0;
+  const nothingToApply = taskCorrectionsPlanIsEmpty(plan) && phonesToAdd.length === 0 && full.contacts.length === 0 && full.dayJobs.length === 0;
   if (state === "done" || (nothingToApply && phonesDiffer.length === 0)) return null;
 
   async function pickPhone(label: string) {
@@ -91,8 +91,10 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
     <section className="card mb-5 px-3 py-3" data-testid="task-corrections-card">
       <p className="text-sm font-semibold">Task update ready</p>
       <p className="mt-0.5 text-xs text-muted">
-        From your printout: {count(plan.inserts.length, "new dated job")}, {count(plan.marks.length, "item")} marked done
-        {phonesToAdd.length ? `, ${count(phonesToAdd.length, "phone number")} added` : ""}. Nothing is reworded or deleted.
+        From your printout: {count(plan.inserts.length, "new job")}, {count(plan.marks.length, "item")} marked done
+        {phonesToAdd.length ? `, ${count(phonesToAdd.length, "phone number")} added` : ""}
+        {full.contacts.length ? `, ${count(full.contacts.length, "contact")} added` : ""}
+        {full.dayJobs.length ? `, ${count(full.dayJobs.length, "Day-of job")} added` : ""}. Nothing is reworded or deleted.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" className="btn-primary min-h-11 px-4 py-2 text-sm" onClick={() => void apply()} disabled={state === "working"}>
@@ -113,6 +115,30 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
                   <li key={row.title}>
                     {row.due ? `${dayLabel(row.due)} · ` : ""}{row.title}
                     {row.summary ? <span className="text-muted"> ({row.summary})</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {full.dayJobs.length ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Day-of jobs from your schedule</p>
+              <ul className="mt-1 list-none space-y-0.5 p-0">
+                {full.dayJobs.map((row) => (
+                  <li key={row.title}>
+                    {row.title} <span className="text-muted">({row.notes.split(" · ")[0]})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {full.contacts.length ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">New contacts</p>
+              <ul className="mt-1 list-none space-y-0.5 p-0">
+                {full.contacts.map((row) => (
+                  <li key={row.name}>
+                    {row.name} · {row.phone} <span className="text-muted">({row.directoryLabel})</span>
                   </li>
                 ))}
               </ul>

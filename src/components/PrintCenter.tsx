@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { MINI_MOON } from "@/lib/mini-moon";
 import { packetSchedule, type PacketScheduleRow, type ScheduleAudience } from "@/lib/print-packets";
 import {
   FULL_BINDER_SECTIONS,
@@ -474,6 +475,14 @@ function PrintSection({
               ))}
             </div>
           ))}
+          <div className="binder-block" data-testid="print-mini-moon">
+            <h3>{MINI_MOON.title}</h3>
+            {MINI_MOON.lines.map((line) => (
+              <p key={line} className="binder-note">
+                {line}
+              </p>
+            ))}
+          </div>
         </section>
       );
     case "meals":

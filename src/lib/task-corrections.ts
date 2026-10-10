@@ -22,7 +22,7 @@ export const NEW_TASKS: NewTaskDef[] = [
   { title: "World Market: Look at hot cocoa options and decide whether to serve it", due: "2026-10-13" },
   {
     title: "If you choose cocoa: Rent or buy something to heat/serve the milk or water",
-    summary: "You also mentioned possibly using carafes for milk.",
+    summary: "Maybe carafes for the milk.",
     due: "2026-10-13",
   },
   { title: "A Perfect Fit Alterations: Pick up Haley’s dress with the bustle completed", due: "2026-10-13" },
@@ -32,19 +32,19 @@ export const NEW_TASKS: NewTaskDef[] = [
   {
     title: "Pick up the marriage license from the courthouse",
     like: /marriage licen[cs]e/i,
-    summary: "Monday or Tuesday; you weren’t sure which.",
+    summary: "Not sure if Monday or Tuesday.",
   },
   { title: "Get someone to deliver my vehicle to Victoria Resort", like: /\b(vehicle|car|truck)\b.*victoria|victoria.*\b(vehicle|car|truck)\b/i },
   { title: "Finish building the table decor and pack it up", like: /table d[eé]cor/i },
   {
     title: "Print the instruction sheets for the head table, the favors and the gift table",
     like: /instruction sheet/i,
-    summary: "Pack them up together with the tables.",
+    summary: "All of this has to be packed up together.",
   },
   {
     title: "Pack up the tables together: entryway table, gift box table, favors table",
     like: /entryway table|gift box table|favou?rs? table/i,
-    summary: "You think you’re missing a table.",
+    summary: "I think I’m missing a table.",
   },
   { title: "Pack for the mini moon", like: /\bpack\b.*mini ?moon/i },
   { title: "Pack for the wedding", like: /^pack (for )?(the )?wedding$/i },
