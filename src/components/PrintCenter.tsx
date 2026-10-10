@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { MINI_MOON } from "@/lib/mini-moon";
-import { packetSchedule, type PacketScheduleRow, type ScheduleAudience } from "@/lib/print-packets";
+import { momentPrintRow, packetSchedule, type PacketScheduleRow, type ScheduleAudience } from "@/lib/print-packets";
 import {
   FULL_BINDER_SECTIONS,
   PRINT_PACKETS,
@@ -188,18 +188,14 @@ function PrintSection({
       return (
         <section className="binder-section">
           <h2>Rehearsal dinner + rehearsal</h2>
-          <TimelineList rows={document.rehearsal} />
+          <ScheduleRows rows={document.moments.rehearsal.map(momentPrintRow)} />
         </section>
       );
     case "timeline":
       return (
         <section className="binder-section">
           <h2>Wedding-day run sheet</h2>
-          {document.runSheet.length ? (
-            <RunSheet phases={forBride ? document.brideRunSheet : document.runSheet} />
-          ) : (
-            <TimelineList rows={document.timeline} />
-          )}
+          <ScheduleRows rows={(forBride ? document.brideMoments : document.moments.wedding).map(momentPrintRow)} />
         </section>
       );
     case "mc":
@@ -783,41 +779,6 @@ function RefBlock({ label, lines }: { label: string; lines: Array<string | null 
   );
 }
 
-function RunSheet({ phases }: { phases: PrintCenterDocument["runSheet"] }) {
-  return (
-    <div className="binder-run">
-      {phases.map((phase) => (
-        <div
-          key={phase.title}
-          // A moment with nothing under it (the bride's copy of the getaway) stays with the next one.
-          className={phase.events.length || phase.notes.length ? "binder-block" : "binder-block binder-block-lone"}
-        >
-          <h3>{phase.title}</h3>
-          {phase.location ? <p className="binder-note">{phase.location}</p> : null}
-          {phase.notes.map((line) => (
-            <p key={line} className="binder-note">
-              {line}
-            </p>
-          ))}
-          <ol className="binder-timeline">
-            {phase.events.map((event, index) => (
-              <li key={`${event.timeLabel}-${event.title}-${index}`} className="binder-card">
-                {event.timeLabel ? <p className="binder-time">{event.timeLabel}</p> : null}
-                <p className="binder-item-title">{event.title}</p>
-                {event.notes.map((line) => (
-                  <p key={line} className="binder-note">
-                    {line}
-                  </p>
-                ))}
-              </li>
-            ))}
-          </ol>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function BinderSunsetRule() {
   return (
     <div className="binder-sunset" aria-hidden="true">
@@ -830,7 +791,7 @@ function BinderSunsetRule() {
   );
 }
 
-function TimelineList({ rows }: { rows: PrintCenterDocument["timeline"] }) {
+function TimelineList({ rows }: { rows: PrintCenterDocument["setupMoments"] }) {
   return (
     <ol className="binder-timeline">
       {rows.map((row, index) => (
