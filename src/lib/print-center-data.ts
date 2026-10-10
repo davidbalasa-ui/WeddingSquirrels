@@ -315,6 +315,10 @@ export async function loadPrintCenterDocument(
   return {
     coupleNames,
     weddingDateLabel,
+    dayLabels: {
+      rehearsal: settings?.weddingDate ? printDay(settings.weddingDate, timezone, -1) : null,
+      wedding: settings?.weddingDate ? printDay(settings.weddingDate, timezone, 0) : null,
+    },
     timezone,
     mcNames: mcPeopleFromDirectory(people),
     quickReference: buildQuickReference({

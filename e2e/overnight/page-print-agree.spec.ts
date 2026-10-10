@@ -62,8 +62,15 @@ test("every schedule line a packet prints is a line of the same moment on the pa
       }
     }
     // The 8:20 getaway moment prints the page's own lines (the bride's copy keeps only its time and title).
+    // The master packet lists its "Open:" line in Open work instead, so its run sheet leaves that line off.
     const printedGetaway = rows.find((row) => row.title === getaway.title);
-    if (packet.id === "binder" || packet.id === "packet") expect(printedGetaway?.lines, packet.id).toEqual(getaway.lines);
+    if (packet.id === "packet") expect(printedGetaway?.lines, packet.id).toEqual(getaway.lines);
+    if (packet.id === "binder") {
+      expect(printedGetaway?.lines, packet.id).toEqual(getaway.lines.filter((line) => !line.startsWith("Open: ")));
+      for (const open of getaway.lines.filter((line) => line.startsWith("Open: "))) {
+        await expect(page.getByTestId("print-section-tasks")).toContainText(open.replace("Open: ", ""));
+      }
+    }
     if (packet.id === "bride") expect(printedGetaway?.lines, packet.id).toEqual([]);
   }
 });

@@ -70,7 +70,7 @@ test("an edited moment shows the new text on every page and packet, and nowhere 
   }
 
   expect(stale, "pages or packets still showing the old wording").toEqual([]);
-  // The line names the Best Man and Maid of Honor, so it belongs to the party, the binder,
+  // The line names the Best Man and Maid of Honor, so it belongs to the party, the master packet,
   // the bride's copy and the coordinator packet; MC, photographer and parents do not get it.
   expect(seen).toEqual(
     expect.arrayContaining([
@@ -78,7 +78,7 @@ test("an edited moment shows the new text on every page and packet, and nowhere 
       "Day-of page",
       "Day-of page at 4:01 PM on the day",
       "offline data",
-      "packet Groom's Binder",
+      "packet Master Packet",
       "packet Bride's Packet",
       "packet Avalon & Wendy",
       "packet Wedding Party Packet",

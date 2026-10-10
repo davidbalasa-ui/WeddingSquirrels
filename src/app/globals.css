@@ -564,6 +564,19 @@ a {
     break-after: avoid;
   }
 
+  /* Master packet: each chapter opens a page; the sections inside it run on together. */
+  .binder-doc--master .binder-section {
+    break-before: auto;
+  }
+
+  .binder-doc--master .binder-chapter {
+    break-before: page;
+  }
+
+  .binder-doc--master .binder-cover {
+    break-after: auto;
+  }
+
   /* Wedding Day page printed straight from the page: same ink and rules as the binder. */
   .timeline-print-page .plan-chapter-header,
   .timeline-print-page .day-tabs {
@@ -1013,6 +1026,129 @@ a {
   line-height: 1.3;
 }
 
+/* Master packet (David, 2026-10-10): one packet with everything, each thing once. */
+.binder-doc--master .binder-cover {
+  padding: 3.5rem 0 0;
+}
+
+.binder-doc--master .binder-cover h1 {
+  font-size: 3.4rem;
+}
+
+.binder-doc--master .binder-cover .binder-sunset {
+  width: 12rem;
+  margin-top: 1.5rem;
+}
+
+.binder-cover-places {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 2.25rem 0 0;
+  padding: 1.1rem 0;
+  border-top: 1px solid var(--print-line);
+  border-bottom: 1px solid var(--print-line);
+}
+
+.binder-contents {
+  margin-top: 2.25rem;
+}
+
+.binder-contents-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--print-burgundy);
+}
+
+.binder-contents ol {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+}
+
+.binder-contents li {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  align-items: baseline;
+  padding: 0.42rem 0;
+  border-bottom: 1px solid var(--print-hairline);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.binder-contents-no {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.05rem;
+  color: var(--print-burgundy);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The chapter number heads the first section of each chapter. */
+.binder-chapter::before {
+  content: attr(data-chapter);
+  display: block;
+  padding-top: 1.75rem;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.12em;
+  color: var(--print-section-rule);
+}
+
+.binder-doc--master .binder-chapter > .binder-section:first-child {
+  padding-top: 0.35rem;
+}
+
+/* A section running on under another starts after a clear gap, not a new page. */
+.binder-doc--master .binder-chapter > .binder-section + .binder-section {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--print-line);
+}
+
+.binder-doc--master .binder-chapter:nth-of-type(5n + 1) {
+  --print-section-rule: var(--print-amber);
+}
+.binder-doc--master .binder-chapter:nth-of-type(5n + 2) {
+  --print-section-rule: var(--print-terracotta);
+}
+.binder-doc--master .binder-chapter:nth-of-type(5n + 3) {
+  --print-section-rule: var(--print-rose);
+}
+.binder-doc--master .binder-chapter:nth-of-type(5n + 4) {
+  --print-section-rule: var(--print-mauve);
+}
+.binder-doc--master .binder-chapter:nth-of-type(5n + 5) {
+  --print-section-rule: var(--print-burgundy);
+}
+
+.binder-doc--master .binder-chapter .binder-section {
+  --print-section-rule: inherit;
+}
+
+.binder-doc--master .binder-contacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1.5rem;
+}
+
+.binder-doc--master .binder-contacts .binder-card {
+  padding: 0.45rem 0;
+}
+
+.binder-day {
+  margin-bottom: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--print-burgundy);
+}
+
+.binder-shared {
+  margin: -0.2rem 0 0.3rem;
+  font-size: 0.85rem;
+}
+
 /* "Time: what happens" — one row per moment, time in the margin. */
 .binder-schedule {
   list-style: none;
@@ -1083,7 +1219,8 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .binder-doc--compact .binder-contacts {
+  .binder-doc--compact .binder-contacts,
+  .binder-doc--master .binder-contacts {
     grid-template-columns: 1fr;
   }
 
@@ -1091,6 +1228,14 @@ a {
   .binder-shot-grid {
     grid-template-columns: 1fr;
     columns: 1;
+  }
+
+  .binder-doc--master .binder-cover {
+    padding-top: 1.5rem;
+  }
+
+  .binder-doc--master .binder-cover h1 {
+    font-size: 2.5rem;
   }
 }
 
