@@ -107,7 +107,10 @@ export function InboxAddBar({
                   ? "border-[var(--accent)] text-[var(--accent)]"
                   : "border-transparent text-muted"
               }`}
-              onClick={() => setKind(k)}
+              onClick={() => {
+                setKind(k);
+                setError(null);
+              }}
             >
               {k === "ask" ? "Ask" : k === "task" ? "Task" : "Buy"}
             </button>
@@ -123,6 +126,15 @@ export function InboxAddBar({
               event.preventDefault();
               const form = event.currentTarget;
               const fd = new FormData(form);
+              // The server drops a blank title silently; say so instead of closing the form.
+              if (!String(fd.get("title") || "").trim()) {
+                setError("Add a short title.");
+                return;
+              }
+              if (!String(fd.get("recipientAccountId") || "").trim()) {
+                setError("Choose who to ask.");
+                return;
+              }
               startTransition(async () => {
                 setError(null);
                 await createRequest(fd);
@@ -165,6 +177,7 @@ export function InboxAddBar({
                 </select>
               </label>
             ) : null}
+            {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
             <ComposeActions pending={pending} onCancel={() => setOpen(false)} submitLabel="Send ask" />
           </form>
         ) : null}
@@ -213,6 +226,10 @@ export function InboxAddBar({
               const fd = new FormData(form);
               const name = String(fd.get("name") || "");
               const ownerId = String(fd.get("ownerId") || "");
+              if (!name.trim()) {
+                setError("Add what to buy.");
+                return;
+              }
               startTransition(async () => {
                 setError(null);
                 await createShoppingItemFromInbox(name, ownerId || null);
@@ -233,6 +250,7 @@ export function InboxAddBar({
                 <option value="haley">Haley</option>
               </select>
             </label>
+            {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
             <ComposeActions pending={pending} onCancel={() => setOpen(false)} submitLabel="Add to list" />
           </form>
         ) : null}
