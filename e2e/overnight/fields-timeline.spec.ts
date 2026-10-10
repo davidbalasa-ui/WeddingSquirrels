@@ -233,8 +233,7 @@ test.describe("Wedding Day editor · start and end time boxes", () => {
     await page.keyboard.press("Enter");
     await expectAllSaved(page);
     expect((await saved("end-clear")).endAt).toBeNull();
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await openTimelineEditor(page);
     await expect(card.getByLabel("End time hour")).toHaveValue("");
     // Typing it back works and it reads after the start.
     await tap(page, card.getByLabel("End time hour"));
@@ -337,8 +336,7 @@ test.describe("Wedding Day editor · notes and location", () => {
     await location.blur();
     await expectAllSaved(page);
     expect((await saved("location")).notes).toBe(`${PREFIX} location\nTest line`);
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await openTimelineEditor(page);
     await expect(card.getByPlaceholder("Where this happens")).toHaveValue("");
     await guards.assertClean();
   });

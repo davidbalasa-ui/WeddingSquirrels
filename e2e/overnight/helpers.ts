@@ -111,8 +111,11 @@ export async function blockByTitle(prisma: PrismaClient, title: string, schedule
 
 export async function openTimelineEditor(page: Page) {
   await page.goto("/plan/timeline");
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
-  await expect(page.getByRole("button", { name: "+ Add moment" })).toBeVisible();
+  // A tap that lands before the page is live (Safari after a reload) does nothing; tap again.
+  await expect(async () => {
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await expect(page.getByRole("button", { name: "+ Add moment" })).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
 }
 
 export function editCard(page: Page, blockId: string): Locator {

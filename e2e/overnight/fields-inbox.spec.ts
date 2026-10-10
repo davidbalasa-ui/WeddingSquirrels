@@ -242,6 +242,8 @@ test.describe("/messages", () => {
     await expect.poll(async () => (await prisma.requestMessage.findFirst({ where: { requestId: request.id } }))?.body).toBe(
       "line one\nline two 🎉 <b>x</b>",
     );
+    // Firefox aborts a reload that starts while the save's own refresh is still in flight.
+    await page.waitForLoadState("networkidle");
     await page.reload();
     await expect(page.locator(".chat-bubble")).toContainText("line two 🎉 <b>x</b>");
     await expectNoSidewaysScroll(page);

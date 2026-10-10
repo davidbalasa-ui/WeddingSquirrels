@@ -351,6 +351,8 @@ test.describe("calendar", () => {
     await page.getByRole("button", { name: "Save event" }).click();
     await expect(page.getByRole("button", { name: "Save event" })).toHaveCount(0);
     // Read the card after a full reload so the check is about what was saved.
+    // Firefox aborts a reload that starts while the save's own refresh is still in flight.
+    await page.waitForLoadState("networkidle");
     await page.reload();
     await page.getByRole("button", { name: new RegExp(`^${target.getUTCDate()}\\b`) }).click();
     const article = page.locator("article").first();
