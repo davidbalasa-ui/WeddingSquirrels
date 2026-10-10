@@ -128,5 +128,13 @@ test("the Precious Peony check is ticked done with the tracking number from his 
   // Not on the list yet: this tap adds it already done, with the note.
   const fresh = planTaskCorrections([]).inserts.find((row) => row.title === check.title);
   assert.deepEqual(fresh, { title: check.title, summary: NOTE_FILLS[0]!.summary, due: "2026-10-10", done: true });
-  assert.deepEqual(DONE_JOBS, [check.title]);
+  assert.ok(DONE_JOBS.includes(check.title));
+});
+
+test("the bank and post office job is ticked done, only while it reads as card 3 added it", () => {
+  const job = { id: "bp", title: "Bank and post office before the post office closes at noon", status: "todo", parentId: null, dueDate: dueDateFor("2026-10-10") };
+  assert.deepEqual(planTaskCorrections([job]).marks, [{ id: "bp", card: null, title: job.title }]);
+  assert.equal(planTaskCorrections([{ ...job, title: "Bank + post office" }]).marks.some((row) => row.id === "bp"), false);
+  assert.equal(planTaskCorrections([{ ...job, status: "done" }]).marks.length, 0);
+  assert.equal(planTaskCorrections([]).inserts.find((row) => row.title === job.title)?.done, true);
 });

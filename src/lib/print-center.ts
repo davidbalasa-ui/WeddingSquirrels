@@ -1,3 +1,4 @@
+import { weddingPlacesFromPlan } from "@/lib/wedding-venue";
 import { parseBlockNotes } from "@/lib/day-of-now";
 import { compareParsedTimes, parseDayOfTime, parseTimelineSchedule } from "@/lib/day-of-time";
 import { buildMoneySummary, contractPaidTotal, type BudgetContractSnapshot } from "@/lib/money";
@@ -853,6 +854,9 @@ export function triggerBrowserPrint(api: { print: () => void } = globalThis): vo
   api.print();
 }
 
+/** The places with no timeline to read: the same source the quick reference uses. */
+const EMPTY_PLACES = weddingPlacesFromPlan([]);
+
 export function emptyPrintDocument(): PrintCenterDocument {
   return {
     coupleNames: "David & Haley",
@@ -863,12 +867,12 @@ export function emptyPrintDocument(): PrintCenterDocument {
       coupleNames: "David & Haley",
       weddingDateLabel: "Friday, October 16, 2026",
       ceremonyTime: "3:30 PM",
-      venueName: "Black Sheep Shelter",
-      venueAddress: ["342 62nd St", "South Haven, MI 49090"],
-      airbnbName: "Airbnb",
-      airbnbAddress: ["10268 51st St", "Grand Junction, MI 49056"],
-      rehearsalDinnerName: "Hawkshead",
-      rehearsalDinnerAddress: ["523 Hawks Nest Dr", "South Haven, MI"],
+      venueName: EMPTY_PLACES.venue.name,
+      venueAddress: EMPTY_PLACES.venue.address,
+      airbnbName: EMPTY_PLACES.lodging.name,
+      airbnbAddress: EMPTY_PLACES.lodging.address,
+      rehearsalDinnerName: EMPTY_PLACES.rehearsalDinner.name,
+      rehearsalDinnerAddress: EMPTY_PLACES.rehearsalDinner.address,
       coordinatorName: "Avalon Green",
       coordinatorPhone: null,
       mistressOfCeremonies: null,
