@@ -351,8 +351,9 @@ test("coordinator print keeps operational scope and drops architecture notes", (
   );
   assert.match(
     rows.find((row) => /Marriage license/i.test(row.title))?.notes.join(" ") ?? "",
-    /Time TBD/,
+    /Signing is at 4:00 PM, immediately after the recessional/,
   );
+  assert.equal(/Time TBD/.test(blob), false);
 });
 
 test("Kurt prints as MC even without a directory label", () => {

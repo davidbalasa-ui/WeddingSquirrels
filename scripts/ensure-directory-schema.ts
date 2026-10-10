@@ -43,6 +43,11 @@ async function main() {
     `UPDATE "Contact" SET "directoryList" = 'vendors' WHERE "directoryList" = 'day-of'`,
   );
 
+  // Apply cards' record of changes already made (src/lib/auto-apply.ts creates the same table).
+  await prisma.$executeRawUnsafe(
+    `CREATE TABLE IF NOT EXISTS "AppliedCorrection" ("key" TEXT NOT NULL PRIMARY KEY, "appliedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+  );
+
   console.log("People directory schema columns ensured.");
 }
 

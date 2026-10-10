@@ -22,6 +22,18 @@ function assertLocal(url: string) {
   }
 }
 
+/**
+ * The suite's pages start as if this build's changes were already applied, so the
+ * "Applied just now" pass does not run under every spec; auto-apply.spec.ts clears it.
+ * Every context that signs in as David needs it, or his first page load applies the cards.
+ */
+export const AUTO_APPLIED_ORIGINS = [
+  {
+    origin: process.env.OVERNIGHT_BASE_URL || `http://127.0.0.1:${process.env.OVERNIGHT_PORT || 3200}`,
+    localStorage: [{ name: "ws-auto-applied:local", value: "1" }],
+  },
+];
+
 export function overnightPrisma(): PrismaClient {
   assertLocal(OVERNIGHT_DATABASE_URL);
   return new PrismaClient({ datasourceUrl: OVERNIGHT_DATABASE_URL });
@@ -61,6 +73,8 @@ export async function resetOvernightData(prisma: PrismaClient, options: ResetOpt
   const reconciled = options.reconciled ?? true;
 
   await prisma.task.updateMany({ where: { timelineBlockId: { not: null } }, data: { timelineBlockId: null } }).catch(() => undefined);
+  // Nothing has been applied on the fresh copy, so the cards' changes can apply again.
+  await prisma.$executeRawUnsafe('DELETE FROM "AppliedCorrection"').catch(() => undefined);
   await prisma.timelineBlock.deleteMany({});
   await prisma.dayAssignment.deleteMany({});
   await prisma.contact.deleteMany({});
@@ -157,12 +171,14 @@ if (process.argv[1] && /db\.ts$/.test(process.argv[1])) {
  * snapshot first and puts the task list back exactly when it is done.
  */
 export async function snapshotTasks(prisma: PrismaClient): Promise<() => Promise<void>> {
-  const before = await prisma.task.findMany({ select: { id: true, status: true, completedAt: true } });
+  const before = await prisma.task.findMany({ select: { id: true, status: true, completedAt: true, summary: true, dueDate: true } });
   return async () => {
     const keep = before.map((row) => row.id);
     await prisma.task.deleteMany({ where: { id: { notIn: keep } } });
-    for (const row of before) {
-      await prisma.task.update({ where: { id: row.id }, data: { status: row.status, completedAt: row.completedAt } });
+    for (const { id, ...data } of before) {
+      await prisma.task.update({ where: { id }, data });
     }
+    // The tasks are back to before any card applied, so its changes are no longer on record.
+    await prisma.$executeRawUnsafe('DELETE FROM "AppliedCorrection"').catch(() => undefined);
   };
 }

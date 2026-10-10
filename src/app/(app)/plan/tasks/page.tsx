@@ -1,7 +1,7 @@
 import { TaskCard } from "@/components/TaskCard";
 import { PlanAddTask } from "@/components/PlanAddTask";
 import { TaskCorrectionsCard } from "@/components/TaskCorrectionsCard";
-import { loadPrintoutCorrectionsPlan } from "@/lib/printout-corrections-data";
+import { loadPendingTaskCorrections } from "@/lib/auto-apply";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { PlanTaskFilters } from "@/components/PlanTaskFilters";
 import {
@@ -37,7 +37,7 @@ export default async function PlanTasksPage({
   const [tasks, orgCards, correctionsPlan] = await Promise.all([
     listTasks(session, { showDone }),
     listOrgCards(session, { showDone }),
-    session.isMaster ? loadPrintoutCorrectionsPlan() : Promise.resolve(null),
+    session.isMaster ? loadPendingTaskCorrections() : Promise.resolve(null),
   ]);
 
   const visibleTasks = filterTasksForPlanView(tasks, view, session, now);

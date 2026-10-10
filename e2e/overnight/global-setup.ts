@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { SignJWT } from "jose";
 import { config as loadEnv } from "dotenv";
-import { overnightPrisma, resetOvernightData } from "./db";
+import { AUTO_APPLIED_ORIGINS, overnightPrisma, resetOvernightData } from "./db";
 
 loadEnv();
 
@@ -26,7 +26,7 @@ async function storageState(accountId: string) {
         expires: Math.floor(Date.now() / 1000) + 8 * 60 * 60,
       },
     ],
-    origins: [] as [],
+    origins: AUTO_APPLIED_ORIGINS,
   };
 }
 

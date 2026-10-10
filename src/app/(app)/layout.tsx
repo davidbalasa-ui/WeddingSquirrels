@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 import { AskNotifier } from "@/components/AskNotifier";
+import { AutoApplyCorrections } from "@/components/AutoApplyCorrections";
 import { AutoOfflineSync } from "@/components/AutoOfflineSync";
 import { PreviewTimeControl } from "@/components/PreviewTimeControl";
 import { ScrollMemory } from "@/components/ScrollMemory";
 import { V2BottomNav } from "@/components/V2BottomNav";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { prisma } from "@/lib/db";
+import { timelineEditable } from "@/lib/access";
 import { canShowPreviewHarness } from "@/lib/preview-clock";
 import { unreadRequestsWhere } from "@/lib/requests";
 import { requirePageSession } from "@/lib/session";
@@ -50,7 +52,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           />
         </Suspense>
       ) : null}
-      <main id="main-content">{children}</main>
+      <main id="main-content">
+        {session.isMaster && timelineEditable(session) ? (
+          <AutoApplyCorrections buildId={process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_DEPLOYMENT_ID || "local"} />
+        ) : null}
+        {children}
+      </main>
       <Suspense fallback={null}>
         <V2BottomNav session={session} unreadRequests={unreadRequests} />
       </Suspense>

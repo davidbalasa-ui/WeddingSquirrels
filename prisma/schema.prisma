@@ -491,3 +491,9 @@ model PlaybookItem {
 
   @@index([kind, sortOrder])
 }
+
+/// One row per Apply-card change already made on this account, so it is never made again (src/lib/applied-corrections.ts).
+model AppliedCorrection {
+  key       String   @id
+  appliedAt DateTime @default(now())
+}

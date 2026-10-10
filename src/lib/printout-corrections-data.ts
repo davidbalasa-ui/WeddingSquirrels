@@ -1,8 +1,10 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { EnrichmentSnapshot } from "@/lib/contact-enrichment";
 import { planPhoneCorrections, type PhoneCorrectionRow, type PhoneWrite } from "@/lib/phone-corrections";
 import { planDayJobRewords, planDayJobs, type DayJobDef, type DayJobReword } from "@/lib/day-job-corrections";
 import { MINI_MOON_CONTACT } from "@/lib/mini-moon";
+import { planPlaybookRewords, type PlaybookReword } from "@/lib/playbook-corrections";
 import { planTaskCorrections, type TaskCorrectionsPlan } from "@/lib/task-corrections";
 
 export type NewContactRow = { name: string; phone: string; directoryLabel: string };
@@ -16,18 +18,22 @@ export type PrintoutCorrectionsPlan = {
   dayJobs: DayJobDef[];
   /** Day-of jobs this card added that still read as it first wrote them, with corrected words. */
   dayJobRewords: DayJobReword[];
+  /** Coordinator scope rows the app wrote that still read as it wrote them, with corrected words. */
+  playbookRewords: PlaybookReword[];
 };
 
-async function loadPeopleSnapshot(): Promise<EnrichmentSnapshot> {
+type Db = Prisma.TransactionClient | typeof prisma;
+
+async function loadPeopleSnapshot(db: Db): Promise<EnrichmentSnapshot> {
   const [persons, guestPeople, guests, contacts] = await Promise.all([
-    prisma.person.findMany({ select: { id: true, name: true, directoryList: true, isDayOfContact: true } }),
-    prisma.guestPerson.findMany({
+    db.person.findMany({ select: { id: true, name: true, directoryList: true, isDayOfContact: true } }),
+    db.guestPerson.findMany({
       select: { id: true, name: true, personId: true, rsvpStatus: true, photoData: true, guestId: true },
     }),
-    prisma.guest.findMany({
+    db.guest.findMany({
       select: { id: true, phone: true, street: true, city: true, state: true, zip: true, rsvpStatus: true },
     }),
-    prisma.contact.findMany({
+    db.contact.findMany({
       select: {
         id: true,
         name: true,
@@ -43,14 +49,15 @@ async function loadPeopleSnapshot(): Promise<EnrichmentSnapshot> {
   return { persons, guestPeople, guests, contacts };
 }
 
-export async function loadPrintoutCorrectionsPlan(): Promise<PrintoutCorrectionsPlan> {
-  const [tasks, snapshot, assignments] = await Promise.all([
-    prisma.task.findMany({ select: { id: true, title: true, status: true, parentId: true, dueDate: true, summary: true } }),
-    loadPeopleSnapshot(),
-    prisma.dayAssignment.findMany({ select: { id: true, title: true, notes: true } }),
+export async function loadPrintoutCorrectionsPlan(db: Db = prisma): Promise<PrintoutCorrectionsPlan> {
+  const [tasks, snapshot, assignments, playbook] = await Promise.all([
+    db.task.findMany({ select: { id: true, title: true, status: true, parentId: true, dueDate: true, summary: true } }),
+    loadPeopleSnapshot(db),
+    db.dayAssignment.findMany({ select: { id: true, title: true, notes: true } }),
+    db.playbookItem.findMany({ select: { id: true, sourceKey: true, title: true, notes: true } }),
   ]);
   const contacts = snapshot.contacts.some((row) => /victoria resort/i.test(row.name)) ? [] : [{ ...MINI_MOON_CONTACT }];
-  return { tasks: planTaskCorrections(tasks), phones: planPhoneCorrections(snapshot), contacts, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments) };
+  return { tasks: planTaskCorrections(tasks), phones: planPhoneCorrections(snapshot), contacts, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments), playbookRewords: planPlaybookRewords(playbook) };
 }
 
 /** One phone write, inside the caller's transaction. Only ever fills or (on David's pick) replaces one number. */
