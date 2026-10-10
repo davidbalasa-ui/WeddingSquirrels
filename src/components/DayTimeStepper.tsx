@@ -92,10 +92,16 @@ function ClockFace({
   }
 
   function chooseMeridiem(next: ClockMeridiem) {
-    finishIfIdle({
-      ...partsRef.current,
-      meridiem: next,
-    });
+    const chosen = { ...partsRef.current, meridiem: next };
+    partsRef.current = chosen;
+    setParts(chosen);
+  }
+
+  // The open picker counts as focus here too: while it is up, nothing commits and the
+  // row stays where it is. Closing it (a pick or a cancel) commits once, like a blur.
+  function handlePickerOpenChange(open: boolean) {
+    if (open) handleFocus();
+    else handleBlur();
   }
 
   return (
@@ -154,7 +160,7 @@ function ClockFace({
         value={parts.meridiem}
         ariaLabel={ariaLabel}
         onChoose={chooseMeridiem}
-        onOpenChange={onFocusChange}
+        onOpenChange={handlePickerOpenChange}
       />
     </div>
   );
@@ -172,6 +178,12 @@ function MeridiemPicker({
   onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
+  /**
+   * True while the gesture that opened the picker (its pointerdown) still owes a click.
+   * That click reaches the AM/PM button, or, on a phone, the cancel overlay that has
+   * appeared under the finger by then; either way it must not close what it just opened.
+   */
+  const gestureClickRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -205,7 +217,24 @@ function MeridiemPicker({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={`${ariaLabel} ${value}. Tap to choose AM or PM`}
-        onClick={() => (open ? close() : openPicker())}
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          gestureClickRef.current = false;
+          if (open) return;
+          // Open before the hour or minute box loses focus: its blur would otherwise
+          // commit the typed time, re-sort the rows, and move this button out from
+          // under the tap, which then lands on nothing or on another moment.
+          gestureClickRef.current = true;
+          openPicker();
+        }}
+        onClick={() => {
+          if (gestureClickRef.current) {
+            gestureClickRef.current = false;
+            return;
+          }
+          if (open) close();
+          else openPicker();
+        }}
         className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-[var(--accent)] ring-1 ring-[var(--line)]"
       >
         {value}
@@ -216,7 +245,16 @@ function MeridiemPicker({
             type="button"
             aria-label="Cancel AM or PM"
             className="fixed inset-0 z-40 cursor-default bg-black/10"
-            onClick={close}
+            onPointerDown={() => {
+              gestureClickRef.current = false;
+            }}
+            onClick={() => {
+              if (gestureClickRef.current) {
+                gestureClickRef.current = false;
+                return;
+              }
+              close();
+            }}
           />
           <div
             role="dialog"
