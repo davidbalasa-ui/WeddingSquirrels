@@ -5,6 +5,8 @@ import { PACKETS, openPacket } from "./helpers";
 const prisma = overnightPrisma();
 const DONE_STEP = "Confirm week-of plans with each other";
 const OPEN_STEP = "Confirm final payments / tip envelopes ready";
+const DATED_TASK = "Test task due Tuesday";
+const UNDATED_TASK = "Test task with no date";
 
 test.beforeAll(async () => {
   await resetOvernightData(prisma);
@@ -12,6 +14,9 @@ test.beforeAll(async () => {
   await prisma.task.updateMany({ where: { title: DONE_STEP }, data: { status: "done", completedAt: new Date() } });
   const dayBefore = await prisma.task.findFirstOrThrow({ where: { title: "Day before", parentId: null } });
   await prisma.task.updateMany({ where: { parentId: dayBefore.id }, data: { status: "done", completedAt: new Date() } });
+  // Two tasks of their own: one dated (saved the way the Due date box saves it), one not.
+  await prisma.task.create({ data: { title: DATED_TASK, dueDate: new Date("2026-10-13T12:00:00") } });
+  await prisma.task.create({ data: { title: UNDATED_TASK } });
 });
 test.afterAll(async () => {
   await resetOvernightData(prisma);
@@ -44,6 +49,12 @@ test("What's left prints only the open work, and completed work is its own secti
   expect(text).toContain(OPEN_STEP);
   expect(text).not.toContain(DONE_STEP);
   expect(text).not.toContain("☑");
+  // A dated task prints under its day; one with no date stays under "Other open work".
+  const tuesday = page.locator(".binder-block", { has: page.locator("h3", { hasText: "Tuesday, October 13" }) });
+  await expect(tuesday).toContainText(DATED_TASK);
+  const other = page.locator(".binder-block", { has: page.locator("h3", { hasText: "Other open work" }) });
+  await expect(other).toContainText(UNDATED_TASK);
+  await expect(other).not.toContainText(DATED_TASK);
   // Only the open work: no run sheet, guests or money.
   await expect(page.locator(".binder-doc h2")).toHaveText(["Open work"]);
 

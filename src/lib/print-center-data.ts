@@ -288,6 +288,10 @@ export async function loadPrintCenterDocument(
     dueLabel: task.dueDate
       ? task.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : null,
+    dueDay: task.dueDate
+      ? task.dueDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+      : null,
+    dueAt: task.dueDate ? task.dueDate.getTime() : null,
     assignees: task.assignees.map((row) => row.person.name).filter(Boolean),
   }));
   const setupPlan = projectSetupPlan({

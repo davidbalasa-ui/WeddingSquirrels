@@ -270,6 +270,23 @@ test("open work leaves out finished steps, finished cards and groups with nothin
   );
 });
 
+test("open tasks with a due date print under their day, in date order", () => {
+  const groups = projectTaskGroups([
+    { id: "a", title: "Later task", status: "todo", parentId: null, dueLabel: "Oct 13, 2026", dueDay: "Tuesday, October 13", dueAt: 2, assignees: [] },
+    { id: "b", title: "Undated task", status: "todo", parentId: null, dueLabel: null, assignees: [] },
+    { id: "c", title: "Earlier task", status: "todo", parentId: null, dueLabel: "Oct 12, 2026", dueDay: "Monday, October 12", dueAt: 1, assignees: [] },
+    { id: "d", title: "Same day task", status: "todo", parentId: null, dueLabel: "Oct 13, 2026", dueDay: "Tuesday, October 13", dueAt: 3, assignees: [] },
+  ]);
+  assert.deepEqual(
+    groups.map((group) => [group.title, group.items.map((item) => item.title)]),
+    [
+      ["Monday, October 12", ["Earlier task"]],
+      ["Tuesday, October 13", ["Later task", "Same day task"]],
+      ["Other open work", ["Undated task"]],
+    ],
+  );
+});
+
 test("key dates keep rehearsal and wedding day, not bachelor weekend", () => {
   const rows = projectKeyDates(
     [
