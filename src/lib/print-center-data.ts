@@ -331,7 +331,10 @@ export async function loadPrintCenterDocument(
       operatorNotes: professionalizePrintLines(cue.operatorNotes),
     })),
     vendorContacts: grouped.vendors,
-    dayOfContacts: dayOfGrouped.dayOf,
+    // A vendor flagged day-of (Wendy as Mistress of Ceremonies) prints once, under vendors.
+    dayOfContacts: dayOfGrouped.dayOf.filter(
+      (row) => !grouped.vendors.some((vendor) => vendor.name.trim().toLowerCase() === row.name.trim().toLowerCase()),
+    ),
     otherContacts: [],
     assignments: assignments.map((row) => ({
       title: row.title,
