@@ -26,7 +26,7 @@ const ROLE_WORDS: Record<TimelineRole, RegExp> = {
   party:
     /wedding party|bridal party|bridesmaids?|groomsm[ae]n|maid of hono[u]?r|\bMOH\b|best man|flower girl|ring bearer|ring security|lines? up|processional|robe photos|wedding party portraits|groom-?party|bride-?party/i,
   family:
-    /\bmother\b|\bfather\b|\bmom\b|\bdad\b|\bFOB\b|\bMOB\b|\bFOG\b|\bMOG\b|\bparents?\b|grandm|grandp|family portraits|immediate family|first look with parent/i,
+    /\bmother\b|\bfather\b|\bmom\b|\bdad\b|\bFOB\b|\bMOB\b|\bFOG\b|\bMOG\b|\bparents?\b|grandm|grandp|\bfamily\b|first look with parent/i,
   helpers: /\bhelpers?\b|volunteers?|everyone helps|pack(?:s)? up|move chairs|set ?up|tear ?down|clean ?up|assignments?/i,
   photo: /photograph|\bphotos?\b|candids|portraits?|detail shots|videograph/i,
   vendors:
