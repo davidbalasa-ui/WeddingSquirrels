@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 import {
   addGuestGift,
   deleteGuestGift,
@@ -11,6 +10,7 @@ import {
 } from "@/app/actions";
 import { parseTableNumberInput } from "@/lib/guest-gifts";
 import type { GuestGiftRecord, GuestPersonRecord, GuestRecord } from "@/lib/guests";
+import { useRefreshAfterSave } from "@/lib/use-refresh-after-save";
 
 /** Table # is kept as typed ("0", "007") and parsed when the household is saved. */
 type EditablePerson = GuestPersonRecord & { clientKey: string; tableNumberText: string };
@@ -32,13 +32,12 @@ export function GuestEditCard({
   editing?: boolean;
   personId?: string;
 }) {
-  const router = useRouter();
   const [people, setPeople] = useState<EditablePerson[]>(() => toEditablePeople(guest.people));
   const [street, setStreet] = useState(guest.street ?? "");
   const [city, setCity] = useState(guest.city ?? "");
   const [state, setState] = useState(guest.state ?? "");
   const [zip, setZip] = useState(guest.zip ?? "");
-  const [saving, startSave] = useTransition();
+  const { pending: saving, save: startSave } = useRefreshAfterSave();
   const [banner, setBanner] = useState<string | null>(null);
   // Other taps on the card (RSVP pill, Add gift, photo) refresh the household from the
   // server; only replace what is on screen when nothing typed here is still unsaved.
@@ -131,7 +130,6 @@ export function GuestEditCard({
         return;
       }
       setDirty(false);
-      router.refresh();
     });
   }
 

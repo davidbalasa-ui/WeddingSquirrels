@@ -17,7 +17,24 @@ export function attachGuards(page: Page, options: { allow?: RegExp } = {}) {
     if (msg.type() !== "error") return;
     // Firefox prints a logged Error object as "JSHandle@object"; read its message instead.
     const described = Promise.all(
-      msg.args().map((arg) => arg.evaluate((value) => (value instanceof Error ? `${value.name}: ${value.message}` : String(value))).catch(() => "")),
+      msg.args().map((arg) =>
+        arg
+          .evaluate((value) => {
+            const error = value as { name?: unknown; message?: unknown } | null;
+            if (error && typeof error === "object" && typeof error.message === "string") {
+              return `${typeof error.name === "string" ? error.name : "Error"}: ${error.message}`;
+            }
+            if (value && typeof value === "object") {
+              try {
+                return JSON.stringify(value);
+              } catch {
+                return String(value);
+              }
+            }
+            return String(value);
+          })
+          .catch(() => ""),
+      ),
     )
       .then((parts) => {
         const text = /JSHandle@/.test(msg.text()) ? parts.filter(Boolean).join(" ") || msg.text() : msg.text();
@@ -57,6 +74,8 @@ export function attachGuards(page: Page, options: { allow?: RegExp } = {}) {
     // WebKit's and Firefox's unhandled rejection for a fetch or a response stream cut short, when nothing else failed.
     // (WebKit does not always report the cancelled request itself, so only "nothing else failed" is required.)
     if (/^TypeError: (Load failed|Error in input stream)$/.test(text) && realFailures === 0) return true;
+    // Next's own note when a navigation cut its data fetch short; it then loads the page the plain way.
+    if (/^Failed to fetch RSC payload for .* Falling back to browser navigation\. TypeError: (Load failed|NetworkError)/.test(text) && realFailures === 0) return true;
     return false;
   }
   return {

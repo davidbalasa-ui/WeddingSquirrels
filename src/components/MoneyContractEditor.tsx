@@ -14,6 +14,7 @@ import {
   personMoneyLabel,
   type BudgetContractSnapshot,
 } from "@/lib/money";
+import { useRefreshAfterSave } from "@/lib/use-refresh-after-save";
 
 function toDateInput(value: Date | null | undefined) {
   if (!value) return "";
@@ -34,7 +35,9 @@ export function MoneyContractEditor({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [removing, startTransition] = useTransition();
+  const { pending: saving, save } = useRefreshAfterSave();
+  const pending = saving || removing;
   const explicit = hasExplicitSchedule(contract);
   const paid = contractPaidTotal(contract);
   const remaining = contractRemaining(contract);
@@ -42,11 +45,12 @@ export function MoneyContractEditor({
   if (editing && canEdit) {
     return (
       <form
-        action={async (fd) => {
-          await saveBudgetItem(fd);
-          setEditing(false);
-          router.refresh();
-        }}
+        action={(fd) =>
+          save(async () => {
+            await saveBudgetItem(fd);
+            setEditing(false);
+          })
+        }
         className="flex flex-col gap-3"
       >
         <input type="hidden" name="id" value={contract.id} />
@@ -211,12 +215,7 @@ export function MoneyContractEditor({
               type="button"
               className="text-sm font-semibold text-[var(--accent)]"
               disabled={pending}
-              onClick={() =>
-                startTransition(async () => {
-                  await markLegacyRemainingPaid(contract.id);
-                  router.refresh();
-                })
-              }
+              onClick={() => save(() => markLegacyRemainingPaid(contract.id))}
             >
               Mark remaining paid
             </button>

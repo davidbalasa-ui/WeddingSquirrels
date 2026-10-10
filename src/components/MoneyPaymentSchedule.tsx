@@ -1,7 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import {
   createBudgetPayment,
   deleteBudgetPayment,
@@ -22,6 +21,7 @@ import {
   type BudgetContractSnapshot,
   type BudgetPaymentSnapshot,
 } from "@/lib/money";
+import { useRefreshAfterSave } from "@/lib/use-refresh-after-save";
 
 function toDateInput(value: Date | null | undefined) {
   if (!value) return "";
@@ -107,10 +107,9 @@ export function MoneyPaymentSchedule({
   canEdit: boolean;
   highlightPaymentId?: string | null;
 }) {
-  const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { pending, save } = useRefreshAfterSave();
   const explicit = hasExplicitSchedule(contract);
   const open = openPayments(contract);
   const history = completedPayments(contract);
@@ -123,10 +122,7 @@ export function MoneyPaymentSchedule({
   }, [highlightPaymentId]);
 
   function refreshAfter(action: () => Promise<void>) {
-    startTransition(async () => {
-      await action();
-      router.refresh();
-    });
+    save(action);
   }
 
   return (
@@ -151,12 +147,13 @@ export function MoneyPaymentSchedule({
                   >
                     {editing && canEdit ? (
                       <form
-                        action={async (fd) => {
-                          fd.set("id", payment.id);
-                          await saveBudgetPayment(fd);
-                          setEditingId(null);
-                          router.refresh();
-                        }}
+                        action={(fd) =>
+                          save(async () => {
+                            fd.set("id", payment.id);
+                            await saveBudgetPayment(fd);
+                            setEditingId(null);
+                          })
+                        }
                       >
                         <PaymentFields payment={payment} submitLabel="Save payment" />
                         <button
@@ -245,12 +242,13 @@ export function MoneyPaymentSchedule({
                 {editingId === payment.id && canEdit ? (
                   <form
                     className="w-full"
-                    action={async (fd) => {
-                      fd.set("id", payment.id);
-                      await saveBudgetPayment(fd);
-                      setEditingId(null);
-                      router.refresh();
-                    }}
+                    action={(fd) =>
+                      save(async () => {
+                        fd.set("id", payment.id);
+                        await saveBudgetPayment(fd);
+                        setEditingId(null);
+                      })
+                    }
                   >
                     <PaymentFields payment={payment} submitLabel="Save payment" />
                     <button
@@ -315,12 +313,13 @@ export function MoneyPaymentSchedule({
               </p>
             ) : null}
             <form
-              action={async (fd) => {
-                fd.set("budgetItemId", contract.id);
-                await createBudgetPayment(fd);
-                setAdding(false);
-                router.refresh();
-              }}
+              action={(fd) =>
+                save(async () => {
+                  fd.set("budgetItemId", contract.id);
+                  await createBudgetPayment(fd);
+                  setAdding(false);
+                })
+              }
             >
               <PaymentFields submitLabel="Add payment" />
               <button
