@@ -156,7 +156,7 @@ export async function setStartTime(card: Locator, hour: string, minute: string, 
 }
 
 export const PACKETS = [
-  { id: "binder", title: "Groom's Binder", kicker: "Wedding Binder" },
+  { id: "binder", title: "Master Packet", kicker: "Master Packet" },
   { id: "bride", title: "Bride's Packet", kicker: "Bride's Packet" },
   { id: "packet", title: "Avalon & Wendy", kicker: "Coordinator & Mistress of Ceremonies" },
   { id: "mc", title: "MC Packet", kicker: "MC Packet" },

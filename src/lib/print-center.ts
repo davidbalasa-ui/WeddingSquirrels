@@ -84,24 +84,28 @@ export const PRINT_SECTION_LABELS: Record<PrintSectionId, string> = {
   money: "Money",
 };
 
+/**
+ * The master packet (David, 2026-10-10: "a single master packet that has everything but no
+ * redundancies"). Three binder sections are left out because every line in them already prints
+ * elsewhere in it: the MC Run of Show (each cue and song is a line of the run sheet), Setup /
+ * teardown (the run sheet's moments, the décor cleanup rows, Avalon's scope and the open work),
+ * and Key dates (the two days head the Thursday and Friday pages). Each can still be ticked on.
+ */
 export const FULL_BINDER_SECTIONS: PrintSectionId[] = [
   "overview",
   "party",
   "rehearsal",
   "timeline",
-  "mc",
   "hair",
   "shots",
   "contacts",
   "assignments",
-  "setup",
   "coordinator",
   "decor",
   "guests",
   "stay",
   "meals",
   "tasks",
-  "calendar",
   "money",
 ];
 
@@ -140,9 +144,9 @@ export type PrintPacket = {
 export const PRINT_PACKETS: PrintPacket[] = [
   {
     id: "binder",
-    title: "Groom's Binder",
-    body: "Everything: operations, guests, stay, meals, open work, key dates, and money.",
-    kicker: "Wedding Binder",
+    title: "Master Packet",
+    body: "Everything in one packet, each thing once: open work, Thursday, Friday, the wedding party and contacts, getting ready, photos, the venue, guests, stay, meals, and money.",
+    kicker: "Master Packet",
     sections: FULL_BINDER_SECTIONS,
     audience: null,
     compact: false,
@@ -302,6 +306,8 @@ export type PrintMoneyItem = {
 export type PrintCenterDocument = {
   coupleNames: string;
   weddingDateLabel: string;
+  /** "Thursday, October 15" and "Friday, October 16": the days the two schedules cover. */
+  dayLabels: { rehearsal: string | null; wedding: string | null };
   timezone: string;
   mcNames: string[];
   quickReference: PrintQuickReference;
@@ -831,11 +837,20 @@ export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId):
 export function printableSections(
   doc: PrintCenterDocument,
   selected: Iterable<PrintSectionId>,
+  /** The master packet: its own reading order, and a section prints only with something of its own. */
+  master = false,
 ): PrintSectionId[] {
   const chosen = new Set(selected);
   const printed = PRINT_SECTION_IDS.filter(
-    (id) => chosen.has(id) && doc.availableSections.includes(id) && sectionHasContent(doc, id),
+    (id) =>
+      chosen.has(id) &&
+      doc.availableSections.includes(id) &&
+      (master ? masterSectionHasContent(doc, id) : sectionHasContent(doc, id)),
   );
+  if (master) {
+    const ordered = MASTER_ORDER.filter((id) => printed.includes(id));
+    return [...ordered, ...printed.filter((id) => !ordered.includes(id))];
+  }
   // David, 2026-10-10: in a binder the open items come first, then Thursday's and
   // Friday's schedules, then everything else. Packets without open work keep their order.
   if (!printed.includes("tasks")) return printed;
@@ -844,6 +859,210 @@ export function printableSections(
 }
 
 const BINDER_PRIORITY: PrintSectionId[] = ["tasks", "rehearsal", "timeline"];
+
+/**
+ * The master packet's reading order: open work, Thursday, Friday (as every binder), then
+ * people, getting ready and photos, the venue, guests and stay, money. The quick reference
+ * prints on the cover, so it is not a page of its own.
+ */
+export const MASTER_ORDER: PrintSectionId[] = [
+  "overview",
+  "tasks",
+  "rehearsal",
+  "timeline",
+  "party",
+  "contacts",
+  "assignments",
+  "hair",
+  "shots",
+  "coordinator",
+  "decor",
+  "guests",
+  "stay",
+  "meals",
+  "money",
+  "tasksDone",
+];
+
+/** Sections that open a new page in the master packet; the rest run on under the one before. */
+const MASTER_CHAPTERS: PrintSectionId[][] = [
+  ["tasks"],
+  ["rehearsal"],
+  ["timeline"],
+  ["party", "contacts", "assignments"],
+  ["hair", "shots"],
+  ["coordinator", "decor"],
+  ["guests", "stay", "meals"],
+  ["money"],
+  ["tasksDone"],
+];
+
+export type MasterChapter = { number: number; sections: PrintSectionId[] };
+
+/**
+ * The printed sections grouped into chapters, numbered in print order. A chapter whose
+ * first section is empty starts at the next one; a section ticked on by hand that no
+ * chapter names (the run of show, setup, key dates) gets a chapter of its own.
+ */
+export function masterChapters(visible: PrintSectionId[]): MasterChapter[] {
+  const body = visible.filter((id) => id !== "overview");
+  const chapters: MasterChapter[] = [];
+  const placed = new Set<PrintSectionId>();
+  for (const id of body) {
+    if (placed.has(id)) continue;
+    const group = MASTER_CHAPTERS.find((chapter) => chapter.includes(id)) ?? [id];
+    const sections = body.filter((section) => group.includes(section) && !placed.has(section));
+    sections.forEach((section) => placed.add(section));
+    chapters.push({ number: chapters.length + 1, sections });
+  }
+  return chapters;
+}
+
+/** "Belle Genton · Videographer" already says what "Videographer" under it would. */
+export function contactRoleRepeatsName(contact: { name: string; role: string | null }): boolean {
+  if (!contact.role) return false;
+  const role = contact.role.trim().toLowerCase();
+  return contact.name
+    .split("·")
+    .slice(1)
+    .some((part) => part.trim().toLowerCase() === role);
+}
+
+const digits = (value: string | null | undefined) => (value ?? "").replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+const firstName = (name: string) => name.trim().split(/\s+/)[0]!.toLowerCase();
+
+/**
+ * The master packet's contacts, each person once. A day-of contact who is in the wedding
+ * party roster is left to the roster (it prints the same phone) unless this contact has a
+ * different number; cleanup contacts the setup page used to list join the day-of list when
+ * they are not already printed.
+ */
+export function masterContacts(doc: PrintCenterDocument): { vendors: PrintContact[]; dayOf: PrintContact[] } {
+  const roster = new Map(doc.weddingParty.members.map((member) => [firstName(member.name), member]));
+  const printed = new Set(doc.vendorContacts.map((row) => row.name.trim().toLowerCase()));
+  const dayOf: PrintContact[] = [];
+  for (const row of [...doc.dayOfContacts, ...doc.setupContacts]) {
+    const key = row.name.trim().toLowerCase();
+    if (printed.has(key)) continue;
+    const member = roster.get(firstName(row.name));
+    if (member && !row.email && (!row.phone || digits(row.phone) === digits(member.phone))) continue;
+    printed.add(key);
+    dayOf.push(row);
+  }
+  return { vendors: doc.vendorContacts, dayOf };
+}
+
+/** Lines the master packet already prints as a contact: their phone numbers and emails. */
+function contactMarks(contacts: PrintContact[]): { phones: Set<string>; emails: Set<string> } {
+  return {
+    phones: new Set(contacts.map((row) => digits(row.phone)).filter((value) => value.length >= 7)),
+    emails: new Set(contacts.map((row) => row.email?.trim().toLowerCase() ?? "").filter(Boolean)),
+  };
+}
+
+function restatesContact(line: string, marks: ReturnType<typeof contactMarks>): boolean {
+  const phones = line.match(/\(?\d{3}\)?[\s.-]*\d{3}[\s.-]*\d{4}/g) ?? [];
+  const emails = line.match(/[^\s@·]+@[^\s@·]+\.[a-z]{2,}/gi) ?? [];
+  if (!phones.length && !emails.length) return false;
+  return (
+    phones.every((phone) => marks.phones.has(digits(phone))) &&
+    emails.every((email) => marks.emails.has(email.toLowerCase()))
+  );
+}
+
+const sameLine = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/**
+ * Avalon's scope and the décor list as the master packet prints them: a line that only
+ * repeats a printed contact's number or email is left out (the contacts page has it), a
+ * décor line that reads exactly like a line of Avalon's scope prints once (under her scope),
+ * and a row left with nothing but a heading that had lines of its own is left out.
+ */
+export function masterPlaybookRows(doc: PrintCenterDocument): {
+  coordinator: PrintPlaybookRow[];
+  decor: PrintPlaybookRow[];
+} {
+  const contacts = masterContacts(doc);
+  const marks = contactMarks([...contacts.vendors, ...contacts.dayOf]);
+  const keep = (rows: PrintPlaybookRow[], drop: (line: string) => boolean) =>
+    rows.flatMap((row) => {
+      const notes = row.notes.filter((line) => !drop(line));
+      if (row.notes.length > 0 && notes.length === 0 && !row.location) return [];
+      return [{ ...row, notes }];
+    });
+  const coordinator = keep(doc.coordinatorScope, (line) => restatesContact(line, marks));
+  const scopeLines = new Set(coordinator.flatMap((row) => row.notes.map(sameLine)));
+  const decor = doc.setupDecor.map((row) => ({
+    ...row,
+    notes: row.notes.filter((line) => !restatesContact(line, marks) && !scopeLines.has(sameLine(line))),
+  }));
+  return { coordinator, decor };
+}
+
+/**
+ * The quick reference on the master packet's cover: the places, and only the people the
+ * contacts pages do not already list. Times live on the Thursday and Friday pages.
+ */
+export function masterQuickReference(doc: PrintCenterDocument): PrintQuickReference {
+  const contacts = masterContacts(doc);
+  const listed = new Set([...contacts.vendors, ...contacts.dayOf].map((row) => row.name.trim().toLowerCase()));
+  const roster = new Set(doc.weddingParty.members.map((member) => member.name.trim().toLowerCase()));
+  const unlisted = (name: string | null) =>
+    name && !listed.has(name.trim().toLowerCase()) && !roster.has(name.trim().toLowerCase()) ? name : null;
+  const ref = doc.quickReference;
+  const coordinatorName = unlisted(ref.coordinatorName);
+  return {
+    ...ref,
+    ceremonyTime: null,
+    receptionEnds: null,
+    venueCloses: null,
+    rsvp: null,
+    coordinatorName,
+    coordinatorPhone: coordinatorName ? ref.coordinatorPhone : null,
+    mistressOfCeremonies: unlisted(ref.mistressOfCeremonies),
+    mcName: unlisted(ref.mcName),
+  };
+}
+
+/**
+ * The hair & makeup plan's notes the run sheet does not already carry, by who they are for.
+ * The master packet prints these instead of the hair time table: the run sheet is the one
+ * schedule (its times win where the two disagree), and nothing the table says is lost.
+ */
+export function masterHairNotes(doc: PrintCenterDocument): Array<{ who: string; notes: string[] }> {
+  const onRunSheet = new Set(
+    doc.moments.wedding.flatMap((moment) => [moment.title, ...moment.details.map((detail) => detail.text)].map(sameLine)),
+  );
+  const out: Array<{ who: string; notes: string[] }> = [];
+  for (const row of doc.hairSchedule) {
+    const notes = row.notes.filter((note) => note.trim() && !onRunSheet.has(sameLine(note)));
+    if (!notes.length) continue;
+    const existing = out.find((entry) => entry.who === row.person);
+    if (existing) existing.notes.push(...notes.filter((note) => !existing.notes.includes(note)));
+    else out.push({ who: row.person, notes });
+  }
+  return out;
+}
+
+/**
+ * Whether a section has anything of its own to print in the master packet. Hair & makeup
+ * keeps its room key and the plan's own notes there; its time table is left out, because
+ * the run sheet is the one schedule and the table's times can disagree with it.
+ */
+export function masterSectionHasContent(doc: PrintCenterDocument, id: PrintSectionId): boolean {
+  switch (id) {
+    case "hair":
+      return doc.hairRooms.length > 0 || masterHairNotes(doc).length > 0;
+    case "contacts": {
+      const contacts = masterContacts(doc);
+      return contacts.vendors.length + contacts.dayOf.length > 0;
+    }
+    case "coordinator":
+      return masterPlaybookRows(doc).coordinator.length > 0;
+    default:
+      return sectionHasContent(doc, id);
+  }
+}
 
 export function documentContainsInternalSecrets(text: string): boolean {
   return /pinHash|PinAccount|ws_session|DATABASE_URL|PIN_SESSION_SECRET/i.test(text);
@@ -857,6 +1076,7 @@ export function emptyPrintDocument(): PrintCenterDocument {
   return {
     coupleNames: "David & Haley",
     weddingDateLabel: "Friday, October 16, 2026",
+    dayLabels: { rehearsal: null, wedding: null },
     timezone: "America/Detroit",
     mcNames: [],
     quickReference: {

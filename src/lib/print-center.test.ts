@@ -15,7 +15,13 @@ import {
   extractMcCues,
   formatPrintMoney,
   groupPrintContacts,
+  contactRoleRepeatsName,
   isMcDirectoryLabel,
+  masterChapters,
+  masterContacts,
+  masterHairNotes,
+  masterPlaybookRows,
+  masterQuickReference,
   mcPeopleFromDirectory,
   moneyFingerprint,
   presetMatchesSelection,
@@ -37,10 +43,13 @@ test("Print Center is a More entry, not a primary navigation tab", () => {
   assert.equal(print?.hideFromMore, true);
 });
 
-test("Full Binder preset includes money, guests, setup, and coordinator; Day-of Packet excludes money and guests", () => {
+test("Master packet includes money, guests, and coordinator; Day-of Packet excludes money and guests", () => {
   assert.equal(FULL_BINDER_SECTIONS.includes("money"), true);
   assert.equal(FULL_BINDER_SECTIONS.includes("guests"), true);
-  assert.equal(FULL_BINDER_SECTIONS.includes("setup"), true);
+  // Every line of these already prints elsewhere in the master packet (David, 2026-10-10: no redundancies).
+  assert.equal(FULL_BINDER_SECTIONS.includes("setup"), false);
+  assert.equal(FULL_BINDER_SECTIONS.includes("mc"), false);
+  assert.equal(FULL_BINDER_SECTIONS.includes("calendar"), false);
   assert.equal(FULL_BINDER_SECTIONS.includes("coordinator"), true);
   assert.equal(FULL_BINDER_SECTIONS.includes("decor"), true);
   assert.equal(DAY_OF_PACKET_SECTIONS.includes("money"), false);
@@ -326,4 +335,99 @@ test("a binder prints open work first, then Thursday and Friday, then everything
   assert.deepEqual(order.slice(0, 3), ["tasks", "rehearsal", "timeline"]);
   // A packet with no open work keeps its own order.
   assert.deepEqual(printableSections(doc, ["overview", "timeline"]).indexOf("overview") <= 0, true);
+});
+
+test("the master packet prints open work, Thursday, Friday, then the rest in chapters", () => {
+  const doc = {
+    ...emptyPrintDocument(),
+    taskGroups: [{ title: "Week before", items: [{ title: "Pack", done: false, dueLabel: null, assignees: [] }] }],
+    moments: {
+      rehearsal: [reviewMoment({ startAt: "1:00 PM", endAt: null, notes: "Airbnb check in" })],
+      wedding: [reviewMoment({ startAt: "3:30 PM", endAt: null, notes: "Ceremony" })],
+    },
+    assignments: [{ title: "Ice", notes: null, assignees: [] }],
+  };
+  const order = printableSections(doc, sectionsForPreset("binder"), true);
+  assert.deepEqual(order.slice(0, 4), ["overview", "tasks", "rehearsal", "timeline"]);
+  const chapters = masterChapters(order);
+  assert.deepEqual(chapters.map((chapter) => chapter.sections[0]), ["tasks", "rehearsal", "timeline", "assignments", "stay"]);
+  assert.deepEqual(chapters.map((chapter) => chapter.number), [1, 2, 3, 4, 5]);
+  // A section ticked on by hand gets a chapter of its own.
+  assert.deepEqual(masterChapters(["tasks", "calendar"]).map((chapter) => chapter.sections), [["tasks"], ["calendar"]]);
+});
+
+test("the master packet lists each contact once", () => {
+  const doc = emptyPrintDocument();
+  doc.vendorContacts = [{ name: "Avalon Green", role: "Planner", phone: "386.589.7215", email: "a@example.com" }];
+  doc.dayOfContacts = [
+    { name: "Kurt Huizenga", role: "MC", phone: null, email: null },
+    { name: "Andi Smith", role: "Best Man", phone: "(555) 123-4567", email: null },
+    { name: "Bri Jones", role: null, phone: "(555) 999-0000", email: null },
+  ];
+  doc.setupContacts = [
+    { name: "Avalon Green", role: "Planner", phone: "386.589.7215", email: null },
+    { name: "Cleanup Crew", role: "Teardown", phone: null, email: null },
+  ];
+  doc.weddingParty = {
+    ...doc.weddingParty,
+    members: [
+      { name: "Andi", role: "Wedding party", walksWith: null, phone: "555-123-4567" },
+      { name: "Bri", role: "Wedding party", walksWith: null, phone: null },
+    ] as typeof doc.weddingParty.members,
+  };
+  const contacts = masterContacts(doc);
+  // Andi's number prints in the roster; Bri's roster says TBD, so her own number stays here.
+  assert.deepEqual(contacts.dayOf.map((row) => row.name), ["Kurt Huizenga", "Bri Jones", "Cleanup Crew"]);
+  // The cover leaves out people the contacts list.
+  doc.quickReference = { ...doc.quickReference, coordinatorName: "Avalon Green", coordinatorPhone: "386-589-7215", mcName: "Kurt Huizenga", mistressOfCeremonies: "Wendy Rush" };
+  const ref = masterQuickReference(doc);
+  assert.equal(ref.coordinatorName, null);
+  assert.equal(ref.coordinatorPhone, null);
+  assert.equal(ref.mcName, null);
+  assert.equal(ref.mistressOfCeremonies, "Wendy Rush");
+  assert.equal(ref.ceremonyTime, null);
+  assert.equal(ref.venueName, doc.quickReference.venueName);
+  assert.equal(contactRoleRepeatsName({ name: "Belle Genton · Videographer", role: "Videographer" }), true);
+  assert.equal(contactRoleRepeatsName({ name: "Barry Tilson", role: "Photographer" }), false);
+});
+
+test("the master packet's scope and décor pages do not repeat a contact or each other", () => {
+  const doc = emptyPrintDocument();
+  doc.vendorContacts = [{ name: "Avalon Green", role: "Planner", phone: "386.589.7215", email: "greengardeneventsmi@gmail.com" }];
+  const row = (title: string, notes: string[], section = "Scope") => ({ timeLabel: null, title, location: null, notes, section });
+  doc.coordinatorScope = [
+    row("Emergency contact", ["Avalon Green · 386.589.7215 · greengardeneventsmi@gmail.com"]),
+    row("Décor breakdown for the point person", ["Avalon handles décor breakdown. Haley's parents and assigned crew handle removal and transport."]),
+    row("Vendor communication", ["Call (616) 555-0100 for the caterer."]),
+  ];
+  doc.setupDecor = [
+    row("Decor goes home with Haley's parents", ["Avalon handles décor breakdown. Haley's parents and assigned crew handle removal and transport."], "Cleanup"),
+    row("Trash", ["Haley's parents take trash."], "Cleanup"),
+  ];
+  const { coordinator, decor } = masterPlaybookRows(doc);
+  assert.deepEqual(coordinator.map((item) => item.title), ["Décor breakdown for the point person", "Vendor communication"]);
+  // A number nobody's contact card carries stays.
+  assert.deepEqual(coordinator[1]!.notes, ["Call (616) 555-0100 for the caterer."]);
+  assert.deepEqual(decor.map((item) => [item.title, item.notes]), [
+    ["Decor goes home with Haley's parents", []],
+    ["Trash", ["Haley's parents take trash."]],
+  ]);
+});
+
+test("the master packet keeps the hair plan's own notes and leaves the run sheet's lines to the run sheet", () => {
+  const doc = emptyPrintDocument();
+  doc.moments = {
+    rehearsal: [],
+    wedding: [reviewMoment({ startAt: "11:00 AM", endAt: null, notes: "Hair & makeup at Airbnb\nEveryone else wraps up, does final touches, and starts to clean." })],
+  };
+  const hair = (person: string, notes: string[]) => ({ timeLabel: "9:00 AM", showTime: true, person, service: null, location: null, notes });
+  doc.hairSchedule = [
+    hair("Bridal party", ["Steam dresses. Lay out shoes, jewelry, and accessories."]),
+    hair("Haley", ["Everyone else wraps up, does final touches, and starts to clean."]),
+    hair("Braxton", []),
+    hair("Bridal party", ["Pull dresses from bags (steam if needed)."]),
+  ];
+  assert.deepEqual(masterHairNotes(doc), [
+    { who: "Bridal party", notes: ["Steam dresses. Lay out shoes, jewelry, and accessories.", "Pull dresses from bags (steam if needed)."] },
+  ]);
 });

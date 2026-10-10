@@ -10,6 +10,12 @@ import {
   PRINT_SECTION_LABELS,
   activePreset,
   formatPrintMoney,
+  masterChapters,
+  masterContacts,
+  masterHairNotes,
+  masterPlaybookRows,
+  masterQuickReference,
+  contactRoleRepeatsName,
   printPacket,
   printTitleKicker,
   printableSections,
@@ -17,6 +23,7 @@ import {
   toggleSection,
   triggerBrowserPrint,
   assignmentOwnerLabel,
+  type MasterChapter,
   type PrintCenterDocument,
   type PrintPresetId,
   type PrintSectionId,
@@ -25,12 +32,15 @@ import {
 export function PrintCenter({ document }: { document: PrintCenterDocument }) {
   const [selected, setSelected] = useState<PrintSectionId[]>([...FULL_BINDER_SECTIONS]);
   const [chosen, setChosen] = useState<PrintPresetId | null>("binder");
-  const visible = useMemo(() => printableSections(document, selected), [document, selected]);
   // The card to highlight: the chosen packet while its sections match, else one that matches exactly.
   const matched = activePreset(selected, chosen, document.availableSections);
   // The packet the page prints as. Ticking a section off after picking a packet keeps
   // that packet's title, layout and audience; it never turns the page back into the binder.
   const preset = matched ?? chosen;
+  // The master packet: everything, each thing once, in chapters.
+  const master = preset === "binder";
+  const visible = useMemo(() => printableSections(document, selected, master), [document, selected, master]);
+  const chapters = master ? masterChapters(visible) : [];
   // Once the bride's packet is picked, ticking sections on or off never brings back the getaway details.
   const forBride = preset === "bride" || chosen === "bride";
   const packet = preset ? printPacket(preset) : null;
@@ -105,12 +115,25 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
         </div>
       </div>
 
-      <article className={packet?.compact ? "binder-doc binder-doc--compact mt-8" : "binder-doc mt-8"}>
-        <PrintTitlePage document={document} kicker={printTitleKicker(preset)} />
-        {visible.map((id) => (
-          <PrintSection key={id} id={id} document={document} preset={preset} audience={audience} forBride={forBride} />
-        ))}
-      </article>
+      {master ? (
+        <article className="binder-doc binder-doc--master mt-8">
+          <MasterCover document={document} kicker={printTitleKicker(preset)} chapters={chapters} withPlaces={visible.includes("overview")} />
+          {chapters.map((chapter) => (
+            <div key={chapter.number} className="binder-chapter" data-chapter={String(chapter.number).padStart(2, "0")}>
+              {chapter.sections.map((id) => (
+                <PrintSection key={id} id={id} document={document} preset={preset} audience={audience} forBride={forBride} />
+              ))}
+            </div>
+          ))}
+        </article>
+      ) : (
+        <article className={packet?.compact ? "binder-doc binder-doc--compact mt-8" : "binder-doc mt-8"}>
+          <PrintTitlePage document={document} kicker={printTitleKicker(preset)} />
+          {visible.map((id) => (
+            <PrintSection key={id} id={id} document={document} preset={preset} audience={audience} forBride={forBride} />
+          ))}
+        </article>
+      )}
     </div>
   );
 }
@@ -177,6 +200,7 @@ function PrintSection({
   audience: ScheduleAudience;
   forBride: boolean;
 }) {
+  const master = preset === "binder";
   switch (id) {
     case "overview":
       return <QuickReferenceSection document={document} showRsvp={preset === "binder" || preset === null} />;
@@ -187,14 +211,18 @@ function PrintSection({
     case "rehearsal":
       return (
         <section className="binder-section">
+          {master ? <DayKicker label={document.dayLabels.rehearsal} /> : null}
           <h2>Rehearsal dinner + rehearsal</h2>
+          {master ? <DayNote document={document} day={/rehearsal/i} /> : null}
           <ScheduleRows rows={document.moments.rehearsal.map(momentPrintRow)} />
         </section>
       );
     case "timeline":
       return (
         <section className="binder-section">
+          {master ? <DayKicker label={document.dayLabels.wedding} /> : null}
           <h2>Wedding-day run sheet</h2>
+          {master ? <DayNote document={document} day={/wedding/i} /> : null}
           <ScheduleRows rows={(forBride ? document.brideMoments : document.moments.wedding).map(momentPrintRow)} />
         </section>
       );
@@ -261,7 +289,25 @@ function PrintSection({
               </ul>
             </>
           ) : null}
-          {document.hairSchedule.length ? (
+          {master ? (
+            masterHairNotes(document).length ? (
+              <>
+                <h3>Notes from the hair &amp; makeup plan</h3>
+                <ul className="binder-list binder-hair-notes">
+                  {masterHairNotes(document).map((entry) => (
+                    <li key={entry.who} className="binder-card">
+                      <p className="binder-item-title">{entry.who}</p>
+                      {entry.notes.map((note) => (
+                        <p key={note} className="binder-note">
+                          {note}
+                        </p>
+                      ))}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null
+          ) : document.hairSchedule.length ? (
             <>
               <h3>Schedule</h3>
               <table className="binder-table binder-hair-table">
@@ -326,16 +372,17 @@ function PrintSection({
           ? document.weddingParty.members.map((member) => member.name.toLowerCase())
           : [],
       );
-      const dayOf = document.dayOfContacts.filter(
-        (row) => !roster.has(row.name.trim().split(/\s+/)[0]!.toLowerCase()),
-      );
+      const vendors = master ? masterContacts(document).vendors : document.vendorContacts;
+      const dayOf = master
+        ? masterContacts(document).dayOf
+        : document.dayOfContacts.filter((row) => !roster.has(row.name.trim().split(/\s+/)[0]!.toLowerCase()));
       return (
         <section className="binder-section">
           <h2>Vendor &amp; day-of contacts</h2>
-          {document.vendorContacts.length ? (
+          {vendors.length ? (
             <>
               <h3>Vendor contacts</h3>
-              <ContactList rows={document.vendorContacts} />
+              <ContactList rows={vendors} />
             </>
           ) : null}
           {dayOf.length ? (
@@ -408,14 +455,14 @@ function PrintSection({
         <section className="binder-section">
           <h2>Coordinator scope</h2>
           <p className="binder-lede">Avalon Green · Green Garden Events</p>
-          <PlaybookPrintList rows={document.coordinatorScope} hideSection />
+          <PlaybookPrintList rows={master ? masterPlaybookRows(document).coordinator : document.coordinatorScope} hideSection />
         </section>
       );
     case "decor":
       return (
         <section className="binder-section">
           <h2>Décor / setup details</h2>
-          {groupDecor(document.setupDecor).map((group) => (
+          {groupDecor(master ? masterPlaybookRows(document).decor : document.setupDecor).map((group) => (
             <div key={group.section} className="binder-block">
               <h3>{group.section}</h3>
               <PlaybookPrintList rows={group.items} hideSection />
@@ -538,7 +585,7 @@ function PrintSection({
         </section>
       );
     case "tasks":
-      return <PrintTaskGroups heading="Open work" groups={document.taskGroups} testId="print-section-tasks" />;
+      return <PrintTaskGroups heading="Open work" groups={document.taskGroups} testId="print-section-tasks" sharedOnce={master} />;
     case "tasksDone":
       return <PrintTaskGroups heading="Completed work" groups={document.doneTaskGroups} testId="print-section-tasks-done" />;
     case "calendar":
@@ -671,7 +718,8 @@ function WeddingPartySection({ document, preset }: { document: PrintCenterDocume
           <Processional steps={party.processional} />
         </>
       ) : null}
-      {party.moments.length && !ownSchedule ? (
+      {/* The master packet's run sheet already carries every one of these lines. */}
+      {party.moments.length && !ownSchedule && preset !== "binder" ? (
         <>
           <h3>Your call times and moments</h3>
           <TimelineList
@@ -884,7 +932,7 @@ function ContactList({ rows }: { rows: PrintCenterDocument["vendorContacts"] }) 
       {rows.map((row) => (
         <li key={`${row.name}-${row.phone ?? ""}-${row.email ?? ""}`} className="binder-card">
           <p className="binder-item-title">{row.name}</p>
-          {row.role ? <p className="binder-note">{row.role}</p> : null}
+          {row.role && !contactRoleRepeatsName(row) ? <p className="binder-note">{row.role}</p> : null}
           {row.phone ? <p className="binder-note">{row.phone}</p> : null}
           {row.email ? <p className="binder-note">{row.email}</p> : null}
         </li>
@@ -897,36 +945,146 @@ function PrintTaskGroups({
   heading,
   groups,
   testId,
+  sharedOnce = false,
 }: {
   heading: string;
   groups: PrintCenterDocument["taskGroups"];
   testId: string;
+  /** When every step on a card has the same people, name them once under the card's title. */
+  sharedOnce?: boolean;
 }) {
   return (
     <section className="binder-section" data-testid={testId}>
       <h2>{heading}</h2>
-      {groups.map((group) => (
-        <div key={group.title} className="binder-block">
-          <h3>{group.title}</h3>
-          <ul className="binder-list">
-            {group.items.map((item) => (
-              <li key={item.title} className="binder-shot">
-                <span className="binder-check" aria-hidden>
-                  {item.done ? "☑" : "☐"}
-                </span>
-                <span>
-                  <span className="binder-item-title">{item.title}</span>
-                  {item.dueLabel || item.assignees.length ? (
-                    <p className="binder-note">
-                      {[item.dueLabel, item.assignees.join(" · ")].filter(Boolean).join(" · ")}
-                    </p>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {groups.map((group) => {
+        const shared = sharedOnce ? sharedAssignees(group.items) : null;
+        return (
+          <div key={group.title} className="binder-block">
+            <h3>{group.title}</h3>
+            {shared ? <p className="binder-note binder-shared">{shared}</p> : null}
+            <ul className="binder-list">
+              {group.items.map((item) => {
+                const who = shared ? "" : item.assignees.join(" · ");
+                return (
+                  <li key={item.title} className="binder-shot">
+                    <span className="binder-check" aria-hidden>
+                      {item.done ? "☑" : "☐"}
+                    </span>
+                    <span>
+                      <span className="binder-item-title">{item.title}</span>
+                      {item.dueLabel || who ? (
+                        <p className="binder-note">{[item.dueLabel, who].filter(Boolean).join(" · ")}</p>
+                      ) : null}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
     </section>
   );
 }
+
+/** "David · Haley" when every step on the card names exactly them, else null. */
+function sharedAssignees(items: PrintCenterDocument["taskGroups"][number]["items"]): string | null {
+  if (items.length < 2) return null;
+  const first = items[0]!.assignees.join(" · ");
+  if (!first) return null;
+  return items.every((item) => item.assignees.join(" · ") === first) ? first : null;
+}
+
+/** "Thursday, October 15" above the day's schedule. */
+function DayKicker({ label }: { label: string | null }) {
+  return label ? <p className="binder-day">{label}</p> : null;
+}
+
+/** A Key dates note for this day prints under the day's heading, since the master packet has no Key dates page. */
+function DayNote({ document, day }: { document: PrintCenterDocument; day: RegExp }) {
+  // A note that only names the couple and the date already reads on the cover.
+  const onCover = (note: string) =>
+    note
+      .replace(document.coupleNames, "")
+      .replace(document.weddingDateLabel, "")
+      .replace(document.weddingDateLabel.replace(/^\w+,\s*/, ""), "")
+      .replace(/[\s·,–-]+/g, "") === "";
+  const notes = document.calendar
+    .filter((event) => day.test(event.title) && event.notes && !onCover(event.notes))
+    .map((event) => event.notes!);
+  return notes.length ? (
+    <>
+      {notes.map((note) => (
+        <p key={note} className="binder-lede">
+          {note}
+        </p>
+      ))}
+    </>
+  ) : null;
+}
+
+/**
+ * The master packet's cover: whose wedding and when, the places with their addresses
+ * (the quick reference, without the times and people the pages inside already carry),
+ * and the chapters inside.
+ */
+function MasterCover({
+  document,
+  kicker,
+  chapters,
+  withPlaces,
+}: {
+  document: PrintCenterDocument;
+  kicker: string;
+  chapters: MasterChapter[];
+  withPlaces: boolean;
+}) {
+  const ref = masterQuickReference(document);
+  return (
+    <header className="binder-title binder-cover">
+      <p className="binder-kicker">{kicker}</p>
+      <h1>{document.coupleNames}</h1>
+      <p className="binder-date">{document.weddingDateLabel}</p>
+      <BinderSunsetRule />
+      {withPlaces ? (
+        <dl className="binder-ref binder-cover-places" data-testid="print-section-overview">
+          <RefBlock label="Ceremony" lines={[ref.venueName, ...ref.venueAddress]} />
+          {/* "Airbnb" under the label "Airbnb" says nothing new. */}
+          <RefBlock label="Airbnb" lines={[ref.airbnbName === "Airbnb" ? null : ref.airbnbName, ...ref.airbnbAddress]} />
+          <RefBlock label="Rehearsal dinner" lines={[ref.rehearsalDinnerName, ...ref.rehearsalDinnerAddress]} />
+          <RefBlock label="Coordinator" lines={[ref.coordinatorName, ref.coordinatorPhone]} />
+          <RefBlock label="Mistress of Ceremonies" lines={[ref.mistressOfCeremonies]} />
+          <RefBlock label="MC" lines={[ref.mcName]} />
+        </dl>
+      ) : null}
+      {chapters.length ? (
+        <nav className="binder-contents" aria-label="Inside this packet">
+          <p className="binder-contents-label">Inside</p>
+          <ol>
+            {chapters.map((chapter) => (
+              <li key={chapter.number}>
+                <span className="binder-contents-no">{String(chapter.number).padStart(2, "0")}</span>
+                <span>{chapter.sections.map((id) => contentsLine(id, document)).join(" · ")}</span>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      ) : null}
+    </header>
+  );
+}
+
+/** A chapter's line on the cover: each page's own heading, the two schedules with their day. */
+function contentsLine(id: PrintSectionId, document: PrintCenterDocument): string {
+  const heading = MASTER_HEADINGS[id] ?? PRINT_SECTION_LABELS[id];
+  const day = id === "rehearsal" ? document.dayLabels.rehearsal : id === "timeline" ? document.dayLabels.wedding : null;
+  return day ? `${day} · ${heading}` : heading;
+}
+
+/** The cover's contents use each page's own heading. */
+const MASTER_HEADINGS: Partial<Record<PrintSectionId, string>> = {
+  rehearsal: "Rehearsal dinner + rehearsal",
+  contacts: "Vendor & day-of contacts",
+  decor: "Décor / setup details",
+  meals: "Meals / food & supplies",
+};
