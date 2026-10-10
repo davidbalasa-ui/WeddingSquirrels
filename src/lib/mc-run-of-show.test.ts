@@ -92,3 +92,10 @@ test("a moment's reminders print once, under its first cue, not under every cue 
   assert.deepEqual(spoken[1]!.operatorNotes, []);
   assert.deepEqual(spoken[2]!.operatorNotes, []);
 });
+
+test("a 'next' pointer at a music bed names the moment, not the word Music", () => {
+  const show = buildMcRunOfShow(PRODUCTION_CUE_BLOCKS);
+  const welcome = show.cues.find((cue) => cue.kind === "spoken" && /welcome/i.test(cue.spoken));
+  assert.equal(welcome?.nextTime, "3:30 PM");
+  assert.equal(welcome?.nextTitle, "Ceremony");
+});

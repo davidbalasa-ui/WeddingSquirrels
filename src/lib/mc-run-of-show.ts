@@ -158,7 +158,8 @@ export function buildMcRunOfShow(
     return {
       ...cue,
       nextTime: next?.time ?? null,
-      nextTitle: next ? next.heading || next.momentTitle : null,
+      // A music bed's heading is just "Music"; the pointer names the moment it plays under.
+      nextTitle: next ? (next.kind === "music" ? next.momentTitle : next.heading || next.momentTitle) : null,
     };
   });
 

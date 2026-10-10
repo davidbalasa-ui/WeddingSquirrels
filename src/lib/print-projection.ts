@@ -595,9 +595,18 @@ function extractCueTime(line: string): string | null {
   return null;
 }
 
+/** "Children arrive at 1:15 PM." keeps its verb and loses the stranded period once the time moves to the margin. */
+function withoutTime(subject: string, rest: string): string {
+  const tail = rest.trim();
+  if (!tail || /^[.,;:!]+$/.test(tail)) return subject.trim();
+  return `${subject.trim()}${/^[.,;:!]/.test(tail) ? "" : " "}${tail}`.replace(/\s{2,}/g, " ");
+}
+
 function timedEventFromLine(line: string): PrintRunSheetEvent | null {
   const cleaned = professionalizePrintLine(line);
   if (!cleaned) return null;
+  // An open question stays a note; a time inside it is not an event on the run sheet.
+  if (/^open items?:/i.test(cleaned)) return null;
 
   if (/\btime(?:\s+is)?\s+(?:still\s+)?tbd\b/i.test(cleaned) || /\bstill tbd\b/i.test(cleaned) || /\bTBD\b/.test(cleaned)) {
     let title = cleaned
@@ -645,11 +654,11 @@ function timedEventFromLine(line: string): PrintRunSheetEvent | null {
     };
   }
 
-  const arrive = cleaned.match(new RegExp(`^(.*?)\\s+arrives? at\\s+${TIME_TOKEN}(.*)$`, "i"));
+  const arrive = cleaned.match(new RegExp(`^(.*?)\\s+(arrives?) at\\s+${TIME_TOKEN}(.*)$`, "i"));
   if (arrive) {
     return {
-      timeLabel: normalizePrintTime(arrive[2]!),
-      title: `${arrive[1]!.trim()} arrives${arrive[3]!.trim() ? ` ${arrive[3]!.trim()}` : ""}`.replace(/\s{2,}/g, " "),
+      timeLabel: normalizePrintTime(arrive[3]!),
+      title: withoutTime(`${arrive[1]} ${arrive[2]}`, arrive[4]!),
       notes: [],
       kind: "event",
     };
@@ -659,7 +668,7 @@ function timedEventFromLine(line: string): PrintRunSheetEvent | null {
   if (atTime && atTime[1]!.trim().length > 0 && atTime[1]!.trim().length < 80) {
     return {
       timeLabel: normalizePrintTime(atTime[2]!),
-      title: `${atTime[1]!.trim()}${atTime[3]!.trim() ? ` ${atTime[3]!.trim()}` : ""}`.replace(/\s{2,}/g, " "),
+      title: withoutTime(atTime[1]!, atTime[3]!),
       notes: [],
       kind: "event",
     };

@@ -459,3 +459,23 @@ test("a first name shared with someone who has no phone prints TBD, not the othe
   assert.equal(view.members.find((m) => m.name === "Evan")?.phone, null);
   assert.equal(view.members.find((m) => m.name === "Kaylie")?.phone, "231-329-3264");
 });
+
+test("run sheet: a time moved to the margin keeps the verb and leaves no stranded period", () => {
+  const [phase] = projectRunSheet([
+    {
+      startAt: "8:50 PM",
+      endAt: "9:00 PM",
+      notes: "Overnight check moment\nChildren arrive at 1:15 PM.\nReturn to dancing at 9:00 PM.\nOpen items: Confirm whether children leave at 8:00 PM or after the 8:15 PM send-off.",
+      schedule: "wedding",
+    },
+  ]);
+  assert.deepEqual(
+    phase!.events.map((event) => [event.timeLabel, event.title]),
+    [
+      ["1:15 PM", "Children arrive"],
+      ["9:00 PM", "Return to dancing"],
+    ],
+  );
+  // An open question stays a note, unmangled.
+  assert.deepEqual(phase!.notes, ["Open items: Confirm whether children leave at 8:00 PM or after the 8:15 PM send-off."]);
+});
