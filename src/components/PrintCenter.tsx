@@ -618,6 +618,8 @@ function WeddingPartySection({ document, preset }: { document: PrintCenterDocume
   // Parents walk in the processional; the roster and party call times are the party's own.
   const parents = preset === "brideParents" || preset === "groomParents";
   const ownSchedule = preset === "party" || parents;
+  // The party's own packet is who walks with whom and in what order; numbers stay in the binder and coordinator copies.
+  const showPhones = preset !== "party";
   if (parents) {
     return party.processional.length ? (
       <section className="binder-section" data-testid="print-section-party">
@@ -642,7 +644,7 @@ function WeddingPartySection({ document, preset }: { document: PrintCenterDocume
                 <th>Name</th>
                 <th>Role</th>
                 <th>Walks with</th>
-                <th>Phone</th>
+                {showPhones ? <th>Phone</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -651,7 +653,7 @@ function WeddingPartySection({ document, preset }: { document: PrintCenterDocume
                   <td>{member.name}</td>
                   <td>{member.role}</td>
                   <td>{member.walksWith ?? "—"}</td>
-                  <td>{member.phone ?? "TBD"}</td>
+                  {showPhones ? <td>{member.phone ?? "TBD"}</td> : null}
                 </tr>
               ))}
             </tbody>

@@ -83,3 +83,14 @@ test.describe("Print Center packets", () => {
     });
   }
 });
+
+// David, 2026-10-10: the wedding party's own packet is a lineup, not a phone list.
+test("Wedding party packet lists who walks with whom without phone numbers; the binder keeps them", async ({ page }) => {
+  await openPacket(page, "party");
+  const party = page.getByTestId("print-section-party");
+  await expect(party.locator("th")).toHaveText(["Name", "Role", "Walks with"]);
+  expect(await party.innerText()).not.toMatch(/\d{3}[-.)\s]+\d{3}[-.\s]\d{4}/);
+  await expect(party).toContainText("Ceremony processional");
+  await openPacket(page, "binder");
+  await expect(page.getByTestId("print-section-party").locator("th")).toHaveText(["Name", "Role", "Walks with", "Phone"]);
+});
