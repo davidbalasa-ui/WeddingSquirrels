@@ -17,6 +17,7 @@ import {
   projectStaySections,
   projectTaskGroups,
   projectWeddingParty,
+  projectTimelineOpenItems,
   rsvpPrintLabel,
 } from "./print-projection";
 import { extractMcCues } from "./print-center";
@@ -555,5 +556,31 @@ test("run sheet keeps a time range on one line and shares its AM/PM across both 
   assert.equal(
     professionalizePrintLine("Party stations: bathrooms for hair, bedrooms for makeup (see Hair & Makeup page)"),
     "Party stations: bathrooms for hair, bedrooms for makeup",
+  );
+});
+
+test("open lines on Wedding Day moments print as open work under their day", () => {
+  const groups = projectTimelineOpenItems({
+    rehearsal: [{ startAt: "1:00 PM", endAt: "2:30 PM", notes: "Airbnb check in\nOpen items: Confirm the Airbnb address and who has check-in access." }],
+    wedding: [
+      { startAt: "4:50 PM", endAt: "5:00 PM", notes: "Wedding party lines up\nOpen items: Give Wendy the entrance order and make sure she knows how to say every name." },
+      { startAt: "5:00 PM", endAt: null, notes: "Grand entrance and dinner begins\nGrand entrance starts at 5:00 PM.\nOpen items: Choose who calls tables and confirm how Precious Peony will serve dinner." },
+      { startAt: "6:15 PM", endAt: null, notes: "Cake cutting\nCut the cake immediately after toasts." },
+    ],
+    rehearsalDay: "Thursday, October 15",
+    weddingDay: "Friday, October 16",
+  });
+  assert.deepEqual(
+    groups.map((group) => [group.title, group.items.map((item) => [item.title, item.dueLabel])]),
+    [
+      ["Open on the rehearsal day · Thursday, October 15", [["Confirm the Airbnb address and who has check-in access.", "1:00 PM – 2:30 PM · Airbnb check in"]]],
+      [
+        "Open on the wedding day · Friday, October 16",
+        [
+          ["Give Wendy the entrance order and make sure she knows how to say every name.", "4:50 PM – 5:00 PM · Wedding party lines up"],
+          ["Choose who calls tables and confirm how Precious Peony will serve dinner.", "5:00 PM · Grand entrance and dinner begins"],
+        ],
+      ],
+    ],
   );
 });

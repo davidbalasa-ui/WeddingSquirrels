@@ -551,6 +551,42 @@ export function projectTaskGroups(
   return groups.filter((group) => group.items.length > 0);
 }
 
+/**
+ * David, 2026-10-10: an "Open: …" line on a Wedding Day moment is open work too, so
+ * the Open work pages list each one under its day, with the moment it belongs to.
+ * Words are quoted from the moment as written.
+ */
+export function projectTimelineOpenItems(input: {
+  rehearsal: Array<{ startAt: string; endAt: string | null; notes: string }>;
+  wedding: Array<{ startAt: string; endAt: string | null; notes: string }>;
+  rehearsalDay?: string | null;
+  weddingDay?: string | null;
+}): PrintTaskGroupView[] {
+  const group = (title: string, blocks: typeof input.wedding): PrintTaskGroupView => ({
+    title,
+    items: blocks.flatMap((block) => {
+      const parsed = parseBlockNotes(block.notes);
+      return parsed.detailLines
+        .filter((line) => OPEN_LINE.test(line))
+        .map((line) => line.replace(OPEN_LINE, "").trim())
+        .filter(Boolean)
+        .map((text) => ({
+          title: text,
+          done: false,
+          dueLabel: `${formatPrintTimeRange(block.startAt, block.endAt)} · ${parsed.title}`,
+          assignees: [],
+        }));
+    }),
+  });
+  return [
+    group(`Open on the rehearsal day${input.rehearsalDay ? ` · ${input.rehearsalDay}` : ""}`, input.rehearsal),
+    group(`Open on the wedding day${input.weddingDay ? ` · ${input.weddingDay}` : ""}`, input.wedding),
+  ].filter((entry) => entry.items.length > 0);
+}
+
+/** Same prefix the Wedding Day page shows as "Open:". */
+const OPEN_LINE = /^open items?:\s*/i;
+
 export function projectKeyDates(
   events: Array<{ title: string; startDate: Date; endDate: Date; notes: string | null }>,
   timezone: string,
