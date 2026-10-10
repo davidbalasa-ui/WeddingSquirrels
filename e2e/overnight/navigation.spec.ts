@@ -112,9 +112,19 @@ test("Tasks: open a task, '← Back to Tasks' returns to the same spot in the li
   const link = page.locator('a[href^="/work/"]').last();
   await link.scrollIntoViewIfNeeded();
   await page.waitForTimeout(200);
-  const y = await scrollY(page);
+  // The spot to come back to is where the list was at the tap: when the bottom bar covers
+  // the link, the click scrolls the list again first (CI once came back 199px "too far").
+  await page.evaluate(() => {
+    document.addEventListener(
+      "click",
+      () => document.documentElement.setAttribute("data-y-at-tap", String(Math.round(window.scrollY))),
+      { capture: true, once: true },
+    );
+  });
   await link.click();
   await expect(page).toHaveURL(/\/work\//);
+  // The app navigates without reloading, so the attribute is still on the page.
+  const y = Number(await page.locator("html").getAttribute("data-y-at-tap"));
   await page.getByRole("link", { name: /← Back/ }).click();
   await expectBackAt(page, "/plan/tasks", y);
   await guards.assertClean();
