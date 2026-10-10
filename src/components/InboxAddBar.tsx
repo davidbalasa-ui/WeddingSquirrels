@@ -5,6 +5,7 @@ import { createRequest, createShoppingItemFromInbox, createTaskFromInbox } from 
 import { defaultAssigneeIds } from "@/lib/people";
 import type { PersonOption, TaskOption } from "@/lib/inbox";
 import type { SessionAccount } from "@/lib/types";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 type AccountOption = { id: string; name: string };
 
@@ -162,7 +163,7 @@ export function InboxAddBar({
             </label>
             <label className="text-sm">
               <span className="mb-1 block text-xs text-muted">Message (optional)</span>
-              <textarea name="note" rows={2} className="field-input resize-y" placeholder="Details…" />
+              <AutoGrowTextarea name="note" rows={2} className="field-input" placeholder="Details…" />
             </label>
             {session.canSeeTasks ? (
               <label className="text-sm">

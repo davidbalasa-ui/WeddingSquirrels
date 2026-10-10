@@ -7,6 +7,7 @@ import {
   deleteDayAssignment,
   saveDayAssignment,
 } from "@/app/actions";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 export type AssignmentView = {
   id: string;
@@ -214,12 +215,12 @@ function AssignmentForm({
       ) : null}
       <label className="text-sm">
         <span className="mb-1 block text-xs text-muted">Notes</span>
-        <textarea
+        <AutoGrowTextarea
           name="notes"
           rows={2}
           defaultValue={assignment?.notes ?? ""}
           placeholder="Details, timing, location…"
-          className="field-input resize-y"
+          className="field-input"
         />
       </label>
 

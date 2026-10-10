@@ -12,6 +12,7 @@ import {
 } from "@/app/actions";
 import { StarIcon } from "@/components/StarIcon";
 import { taskHref } from "@/lib/entity-links";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 export type ShoppingItemView = {
   id: string;
@@ -89,12 +90,12 @@ function ItemFields({
 
       <label className="block text-sm">
         <span className="mb-1 block text-xs text-muted">Note (optional)</span>
-        <textarea
+        <AutoGrowTextarea
           name="note"
           rows={2}
           defaultValue={item?.note ?? ""}
           placeholder="Store, brand, color…"
-          className="field-input resize-y"
+          className="field-input"
         />
       </label>
 
