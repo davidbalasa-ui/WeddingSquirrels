@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { createRequest } from "@/app/actions";
 import { requestUnreadRefresh } from "@/components/AskNotifier";
 import type { MessageThreadSummary, ThreadRecipient } from "@/lib/messages";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 function relativeTime(iso: string, now = new Date()): string {
   const date = new Date(iso);
@@ -109,7 +110,7 @@ export function MessageThreadList({
           <label className="text-xs font-semibold uppercase tracking-[0.12em] text-muted" htmlFor="message-note">
             Message
           </label>
-          <textarea
+          <AutoGrowTextarea
             id="message-note"
             name="note"
             rows={3}

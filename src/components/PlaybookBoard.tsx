@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { savePlaybookItem, togglePlaybookCompleted } from "@/app/actions";
 import { groupPlaybookSections, type PlaybookItemView } from "@/lib/playbook";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 function PlaybookEditForm({
   item,
@@ -71,7 +72,7 @@ function PlaybookEditForm({
       </label>
       <label className="text-sm">
         <span className="mb-1 block text-xs text-muted">Notes</span>
-        <textarea name="notes" rows={3} defaultValue={item.notes ?? ""} className="field-input resize-y" />
+        <AutoGrowTextarea name="notes" rows={3} defaultValue={item.notes ?? ""} className="field-input" />
       </label>
       <div className="flex flex-wrap gap-2">
         <button type="submit" className="btn-primary" disabled={pending}>
@@ -137,45 +138,44 @@ export function PlaybookBoard({
                       {item.notes ? (
                         <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-muted">{item.notes}</p>
                       ) : null}
-                      {editing ? (
-                        <PlaybookEditForm
-                          item={item}
-                          onDone={() => setEditingKey(null)}
-                          onCancel={() => setEditingKey(null)}
-                        />
-                      ) : null}
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-2">
-                      {showCompleted ? (
-                        <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-                          {item.completed ? "Done" : "Open"}
-                        </span>
-                      ) : null}
-                      {canEdit ? (
-                        <div className="-mr-2 flex flex-col items-end">
-                          <button
-                            type="button"
-                            className="min-h-11 px-2 text-xs font-semibold text-[var(--accent)]"
-                            onClick={() => setEditingKey(editing ? null : item.sourceKey)}
-                          >
-                            {editing ? "Close" : "Edit"}
-                          </button>
-                          <button
-                            type="button"
-                            className="min-h-11 px-2 text-xs font-semibold text-muted"
-                            onClick={() =>
-                              startTransition(async () => {
-                                await togglePlaybookCompleted(item.id ?? "", !item.completed, item.sourceKey);
-                                router.refresh();
-                              })
-                            }
-                          >
-                            {item.completed ? "Mark open" : "Mark done"}
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
+                    {showCompleted ? (
+                      <span className="shrink-0 pt-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                        {item.completed ? "Done" : "Open"}
+                      </span>
+                    ) : null}
                   </div>
+                  {/* Edit and Mark done sit in a row under the item, so the text keeps the full width. */}
+                  {canEdit ? (
+                    <div className="-ml-2 flex flex-wrap items-center">
+                      <button
+                        type="button"
+                        className="min-h-11 px-2 text-xs font-semibold text-[var(--accent)]"
+                        onClick={() => setEditingKey(editing ? null : item.sourceKey)}
+                      >
+                        {editing ? "Close" : "Edit"}
+                      </button>
+                      <button
+                        type="button"
+                        className="min-h-11 px-2 text-xs font-semibold text-muted"
+                        onClick={() =>
+                          startTransition(async () => {
+                            await togglePlaybookCompleted(item.id ?? "", !item.completed, item.sourceKey);
+                            router.refresh();
+                          })
+                        }
+                      >
+                        {item.completed ? "Mark open" : "Mark done"}
+                      </button>
+                    </div>
+                  ) : null}
+                  {editing ? (
+                    <PlaybookEditForm
+                      item={item}
+                      onDone={() => setEditingKey(null)}
+                      onCancel={() => setEditingKey(null)}
+                    />
+                  ) : null}
                 </li>
               );
             })}

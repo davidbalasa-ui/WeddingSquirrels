@@ -22,6 +22,7 @@ import {
   type BudgetPaymentSnapshot,
 } from "@/lib/money";
 import { useRefreshAfterSave } from "@/lib/use-refresh-after-save";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 function toDateInput(value: Date | null | undefined) {
   if (!value) return "";
@@ -84,11 +85,11 @@ function PaymentFields({
       </label>
       <label className="block text-sm">
         <span className="mb-1 block text-xs text-muted">Note</span>
-        <textarea
+        <AutoGrowTextarea
           name="note"
           rows={2}
           defaultValue={payment?.note ?? ""}
-          className="w-full resize-y rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+          className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
         />
       </label>
       <button type="submit" className="btn-primary self-start">

@@ -8,6 +8,7 @@ import {
   saveStayOccupant,
 } from "@/app/actions";
 import { STAY_SECTIONS, type StaySectionId, type StaySlotDef } from "@/lib/stay";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 const SLOT_DEFS = new Map<string, StaySlotDef>(
   STAY_SECTIONS.flatMap((section) => section.slots.map((slot) => [slot.id, slot])),
@@ -222,14 +223,14 @@ function BathNoteRow({
 
   return (
     <div className="flex items-start gap-2">
-      <textarea
+      <AutoGrowTextarea
         value={value}
         autoFocus={autoFocus}
         rows={2}
         placeholder="Who’s using it, timing, extras…"
         onChange={(event) => setValue(event.target.value)}
         onBlur={() => void commit()}
-        className="min-h-16 min-w-0 flex-1 resize-y rounded-xl border border-line bg-white px-2.5 py-2 text-[14px] leading-5 outline-none placeholder:text-muted focus:border-[var(--accent)]"
+        className="min-h-16 min-w-0 flex-1 rounded-xl border border-line bg-white px-2.5 py-2 text-[14px] leading-5 outline-none placeholder:text-muted focus:border-[var(--accent)]"
       />
       <button
         type="button"
