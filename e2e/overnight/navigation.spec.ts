@@ -92,8 +92,10 @@ test("Plan: open Tasks, '← Plan' returns to the same spot on Plan", async ({ p
   const guards = attachGuards(page);
   await page.goto("/plan", { waitUntil: "networkidle" });
   await scrollDown(page);
+  // The Tasks link sits near the top of Plan: scroll so it is on screen a little way
+  // down, rather than letting the click scroll it into view after the position is read.
   const link = page.locator('a[href="/plan/tasks"]').first();
-  await link.scrollIntoViewIfNeeded();
+  await link.evaluate((el) => window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 60, behavior: "instant" }));
   await page.waitForTimeout(200);
   const y = await scrollY(page);
   expect(y).toBeGreaterThan(50);

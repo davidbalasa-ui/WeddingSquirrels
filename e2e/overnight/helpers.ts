@@ -42,10 +42,11 @@ export function attachGuards(page: Page, options: { allow?: RegExp } = {}) {
     if (/ServiceWorker intercepted the request and encountered an unexpected error/.test(text)) {
       return [...cancelledUrls].some((url) => text.includes(url));
     }
-    // WebKit words a prefetch killed by navigation as an access-control failure.
-    if (/Fetch API cannot load .*[?&]_rsc=.* due to access control checks/.test(text)) return true;
-    // WebKit's unhandled rejection for a fetch cut short, when nothing else failed.
-    if (/^TypeError: Load failed$/.test(text) && realFailures === 0 && cancelledUrls.size > 0) return true;
+    // WebKit words a same-origin fetch killed by navigation as an access-control failure
+    // (a same-origin request cannot fail access control for real).
+    if (/Fetch API cannot load http: \/127\.0\.0\.1:\d+\/.* due to access control checks/.test(text) && realFailures === 0) return true;
+    // WebKit's and Firefox's unhandled rejection for a fetch or a response stream cut short, when nothing else failed.
+    if (/^TypeError: (Load failed|Error in input stream)$/.test(text) && realFailures === 0 && cancelledUrls.size > 0) return true;
     return false;
   }
   return {

@@ -73,8 +73,8 @@ test.describe("Print Center packets", () => {
       }
       await page.emulateMedia({ media: "screen" });
       // A long packet on a phone can be taller than a screenshot may be; the top of it is the sample then.
-      const height = await doc.evaluate((el) => el.getBoundingClientRect().height);
-      if (height < 30_000) {
+      const height = await doc.evaluate((el) => el.getBoundingClientRect().height * window.devicePixelRatio);
+      if (height < 32_000) {
         await doc.screenshot({ path: `${SAMPLE_DIR}/${slug}-${info.project.name}.png` });
       } else {
         await page.screenshot({ path: `${SAMPLE_DIR}/${slug}-${info.project.name}.png` });
