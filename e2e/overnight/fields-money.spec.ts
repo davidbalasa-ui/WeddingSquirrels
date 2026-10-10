@@ -75,7 +75,7 @@ test.describe("/money · Add a contract", () => {
     const note = page.locator("p", { hasText: "line three" }).first();
     expect(await note.evaluate((el) => getComputedStyle(el).whiteSpace)).toBe("pre-line");
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("typing abc or -5 for the contract total says what is wrong instead of adding a $0 contract", async ({ page }) => {
@@ -106,7 +106,7 @@ test.describe("/money · Add a contract", () => {
     await page.getByRole("button", { name: "Add contract" }).click();
     await waitForSave(page);
     expect((await prisma.budgetItem.findFirst({ where: { name } }))?.price).toBe(9);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("submitting with an empty vendor name says it is required and Cancel closes without saving", async ({ page }) => {
@@ -121,7 +121,7 @@ test.describe("/money · Add a contract", () => {
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(page.getByRole("button", { name: "Add a contract" })).toBeVisible();
     expect(await prisma.budgetItem.count()).toBe(before);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -153,7 +153,7 @@ test.describe("/money/[itemId] · Edit contract", () => {
     await waitForSave(page);
     await expect(page.getByText("$9 contract")).toBeVisible();
     expect((await prisma.budgetItem.findUnique({ where: { id: contract.id } }))?.price).toBe(9);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("clearing Paid so far saves nothing paid and the box comes back empty, not 0", async ({ page }) => {
@@ -181,7 +181,7 @@ test.describe("/money/[itemId] · Edit contract", () => {
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await waitForSave(page);
     expect((await prisma.budgetItem.findUnique({ where: { id: contract.id } }))?.amountPaid).toBe(12.5);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("blanking the contract name is refused instead of closing the form as if saved", async ({ page }) => {
@@ -203,7 +203,7 @@ test.describe("/money/[itemId] · Edit contract", () => {
     await waitForSave(page);
     await expect(page.getByRole("button", { name: "Edit contract" })).toBeVisible();
     expect((await prisma.budgetItem.findUnique({ where: { id: contract.id } }))?.name).toBe(`${PREFIX} edit name renamed 🎉`);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("owner, payer, pay-by date and a long note save and survive reload; Escape and Cancel discard; Remove contract asks first", async ({ page }) => {
@@ -249,7 +249,7 @@ test.describe("/money/[itemId] · Edit contract", () => {
     await page.waitForURL(/\/money$/);
     await expect(page.locator("body")).not.toContainText(`${PREFIX} edit selects`);
     expect(await prisma.budgetItem.count({ where: { id: contract.id } })).toBe(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -288,7 +288,7 @@ test.describe("/money/[itemId] · Payment schedule", () => {
     expect(payment?.dueDate?.getDate()).toBe(2);
     await expect(page.locator("body")).toContainText("Deposit");
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("editing the label of a partly paid payment keeps what was already paid instead of resetting it to $0", async ({ page }) => {
@@ -310,7 +310,7 @@ test.describe("/money/[itemId] · Payment schedule", () => {
     expect(saved?.paidAmount).toBe(40);
     expect(saved?.paidAt?.getTime()).toBe(paidAt.getTime());
     await expect(page.locator("body")).toContainText("$60");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("ticking Paid pays the whole amount, unticking it on a paid payment un-pays it, Mark paid and Remove work", async ({ page }) => {
@@ -354,7 +354,7 @@ test.describe("/money/[itemId] · Payment schedule", () => {
     await page.getByRole("button", { name: "Remove", exact: true }).click();
     await waitForSave(page);
     expect(await prisma.budgetPayment.count({ where: { id: payment.id } })).toBe(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -401,7 +401,7 @@ test.describe("/money · Other spending", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("button", { name: title })).toHaveCount(0);
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -418,6 +418,6 @@ test.describe("/money/due, /money/history, /money/print", () => {
       await expectNoSidewaysScroll(page);
     }
     await expect(page.locator("body")).toContainText(`${PREFIX} read only`);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });

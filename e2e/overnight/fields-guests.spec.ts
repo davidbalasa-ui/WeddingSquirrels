@@ -92,7 +92,7 @@ test.describe("Guest list fields", () => {
     await page.reload();
     await expect(page.locator("article", { hasText: "Test Guest One Renamed" })).toHaveCount(1);
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("clearing the name and tabbing away keeps the saved name (a person cannot be nameless)", async ({ page }) => {
@@ -107,7 +107,7 @@ test.describe("Guest list fields", () => {
     await expect(name).toHaveValue(ONE);
     await page.waitForTimeout(500);
     expect((await dbPerson(one.id))?.name).toBe(ONE);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("wiping a person's name in the seat form and tapping Save guests says a name is needed instead of deleting the person", async ({ page }) => {
@@ -129,7 +129,7 @@ test.describe("Guest list fields", () => {
     await card.getByRole("button", { name: "Save guests" }).click();
     await expect.poll(async () => (await dbPerson(one.id))?.name).toBe("Test Guest One Again");
     await expect(card.getByText("Every person needs a name.")).toHaveCount(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Table # shows exactly what is typed: 0 stays 0, 007 saves as 7, 12b is refused with a message, blank means no table", async ({ page }) => {
@@ -177,7 +177,7 @@ test.describe("Guest list fields", () => {
     await page.reload();
     const again = await openCard(page, ONE);
     await expect(again.getByLabel("Table #")).toHaveValue("");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("an address typed but not yet saved survives tapping the RSVP pill and Add gift on the same card", async ({ page }) => {
@@ -204,7 +204,7 @@ test.describe("Guest list fields", () => {
     await expect.poll(async () => (await prisma.guest.findUnique({ where: { id: pair.id } }))?.street).toBe("Draft street");
     expect((await dbPerson(one.id))?.tableNumber).toBe(3);
     expect((await dbPerson(one.id))?.tableSpot).toBe("head");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("address, seat and phone round-trip through Save guests and reload, and clearing them stores nothing", async ({ page }) => {
@@ -257,7 +257,7 @@ test.describe("Guest list fields", () => {
     await card.getByLabel("Phone").fill("   ");
     await card.getByLabel("Phone").press("Tab");
     await expect.poll(async () => (await prisma.guest.findUnique({ where: { id: pair.id } }))?.phone).toBeNull();
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("gifts: Add gift focuses the new row, Enter saves the text, Written and Sent stick, Remove gift deletes it", async ({ page }) => {
@@ -289,7 +289,7 @@ test.describe("Guest list fields", () => {
     await again.getByRole("button", { name: "Remove gift" }).click();
     await expect(again.getByPlaceholder("Gift, card, or cash note")).toHaveCount(0);
     await expect.poll(async () => prisma.guestGift.count({ where: { guestId: single.id } })).toBe(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("role and RSVP pills cycle, save and come back after reload", async ({ page }) => {
@@ -311,7 +311,7 @@ test.describe("Guest list fields", () => {
     const again = await openCard(page, THREE);
     await expect(again.getByRole("button", { name: /^attending$/i })).toBeVisible();
     await expect(again.getByRole("button", { name: label, exact: true })).toBeVisible();
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("uploading a photo saves it; a file that is not really an image shows a message instead of breaking the page", async ({ page }) => {
@@ -337,7 +337,7 @@ test.describe("Guest list fields", () => {
     await expect(card.getByRole("alert")).toContainText("couldn’t be read");
     await expect(page.getByLabel("Search guests")).toBeVisible();
     expect((await dbPerson(three.id))?.photoData?.slice(0, 15), "the good photo is kept").toBe("data:image/jpeg");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("search filters the cards, the table view groups by table and the print page lists names and gifts", async ({ page }) => {
@@ -367,6 +367,6 @@ test.describe("Guest list fields", () => {
     await expect(table).toContainText(ONE);
     await expect(page.getByRole("button", { name: "Print" })).toBeVisible();
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });

@@ -75,10 +75,17 @@ function pinAlert(page: Page) {
   return page.locator('p[role="alert"]');
 }
 
+/** Dots with a colour behind them. Read from the computed style: Safari reports an inline
+ *  `transparent` as `rgba(0, 0, 0, 0)`, so the inline value cannot be compared across engines. */
 function filledDots(page: Page) {
   return page
     .locator('[aria-label="PIN length"] span')
-    .evaluateAll((els) => els.filter((el) => (el as HTMLElement).style.background !== "transparent").length);
+    .evaluateAll((els) =>
+      els.filter((el) => {
+        const colour = getComputedStyle(el).backgroundColor;
+        return colour !== "transparent" && colour !== "rgba(0, 0, 0, 0)";
+      }).length,
+    );
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -98,7 +105,7 @@ test.describe("login page PIN pad", () => {
     await expect(pinAlert(page)).toHaveText("Incorrect PIN");
     await expect.poll(() => filledDots(page)).toBe(0);
     expect(page.url()).toMatch(/\/$/);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("backspace removes the last digit and the fourth digit unlocks David (0425)", async ({ page }) => {
@@ -113,11 +120,12 @@ test.describe("login page PIN pad", () => {
     expect(await filledDots(page)).toBe(0);
     await tapPin(page, "0425");
     await page.waitForURL(/\/today/, { timeout: 20_000 });
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Haley's PIN 1016 unlocks and the Log out button returns to the pad without a session", async ({ page, context }) => {
-    const guards = attachGuards(page);
+    // Safari brings the logged-out page back from history and logs its own line for the 401 its sync then gets.
+    const guards = attachGuards(page, { allow: /status of 401/ });
     await gotoReady(page, "/");
     await tapPin(page, "1016");
     await page.waitForURL(/\/today/, { timeout: 20_000 });
@@ -127,7 +135,7 @@ test.describe("login page PIN pad", () => {
     expect((await context.cookies()).map((c) => c.name)).toEqual([]);
     await page.goBack();
     await expect(page.getByText("Enter your PIN")).toBeVisible();
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("fast taps of 0999 (Mother in law) land on her first allowed page", async ({ page }) => {
@@ -141,7 +149,7 @@ test.describe("login page PIN pad", () => {
     }
     await page.waitForURL(/\/(today|plan|people|day|more)/, { timeout: 20_000 });
     await expect(page.locator("body")).not.toContainText("Enter your PIN");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("keyboard digits, Enter and Escape do nothing harmful on the pad", async ({ page }) => {
@@ -155,25 +163,28 @@ test.describe("login page PIN pad", () => {
     await expect(pinAlert(page)).toHaveCount(0);
     await tapPin(page, "0425");
     await page.waitForURL(/\/today/, { timeout: 20_000 });
-    guards.assertClean();
+    await guards.assertClean();
   });
 
-  test("an account with no modules lands on /no-access and cannot open /accounts", async ({ page }) => {
+  test("an account with no modules lands on /no-access and cannot open /accounts", async ({ page, context }) => {
     // Leaving a page cuts the automatic offline sync's fetch short; that abort is not an app error.
     const guards = attachGuards(page, { allow: /Failed to fetch/ });
     await gotoReady(page, "/");
     await tapPin(page, RESTRICTED_PIN);
     await page.waitForURL(/\/no-access/, { timeout: 20_000 });
+    // The unlock's page comes back in the same response; the next full load needs the stored cookie.
+    expect((await context.cookies()).map((c) => c.name), "session cookie stored after unlock").toContain("ws_session");
     await expect(page.locator("body")).toContainText("does not have permission");
     await expectNoSidewaysScroll(page);
+    // toHaveURL names the page actually landed on when it is not /no-access.
     await page.goto("/accounts");
-    await page.waitForURL(/\/no-access/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/no-access/, { timeout: 20_000 });
     await page.goto("/today");
-    await page.waitForURL(/\/no-access/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/no-access/, { timeout: 20_000 });
     await page.getByRole("button", { name: "Log out" }).click();
     await page.waitForURL(/\/$/, { timeout: 20_000 });
     await expect(page.getByText("Enter your PIN")).toBeVisible();
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   // Judgement call for David (SWEEP-REPORT.md #2): the editor accepts 5–8 digit PINs, but the pad
@@ -254,7 +265,7 @@ test.describe("accounts editor", () => {
     await expect(editor.getByLabel("Guests see")).toBeChecked();
     await expect(editor.locator("fieldset", { hasText: "Task filter" }).locator("input:checked")).toHaveCount(1);
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("edit: a non-digit PIN reset says PIN must be 4–8 digits instead of a production error blob", async ({ page }) => {
@@ -266,7 +277,7 @@ test.describe("accounts editor", () => {
     await dialog.getByRole("button", { name: "Save changes" }).click();
     await expect(dialog.locator(DANGER)).toHaveText("PIN must be 4–8 digits");
     await expect(dialog).toBeVisible();
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("edit: required name, whitespace-only name, 3-digit and 9-digit PINs are refused with a message", async ({ page }) => {
@@ -294,7 +305,7 @@ test.describe("accounts editor", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     expect(await prisma.pinAccount.count({ where: { name: "Sweep temp" } })).toBe(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("edit: a 2000-character name saves, shows and does not scroll sideways; unlinking and unchecking everything saves as empty", async ({ page }) => {
@@ -333,7 +344,7 @@ test.describe("accounts editor", () => {
     expect(await compare("7778", row!.pinHash)).toBe(true);
     await page.reload();
     await expect(page.locator("article", { hasText: "Sweep renamed" })).not.toContainText("Linked:");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("duplicate seeds '(copy)', delete asks first and only deletes on OK", async ({ page }) => {
@@ -370,7 +381,7 @@ test.describe("accounts editor", () => {
     await expect(page.getByRole("dialog").getByRole("button", { name: "Delete" })).toHaveCount(0);
     await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -416,7 +427,7 @@ test.describe("print center", () => {
     await page.reload();
     await expect(page.getByTestId("print-preset-binder")).toHaveAttribute("aria-pressed", "true");
     expect(await page.locator("input[data-print-section]:checked").count()).toBeGreaterThan(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -437,7 +448,7 @@ test.describe("more, offline and no-access", () => {
     await page.getByRole("button", { name: "Close install guide" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("more: Update now refreshes the offline copy and Open offline copy shows its tabs", async ({ page }) => {
@@ -459,7 +470,7 @@ test.describe("more, offline and no-access", () => {
     await expectNoSidewaysScroll(page);
     await page.getByRole("link", { name: "← Back to app" }).click();
     await page.waitForURL(/\/today/);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("no-access renders for a master and offers Log out", async ({ page }) => {
@@ -468,6 +479,6 @@ test.describe("more, offline and no-access", () => {
     await expect(page.locator("body")).toContainText("does not have permission");
     await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });

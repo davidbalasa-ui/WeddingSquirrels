@@ -22,7 +22,10 @@ export function sessionCookieOptions() {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    // Secure on a real deployment (https). A production build served over plain http for the
+    // browser checks (VERCEL_ENV=development) must not mark it: Safari drops a Secure cookie
+    // set over http://127.0.0.1, so a full page load after unlock would ask for the PIN again.
+    secure: process.env.NODE_ENV === "production" && process.env.VERCEL_ENV !== "development",
     path: "/",
     maxAge: SESSION_MAX_AGE,
   };

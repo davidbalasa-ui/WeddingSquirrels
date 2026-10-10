@@ -89,7 +89,7 @@ test.describe("People hub lists", () => {
     await expect(page).toHaveURL(/tab=day-of/);
     await page.getByRole("link", { name: /^All/ }).click();
     await expect(page).not.toHaveURL(/tab=/);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -112,7 +112,7 @@ test.describe("Day-of tab · add or edit day-of contacts", () => {
     await page.reload(); // see SWEEP-REPORT finding 6: the refreshed page can briefly show the old data
     await page.getByText("Add or edit day-of contacts").click();
     await expect(page.getByText("Test Dayof Blank")).toBeVisible();
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("adds a contact with odd characters, edits it with Enter, clears the phone, swaps the photo, and deletes it", async ({ page }) => {
@@ -166,7 +166,7 @@ test.describe("Day-of tab · add or edit day-of contacts", () => {
     await expect(page.getByText(name)).toHaveCount(0);
     await expect.poll(() => prisma.contact.count({ where: { id: created!.id } })).toBe(0);
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -260,7 +260,7 @@ test.describe("Person profile · contact (vendor) record", () => {
     await page.getByRole("button", { name: "Delete person" }).click();
     await expect(page).toHaveURL(/\/people$/);
     await expect.poll(() => prisma.contact.count({ where: { id: contact.id } })).toBe(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Remove from Day-of Contacts on a contact added from the Day-of tab actually takes it off the call list", async ({ page }) => {
@@ -289,7 +289,7 @@ test.describe("Person profile · contact (vendor) record", () => {
     await page.reload();
     await expect(page.getByRole("button", { name: /Day-of Contacts/ }).first()).toHaveText("Remove from Day-of Contacts");
     expect((await prisma.contact.findUnique({ where: { id: contact.id } }))?.isDayOfContact).toBe(true);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -363,6 +363,8 @@ test.describe("Person profile · guest record", () => {
     await page.getByRole("radio", { name: "Attending" }).click();
     await expect(page.getByRole("radio", { name: "Attending" })).toHaveAttribute("aria-checked", "true");
     await expect.poll(async () => (await prisma.guestPerson.findUnique({ where: { id: guestPersonId } }))?.rsvpStatus).toBe("attending");
+    // Firefox aborts a reload that starts while the save's own refresh is still in flight.
+    await page.waitForLoadState("networkidle");
     await page.reload();
     await expect(page.getByRole("radio", { name: "Attending" })).toHaveAttribute("aria-checked", "true");
     await page.getByRole("radio", { name: "Declined" }).click();
@@ -400,7 +402,7 @@ test.describe("Person profile · guest record", () => {
     await page.getByRole("button", { name: "Delete person" }).click();
     await expect(page).toHaveURL(/\/people$/);
     await expect.poll(() => prisma.guestPerson.count({ where: { id: guestPersonId } })).toBe(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Log out on a profile ends the session", async ({ browser }) => {
@@ -410,7 +412,7 @@ test.describe("Person profile · guest record", () => {
     await page.goto(profileUrl("person:kurt_huizenga"));
     await page.getByRole("button", { name: "Log out" }).click();
     await expect(page.locator("body")).toContainText(/PIN/i);
-    guards.assertClean();
+    await guards.assertClean();
     await context.close();
   });
 });

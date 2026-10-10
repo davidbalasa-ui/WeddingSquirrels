@@ -75,7 +75,7 @@ test.describe("task workspace", () => {
     await saveDecision(page);
     await expect(page.getByText("Money spent must be a number")).toBeVisible();
     expect((await prisma.task.findUnique({ where: { id } }))?.amountSpent).toBe(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("money fields keep decimals and commas, clear to empty, and 0 then 9 saves 9", async ({ page }) => {
@@ -109,7 +109,7 @@ test.describe("task workspace", () => {
     await page.reload();
     await expect(needed).toHaveValue("9");
     expect((await prisma.task.findUnique({ where: { id } }))?.amountNeeded).toBe(9);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("saving a whitespace-only title says Add a title instead of quietly keeping the old one", async ({ page }) => {
@@ -119,7 +119,7 @@ test.describe("task workspace", () => {
     await title.fill("   ");
     await saveDecision(page);
     await expect(page.getByText("Add a title.")).toBeVisible();
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("notes, due date, done and owners come back as typed after a reload", async ({ page }) => {
@@ -153,7 +153,7 @@ test.describe("task workspace", () => {
     expect(row?.dueDate).toBeNull();
     expect(row?.status).toBe("todo");
     expect(row?.assignees).toHaveLength(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -184,7 +184,7 @@ test.describe("task steps", () => {
     await input.fill(original);
     await page.keyboard.press("Tab");
     await expect.poll(async () => (await prisma.task.findUnique({ where: { id: step!.id } }))?.title).toBe(original);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("step notes save on blur, survive a reload, and clear to empty", async ({ page }) => {
@@ -208,7 +208,7 @@ test.describe("task steps", () => {
     await expect.poll(async () => (await prisma.task.findUnique({ where: { id: step!.id } }))?.planNotes).toBe("");
     await page.reload();
     await expect(notes).toHaveValue("");
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -227,7 +227,7 @@ test.describe("shopping", () => {
     await expect(page.getByText("Add an item name.")).toBeVisible();
     await expect(page.locator('input[name="quantity"]')).toHaveValue("2");
     expect(await prisma.shoppingItem.count({ where: { name: "" } })).toBe(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("an item round-trips its fields, hides when purchased, and renaming it to blank is refused", async ({ page }) => {
@@ -269,7 +269,7 @@ test.describe("shopping", () => {
     expect(saved?.quantity).toBeNull();
     expect(saved?.ownerId).toBeNull();
     expect(saved?.purchased).toBe(true);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -308,7 +308,7 @@ test.describe("stay", () => {
     await expect(input).toHaveAttribute("placeholder", "Tap to claim");
 
     await prisma.staySlot.update({ where: { id: slot!.id }, data: { occupant: before } });
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("a bathroom note saves on blur with its blank lines and Remove deletes it", async ({ page }) => {
@@ -325,7 +325,7 @@ test.describe("stay", () => {
     await expect(page.getByPlaceholder("Who’s using it, timing, extras…").first()).toHaveValue("Sweep note\n\nline 3 🎉");
     await page.getByRole("button", { name: "Remove bathroom note" }).first().click();
     await expect.poll(async () => prisma.stayBathNote.count()).toBe(countBefore);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -359,6 +359,8 @@ test.describe("calendar", () => {
     await page.getByRole("button", { name: "Save event" }).click();
     await expect(page.getByRole("button", { name: "Save event" })).toHaveCount(0);
     // Read the card after a full reload so the check is about what was saved.
+    // Firefox aborts a reload that starts while the save's own refresh is still in flight.
+    await page.waitForLoadState("networkidle");
     await page.reload();
     await page.getByRole("button", { name: new RegExp(`^${target.getUTCDate()}\\b`) }).click();
     const article = page.locator("article").first();
@@ -374,6 +376,6 @@ test.describe("calendar", () => {
       where: { id: event!.id },
       data: { title: original.title, notes: original.notes, location: original.location, startDate: original.startDate, endDate: original.endDate },
     });
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
