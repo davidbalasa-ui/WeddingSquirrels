@@ -256,6 +256,8 @@ export type ReconciledPlan = {
    */
   updates: Array<ReconciledWrite & { id: string; before: { startAt: string; endAt: string | null; title: string } }>;
   unchanged: string[];
+  /** The app's original rehearsal rows, still exactly as seeded: Apply gives them the document's wording and seed key. */
+  refreshes: Array<ReconciledWrite & { id: string }>;
   removals: Array<{ id: string; seedKey: string; title: string }>;
   /** Rows in the database the document does not mention. Left alone. */
   untouched: Array<{ id: string; seedKey: string | null; title: string; startAt: string }>;
@@ -273,7 +275,7 @@ export function reconciledKeyForRow(row: { id: string; seedKey: string | null; s
 }
 
 export function planReconciledTimeline(existing: ExistingTimelineRow[]): ReconciledPlan {
-  const plan: ReconciledPlan = { inserts: [], updates: [], unchanged: [], removals: [], untouched: [] };
+  const plan: ReconciledPlan = { inserts: [], updates: [], unchanged: [], refreshes: [], removals: [], untouched: [] };
   const wanted = new Set(RECONCILED_TIMELINE.map((moment) => moment.seedKey));
   const bySeed = new Map<string, ExistingTimelineRow>();
   for (const row of existing) {
@@ -304,6 +306,11 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
     // schedule, which would otherwise bring this card back for unchanged moments.
     if (row.startAt === write.startAt && (row.endAt ?? null) === write.endAt && row.notes === notes) {
       plan.unchanged.push(moment.seedKey);
+      return;
+    }
+    // The app's original rehearsal row, never edited: not the owner's wording, so Apply may rewrite it.
+    if (!row.seedKey && REHEARSAL_LEGACY_NOTES.get(row.id) === row.notes) {
+      plan.refreshes.push({ ...write, id: row.id });
       return;
     }
     plan.updates.push({
@@ -338,5 +345,5 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
 }
 
 export function reconciledPlanIsEmpty(plan: ReconciledPlan): boolean {
-  return plan.inserts.length === 0 && plan.removals.length === 0;
+  return plan.inserts.length === 0 && plan.removals.length === 0 && plan.refreshes.length === 0;
 }
