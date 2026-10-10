@@ -100,7 +100,7 @@ test("Wedding party packet lists who walks with whom without phone numbers; the 
 test("Schedules say Bridal party photos and the processional lines up when the schedule says", async ({ page }) => {
   for (const id of ["party", "binder"]) {
     const text = await openPacket(page, id);
-    const schedule = text.split(/\nShot list/i)[0]!;
+    const schedule = text.split(/\n(?:Photo )?shot list/i)[0]!;
     expect(schedule, `${id}: the schedule lists single shots`).not.toMatch(/Groom with Evan|Bride with Skila/);
     expect(schedule, id).toContain("Bridal party photos");
     const lineUp = text.match(/Ceremony processional · line up at (\d{1,2}:\d{2} [AP]M)/)?.[1];

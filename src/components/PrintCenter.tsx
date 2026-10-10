@@ -787,7 +787,11 @@ function RunSheet({ phases }: { phases: PrintCenterDocument["runSheet"] }) {
   return (
     <div className="binder-run">
       {phases.map((phase) => (
-        <div key={phase.title} className="binder-block">
+        <div
+          key={phase.title}
+          // A moment with nothing under it (the bride's copy of the getaway) stays with the next one.
+          className={phase.events.length || phase.notes.length ? "binder-block" : "binder-block binder-block-lone"}
+        >
           <h3>{phase.title}</h3>
           {phase.location ? <p className="binder-note">{phase.location}</p> : null}
           {phase.notes.map((line) => (
