@@ -552,6 +552,14 @@ a {
     break-after: avoid;
   }
 
+  /* The rule under a heading is a block of its own; without this the page can end
+     between the heading and its rule, leaving the heading alone at the bottom. */
+  .binder-section h2,
+  .binder-section h3,
+  .binder-block h3 {
+    break-inside: avoid;
+  }
+
   /* Wedding Day page printed straight from the page: same ink and rules as the binder. */
   .timeline-print-page .plan-chapter-header,
   .timeline-print-page .day-tabs {
