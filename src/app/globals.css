@@ -320,6 +320,11 @@ a {
   border-color: var(--accent);
 }
 
+/* Borderless inline fields (timeline location): 16px so iOS Safari does not zoom on focus. */
+.inline-field {
+  font-size: 16px;
+}
+
 .btn-primary {
   display: inline-flex;
   align-items: center;

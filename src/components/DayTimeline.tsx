@@ -647,7 +647,7 @@ export function DayTimeline({
       ) : null}
 
       {!hideChips && editing ? (
-        <div className="sticky top-[4.75rem] z-10 -mx-1 mb-2 flex gap-1.5 overflow-x-auto bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-1 py-1.5 backdrop-blur-md print-hide">
+        <div className="sticky top-0 z-10 -mx-1 mb-2 flex gap-1.5 overflow-x-auto bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-1 py-1.5 backdrop-blur-md print-hide">
           {DAY_OF_BUCKETS.filter((bucket) => counts[bucket.id] > 0).map((bucket) => (
             <button
               key={bucket.id}
@@ -1062,7 +1062,7 @@ function EditCard({
             onNoteFocusChange(false);
             onFlushNotes(row.id);
           }}
-          className="mt-0.5 w-full border-0 bg-transparent p-0 text-sm text-ink outline-none"
+          className="inline-field mt-0.5 w-full border-0 bg-transparent p-0 text-ink outline-none"
         />
       </label>
       <textarea
