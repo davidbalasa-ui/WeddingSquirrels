@@ -76,8 +76,14 @@ type Row = {
   lastSaved: { startAt: string; endAt: string; notes: string };
   status: RowStatus;
   error: string | null;
+  /** Why a blank field went back to its saved value, shown until the next edit. */
+  notice: string | null;
   localRev: number;
 };
+
+const KEPT_TITLE = "A moment needs a title — kept the saved one.";
+const KEPT_START = "A moment needs a start time — kept the saved one.";
+const DRAFT_NEEDS = "Add a start time or what happens first.";
 
 type Draft = {
   startAt: string;
@@ -100,14 +106,23 @@ function toRow(block: TimelineBlockView): Row {
     sortOrder: block.sortOrder ?? 0,
     status: "saved",
     error: null,
+    notice: null,
     localRev: 0,
   };
 }
 
-function statusLabel(status: RowStatus, error: string | null) {
+function statusLabel(status: RowStatus, error: string | null, notice: string | null = null) {
   if (status === "saving") return "Saving…";
   if (status === "error") return error || "Couldn’t save — tap to retry";
+  if (status === "saved" && notice) return notice;
   return "";
+}
+
+function keptNotice(prepared: { revertNotes?: string; revertStartAt?: string; revertedNotes?: boolean }) {
+  const kept: string[] = [];
+  if (prepared.revertNotes !== undefined || prepared.revertedNotes) kept.push(KEPT_TITLE);
+  if (prepared.revertStartAt !== undefined) kept.push(KEPT_START);
+  return kept.length ? kept.join(" ") : null;
 }
 
 function applyOrder(prev: Row[], order: string[], updated?: Row): Row[] {
@@ -159,6 +174,7 @@ export function DayTimeline({
   const [rows, setRows] = useState<Row[]>(() => blocks.map(toRow));
   const [blockSource, setBlockSource] = useState(blocks);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [unreachable, setUnreachable] = useState(false);
@@ -272,14 +288,16 @@ export function DayTimeline({
     );
 
     if (!prepared.ok) {
+      // A blank title or start never saves; the row says so instead of changing silently.
+      const notice = keptNotice(prepared);
       setRows((prev) => {
         const next = prev.map((item): Row => {
           if (item.id !== row.id || item.localRev !== row.localRev) return item;
           const startAt = prepared.revertStartAt ?? item.startAt;
           if (prepared.reason === "empty_notes" || prepared.revertNotes) {
-            return { ...item, startAt, notes: item.lastSaved.notes, status: "saved", error: null };
+            return { ...item, startAt, notes: item.lastSaved.notes, status: "saved", error: null, notice };
           }
-          return { ...item, startAt, status: "saved", error: null };
+          return { ...item, startAt, status: "saved", error: null, notice };
         });
         if (!prepared.revertStartAt) return next;
         // A start typed away was never saved: the row goes back where its saved time puts it.
@@ -341,6 +359,7 @@ export function DayTimeline({
       },
       status: "saved",
       error: null,
+      notice: keptNotice(prepared),
     };
 
     setUnreachable(false);
@@ -358,6 +377,7 @@ export function DayTimeline({
     const prepared = prepareTimelineCreate(openDraft);
     if (!prepared.ok) {
       if (opts.abandon) setDraft(null);
+      else setDraftError(DRAFT_NEEDS);
       return { ok: false as const };
     }
     if (draftSavingRef.current) return { ok: false as const };
@@ -416,7 +436,7 @@ export function DayTimeline({
     setRows((prev) =>
       prev.map((item) =>
         item.id === id
-          ? { ...item, notes, status: "dirty", error: null, localRev: item.localRev + 1 }
+          ? { ...item, notes, status: "dirty", error: null, notice: null, localRev: item.localRev + 1 }
           : item,
       ),
     );
@@ -433,7 +453,7 @@ export function DayTimeline({
       prev.map((item) => {
         if (item.id !== id) return item;
         const notes = updateBlockLocation(notesSource(item), location || null);
-        return { ...item, notes, status: "dirty", error: null, localRev: item.localRev + 1 };
+        return { ...item, notes, status: "dirty", error: null, notice: null, localRev: item.localRev + 1 };
       }),
     );
     scheduleNotesSave(id);
@@ -444,7 +464,7 @@ export function DayTimeline({
       prev.map((item) => {
         if (item.id !== id) return item;
         const notes = mergeEditorNotesBody(notesSource(item), editorBody);
-        return { ...item, notes, status: "dirty", error: null, localRev: item.localRev + 1 };
+        return { ...item, notes, status: "dirty", error: null, notice: null, localRev: item.localRev + 1 };
       }),
     );
     scheduleNotesSave(id);
@@ -458,6 +478,7 @@ export function DayTimeline({
       ...patch,
       status: "dirty",
       error: null,
+      notice: null,
       localRev: current.localRev + 1,
     };
     setRows((prev) => {
@@ -495,6 +516,7 @@ export function DayTimeline({
       return;
     }
     setDraft({ startAt: "", endAt: "", notes: "", location: "" });
+    setDraftError(null);
     setConfirmDeleteId(null);
   }
 
@@ -720,7 +742,7 @@ export function DayTimeline({
               startAt={draft.startAt}
               endAt={draft.endAt}
               placeholder="Set time"
-              onCommit={(next) => setDraft({ ...draft, ...next })}
+              onCommit={(next) => { setDraft({ ...draft, ...next }); setDraftError(null); }}
               onOpenChange={handleStepperOpenChange}
             />
             <input
@@ -736,7 +758,7 @@ export function DayTimeline({
               autoFocus
               onFocus={() => setNoteFocused(true)}
               onBlur={() => setNoteFocused(false)}
-              onChange={(event) => setDraft({ ...draft, notes: event.target.value })}
+              onChange={(event) => { setDraft({ ...draft, notes: event.target.value }); setDraftError(null); }}
               className="mt-1 w-full resize-y border-0 bg-transparent p-0 text-[15px] leading-snug outline-none"
             />
             <div className="mt-2 flex gap-2">
@@ -747,6 +769,11 @@ export function DayTimeline({
                 Discard
               </button>
             </div>
+            {draftError ? (
+              <p role="alert" className="mt-1 text-[11px] font-semibold text-[var(--danger)]">
+                {draftError}
+              </p>
+            ) : null}
           </article>
         ) : null}
       </div>
@@ -1013,7 +1040,7 @@ function EditCard({
   onPeerReorder: (ids: string[], persist?: boolean) => void;
 }) {
   const endWarn = row.endAt.trim() ? endsBeforeStart(row.startAt, row.endAt) : false;
-  const label = statusLabel(row.status, row.error);
+  const label = statusLabel(row.status, row.error, row.notice);
   // While a field has focus it shows exactly what was typed. The stored notes are
   // tidied (lines trimmed, blank lines dropped), so rendering them back mid-typing
   // would swallow every space typed at the end of a line and every new line.
