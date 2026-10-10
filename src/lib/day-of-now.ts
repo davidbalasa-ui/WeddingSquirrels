@@ -156,8 +156,10 @@ export function notesBodyForEditor(notes: string): string {
 }
 
 export function mergeEditorNotesBody(notes: string, editorBody: string): string {
-  const location = parseBlockNotes(notes).location;
   const parsed = parseBlockNotes(editorBody);
+  // A "location: …" line typed into the body moves to the Location field rather than
+  // being dropped on the floor when the field's own value is written back.
+  const location = parsed.location ?? parseBlockNotes(notes).location;
   return composeBlockNotes({
     title: parsed.title,
     location,
