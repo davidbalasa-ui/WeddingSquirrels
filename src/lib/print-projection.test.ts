@@ -21,6 +21,7 @@ import {
 } from "./print-projection";
 import { extractMcCues } from "./print-center";
 import { mergePartyPhoneSources } from "./print-center-data";
+import { BLACK_CLOTHES_NOTE, RECONCILED_TIMELINE, reconciledNotes } from "./reconciled-timeline";
 
 test("print projection strips reconstruction language and keeps operational meaning", () => {
   assert.equal(
@@ -503,4 +504,20 @@ test("open lines on Wedding Day moments print as open work under their day", () 
       ],
     ],
   );
+});
+
+// David, 2026-10-10 20:37: "get ready clothes for the bridal party is black for Friday morning".
+test("the wedding party packet prints the black get ready clothes with Friday's first hair and makeup rotation, rooms kept", () => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_hair_rotation_1")!;
+  const view = projectWeddingParty({
+    lineup: [],
+    decor: [],
+    weddingBlocks: [{ startAt: moment.startAt, endAt: moment.endAt, notes: reconciledNotes(moment) }],
+    contacts: [],
+  });
+  assert.equal(view.moments.length, 1);
+  assert.equal(view.moments[0]!.notes.length, 3);
+  assert.ok(view.moments[0]!.notes.some((line) => /black/.test(line)));
+  assert.ok(view.moments[0]!.notes.some((line) => line.startsWith("Hair: Braxton")));
+  assert.ok(moment.lines.includes(BLACK_CLOTHES_NOTE));
 });

@@ -42,16 +42,27 @@ export const OPEN_ITEMS_PREFIX = /^open items?:\s*/i;
 /** The app's original rehearsal rows, by id, as seeded: an unedited one is safe to fold away. */
 const REHEARSAL_LEGACY_NOTE_SET = new Set(REHEARSAL_SCHEDULE_SEED.map((block) => block.notes));
 
+/** David, 2026-10-10 20:32: "skila and Trinity and bri claimed their bunks make a note of that". */
+export const BUNKS_NOTE = "Skila, Trinity and Bri claimed their bunks (David, Oct 10).";
+
+/** David, 2026-10-10 20:37: "get ready clothes for the bridal party is black for Friday morning". */
+/** David, 2026-10-10 20:40, his one-week check-in to the bridal party. */
+export const NO_SIGNAL_NOTE =
+  "Black Sheep Shelter has little to no internet or cell service. Save or screenshot the addresses, directions, and schedule before leaving the Airbnb.";
+
+export const BLACK_CLOTHES_NOTE = "Get ready clothes for the bridal party are black (David, Oct 10).";
+
 const W = "wedding" as const;
 const R = "rehearsal" as const;
 
 export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   // Thursday
   { seedKey: "reh.checkin", schedule: R, phase: "rehearsal", startAt: "1:00 PM", endAt: "2:30 PM", title: "Airbnb check in",
-    lines: ["Wedding party arrives and chooses rooms.", "David and Haley plan to arrive around 1:00 PM."],
-    openItems: "Confirm the Airbnb address and who has check-in access." },
+    location: "Airbnb, 10268 51st St, Grand Junction, MI 49056",
+    lines: ["Wedding party arrives and chooses rooms.", BUNKS_NOTE, "David and Haley plan to arrive around 1:00 PM."],
+    openItems: "Confirm who has check-in access." },
   { seedKey: "reh.getready", schedule: R, phase: "rehearsal", startAt: "2:30 PM", endAt: "3:45 PM", title: "Get ready",
-    lines: ["Hair, makeup, clothing, and final items before departure.", "Victoria meets the group at Hawkshead; Braxton meets the group at the reception/rehearsal."],
+    lines: ["Hair, makeup, clothing, and final items before departure.", "Victoria meets the group at Hawkshead; Braxton meets the group at the reception/rehearsal.", NO_SIGNAL_NOTE],
     openItems: "Confirm whether anyone else will skip the Airbnb arrival window." },
   { seedKey: "reh.depart-airbnb", schedule: R, phase: "rehearsal", startAt: "3:45 PM", endAt: null, title: "Depart for Hawkshead",
     location: "Hawkshead, 523 Hawks Nest Drive, South Haven", lines: ["Allow 25–30 minutes."] },
@@ -62,11 +73,11 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "reh.ceremony", schedule: R, phase: "rehearsal", startAt: "6:00 PM", endAt: "7:00 PM", title: "Ceremony rehearsal",
     lines: ["Practice processional, ceremony positions, recessional, and immediate marriage-license signing flow."] },
   { seedKey: "reh.return", schedule: R, phase: "rehearsal", startAt: "7:15 PM", endAt: null, title: "Return to the Airbnb",
-    lines: ["Steam dresses and suits.", "Dessert and game night."], openItems: "Confirm the dessert plan and final location." },
+    lines: ["Steam dresses and suits.", "Dessert and game night, most likely back at the Airbnb, although that detail is still being finalized."], openItems: "Confirm the dessert plan and final location." },
 
   // Friday morning
   { seedKey: "wedding_hair_rotation_1", schedule: W, phase: "morning", startAt: "9:00 AM", endAt: "10:00 AM", title: "Wedding party first hair and makeup rotation",
-    lines: ["Hair: Braxton in Bathroom 1; Andi in Bathroom 2; Kaylie in Bathroom 3.", "Makeup: Bri and Trinity in Bedroom 1; Victoria and Skila in Bedroom 3."] },
+    lines: ["Hair: Braxton in Bathroom 1; Andi in Bathroom 2; Kaylie in Bathroom 3.", "Makeup: Bri and Trinity in Bedroom 1; Victoria and Skila in Bedroom 3.", BLACK_CLOTHES_NOTE] },
   { seedKey: "wedding_haley_makeup", schedule: W, phase: "morning", startAt: "9:30 AM", endAt: "10:30 AM", title: "Haley makeup",
     lines: ["Haley begins makeup in Bedroom 2."] },
   { seedKey: "wedding_hair_rotation_2", schedule: W, phase: "morning", startAt: "10:00 AM", endAt: "11:00 AM", title: "Wedding party hair and makeup swap",
@@ -85,11 +96,11 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
     lines: ["Wedding party finishes hair and makeup, cleans rooms, and gathers belongings."] },
   { seedKey: "wedding_pack_up", schedule: W, phase: "morning", startAt: "11:30 AM", endAt: "12:00 PM", title: "Clean, pack, eat and load cars",
     lines: ["Pack wedding and personal items.", "Wedding party prepares to leave at noon."] },
-  { seedKey: "wedding_party_leaves", schedule: W, phase: "morning", startAt: "12:00 PM", endAt: "12:20 PM", title: "Wedding party leaves and private vows",
-    lines: ["Wedding party leaves for Black Sheep Shelter.", "David and Haley remain briefly for private vows with Belle."] },
+  { seedKey: "wedding_party_leaves", schedule: W, phase: "morning", startAt: "12:00 PM", endAt: "12:30 PM", title: "Wedding party leaves and private vows",
+    lines: ["Wedding party leaves for Black Sheep Shelter.", NO_SIGNAL_NOTE, "David and Haley remain briefly for private vows with Belle."] },
   { seedKey: "wedding_vendor_arrival", schedule: W, phase: "morning", startAt: "12:15 PM", endAt: "12:30 PM", title: "Wedding party arrives at Black Sheep Shelter",
     lines: ["Remove dresses from bags and complete hair and makeup touch-ups."] },
-  { seedKey: "wedding_couple_departs", schedule: W, phase: "morning", startAt: "12:20 PM", endAt: "12:30 PM", title: "David, Haley and Belle depart",
+  { seedKey: "wedding_couple_departs", schedule: W, phase: "morning", startAt: "12:30 PM", endAt: null, title: "David, Haley and Belle depart",
     lines: ["Allow approximately 15 minutes to reach the venue."] },
   { seedKey: "wedding_photographer_arrives", schedule: W, phase: "morning", startAt: "12:30 PM", endAt: null, title: "Barry arrives and photographs the details",
     lines: ["Invitations, jewelry, suit accessories, shoes, flowers, veil, and hanging dresses."],
@@ -118,12 +129,12 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
       ...["Skila", "Trinity", "Victoria", "Bri", "Kaylie", "Evan", "Braxton"].map((name) => `Groom with ${name}.`),
     ] },
   { seedKey: "wedding_quiet_time", schedule: W, phase: "photos", startAt: "3:00 PM", endAt: "3:15 PM", title: "Touch-ups and quiet time",
-    lines: ["Wedding party moves out of guest view.", "Bathroom, water, touch-ups, and schedule recovery if portraits run long."] },
+    lines: ["Guests may begin arriving at 3:00 PM.", "Bathroom, water, touch-ups, and schedule recovery if portraits run long."] },
   { seedKey: "wedding_ring_security", schedule: W, phase: "photos", startAt: "3:00 PM", endAt: "3:30 PM", title: "Harmony on ring security",
     location: "Entry table",
     lines: ["Harmony is on ring security and stands next to the entry table for the half hour before the ceremony starts."] },
   { seedKey: "wedding_pre_ceremony", schedule: W, phase: "photos", startAt: "3:15 PM", endAt: "3:30 PM", title: "Get ready for the ceremony",
-    lines: ["Guests arrive and are seated.", "Wedding party lines up.", "Barry photographs ceremony details and guest arrivals.", "No early bar service is planned."] },
+    lines: ["Wedding party moves out of guest view.", "Guests are seated.", "3:20 PM — wedding party lines up.", "Barry photographs ceremony details and guest arrivals.", "No early bar service is planned."] },
 
   // Ceremony and cocktail hour
   { seedKey: "wedding_ceremony", schedule: W, phase: "ceremony", startAt: "3:30 PM", endAt: "4:00 PM", title: "Ceremony",
@@ -208,7 +219,53 @@ export function reconciledNotes(moment: ReconciledMoment): string {
  * exactly like one was never edited, so Apply brings it up to date; any other wording
  * is the owner's and stays.
  */
-const EARLIER_WORDINGS: Record<string, Array<Pick<ReconciledMoment, "lines" | "openItems"> & { correction: string }>> = {
+type EarlierWording = Partial<Pick<ReconciledMoment, "lines" | "openItems" | "location" | "startAt" | "endAt">> & { correction: string };
+
+const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
+  // David, 2026-10-10: Skila, Trinity and Bri claimed their bunks; his check-in gave the Airbnb address.
+  "reh.checkin": [
+    {
+      lines: ["Wedding party arrives and chooses rooms.", "David and Haley plan to arrive around 1:00 PM."],
+      location: undefined,
+      openItems: "Confirm the Airbnb address and who has check-in access.",
+      correction: "bunks noted, Airbnb address",
+    },
+  ],
+  // David's one-week check-in, 2026-10-10 20:40.
+  "reh.getready": [
+    {
+      lines: ["Hair, makeup, clothing, and final items before departure.", "Victoria meets the group at Hawkshead; Braxton meets the group at the reception/rehearsal."],
+      correction: "no cell service at Black Sheep",
+    },
+  ],
+  "reh.return": [{ lines: ["Steam dresses and suits.", "Dessert and game night."], correction: "dessert most likely at the Airbnb" }],
+  wedding_party_leaves: [
+    {
+      endAt: "12:20 PM",
+      lines: ["Wedding party leaves for Black Sheep Shelter.", "David and Haley remain briefly for private vows with Belle."],
+      correction: "until 12:30 PM, no cell service at Black Sheep",
+    },
+  ],
+  wedding_couple_departs: [{ startAt: "12:20 PM", endAt: "12:30 PM", correction: "leave at 12:30 PM" }],
+  wedding_quiet_time: [
+    {
+      lines: ["Wedding party moves out of guest view.", "Bathroom, water, touch-ups, and schedule recovery if portraits run long."],
+      correction: "guests from 3:00 PM",
+    },
+  ],
+  wedding_pre_ceremony: [
+    {
+      lines: ["Guests arrive and are seated.", "Wedding party lines up.", "Barry photographs ceremony details and guest arrivals.", "No early bar service is planned."],
+      correction: "hide away 3:15 PM, line up 3:20 PM",
+    },
+  ],
+  // David, 2026-10-10: the bridal party's get ready clothes are black.
+  wedding_hair_rotation_1: [
+    {
+      lines: ["Hair: Braxton in Bathroom 1; Andi in Bathroom 2; Kaylie in Bathroom 3.", "Makeup: Bri and Trinity in Bedroom 1; Victoria and Skila in Bedroom 3."],
+      correction: "black get ready clothes",
+    },
+  ],
   // David, 2026-10-10: the driver is Dan, not San (the document had it wrong).
   wedding_getaway_arrives: [
     {
@@ -219,9 +276,22 @@ const EARLIER_WORDINGS: Record<string, Array<Pick<ReconciledMoment, "lines" | "o
   ],
 };
 
-function earlierWording(moment: ReconciledMoment, notes: string): string | null {
-  const match = (EARLIER_WORDINGS[moment.seedKey] ?? []).find((wording) => reconciledNotes({ ...moment, ...wording }) === notes);
+/** The correction for a row that still reads, and is timed, exactly as the app wrote it earlier. */
+function earlierWording(moment: ReconciledMoment, row: { notes: string; startAt: string; endAt: string | null }): string | null {
+  const match = (EARLIER_WORDINGS[moment.seedKey] ?? []).find((wording) => {
+    const earlier = { ...moment, ...wording };
+    return reconciledNotes(earlier) === row.notes && earlier.startAt === row.startAt && (earlier.endAt ?? null) === (row.endAt ?? null);
+  });
   return match ? match.correction : null;
+}
+
+/**
+ * Whether Thursday's check-in moment has, or will be given, the bunks note: it reads as the
+ * document, or still as the app first wrote it. A moment David reworded himself does not.
+ */
+export function checkinCarriesBunksNote(notes: string): boolean {
+  const moment = RECONCILED_TIMELINE.find((row) => row.seedKey === "reh.checkin")!;
+  return notes === reconciledNotes(moment) || earlierWording(moment, { notes, startAt: moment.startAt, endAt: moment.endAt }) !== null;
 }
 
 export function phaseForSeedKey(seedKey: string | null | undefined): string | null {
@@ -413,8 +483,7 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
       id: row.id,
       before: { startAt: row.startAt, endAt: row.endAt, title: parseBlockNotes(row.notes).title },
     };
-    const sameTimes = row.startAt === write.startAt && (row.endAt ?? null) === write.endAt;
-    const correction = sameTimes ? earlierWording(moment, row.notes) : null;
+    const correction = earlierWording(moment, row);
     if (correction) plan.rewords.push({ ...change, correction });
     else plan.updates.push(change);
   });

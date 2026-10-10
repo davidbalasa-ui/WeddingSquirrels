@@ -25,8 +25,8 @@ test("a bare line that a timed line repeats is dropped", () => {
 });
 
 test("the line-up time is read from the wedding-day schedule", () => {
-  // The reconciled document: the party lines up in "Get ready for the ceremony", 3:15–3:30 PM.
-  assert.equal(ceremonyLineUpTime(doc), "3:15 PM");
+  // David's one-week check-in (2026-10-10): "line up for the ceremony at 3:20".
+  assert.equal(ceremonyLineUpTime(doc), "3:20 PM");
   // A schedule that names the minute wins over the moment's start.
   assert.equal(
     ceremonyLineUpTime([

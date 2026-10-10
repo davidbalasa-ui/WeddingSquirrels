@@ -8,6 +8,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
+  correctionKey,
   pendingTaskCorrections,
   pendingTimelineCorrections,
   taskCorrectionsApplied,
@@ -15,7 +16,7 @@ import {
 } from "@/lib/applied-corrections";
 import { addContact, loadPrintoutCorrectionsPlan, writePhone, type PrintoutCorrectionsPlan } from "@/lib/printout-corrections-data";
 import { planReconciledTimeline, type ReconciledPlan } from "@/lib/reconciled-timeline";
-import { dueDateFor } from "@/lib/task-corrections";
+import { BUNKS_NOTE_ON_JOB, dueDateFor } from "@/lib/task-corrections";
 
 type Tx = Prisma.TransactionClient;
 type Db = Tx | typeof prisma;
@@ -40,6 +41,10 @@ export async function loadAppliedKeys(db: Db = prisma): Promise<Set<string>> {
 /** The task card as David should see it: only what has not been applied before. */
 export async function loadPendingTaskCorrections(db: Db = prisma): Promise<PrintoutCorrectionsPlan> {
   const [plan, applied] = await Promise.all([loadPrintoutCorrectionsPlan(db), loadAppliedKeys(db)]);
+  // Once the check-in moment carried the bunks note, a later edit of it does not move the note to the job.
+  if (applied.has(correctionKey.momentReword("reh.checkin", "bunks noted, Airbnb address")) || applied.has(correctionKey.momentAdd("reh.checkin"))) {
+    plan.tasks.noteFills = plan.tasks.noteFills.filter((row) => row.summary !== BUNKS_NOTE_ON_JOB.summary);
+  }
   return pendingTaskCorrections(plan, applied);
 }
 

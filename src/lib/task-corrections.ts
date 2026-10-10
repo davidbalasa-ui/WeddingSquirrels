@@ -3,6 +3,7 @@
  * taps Apply on Plan → Tasks. Apply adds the new jobs and ticks the steps he marked
  * done. It never rewords, re-dates or deletes a task, and never unticks anything.
  */
+import { BUNKS_NOTE } from "./reconciled-timeline";
 import { titlesMatch } from "./curated-open-work";
 
 /** `due` is a day ("2026-10-12"); left out when David gave no day. */
@@ -203,7 +204,17 @@ export function dueDateFor(day: string): Date {
   return new Date(`${day}T12:00:00`);
 }
 
-export function planTaskCorrections(tasks: TaskRow[]): TaskCorrectionsPlan {
+/**
+ * Where the bunks note goes when Thursday's check-in moment cannot carry it (David reworded
+ * that moment himself): on the ticked sleeping job, while its note still reads as the app wrote it.
+ */
+export const BUNKS_NOTE_ON_JOB = {
+  title: "Finish Airbnb Sleeping Assignments",
+  before: "Assign the remaining required Airbnb beds. Overflow can stay empty.",
+  summary: `Assign the remaining required Airbnb beds. Overflow can stay empty. ${BUNKS_NOTE}`,
+};
+
+export function planTaskCorrections(tasks: TaskRow[], options: { bunksOnJob?: boolean } = {}): TaskCorrectionsPlan {
   const byId = new Map(tasks.map((task) => [task.id, task]));
   const cardTitle = (task: TaskRow) => (task.parentId ? byId.get(task.parentId)?.title ?? null : null);
 
@@ -257,7 +268,7 @@ export function planTaskCorrections(tasks: TaskRow[]): TaskCorrectionsPlan {
     const task = tasks.find((row) => !row.parentId && row.title === def.title && !row.summary);
     if (task) noteFills.push({ id: task.id, title: task.title, summary: def.summary });
   }
-  for (const def of NOTE_REWORDS) {
+  for (const def of options.bunksOnJob ? [...NOTE_REWORDS, BUNKS_NOTE_ON_JOB] : NOTE_REWORDS) {
     const task = tasks.find((row) => !row.parentId && row.title === def.title && row.summary === def.before);
     if (task) noteFills.push({ id: task.id, title: task.title, summary: def.summary, before: def.before });
   }
