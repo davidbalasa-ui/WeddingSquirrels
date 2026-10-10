@@ -140,10 +140,7 @@ test.describe("Wedding Day editor under rough conditions", () => {
   });
 
   test("two tabs editing the same moment: the second tab's save keeps the first tab's line", async ({ context }) => {
-    // Known today (2026-10-10): a save sends the whole moment, so a tab that has not seen
-    // the other tab's line writes it away. Waits on David's call on how a stale tab
-    // should behave; this check flips to a failure once it is fixed, so it is removed then.
-    test.fail(true, "a stale tab's save overwrites the other tab's edit; awaiting David's decision");
+    // A save carries what the tab last saw saved; the server merges the two edits line by line.
     const first = await context.newPage();
     const second = await context.newPage();
     const guardsA = attachGuards(first);

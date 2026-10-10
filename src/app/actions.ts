@@ -1,5 +1,6 @@
 "use server";
 
+import { mergeStaleTimelineSave } from "@/lib/merge-lines";
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -1409,7 +1410,13 @@ export async function deleteRequest(requestId: string): Promise<void> {
 }
 
 export type TimelineWriteResult =
-  | { ok: true; id: string; order: string[] }
+  | {
+      ok: true;
+      id: string;
+      order: string[];
+      /** What was saved when it differs from what was sent: another device had changed the moment, and the two were merged. */
+      merged?: { startAt: string; endAt: string; notes: string };
+    }
   | { ok: false; reason: "forbidden" | "not_found" | "empty_notes" | "invalid" | "noop" };
 
 async function requireScheduleEditor(schedule: TimelineSchedule) {
@@ -1455,6 +1462,8 @@ export async function saveTimelineBlock(input: {
   startAt: string;
   endAt: string;
   notes: string;
+  /** What the device last saw saved. When the moment changed since (another phone or tab), the two edits are merged line by line. */
+  base?: { startAt: string; endAt: string; notes: string };
 }): Promise<TimelineWriteResult> {
   const id = input.id.trim();
   if (!id) return { ok: false, reason: "invalid" };
@@ -1464,14 +1473,9 @@ export async function saveTimelineBlock(input: {
   const schedule = parseTimelineSchedule(existing.schedule);
   if (!(await requireScheduleEditor(schedule))) return { ok: false, reason: "forbidden" };
 
-  const prepared = prepareTimelineSave(
-    { startAt: input.startAt, endAt: input.endAt, notes: input.notes },
-    {
-      startAt: existing.startAt,
-      endAt: existing.endAt ?? "",
-      notes: existing.notes,
-    },
-  );
+  const current = { startAt: existing.startAt, endAt: existing.endAt ?? "", notes: existing.notes };
+  const incoming = mergeStaleTimelineSave(input, current, input.base);
+  const prepared = prepareTimelineSave(incoming, current);
 
   if (!prepared.ok) {
     return { ok: false, reason: prepared.reason === "empty_notes" ? "empty_notes" : "noop" };
@@ -1489,7 +1493,10 @@ export async function saveTimelineBlock(input: {
 
   const order = await resequenceTimeline(schedule);
   revalidateSchedule(schedule);
-  return { ok: true, id, order };
+  const sentBack = { startAt: prepared.startAt, endAt: prepared.endAt ?? "", notes: prepared.notes };
+  const asSent =
+    sentBack.startAt === input.startAt.trim() && sentBack.endAt === input.endAt.trim() && sentBack.notes === input.notes.trim();
+  return asSent ? { ok: true, id, order } : { ok: true, id, order, merged: sentBack };
 }
 
 export async function createTimelineBlock(input: {
