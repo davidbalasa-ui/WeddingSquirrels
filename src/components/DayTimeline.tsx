@@ -423,11 +423,16 @@ export function DayTimeline({
     scheduleNotesSave(id);
   }
 
+  /** Notes typed away are blank until the save puts the saved ones back; build on those meanwhile. */
+  function notesSource(item: Row) {
+    return item.notes.trim() ? item.notes : item.lastSaved.notes;
+  }
+
   function patchLocation(id: string, location: string) {
     setRows((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
-        const notes = updateBlockLocation(item.notes, location || null);
+        const notes = updateBlockLocation(notesSource(item), location || null);
         return { ...item, notes, status: "dirty", error: null, localRev: item.localRev + 1 };
       }),
     );
@@ -438,7 +443,7 @@ export function DayTimeline({
     setRows((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
-        const notes = mergeEditorNotesBody(item.notes, editorBody);
+        const notes = mergeEditorNotesBody(notesSource(item), editorBody);
         return { ...item, notes, status: "dirty", error: null, localRev: item.localRev + 1 };
       }),
     );
