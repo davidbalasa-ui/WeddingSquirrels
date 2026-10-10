@@ -439,7 +439,9 @@ test("wedding party packet lists the lineup pairs, colors, call times, and open 
   assert.equal(view.processional.length, 9);
   assert.equal(view.processional[0]?.title, "Mother of the Groom & Father of the Groom");
   assert.equal(view.processional[8]?.title, "Haley with Dad");
-  assert.equal(view.lineUpTime, "3:20 PM");
+  // The schedule says the party lines up in the 3:15 PM moment, so the processional says 3:15 too
+  // (David, 2026-10-10: "We need this all to be consistent").
+  assert.equal(view.lineUpTime, "3:15 PM");
   assert.equal(view.theme, "Sunset dreams");
   assert.deepEqual(view.colors, ["dark blue", "powder blue", "purple", "powder pink"]);
   assert.deepEqual(

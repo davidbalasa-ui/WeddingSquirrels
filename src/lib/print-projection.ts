@@ -2,6 +2,7 @@ import { parseBlockNotes } from "@/lib/day-of-now";
 import { compareParsedTimes, parseDayOfTime, parseTimelineSchedule } from "@/lib/day-of-time";
 import { parseRsvpStatus } from "@/lib/guest-gifts";
 import { MEAL_SECTIONS } from "@/lib/meals";
+import { ceremonyLineUpTime, scheduleLines } from "@/lib/schedule-consistency";
 import { STAY_SECTIONS } from "@/lib/stay";
 import { taskStatusIsDone } from "@/lib/task-actionable";
 
@@ -222,7 +223,7 @@ export function professionalizePrintLine(raw: string): string | null {
 export function professionalizePrintLines(lines: string[]): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const raw of lines) {
+  for (const raw of scheduleLines(lines)) {
     const next = professionalizePrintLine(raw);
     if (!next) continue;
     const key = next.toLowerCase();
@@ -754,7 +755,7 @@ export function projectRunSheet(
     const events: PrintRunSheetEvent[] = [];
     const leftover: string[] = [];
 
-    for (const line of parsed.detailLines) {
+    for (const line of scheduleLines(parsed.detailLines)) {
       if (isMusicLine(line)) continue;
       if (isMcCueLine(line)) {
         events.push({
@@ -1297,7 +1298,8 @@ export function projectWeddingParty(input: {
 }): PrintWeddingPartyView {
   const ordered = [...input.lineup].sort((a, b) => a.sortOrder - b.sortOrder);
   const processional = ordered.map((row, index) => ({ order: index + 1, title: row.title }));
-  const lineUpTime = ordered.find((row) => row.startAt)?.startAt ?? null;
+  // The schedule decides the line-up time; the lineup rows' own time is the fallback.
+  const lineUpTime = ceremonyLineUpTime(input.weddingBlocks) ?? ordered.find((row) => row.startAt)?.startAt ?? null;
 
   // Lineup rows carry first names only. A phone is printed only when exactly
   // one person (by full name, with or without a phone) shares that first name;
