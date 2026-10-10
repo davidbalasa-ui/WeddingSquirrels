@@ -79,7 +79,7 @@ test.describe("Print Center packets", () => {
       } else {
         await page.screenshot({ path: `${SAMPLE_DIR}/${slug}-${info.project.name}.png` });
       }
-      guards.assertClean();
+      await guards.assertClean();
     });
   }
 });

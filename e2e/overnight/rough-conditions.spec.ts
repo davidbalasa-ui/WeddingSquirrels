@@ -66,7 +66,7 @@ test.describe("Wedding Day editor under rough conditions", () => {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(reviewRow(page, block.id)).toContainText("then more once it was back");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("a slow connection while typing never puts older text back and ends with everything typed saved", async ({ page }) => {
@@ -103,7 +103,7 @@ test.describe("Wedding Day editor under rough conditions", () => {
 
     const saved = await prisma.timelineBlock.findUnique({ where: { id: block.id } });
     expect(saved?.notes).toBe(typed);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("two tabs editing different moments both save", async ({ context }) => {
@@ -133,8 +133,8 @@ test.describe("Wedding Day editor under rough conditions", () => {
     await expect(reviewRow(first, blockB.id)).toContainText("Rough check: tab two");
     await second.reload({ waitUntil: "domcontentloaded" });
     await expect(reviewRow(second, blockA.id)).toContainText("Rough check: tab one");
-    guardsA.assertClean();
-    guardsB.assertClean();
+    await guardsA.assertClean();
+    await guardsB.assertClean();
     await first.close();
     await second.close();
   });
@@ -171,8 +171,8 @@ test.describe("Wedding Day editor under rough conditions", () => {
     expect(saved?.notes, "tab two's location edit must not throw away tab one's line").toContain("added in tab one");
     expect(saved?.notes).toContain("Rough check: head table");
 
-    guardsA.assertClean();
-    guardsB.assertClean();
+    await guardsA.assertClean();
+    await guardsB.assertClean();
     await first.close();
     await second.close();
   });

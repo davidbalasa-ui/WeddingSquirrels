@@ -84,7 +84,7 @@ test("an edited moment shows the new text on every page and packet, and nowhere 
       "packet Wedding Party Packet",
     ]),
   );
-  guards.assertClean();
+  await guards.assertClean();
 });
 
 test("an MC cue edit reaches the MC run of show and the MC packet", async ({ page }) => {
@@ -114,5 +114,5 @@ test("an MC cue edit reaches the MC run of show and the MC packet", async ({ pag
   await expect(page.locator("body")).toContainText("Overnight check 9032");
   await expect(page.locator("body")).not.toContainText("Overnight check 9031");
   expect(await openPacket(page, "mc")).toContain("Overnight check 9032");
-  guards.assertClean();
+  await guards.assertClean();
 });

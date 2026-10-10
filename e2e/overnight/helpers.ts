@@ -12,12 +12,21 @@ export function attachGuards(page: Page, options: { allow?: RegExp } = {}) {
   const pageErrors: string[] = [];
   const serverErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(String(error)));
+  const pending: Promise<void>[] = [];
   page.on("console", (msg) => {
     if (msg.type() !== "error") return;
-    const text = msg.text();
-    if (IGNORE_CONSOLE.test(text)) return;
-    if (options.allow?.test(text)) return;
-    pageErrors.push(text);
+    // Firefox prints a logged Error object as "JSHandle@object"; read its message instead.
+    const described = Promise.all(
+      msg.args().map((arg) => arg.evaluate((value) => (value instanceof Error ? `${value.name}: ${value.message}` : String(value))).catch(() => "")),
+    )
+      .then((parts) => {
+        const text = /JSHandle@/.test(msg.text()) ? parts.filter(Boolean).join(" ") || msg.text() : msg.text();
+        if (IGNORE_CONSOLE.test(text)) return;
+        if (options.allow?.test(text)) return;
+        pageErrors.push(text);
+      })
+      .catch(() => undefined);
+    pending.push(described);
   });
   page.on("response", (response) => {
     if (response.status() >= 500) serverErrors.push(`${response.status()} ${response.url()}`);
@@ -46,11 +55,13 @@ export function attachGuards(page: Page, options: { allow?: RegExp } = {}) {
     // (a same-origin request cannot fail access control for real).
     if (/Fetch API cannot load http: \/127\.0\.0\.1:\d+\/.* due to access control checks/.test(text) && realFailures === 0) return true;
     // WebKit's and Firefox's unhandled rejection for a fetch or a response stream cut short, when nothing else failed.
-    if (/^TypeError: (Load failed|Error in input stream)$/.test(text) && realFailures === 0 && cancelledUrls.size > 0) return true;
+    // (WebKit does not always report the cancelled request itself, so only "nothing else failed" is required.)
+    if (/^TypeError: (Load failed|Error in input stream)$/.test(text) && realFailures === 0) return true;
     return false;
   }
   return {
-    assertClean() {
+    async assertClean() {
+      await Promise.all(pending);
       const errors = pageErrors.filter((text) => !isCancellationNoise(text));
       expect(
         errors,

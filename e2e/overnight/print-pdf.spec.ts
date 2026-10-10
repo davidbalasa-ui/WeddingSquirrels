@@ -128,7 +128,7 @@ test.describe("Packets printed to Letter PDF", () => {
       }
       expect(orphaned, `${packet.title}: heading alone at the foot of a page`).toEqual([]);
 
-      guards.assertClean();
+      await guards.assertClean();
     });
   }
 });

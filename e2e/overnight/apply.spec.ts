@@ -35,7 +35,7 @@ test.describe("Apply the reconciled document", () => {
     expect(dupes, "repeated titles").toEqual([]);
     // Every page section shows the document's rows, none twice.
     await expect(page.locator(".day-timeline-row")).toHaveCount(DOC_WEDDING);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("the card stays away after ordinary edits", async ({ page }) => {
@@ -54,7 +54,7 @@ test.describe("Apply the reconciled document", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("button", { name: "Apply to the timeline" })).toHaveCount(0);
     await expect(page.getByText(/reads? differently from the reconciled document/)).toBeVisible();
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("on an edited timeline Apply keeps the edit and only re-adds what is missing", async ({ page }) => {
@@ -95,6 +95,6 @@ test.describe("Apply the reconciled document", () => {
     await expect
       .poll(async () => (await prisma.timelineBlock.findUnique({ where: { id: ceremony.id } }))?.notes)
       .toBe(reconciledNotes(document));
-    guards.assertClean();
+    await guards.assertClean();
   });
 });

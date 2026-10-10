@@ -19,7 +19,7 @@ test.describe("every page opens without errors and without sideways scrolling", 
       await expect(page.locator("body")).not.toContainText(/Something went wrong|Application error/);
       await page.waitForLoadState("networkidle").catch(() => undefined);
       await expectNoSidewaysScroll(page);
-      guards.assertClean();
+      await guards.assertClean();
     });
   }
 });
