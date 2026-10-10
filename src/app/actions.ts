@@ -1,5 +1,6 @@
 "use server";
 
+import { mergeStaleTimelineSave } from "@/lib/merge-lines";
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -1411,7 +1412,13 @@ export async function deleteRequest(requestId: string): Promise<void> {
 }
 
 export type TimelineWriteResult =
-  | { ok: true; id: string; order: string[] }
+  | {
+      ok: true;
+      id: string;
+      order: string[];
+      /** What was saved when it differs from what was sent: another device had changed the moment, and the two were merged. */
+      merged?: { startAt: string; endAt: string; notes: string };
+    }
   | { ok: false; reason: "forbidden" | "not_found" | "empty_notes" | "invalid" | "noop" };
 
 async function requireScheduleEditor(schedule: TimelineSchedule) {
@@ -1457,6 +1464,8 @@ export async function saveTimelineBlock(input: {
   startAt: string;
   endAt: string;
   notes: string;
+  /** What the device last saw saved. When the moment changed since (another phone or tab), the two edits are merged line by line. */
+  base?: { startAt: string; endAt: string; notes: string };
 }): Promise<TimelineWriteResult> {
   const id = input.id.trim();
   if (!id) return { ok: false, reason: "invalid" };
@@ -1466,14 +1475,9 @@ export async function saveTimelineBlock(input: {
   const schedule = parseTimelineSchedule(existing.schedule);
   if (!(await requireScheduleEditor(schedule))) return { ok: false, reason: "forbidden" };
 
-  const prepared = prepareTimelineSave(
-    { startAt: input.startAt, endAt: input.endAt, notes: input.notes },
-    {
-      startAt: existing.startAt,
-      endAt: existing.endAt ?? "",
-      notes: existing.notes,
-    },
-  );
+  const current = { startAt: existing.startAt, endAt: existing.endAt ?? "", notes: existing.notes };
+  const incoming = mergeStaleTimelineSave(input, current, input.base);
+  const prepared = prepareTimelineSave(incoming, current);
 
   if (!prepared.ok) {
     return { ok: false, reason: prepared.reason === "empty_notes" ? "empty_notes" : "noop" };
@@ -1491,7 +1495,10 @@ export async function saveTimelineBlock(input: {
 
   const order = await resequenceTimeline(schedule);
   revalidateSchedule(schedule);
-  return { ok: true, id, order };
+  const sentBack = { startAt: prepared.startAt, endAt: prepared.endAt ?? "", notes: prepared.notes };
+  const asSent =
+    sentBack.startAt === input.startAt.trim() && sentBack.endAt === input.endAt.trim() && sentBack.notes === input.notes.trim();
+  return asSent ? { ok: true, id, order } : { ok: true, id, order, merged: sentBack };
 }
 
 export async function createTimelineBlock(input: {
@@ -2557,6 +2564,49 @@ export async function createInboxChild(parentId: string, title: string): Promise
   revalidatePath("/people");
   revalidatePath("/today");
   revalidatePath(`/work/${parentId}`);
+}
+
+/** Adds a step at the end of a task's "Steps inside this" list (the task workspace page). */
+export async function addTaskStep(
+  parentId: string,
+  title: string,
+): Promise<{ ok: true } | { error: string }> {
+  const session = await getSession();
+  if (!session?.canSeeTasks) return { error: "This PIN can't add steps." };
+
+  const trimmed = title.replace(/\s+/g, " ").trim();
+  if (!trimmed) return { error: "Type the step first." };
+
+  const parent = await prisma.task.findUnique({
+    where: { id: parentId },
+    include: { assignees: true, children: { include: { assignees: true } } },
+  });
+  // Steps sit one level deep: a step can't have steps of its own.
+  if (!parent || parent.parentId) return { error: "This task couldn't be found. Reload and try again." };
+  if (!(await sessionCanMutateTask(session, parent))) return { error: "This PIN can't change this task." };
+
+  const last = await prisma.task.findFirst({
+    where: { parentId },
+    orderBy: { sortOrder: "desc" },
+  });
+  const step = await prisma.task.create({
+    data: {
+      title: trimmed,
+      parentId,
+      status: "todo",
+      planNotes: "",
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+      amountSpent: 0,
+    },
+  });
+  // A new step belongs to the same people as the task, like the steps already there.
+  const parentOwners = parent.assignees.map((a) => a.personId);
+  if (parentOwners.length) await setTaskAssignees(step.id, parentOwners);
+
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath(`/work/${parentId}`);
+  return { ok: true };
 }
 
 export async function createTaskFromInbox(

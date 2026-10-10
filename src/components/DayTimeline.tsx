@@ -186,6 +186,9 @@ export function DayTimeline({
   const draftRef = useRef(draft);
   const timersRef = useRef<Map<string, number>>(new Map());
   const inflightRef = useRef<Map<string, number>>(new Map());
+  /** What this device last sent for a row while that save is still in flight, so a second save typed
+   *  behind it builds on it instead of being merged against it as if another device had made it. */
+  const sentRef = useRef<Map<string, { startAt: string; endAt: string; notes: string }>>(new Map());
   const draftSavingRef = useRef(false);
   const persistRowRef = useRef<(row: Row, opts: { reorder: boolean }) => Promise<void>>(async () => {});
   const persistDraftRef = useRef<(draft: Draft, opts?: { abandon?: boolean }) => Promise<unknown>>(
@@ -317,14 +320,13 @@ export function DayTimeline({
       ),
     );
 
-    const result = await runAction(() => saveTimelineBlock({
-      id: row.id,
-      startAt: prepared.startAt,
-      endAt: prepared.endAt ?? "",
-      notes: prepared.notes,
-    }));
+    const sending = { startAt: prepared.startAt, endAt: prepared.endAt ?? "", notes: prepared.notes };
+    const base = sentRef.current.get(row.id) ?? row.lastSaved;
+    sentRef.current.set(row.id, sending);
+    const result = await runAction(() => saveTimelineBlock({ id: row.id, ...sending, base }));
 
     if (inflightRef.current.get(row.id) !== row.localRev) return;
+    sentRef.current.delete(row.id);
 
     if (!result.ok) {
       if (result.reason === "unreachable") setUnreachable(true);
@@ -347,16 +349,13 @@ export function DayTimeline({
       return;
     }
 
+    // Another phone or tab may have changed the moment since this one loaded it; the server
+    // then merged the two edits and sends back what it kept.
+    const saved = result.merged ?? sending;
     const updated: Row = {
       ...row,
-      startAt: prepared.startAt,
-      endAt: prepared.endAt ?? "",
-      notes: prepared.notes,
-      lastSaved: {
-        startAt: prepared.startAt,
-        endAt: prepared.endAt ?? "",
-        notes: prepared.notes,
-      },
+      ...saved,
+      lastSaved: { ...saved },
       status: "saved",
       error: null,
       notice: keptNotice(prepared),
@@ -376,7 +375,7 @@ export function DayTimeline({
   async function persistDraft(openDraft: Draft, opts: { abandon?: boolean } = {}) {
     const prepared = prepareTimelineCreate(openDraft);
     if (!prepared.ok) {
-      if (opts.abandon) setDraft(null);
+      if (opts.abandon) discardDraft();
       else setDraftError(DRAFT_NEEDS);
       return { ok: false as const };
     }
@@ -418,8 +417,15 @@ export function DayTimeline({
       scrollIfMoved(created.id, prev, next);
       return next;
     });
-    setDraft(null);
+    discardDraft();
     return result;
+  }
+
+  /** Closes the new-moment card. Its notes box may still be focused (see the Add and Discard buttons),
+   *  and a box removed while focused does not always fire blur, so the strip is shown again here. */
+  function discardDraft() {
+    setDraft(null);
+    setNoteFocused(false);
   }
 
   useEffect(() => {
@@ -763,10 +769,22 @@ export function DayTimeline({
               className="mt-1 w-full resize-y border-0 bg-transparent p-0 text-[15px] leading-snug outline-none"
             />
             <div className="mt-2 flex gap-2">
-              <button type="button" className="text-sm font-semibold text-[var(--accent)]" onClick={() => void persistDraft(draft)}>
+              {/* Keep the notes box focused through the press: on an iPhone the blur brings the bucket strip
+                  back above the list, which shifts these buttons away before the tap lands on them. */}
+              <button
+                type="button"
+                className="text-sm font-semibold text-[var(--accent)]"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => void persistDraft(draft)}
+              >
                 Add
               </button>
-              <button type="button" className="text-sm font-semibold text-muted" onClick={() => setDraft(null)}>
+              <button
+                type="button"
+                className="text-sm font-semibold text-muted"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={discardDraft}
+              >
                 Discard
               </button>
             </div>
