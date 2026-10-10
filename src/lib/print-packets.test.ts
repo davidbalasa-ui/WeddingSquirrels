@@ -48,7 +48,7 @@ test("parents' schedules split by side: father-daughter dance for the bride's, c
   assert.deepEqual(groom.wedding.find((row) => row.title === "Formal dances")?.lines, []);
   assert.ok(groom.wedding.find((row) => row.title === "Couple and parent photos")?.lines.includes("Couple with dad."));
   assert.ok(titles(bride.wedding).includes("Getaway vehicle arrives"));
-  assert.ok(!titles(groom.wedding).includes("Children get ready to leave"));
+  assert.ok(!titles(groom.wedding).includes("Goodbyes to the kids and goodbye song"));
   assert.equal(momentForAudience(moments.wedding.find((m) => m.title === "Haley makeup")!, "groomParents", "wedding"), null);
 });
 

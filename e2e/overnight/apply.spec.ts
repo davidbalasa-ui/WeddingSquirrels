@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { parseBlockNotes } from "../../src/lib/day-of-now";
 import { RECONCILED_TIMELINE, reconciledNotes } from "../../src/lib/reconciled-timeline";
 import { overnightPrisma, resetOvernightData, snapshotTasks } from "./db";
-import { attachGuards, blockByTitle, editCard, expectAllSaved, openTimelineEditor } from "./helpers";
+import { attachGuards, blockByTitle, editCard, expectAllSaved, openPacket, openTimelineEditor } from "./helpers";
 
 const prisma = overnightPrisma();
 test.afterAll(async () => prisma.$disconnect());
@@ -101,7 +101,8 @@ test.describe("Apply the reconciled document", () => {
 
 // David, 2026-10-10: his printed rehearsal day showed every moment twice. His own rehearsal
 // rows (saved without the app's keys) sat next to the document's copies from an earlier Apply.
-test("a doubled rehearsal day is folded back to one row per moment, keeping David's own rows", async ({ page }) => {
+// At 21:46 the same doubling was on his packet ("tons of issues"); he keeps the full moments.
+test("a doubled rehearsal day prints once and Apply folds it back to the full moments, his short rows going on his tap", async ({ page }) => {
   await resetOvernightData(prisma, { reconciled: false });
   const { parsedTimeFields } = await import("../../src/lib/day-of-time");
   const own = [
@@ -133,6 +134,12 @@ test("a doubled rehearsal day is folded back to one row per moment, keeping Davi
       },
     });
   }
+  // Before any tap, the wedding party packet already prints each Thursday moment once.
+  await openPacket(page, "party");
+  const schedule = page.getByTestId("print-section-schedule");
+  await expect(schedule).toContainText("Airbnb check in");
+  await expect(schedule).not.toContainText("Airbnb Check-in");
+  await expect(schedule).not.toContainText("Return to Airbnb");
   await page.goto("/plan/timeline");
   const card = page.locator("section").filter({ hasText: "Reconciled timeline update ready" });
   await card.getByRole("button", { name: "See what changes" }).click();
@@ -145,14 +152,11 @@ test("a doubled rehearsal day is folded back to one row per moment, keeping Davi
   const rows = await prisma.timelineBlock.findMany({ where: { schedule: "rehearsal" } });
   const times = rows.map((row) => row.startAt);
   expect(times.filter((time, i) => times.indexOf(time) !== i), "a start time twice").toEqual([]);
-  // David's own rows are all still there, word for word. The one still reading exactly as the
-  // app first seeded it ("Get ready; Hair and makeup") gives way to the document's copy.
-  for (const [index, row] of own.entries()) {
-    if (index === 1) continue;
-    expect(rows.find((r) => r.id === `own-${index}`)?.notes).toBe(row.notes);
+  // His short rows said nothing the full moments do not, so they went; every full moment stayed.
+  expect(rows.filter((r) => r.id.startsWith("own-"))).toEqual([]);
+  for (const moment of RECONCILED_TIMELINE.filter((m) => m.schedule === "rehearsal")) {
+    expect(rows.filter((r) => r.seedKey === moment.seedKey), moment.seedKey).toHaveLength(1);
   }
-  expect(rows.find((r) => r.id === "own-1")).toBeUndefined();
-  expect(rows.filter((r) => r.seedKey === "reh.getready")).toHaveLength(1);
   // A second visit has nothing left to fold. The card reloads the page itself after Apply,
   // so a visit can be cut short by that reload; try again until one lands.
   await expect(async () => {

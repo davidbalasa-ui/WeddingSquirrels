@@ -84,15 +84,20 @@ test.describe("Print Center packets", () => {
   }
 });
 
-// David, 2026-10-10: the wedding party's own packet is a lineup, not a phone list.
-test("Wedding party packet lists who walks with whom without phone numbers; the binder keeps them", async ({ page }) => {
+// David, 2026-10-10: the wedding party's own packet is a lineup, not a phone list; and at 21:44,
+// of the "Who's in the party" table: "remove this everywhere its pointless".
+test("Wedding party packet is the processional lineup without phone numbers, and no packet prints the party table", async ({ page }) => {
   await openPacket(page, "party");
   const party = page.getByTestId("print-section-party");
-  await expect(party.locator("th")).toHaveText(["Name", "Role", "Walks with"]);
   expect(await party.innerText()).not.toMatch(/\d{3}[-.)\s]+\d{3}[-.\s]\d{4}/);
   await expect(party).toContainText("Ceremony processional");
-  await openPacket(page, "binder");
-  await expect(page.getByTestId("print-section-party").locator("th")).toHaveText(["Name", "Role", "Walks with", "Phone"]);
+  await expect(party.locator("table")).toHaveCount(0);
+  for (const packet of PACKETS) {
+    await openPacket(page, packet.id);
+    await expect(page.getByText("Who’s in the party")).toHaveCount(0);
+    await expect(page.getByText("Who's in the party")).toHaveCount(0);
+    await expect(page.getByRole("columnheader", { name: "Walks with" })).toHaveCount(0);
+  }
 });
 
 // David, 2026-10-10: "compress the shot list to just say bridal party photos" in the schedule,
