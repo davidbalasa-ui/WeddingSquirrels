@@ -272,15 +272,21 @@ export function DayTimeline({
     );
 
     if (!prepared.ok) {
-      setRows((prev) =>
-        prev.map((item) => {
+      setRows((prev) => {
+        const next = prev.map((item): Row => {
           if (item.id !== row.id || item.localRev !== row.localRev) return item;
+          const startAt = prepared.revertStartAt ?? item.startAt;
           if (prepared.reason === "empty_notes" || prepared.revertNotes) {
-            return { ...item, notes: item.lastSaved.notes, status: "saved", error: null };
+            return { ...item, startAt, notes: item.lastSaved.notes, status: "saved", error: null };
           }
-          return { ...item, status: "saved", error: null };
-        }),
-      );
+          return { ...item, startAt, status: "saved", error: null };
+        });
+        if (!prepared.revertStartAt) return next;
+        // A start typed away was never saved: the row goes back where its saved time puts it.
+        const sorted = sortTimelineBlocks(next);
+        if (opts.reorder) scrollIfMoved(row.id, prev, sorted);
+        return sorted;
+      });
       return;
     }
 
