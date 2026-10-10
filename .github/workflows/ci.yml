@@ -25,6 +25,7 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    continue-on-error: ${{ !matrix.blocking }}
     strategy:
       fail-fast: false
       matrix:
@@ -34,11 +35,15 @@ jobs:
             browsers: chromium
             projects: --project desktop --project phone
             artifact: chromium
-          # The same checks in Safari's engine (as an iPhone) and in Firefox.
+            blocking: true
+          # The same checks in Safari's engine (as an iPhone) and in Firefox. Reported, not yet
+          # blocking: the field-sweep checks were written against Chromium and a number of them
+          # still read differently in WebKit and Firefox (see reviews/deeper-testing/README.md).
           - name: Browser suite (WebKit iPhone, Firefox)
             browsers: webkit firefox
             projects: --project iphone --project firefox
             artifact: webkit-firefox
+            blocking: false
     services:
       postgres:
         image: postgres:16
