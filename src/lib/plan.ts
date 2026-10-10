@@ -1,5 +1,5 @@
 import { addDays, differenceInCalendarDays, endOfDay, format, startOfDay } from "date-fns";
-import { can, canSeeDinnerTab, canSeeStayTab } from "@/lib/access";
+import { can, canSeeDinnerTab } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { countFinishedGuests, type MealChoiceMap, type MealCourseView } from "@/lib/meals";
 import { reviewNoteLines, sortTimelineBlocks } from "@/lib/day-of-time";
@@ -341,13 +341,6 @@ function rehearsalDetail(counts: PlanRehearsalCounts) {
   return parts.join(" · ");
 }
 
-function stayDetail(counts: PlanStayCounts) {
-  if (counts.total === 0) return "Beds are not laid out yet";
-  if (counts.assigned === 0) return `${counts.total} beds open`;
-  if (counts.open === 0) return `All ${counts.total} beds assigned`;
-  return `${counts.assigned} of ${counts.total} beds assigned`;
-}
-
 function shoppingDetail(counts: PlanShoppingCounts) {
   if (counts.remaining === 0 && counts.purchased === 0) return "Nothing on the list yet";
   if (counts.remaining === 0) return "Everything is purchased";
@@ -421,16 +414,6 @@ export function buildPlanDomainSummaries(
     });
   }
 
-  if (canSeeStayTab(session) && counts.stay) {
-    rows.push({
-      key: "stay",
-      label: "Stay",
-      detail: stayDetail(counts.stay),
-      explanation: "Know where everyone is sleeping.",
-      href: "/plan/stay",
-    });
-  }
-
   if (can(session, "canSeeShop") && counts.shopping) {
     rows.push({
       key: "shopping",
@@ -491,9 +474,8 @@ export async function loadPlanPageData(session: SessionAccount, now = new Date()
             prisma.mealSettings.findUnique({ where: { id: 1 }, select: { published: true } }),
           ])
         : Promise.resolve(null),
-      canSeeStayTab(session)
-        ? prisma.staySlot.findMany({ select: { occupant: true, optional: true } })
-        : Promise.resolve(null),
+      // David, 2026-10-10: no sleeping arrangements, so Plan has no Stay row to count.
+      Promise.resolve(null),
       can(session, "canSeeShop")
         ? prisma.shoppingItem.findMany({ select: { purchased: true } })
         : Promise.resolve(null),

@@ -146,6 +146,8 @@ export const DONE_MARKS: DoneMarkDef[] = [
   // 14:45: "Black Sheep’s tables, chairs, décor, and rental selections are completed and highlighted. Still need to send them."
   { card: "Finalize & Send Black Sheep Details", step: "Finalize table and chair quantities for Black Sheep" },
   { card: "Finalize & Send Black Sheep Details", step: "Finalize remaining decor/rental selections for Black Sheep" },
+  // 16:36: "I had given updates about not continuing with sleeping arrangements."
+  { card: "Finish Airbnb Sleeping Assignments", step: "Assign the remaining required Airbnb beds" },
 ];
 
 /**
@@ -172,7 +174,7 @@ export const NOTE_REWORDS: Array<{ title: string; before: string; summary: strin
 ];
 
 /** Cards whose every step is in DONE_MARKS: the card itself is finished too. */
-export const DONE_CARDS = ["Ceremony Flower Sword", "Rehearsal Dinner Menu"];
+export const DONE_CARDS = ["Ceremony Flower Sword", "Rehearsal Dinner Menu", "Finish Airbnb Sleeping Assignments"];
 
 export type TaskRow = {
   id: string;

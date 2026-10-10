@@ -274,57 +274,18 @@ test.describe("shopping", () => {
 });
 
 test.describe("stay", () => {
-  test("a bed name saves on Enter, clears to empty, and whitespace is not stored", async ({ page }) => {
-    const guards = attachGuards(page);
-    const slot = await prisma.staySlot.findFirst({ orderBy: { sortOrder: "asc" } });
-    test.skip(!slot, "no stay slots in the test data");
-    const before = slot!.occupant;
+  // No sleeping arrangements (David, 2026-10-10): the page is gone and its saved beds stay in the database.
+  test("the Stay page and its Plan row are gone, and saved beds are kept", async ({ page }) => {
+    const beds = await prisma.staySlot.count();
+    // The old address hands over to Plan in the browser, which cuts off the first page's prefetches.
     await page.goto("/plan/stay");
-    // The bed box is a controlled input: a letter typed before React takes over is dropped
-    // when it hydrates (CI once read "weep guest"), so wait the way a person's pause would.
-    await waitForHydration(page);
-    const input = page.getByPlaceholder("Tap to claim").first();
-    // The page's first button can hydrate before the stay board does; wait for the bed box itself.
-    await input.evaluate((el) =>
-      new Promise<void>((resolve) => {
-        const ready = () => Object.keys(el).some((key) => key.startsWith("__reactProps"));
-        if (ready()) return resolve();
-        const timer = setInterval(() => ready() && (clearInterval(timer), resolve()), 50);
-      }),
-    );
-    await input.click();
-    await page.keyboard.press("Control+a");
-    await page.keyboard.type("Sweep guest");
-    await page.keyboard.press("Enter");
-    await expect.poll(async () => (await prisma.staySlot.findUnique({ where: { id: slot!.id } }))?.occupant).toBe("Sweep guest");
-    await page.reload();
-    await expect(input).toHaveValue("Sweep guest");
-
-    await input.fill("   ");
-    await page.keyboard.press("Tab");
-    await expect.poll(async () => (await prisma.staySlot.findUnique({ where: { id: slot!.id } }))?.occupant).toBe("");
-    await page.reload();
-    await expect(input).toHaveValue("");
-    await expect(input).toHaveAttribute("placeholder", "Tap to claim");
-
-    await prisma.staySlot.update({ where: { id: slot!.id }, data: { occupant: before } });
-    await guards.assertClean();
-  });
-
-  test("a bathroom note saves on blur with its blank lines and Remove deletes it", async ({ page }) => {
+    await expect(page).toHaveURL(/\/plan$/);
     const guards = attachGuards(page);
-    const countBefore = await prisma.stayBathNote.count();
-    await page.goto("/plan/stay");
-    await page.getByRole("button", { name: "+ Add note" }).first().click();
-    const note = page.getByPlaceholder("Who’s using it, timing, extras…").first();
-    await expect(note).toBeFocused();
-    await note.fill("Sweep note\n\nline 3 🎉");
-    await page.keyboard.press("Tab");
-    await expect.poll(async () => prisma.stayBathNote.count({ where: { note: "Sweep note\n\nline 3 🎉" } })).toBe(1);
-    await page.reload();
-    await expect(page.getByPlaceholder("Who’s using it, timing, extras…").first()).toHaveValue("Sweep note\n\nline 3 🎉");
-    await page.getByRole("button", { name: "Remove bathroom note" }).first().click();
-    await expect.poll(async () => prisma.stayBathNote.count()).toBe(countBefore);
+    await page.goto("/plan", { waitUntil: "networkidle" });
+    await expect(page.locator("#main-content")).toContainText("Shopping");
+    await expect(page.locator("#main-content")).not.toContainText("beds assigned");
+    await expect(page.locator('a[href="/plan/stay"]')).toHaveCount(0);
+    expect(await prisma.staySlot.count()).toBe(beds);
     await guards.assertClean();
   });
 });

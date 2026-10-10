@@ -120,29 +120,6 @@ test.describe("writable lifecycles", () => {
     guards.assertClean();
   });
 
-  test("stay bathroom note create and delete", async ({ page }) => {
-    const guards = await attachPageGuards(page);
-    const note = certName("bath");
-    await page.goto("/plan/stay");
-    await page.getByRole("button", { name: "+ Add note" }).first().click();
-    const editor = page.getByPlaceholder(/Who/).last();
-    await editor.fill(note);
-    await editor.blur();
-    await expect(page.getByText(note)).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("button", { name: "Remove bathroom note" }).last().click();
-    await expect(page.getByText(note)).toHaveCount(0);
-
-    const slot = page.locator("label").filter({ hasText: /^Middle bunk/ }).locator("input");
-    await expect(slot).toHaveValue("");
-    await slot.fill("CERT occupant");
-    await slot.blur();
-    await expect(slot).toHaveValue("CERT occupant", { timeout: 15_000 });
-    await slot.fill("");
-    await slot.blur();
-    await expect(slot).toHaveValue("");
-    guards.assertClean();
-  });
-
   test("today task create and workspace save", async ({ page }) => {
     const guards = await attachPageGuards(page);
     const name = certName("task");

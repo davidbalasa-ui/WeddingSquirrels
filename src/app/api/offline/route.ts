@@ -111,7 +111,8 @@ export async function GET() {
         })
       : Promise.resolve([]),
     session.canSeeShop ? prisma.shoppingItem.findMany({ orderBy: { sortOrder: "asc" } }) : Promise.resolve([]),
-    session.canSeeStay ? prisma.staySlot.findMany({ orderBy: { sortOrder: "asc" } }) : Promise.resolve([]),
+    // No sleeping arrangements (David, 2026-10-10): the offline copy has no Stay tab.
+    Promise.resolve([]),
     session.canSeeTimeline ? loadPlaybookItems() : Promise.resolve([]),
   ]);
 

@@ -74,7 +74,7 @@ test("buildPlanDomainSummaries returns the planning chapters with PLAN hrefs", (
   const rows = buildPlanDomainSummaries(session(), populated);
   assert.deepEqual(
     rows.map((row) => row.key),
-    ["tasks", "timeline", "mc", "rehearsal", "stay", "shopping", "calendar"],
+    ["tasks", "timeline", "mc", "rehearsal", "shopping", "calendar"],
   );
   assert.deepEqual(
     rows.map((row) => row.href),
@@ -83,14 +83,13 @@ test("buildPlanDomainSummaries returns the planning chapters with PLAN hrefs", (
       "/plan/timeline",
       "/day/mc",
       "/plan/rehearsal",
-      "/plan/stay",
       "/plan/shopping",
       "/plan/calendar",
     ],
   );
   assert.equal(rows[0]?.detail, "18 open · 4 due this week");
   assert.equal(rows[2]?.href, "/day/mc");
-  assert.equal(rows[5]?.detail, "7 things left");
+  assert.equal(rows[4]?.detail, "7 things left");
 });
 
 test("inaccessible domains do not leak summary data even when counts are present", () => {
@@ -225,7 +224,7 @@ test("rehearsal summary does not count wedding timeline blocks", () => {
   assert.equal(/friday|saturday|october|2026/i.test(row.detail), false);
 });
 
-test("stay assigned and open counts use actual StaySlot occupancy", () => {
+test("Plan has no Stay row now that sleeping arrangements are dropped (David, 2026-10-10)", () => {
   const summary = summarizeStayOccupancy([
     { occupant: "Sarah Smith", optional: false },
     { occupant: "  ", optional: false },
@@ -237,10 +236,7 @@ test("stay assigned and open counts use actual StaySlot occupancy", () => {
   assert.equal(summary.total, 4);
   assert.equal(summary.assigned, 2);
   assert.equal(summary.open, 2);
-  assert.equal(
-    buildPlanDomainSummaries(session(), { stay: summary }).find((row) => row.key === "stay")?.detail,
-    "2 of 4 beds assigned",
-  );
+  assert.equal(buildPlanDomainSummaries(session(), { stay: summary }).some((row) => row.key === "stay"), false);
 });
 
 test("shopping remaining count excludes purchased items", () => {
@@ -307,7 +303,7 @@ test("empty domains produce intentional low-data summaries without fake dates or
     rows.find((row) => row.key === "rehearsal")?.detail,
     "No walkthrough yet · Dinner not started",
   );
-  assert.equal(rows.find((row) => row.key === "stay")?.detail, "Beds are not laid out yet");
+  assert.equal(rows.some((row) => row.key === "stay"), false);
   assert.equal(rows.find((row) => row.key === "shopping")?.detail, "Nothing on the list yet");
   assert.equal(rows.find((row) => row.key === "calendar")?.detail, "Nothing upcoming");
 

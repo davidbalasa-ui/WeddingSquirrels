@@ -24,7 +24,6 @@ import {
   projectMealSections,
   projectSetupPlan,
   projectShotGroups,
-  projectStaySections,
   projectTaskGroups,
   projectTimelineOpenItems,
   projectWeddingParty,
@@ -69,8 +68,9 @@ function availableForSession(session: SessionAccount): PrintSectionId[] {
         return can(session.canSeeTimeline);
       case "guests":
         return can(session.canSeeGuests);
+      // Only the mini moon prints here now; it travels with the day's plan.
       case "stay":
-        return can(session.canSeeStay);
+        return can(session.canSeeTimeline);
       case "tasks":
       case "tasksDone":
         return can(session.canSeeTasks);
@@ -120,7 +120,6 @@ export async function loadPrintCenterDocument(
   const dinner = availableSections.includes("rehearsal");
   const timeline = availableSections.includes("timeline");
   const guestsOn = availableSections.includes("guests");
-  const stayOn = availableSections.includes("stay");
   const mealsOn = availableSections.includes("meals");
   const shopOn = session.isMaster || session.canSeeShop;
   const tasksOn = availableSections.includes("tasks") || availableSections.includes("tasksDone");
@@ -136,8 +135,6 @@ export async function loadPrintCenterDocument(
     assignments,
     people,
     guestRows,
-    staySlots,
-    stayNotes,
     shoppingRows,
     taskRows,
     calendarRows,
@@ -183,8 +180,6 @@ export async function loadPrintCenterDocument(
           orderBy: [{ nameLine1: "asc" }, { sortOrder: "asc" }],
         })
       : Promise.resolve([]),
-    stayOn ? prisma.staySlot.findMany({ orderBy: { sortOrder: "asc" } }) : Promise.resolve([]),
-    stayOn ? prisma.stayBathNote.findMany({ orderBy: { sortOrder: "asc" } }) : Promise.resolve([]),
     mealsOn && shopOn
       ? prisma.shoppingItem.findMany({ orderBy: [{ purchased: "asc" }, { sortOrder: "asc" }, { name: "asc" }] })
       : Promise.resolve([]),
@@ -376,7 +371,8 @@ export async function loadPrintCenterDocument(
     rsvpSummary: guestProjection.summary.attending + guestProjection.summary.declined + guestProjection.summary.awaiting
       ? guestProjection.summary
       : null,
-    stay: projectStaySections(staySlots, stayNotes),
+    // David, 2026-10-10: the Airbnb sleeping arrangements are not being done; the bed lists no longer print.
+    stay: [],
     mealsPublished: Boolean(mealSettings?.published),
     mealChoiceCount,
     meals: projectMealSections(

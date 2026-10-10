@@ -97,6 +97,8 @@ test("People: open a day-of contact, '← People' brings the list back as it was
 
 test("Plan: open Tasks, '← Plan' returns to the same spot on Plan", async ({ page }) => {
   const guards = attachGuards(page);
+  // Plan is short on a tall desktop window since its Stay row went (2026-10-10); a shorter one still scrolls.
+  await page.setViewportSize({ width: page.viewportSize()!.width, height: Math.min(page.viewportSize()!.height, 600) });
   await page.goto("/plan", { waitUntil: "networkidle" });
   await scrollDown(page);
   // The Tasks link sits near the top of Plan: scroll so it is on screen a little way

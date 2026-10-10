@@ -44,10 +44,8 @@ test.describe("offline critical path", () => {
       test.info().annotations.push({ type: "not-run", description: "Offline shopping tab not present" });
     }
 
-    const stayTab = page.getByRole("button", { name: /Stay/ });
-    await expect(stayTab).toBeVisible();
-    await stayTab.click();
-    await expect(page.getByText(/Bed|Stay|Airbnb|Haley|David/i).first()).toBeVisible();
+    // No sleeping arrangements (David, 2026-10-10): the offline copy has no Stay tab.
+    await expect(page.getByRole("button", { name: /^Stay/ })).toHaveCount(0);
 
     for (const name of ["Home", "Assignments", "Guests", "Money", "Ask"]) {
       const tab = page.getByRole("button", { name: new RegExp(`^${name}`) });
