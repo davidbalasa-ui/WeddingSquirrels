@@ -9,12 +9,18 @@ import {
   saveGuestGift,
   setGuestGiftThankYou,
 } from "@/app/actions";
+import { parseTableNumberInput } from "@/lib/guest-gifts";
 import type { GuestGiftRecord, GuestPersonRecord, GuestRecord } from "@/lib/guests";
 
-type EditablePerson = GuestPersonRecord & { clientKey: string };
+/** Table # is kept as typed ("0", "007") and parsed when the household is saved. */
+type EditablePerson = GuestPersonRecord & { clientKey: string; tableNumberText: string };
 
 function toEditablePeople(people: GuestPersonRecord[]): EditablePerson[] {
-  return people.map((person) => ({ ...person, clientKey: person.id }));
+  return people.map((person) => ({
+    ...person,
+    clientKey: person.id,
+    tableNumberText: person.tableNumber == null ? "" : String(person.tableNumber),
+  }));
 }
 
 export function GuestEditCard({
@@ -34,20 +40,26 @@ export function GuestEditCard({
   const [zip, setZip] = useState(guest.zip ?? "");
   const [saving, startSave] = useTransition();
   const [banner, setBanner] = useState<string | null>(null);
+  // Other taps on the card (RSVP pill, Add gift, photo) refresh the household from the
+  // server; only replace what is on screen when nothing typed here is still unsaved.
+  const [dirty, setDirty] = useState(false);
   const [prevGuest, setPrevGuest] = useState(guest);
   if (guest !== prevGuest) {
     setPrevGuest(guest);
-    setPeople(toEditablePeople(guest.people));
-    setStreet(guest.street ?? "");
-    setCity(guest.city ?? "");
-    setState(guest.state ?? "");
-    setZip(guest.zip ?? "");
+    if (!dirty) {
+      setPeople(toEditablePeople(guest.people));
+      setStreet(guest.street ?? "");
+      setCity(guest.city ?? "");
+      setState(guest.state ?? "");
+      setZip(guest.zip ?? "");
+    }
   }
   const addressLine = [street, [city, state].filter(Boolean).join(", "), zip]
     .filter(Boolean)
     .join(" · ");
 
   function addPerson() {
+    setDirty(true);
     setPeople((prev) => [
       ...prev,
       {
@@ -59,6 +71,7 @@ export function GuestEditCard({
         rsvpStatus: "pending",
         photoData: null,
         tableNumber: null,
+        tableNumberText: "",
         tableSpot: null,
         personId: null,
       },
@@ -66,21 +79,35 @@ export function GuestEditCard({
   }
 
   function removePerson(clientKey: string) {
+    setDirty(true);
     setPeople((prev) => (prev.length <= 1 ? prev : prev.filter((person) => person.clientKey !== clientKey)));
   }
 
   function updatePerson(clientKey: string, patch: Partial<EditablePerson>) {
+    setDirty(true);
     setPeople((prev) =>
       prev.map((person) => (person.clientKey === clientKey ? { ...person, ...patch } : person)),
     );
   }
 
   function savePeople() {
+    // A person already on the list whose name was wiped is a slip, not a request to
+    // delete them (the server drops anyone missing from this payload).
+    if (people.some((person) => person.id && !person.name.trim())) {
+      setBanner("Every person needs a name.");
+      return;
+    }
+    const tables = people.map((person) => parseTableNumberInput(person.tableNumberText));
+    if (tables.some((table) => !table.ok)) {
+      setBanner("Table # must be a whole number, like 9.");
+      return;
+    }
+    const tableNumbers = tables.map((table) => (table.ok ? table.value : null));
     const payload = people
-      .map((person) => ({
+      .map((person, index) => ({
         id: person.id || undefined,
         name: person.name.trim(),
-        tableNumber: person.tableNumber,
+        tableNumber: tableNumbers[index] ?? null,
         tableSpot: person.tableSpot,
       }))
       .filter((person) => person.name);
@@ -103,6 +130,7 @@ export function GuestEditCard({
         setBanner("Couldn’t save guests — try again.");
         return;
       }
+      setDirty(false);
       router.refresh();
     });
   }
@@ -116,7 +144,10 @@ export function GuestEditCard({
           <input
             value={street}
             readOnly={!editing}
-            onChange={(event) => setStreet(event.target.value)}
+            onChange={(event) => {
+              setDirty(true);
+              setStreet(event.target.value);
+            }}
             className="field-input"
             placeholder="Street address"
           />
@@ -127,7 +158,10 @@ export function GuestEditCard({
             <input
               value={city}
               readOnly={!editing}
-              onChange={(event) => setCity(event.target.value)}
+              onChange={(event) => {
+              setDirty(true);
+              setCity(event.target.value);
+            }}
               className="field-input"
             />
           </label>
@@ -136,7 +170,10 @@ export function GuestEditCard({
             <input
               value={state}
               readOnly={!editing}
-              onChange={(event) => setState(event.target.value)}
+              onChange={(event) => {
+              setDirty(true);
+              setState(event.target.value);
+            }}
               className="field-input"
             />
           </label>
@@ -146,7 +183,10 @@ export function GuestEditCard({
           <input
             value={zip}
             readOnly={!editing}
-            onChange={(event) => setZip(event.target.value)}
+            onChange={(event) => {
+              setDirty(true);
+              setZip(event.target.value);
+            }}
             className="field-input"
           />
         </label>
@@ -190,14 +230,11 @@ export function GuestEditCard({
                 <input
                   inputMode="numeric"
                   readOnly={!editing}
-                  value={person.tableNumber ?? ""}
+                  value={person.tableNumberText}
                   placeholder="—"
-                  onChange={(event) => {
-                    const raw = event.target.value.trim();
-                    updatePerson(person.clientKey, {
-                      tableNumber: raw ? Number.parseInt(raw, 10) || null : null,
-                    });
-                  }}
+                  onChange={(event) =>
+                    updatePerson(person.clientKey, { tableNumberText: event.target.value })
+                  }
                   className="field-input"
                 />
               </label>

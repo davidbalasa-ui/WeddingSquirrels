@@ -44,6 +44,18 @@ export function parseRsvpStatus(value: string): RsvpStatus {
   return isRsvpStatus(value) ? value : "pending";
 }
 
+/**
+ * What a person typed into a Table # box, as the number to store: blank means no
+ * table (null), digits mean that table ("007" is 7 and "0" stays 0), anything
+ * else is a typo the form should point out rather than silently truncate.
+ */
+export function parseTableNumberInput(raw: string): { ok: true; value: number | null } | { ok: false } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { ok: true, value: null };
+  if (!/^\d+$/.test(trimmed)) return { ok: false };
+  return { ok: true, value: Number.parseInt(trimmed, 10) };
+}
+
 export function parseGuestCount(raw: string): number | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
