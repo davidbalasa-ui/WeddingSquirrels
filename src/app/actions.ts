@@ -38,6 +38,7 @@ import {
   sortTimelineBlocks,
   type TimelineSchedule,
 } from "@/lib/day-of-time";
+import { multilineFieldValue } from "@/lib/form-text";
 import { resolveAssigneeIds, setTaskAssignees } from "@/lib/people";
 import {
   parseProfileId,
@@ -3376,7 +3377,7 @@ export async function savePlaybookItem(formData: FormData): Promise<void> {
   const startAt = String(formData.get("startAt") || "").trim();
   const detail = String(formData.get("detail") || "").trim();
   const location = String(formData.get("location") || "").trim();
-  const notes = String(formData.get("notes") || "").trim();
+  const notes = multilineFieldValue(formData.get("notes"));
   if (!title) return;
 
   if (!id && sourceKey) {
@@ -3573,7 +3574,7 @@ export async function createDayAssignment(formData: FormData): Promise<void> {
   if (!(await requireDayDataEditor())) throw new Error("FORBIDDEN");
 
   const title = String(formData.get("title") || "").trim();
-  const notes = String(formData.get("notes") || "").trim();
+  const notes = multilineFieldValue(formData.get("notes"));
   const personIds = formData.getAll("personIds").map(String).filter(Boolean);
   const newPerson = String(formData.get("newPerson") || "").trim();
 
@@ -3599,7 +3600,7 @@ export async function saveDayAssignment(formData: FormData): Promise<void> {
 
   const id = String(formData.get("id") || "").trim();
   const title = String(formData.get("title") || "").trim();
-  const notes = String(formData.get("notes") || "").trim();
+  const notes = multilineFieldValue(formData.get("notes"));
   const personIds = formData.getAll("personIds").map(String).filter(Boolean);
   const newPerson = String(formData.get("newPerson") || "").trim();
 
