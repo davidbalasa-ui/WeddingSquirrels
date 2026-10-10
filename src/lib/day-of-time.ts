@@ -34,7 +34,13 @@ export type TimelineFieldDraft = {
 
 export type TimelineSavePrep =
   | { ok: true; startAt: string; endAt: string | null; notes: string; revertedNotes: boolean }
-  | { ok: false; reason: "empty_notes" | "noop"; revertNotes?: string };
+  | {
+      ok: false;
+      reason: "empty_notes" | "noop";
+      revertNotes?: string;
+      /** A start time typed away is kept, so the row must show the saved one again. */
+      revertStartAt?: string;
+    };
 
 export type TimelineCreatePrep =
   | { ok: true; startAt: string; endAt: string | null; notes: string }
@@ -157,8 +163,9 @@ export function prepareTimelineSave(
 ): TimelineSavePrep {
   const revertedNotes = draft.notes.trim().length === 0;
   const notes = revertedNotes ? lastSaved.notes.trim() : draft.notes.trim();
+  const revertStartAt = draft.startAt.trim() ? undefined : lastSaved.startAt;
   if (!notes) {
-    return { ok: false, reason: "empty_notes", revertNotes: lastSaved.notes };
+    return { ok: false, reason: "empty_notes", revertNotes: lastSaved.notes, revertStartAt };
   }
 
   const startAt = draft.startAt.trim() || lastSaved.startAt;
@@ -169,7 +176,7 @@ export function prepareTimelineSave(
     (endAt ?? "") === lastSaved.endAt.trim() &&
     notes === lastSaved.notes.trim()
   ) {
-    return { ok: false, reason: "noop", revertNotes: revertedNotes ? lastSaved.notes : undefined };
+    return { ok: false, reason: "noop", revertNotes: revertedNotes ? lastSaved.notes : undefined, revertStartAt };
   }
 
   return { ok: true, startAt, endAt, notes, revertedNotes };

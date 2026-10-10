@@ -20,14 +20,15 @@ export type PacketSchedule = {
   wedding: PacketScheduleRow[];
 };
 
-const SHARED_REHEARSAL_MOMENT = /rehearsal dinner|ceremony rehearsal/i;
+/** The document's titles and the app's earlier one-line rows ("Dinner; Welcome toasts…", "Rehearsal; Ceremony rehearsal at BSS"). */
+const SHARED_REHEARSAL_MOMENT = /rehearsal dinner|ceremony rehearsal|^dinner\b|^rehearsal\b/i;
 /** The party travels together on Thursday, so their copy keeps the departures and the return. */
-const PARTY_REHEARSAL_TRAVEL = /^depart for|return to the airbnb/i;
+const PARTY_REHEARSAL_TRAVEL = /^depart\b|^return to (?:the )?airbnb/i;
 
 const BRIDE_SIDE =
-  /\bMOB\b|\bFOB\b|mother of the bride|father of the bride|\bhaley with\b|haley[’']s (?:family|parents|mom|dad|paternal|maternal)|mom buttons|first look with dad/i;
+  /\bMOB\b|\bFOB\b|mother of the bride|father of the bride|\bhaley with\b|haley[’']s (?:family|parents|mom|dad|paternal|maternal)|mom buttons|first look with dad|father[- ]daughter/i;
 const GROOM_SIDE =
-  /\bMOG\b|\bFOG\b|mother of the groom|father of the groom|david[’']s (?:parents|mom|dad|family)|\bdavid with\b|\bhis parents\b/i;
+  /\bMOG\b|\bFOG\b|mother of the groom|father of the groom|david[’']s (?:parents|mom|dad|family)|\bdavid with\b|\bhis parents\b|mother[- ]son/i;
 /** "Parents gather belongings and prepare children" is about guests' children, not the couple's parents. */
 const GUEST_CHILDREN = /\bchildren\b/i;
 
@@ -112,17 +113,22 @@ export function packetSchedule(
 
 const BRIDE_SECRET = /secret from the bride/i;
 const GETAWAY = /getaway/i;
+/** A line about the getaway car in any other moment ("Just Married" sign, the getaway itself). */
+const GETAWAY_LINE = /getaway|just married/i;
 
 /**
  * The bride's copy keeps every moment, including the getaway, but a getaway
- * moment or one marked secret from the bride shows only its time and title.
+ * moment or one marked secret from the bride shows only its time and title,
+ * and a line that mentions the getaway inside any other moment is left out.
  */
 export function withoutBrideSecrets<T extends { notes: string }>(block: T): T {
   const parsed = parseBlockNotes(block.notes);
+  if (parsed.detailLines.length === 0) return block;
   const secret = GETAWAY.test(parsed.title) || parsed.detailLines.some((line) => BRIDE_SECRET.test(line));
-  if (!secret || parsed.detailLines.length === 0) return block;
+  const detailLines = secret ? [] : parsed.detailLines.filter((line) => !GETAWAY_LINE.test(line));
+  if (detailLines.length === parsed.detailLines.length) return block;
   return {
     ...block,
-    notes: composeBlockNotes({ title: parsed.title, location: null, detailLines: [] }),
+    notes: composeBlockNotes({ title: parsed.title, location: secret ? null : parsed.location, detailLines }),
   };
 }

@@ -72,6 +72,21 @@ test("updateBlockLocation and mergeEditorNotesBody preserve MC and music lines",
   assert.ok(afterEdit.detailLines.some((line) => line.includes("Extra")));
 });
 
+test("mergeEditorNotesBody keeps a location line typed into the body", () => {
+  const merged = mergeEditorNotesBody("Cake cutting\nCut the cake.", "Cake cutting\nCut the cake.\nLocation: Overnight check table");
+  assert.equal(merged, "Cake cutting\nlocation: Overnight check table\nCut the cake.");
+  // Without one in the body, the field's location stays.
+  assert.equal(
+    mergeEditorNotesBody("Cake cutting\nlocation: Head table\nCut the cake.", "Cake cutting\nCut the cake.\nMore"),
+    "Cake cutting\nlocation: Head table\nCut the cake.\nMore",
+  );
+});
+
+test("mergeEditorNotesBody treats an emptied body as nothing to save", () => {
+  assert.equal(mergeEditorNotesBody("Cake cutting\nlocation: Head table\nCut the cake.", ""), "");
+  assert.equal(mergeEditorNotesBody("Cake cutting\nlocation: Head table\nCut the cake.", " \n  \n"), "");
+});
+
 test("parseBlockNotes extracts title, location, and bullet names", () => {
   const parsed = parseBlockNotes(
     "Depart Airbnb\nDrive time 25–30 minutes\nLocation: Hawkshead, 523 Hawks Nest Dr\n· Vendors\n· Coordinator (Avalon)",

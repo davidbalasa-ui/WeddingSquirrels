@@ -25,12 +25,16 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
   const [selected, setSelected] = useState<PrintSectionId[]>([...FULL_BINDER_SECTIONS]);
   const [chosen, setChosen] = useState<PrintPresetId | null>("binder");
   const visible = useMemo(() => printableSections(document, selected), [document, selected]);
-  const preset = activePreset(selected, chosen, document.availableSections);
+  // The card to highlight: the chosen packet while its sections match, else one that matches exactly.
+  const matched = activePreset(selected, chosen, document.availableSections);
+  // The packet the page prints as. Ticking a section off after picking a packet keeps
+  // that packet's title, layout and audience; it never turns the page back into the binder.
+  const preset = matched ?? chosen;
   // Once the bride's packet is picked, ticking sections on or off never brings back the getaway details.
   const forBride = preset === "bride" || chosen === "bride";
   const packet = preset ? printPacket(preset) : null;
-  // A hand-picked "schedule" section keeps the audience of the last packet chosen.
-  const audience = printPacket(chosen ?? "party").audience ?? "party";
+  // A hand-picked "schedule" section keeps the audience of the packet in force.
+  const audience = printPacket(preset ?? "party").audience ?? "party";
 
   function applyPreset(next: PrintPresetId) {
     setChosen(next);
@@ -55,13 +59,13 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
           </p>
         </header>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {PRINT_PACKETS.map((card) => (
             <PresetCard
               key={card.id}
               title={card.title}
               body={card.body}
-              active={preset === card.id}
+              active={matched === card.id}
               testId={`print-preset-${card.id}`}
               onClick={() => applyPreset(card.id)}
             />
@@ -209,7 +213,7 @@ function PrintSection({
               <li key={`${cue.time ?? "cue"}-${cue.kind ?? "spoken"}-${index}`} className="binder-cue binder-card">
                 <p className="binder-time">
                   {cue.time ?? "Cue"}
-                  {cue.heading ? ` · ${cue.heading}` : ` · ${cue.momentTitle}`}
+                  {cue.heading && cue.kind !== "music" ? ` · ${cue.heading}` : ` · ${cue.momentTitle}`}
                 </p>
                 {cue.kind === "music" || !cue.spoken ? null : (
                   <>

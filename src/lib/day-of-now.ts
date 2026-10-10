@@ -156,8 +156,13 @@ export function notesBodyForEditor(notes: string): string {
 }
 
 export function mergeEditorNotesBody(notes: string, editorBody: string): string {
-  const location = parseBlockNotes(notes).location;
+  // Everything typed away is nothing to save, not a moment called "Timeline moment":
+  // the save step then puts the last saved notes back.
+  if (!editorBody.trim()) return "";
   const parsed = parseBlockNotes(editorBody);
+  // A "location: …" line typed into the body moves to the Location field rather than
+  // being dropped on the floor when the field's own value is written back.
+  const location = parsed.location ?? parseBlockNotes(notes).location;
   return composeBlockNotes({
     title: parsed.title,
     location,

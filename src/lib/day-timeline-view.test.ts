@@ -113,3 +113,26 @@ test("every group view keeps the ceremony with its time and title", () => {
   const ceremony = reviewMoment({ startAt: "3:30 PM", endAt: "4:00 PM", notes: "Ceremony\n@ Under the shelter" }, {});
   for (const role of ["mc", "party", "family", "photo", "vendors"] as const) assert.ok(momentForRole(ceremony, role), role);
 });
+
+test("every group view keeps the shared moments under the page's earlier titles too", () => {
+  for (const title of ["Dinner begins", "First dances", "Toasts + Cake cutting", "Grand entrance and dinner begins", "Formal dances", "Toasts"]) {
+    const moment = reviewMoment({ startAt: "5:00 PM", endAt: null, notes: `${title}\nGuests eat.` });
+    for (const role of ["mc", "party", "family", "photo"] as const) {
+      assert.ok(momentForRole(moment, role), `${role} keeps ${title}`);
+    }
+  }
+});
+
+test("findTimelineDuplicates flags a title that sits inside another's within half an hour", () => {
+  const flags = findTimelineDuplicates([
+    { id: "a", startAt: "6:00 PM", notes: "Toasts + Cake cutting\nToasts (Best man, MOH, FOB)" },
+    { id: "b", startAt: "6:15 PM", notes: "Cake cutting\nMC cue 6:15: gather near the cake table" },
+    { id: "c", startAt: "9:00 PM", notes: "Open dancing" },
+    { id: "d", startAt: "9:45 PM", notes: "Last open dance" },
+  ]);
+  assert.deepEqual(flags.a, [{ kind: "title-in-title", otherId: "b", otherTitle: "Cake cutting" }]);
+  assert.deepEqual(flags.b, [{ kind: "title-in-title", otherId: "a", otherTitle: "Toasts + Cake cutting" }]);
+  assert.equal(flags.c, undefined);
+  assert.equal(flags.d, undefined);
+  assert.equal(duplicateFlagLabel(flags.b![0]!), "Part of “Toasts + Cake cutting”");
+});

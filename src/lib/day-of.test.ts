@@ -272,6 +272,19 @@ test("asOf is ignored in production and accepted in non-production", () => {
   assert.equal(formatWeddingClock(stamped, DETROIT), "10:30 AM");
 });
 
+test("asOf without a zone is read as wedding-local wall-clock time", () => {
+  const naive = parseDayOfAsOf("2026-10-16T15:35", DETROIT, "test");
+  assert.ok(naive);
+  assert.equal(formatWeddingClock(naive, DETROIT), "3:35 PM");
+  assert.equal(naive.toLocaleDateString("en-CA", { timeZone: DETROIT }), "2026-10-16");
+  const withSeconds = parseDayOfAsOf("2026-10-16T09:00:00", DETROIT, "test");
+  assert.ok(withSeconds);
+  assert.equal(formatWeddingClock(withSeconds, DETROIT), "9:00 AM");
+  const utc = parseDayOfAsOf("2026-10-16T19:35:00.000Z", DETROIT, "test");
+  assert.ok(utc);
+  assert.equal(formatWeddingClock(utc, DETROIT), "3:35 PM");
+});
+
 test("asOf works on Vercel Preview even when NODE_ENV is production", () => {
   const preview = parseDayOfAsOf("2026-10-16T10:42:00-04:00", DETROIT, {
     NODE_ENV: "production",

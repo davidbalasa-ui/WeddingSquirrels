@@ -272,15 +272,21 @@ export function DayTimeline({
     );
 
     if (!prepared.ok) {
-      setRows((prev) =>
-        prev.map((item) => {
+      setRows((prev) => {
+        const next = prev.map((item): Row => {
           if (item.id !== row.id || item.localRev !== row.localRev) return item;
+          const startAt = prepared.revertStartAt ?? item.startAt;
           if (prepared.reason === "empty_notes" || prepared.revertNotes) {
-            return { ...item, notes: item.lastSaved.notes, status: "saved", error: null };
+            return { ...item, startAt, notes: item.lastSaved.notes, status: "saved", error: null };
           }
-          return { ...item, status: "saved", error: null };
-        }),
-      );
+          return { ...item, startAt, status: "saved", error: null };
+        });
+        if (!prepared.revertStartAt) return next;
+        // A start typed away was never saved: the row goes back where its saved time puts it.
+        const sorted = sortTimelineBlocks(next);
+        if (opts.reorder) scrollIfMoved(row.id, prev, sorted);
+        return sorted;
+      });
       return;
     }
 
@@ -417,11 +423,16 @@ export function DayTimeline({
     scheduleNotesSave(id);
   }
 
+  /** Notes typed away are blank until the save puts the saved ones back; build on those meanwhile. */
+  function notesSource(item: Row) {
+    return item.notes.trim() ? item.notes : item.lastSaved.notes;
+  }
+
   function patchLocation(id: string, location: string) {
     setRows((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
-        const notes = updateBlockLocation(item.notes, location || null);
+        const notes = updateBlockLocation(notesSource(item), location || null);
         return { ...item, notes, status: "dirty", error: null, localRev: item.localRev + 1 };
       }),
     );
@@ -432,7 +443,7 @@ export function DayTimeline({
     setRows((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
-        const notes = mergeEditorNotesBody(item.notes, editorBody);
+        const notes = mergeEditorNotesBody(notesSource(item), editorBody);
         return { ...item, notes, status: "dirty", error: null, localRev: item.localRev + 1 };
       }),
     );
@@ -647,7 +658,7 @@ export function DayTimeline({
       ) : null}
 
       {!hideChips && editing ? (
-        <div className="sticky top-[4.75rem] z-10 -mx-1 mb-2 flex gap-1.5 overflow-x-auto bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-1 py-1.5 backdrop-blur-md print-hide">
+        <div className="sticky top-0 z-10 -mx-1 mb-2 flex gap-1.5 overflow-x-auto bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-1 py-1.5 backdrop-blur-md print-hide">
           {DAY_OF_BUCKETS.filter((bucket) => counts[bucket.id] > 0).map((bucket) => (
             <button
               key={bucket.id}
@@ -1062,7 +1073,7 @@ function EditCard({
             onNoteFocusChange(false);
             onFlushNotes(row.id);
           }}
-          className="mt-0.5 w-full border-0 bg-transparent p-0 text-sm text-ink outline-none"
+          className="inline-field mt-0.5 w-full border-0 bg-transparent p-0 text-ink outline-none"
         />
       </label>
       <textarea
@@ -1122,10 +1133,9 @@ function PeerHandle({
   }
 
   function onPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
-    const handle = event.currentTarget;
+    const pointerId = event.pointerId;
     // Phones send no click after a touch drag, so clear the flag here too.
     draggedRef.current = false;
-    handle.setPointerCapture(event.pointerId);
     const startY = event.clientY;
     let current = [...peerIds];
     let lastIndex = current.indexOf(rowId);
@@ -1151,6 +1161,7 @@ function PeerHandle({
     }
 
     function onMove(moveEvent: PointerEvent) {
+      if (moveEvent.pointerId !== pointerId) return;
       if (Math.abs(moveEvent.clientY - startY) < 8) return;
       const nextIndex = yToIndex(moveEvent.clientY);
       if (nextIndex === lastIndex) return;
@@ -1163,18 +1174,21 @@ function PeerHandle({
       onReorder(next, false);
     }
 
-    function onUp() {
-      if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
-      handle.removeEventListener("pointermove", onMove);
-      handle.removeEventListener("pointerup", onUp);
-      handle.removeEventListener("pointercancel", onUp);
+    function onUp(upEvent: PointerEvent) {
+      if (upEvent.pointerId !== pointerId) return;
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
       // A plain tap falls through to onClick (nudge one place); only a real drag saves here.
       if (moved) onReorder(current, true);
     }
 
-    handle.addEventListener("pointermove", onMove);
-    handle.addEventListener("pointerup", onUp);
-    handle.addEventListener("pointercancel", onUp);
+    // The first move re-sorts the rows, and React moves this row's element to its new
+    // place, which drops any pointer capture on the handle. Listening on the document
+    // keeps the rest of the drag (and the save on release) arriving.
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
   }
 
   return (

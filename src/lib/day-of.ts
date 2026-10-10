@@ -30,7 +30,7 @@ import {
   parsedTimeFields,
   sortTimelineBlocks,
 } from "@/lib/day-of-time";
-import { isTemporalPreviewAllowed, type PreviewEnv } from "@/lib/preview-clock";
+import { instantAtLocalClock, isTemporalPreviewAllowed, type PreviewEnv } from "@/lib/preview-clock";
 import {
   calendarDateKey,
   getWeddingPhase,
@@ -294,6 +294,12 @@ export function parseDayOfAsOf(
       : isTemporalPreviewAllowed(env);
   if (!allowed) return undefined;
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return instantOnCalendarDate(raw, timeZone);
+  // A wall-clock stamp with no zone (?asOf=2026-10-16T15:35) means that time in the
+  // wedding timezone, not UTC, so a typed preview lands where the person expects.
+  const naive = raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/);
+  if (naive) {
+    return instantAtLocalClock(naive[1]!, Number(naive[2]), Number(naive[3]), timeZone);
+  }
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }

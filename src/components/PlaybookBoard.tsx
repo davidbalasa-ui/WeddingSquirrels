@@ -130,17 +130,17 @@ export function PlaybookBoard({
                         </span>
                       ) : null}
                       {canEdit ? (
-                        <div className="flex flex-col items-end gap-1">
+                        <div className="-mr-2 flex flex-col items-end">
                           <button
                             type="button"
-                            className="text-xs font-semibold text-[var(--accent)]"
+                            className="min-h-11 px-2 text-xs font-semibold text-[var(--accent)]"
                             onClick={() => setEditingKey(editing ? null : item.sourceKey)}
                           >
                             {editing ? "Close" : "Edit"}
                           </button>
                           <button
                             type="button"
-                            className="text-xs font-semibold text-muted"
+                            className="min-h-11 px-2 text-xs font-semibold text-muted"
                             onClick={() =>
                               startTransition(async () => {
                                 await togglePlaybookCompleted(item.id ?? "", !item.completed, item.sourceKey);

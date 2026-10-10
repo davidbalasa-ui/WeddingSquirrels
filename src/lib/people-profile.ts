@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { canManageDayOfContacts, timelineEditable } from "@/lib/access";
+import { canManageDayOfContacts, canSeeContactRecords, timelineEditable } from "@/lib/access";
 import { guestInclude, mapGuestRecord } from "@/lib/guests";
 import { MEAL_SECTIONS } from "@/lib/meals";
 import {
@@ -277,7 +277,7 @@ export async function loadPeopleProfile(
           },
         })
       : Promise.resolve([]),
-    session.canSeeTimeline || session.canSeeGuests
+    canSeeContactRecords(session)
       ? prisma.contact.findMany({
           select: {
             id: true,
@@ -446,6 +446,9 @@ export async function loadPeopleProfile(
   }
 
   if (parsed.kind === "contact") {
+    // Same gate as the People hub: a PIN that cannot see contacts gets Not found,
+    // not a phone number behind a direct link.
+    if (!canSeeContactRecords(session)) return null;
     const contact = await prisma.contact.findUnique({ where: { id: parsed.id } });
     if (!contact) return null;
     if (contact.personId) {
