@@ -10,6 +10,8 @@ import {
   formatClock,
   isTimelineSchedule,
   missingMeridiem,
+  nextClockDigits,
+  normalizeClockEntry,
   normalizeClockHour,
   normalizeClockMinute,
   parseDayOfTime,
@@ -312,8 +314,12 @@ test("clock parts recover a time that is missing AM/PM", () => {
 test("clock hour and minute normalize like an alarm", () => {
   assert.equal(normalizeClockHour(""), "");
   assert.equal(normalizeClockHour("9"), "9");
+  assert.equal(normalizeClockHour("09"), "9");
   assert.equal(normalizeClockHour("0"), "12");
-  assert.equal(normalizeClockHour("13"), "12");
+  // A 24-hour entry is understood, never forced to 12.
+  assert.equal(normalizeClockHour("13"), "1");
+  assert.equal(normalizeClockHour("19"), "7");
+  assert.equal(normalizeClockHour("45"), "");
   assert.equal(normalizeClockMinute(""), "00");
   assert.equal(normalizeClockMinute("5"), "05");
   assert.equal(normalizeClockMinute("60"), "59");
@@ -341,4 +347,22 @@ test("weddingTimelineRows counts wedding rows only, not rehearsal", () => {
     weddingTimelineRows(rows).every((row) => row.schedule === "wedding"),
     true,
   );
+});
+
+test("a 24-hour entry flips the clock face to PM", () => {
+  assert.deepEqual(normalizeClockEntry({ hour: "19", minute: "5", meridiem: "AM" }), { hour: "7", minute: "05", meridiem: "PM" });
+  assert.deepEqual(normalizeClockEntry({ hour: "12", minute: "", meridiem: "AM" }), { hour: "12", minute: "00", meridiem: "AM" });
+  assert.deepEqual(normalizeClockEntry({ hour: "0", minute: "30", meridiem: "PM" }), { hour: "12", minute: "30", meridiem: "PM" });
+  assert.deepEqual(normalizeClockEntry({ hour: "99", minute: "30", meridiem: "PM" }), { hour: "", minute: "", meridiem: "PM" });
+  assert.deepEqual(normalizeClockEntry({ hour: "", minute: "30", meridiem: "AM" }), { hour: "", minute: "", meridiem: "AM" });
+});
+
+test("typing a digit into a full clock box starts over instead of being dropped", () => {
+  assert.equal(nextClockDigits("12", "129", 2), "9");
+  assert.equal(nextClockDigits("12", "912", 2), "9");
+  assert.equal(nextClockDigits("1", "19", 2), "19");
+  assert.equal(nextClockDigits("", "007", 2), "07");
+  assert.equal(nextClockDigits("12", "", 2), "");
+  assert.equal(nextClockDigits("12", "1a", 2), "1");
+  assert.equal(nextClockDigits("30", "3045", 2), "45");
 });

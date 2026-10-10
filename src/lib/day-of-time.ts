@@ -260,12 +260,37 @@ export function sanitizeClockDigits(raw: string, maxLen: number): string {
   return raw.replace(/\D/g, "").slice(0, maxLen);
 }
 
+/**
+ * What a typed hour means on the clock face: 0 reads as 12, 13–23 is a 24-hour
+ * entry (19 → 7 PM), and anything past 23 is no hour at all. Nothing is ever
+ * forced to 12 behind the typist's back.
+ */
+export function normalizeClockEntry(parts: ClockParts): ClockParts {
+  const digits = parts.hour.trim();
+  if (!digits) return { ...parts, hour: "", minute: "" };
+  const n = Number(digits);
+  if (!Number.isInteger(n) || n > 23) return { ...parts, hour: "", minute: "" };
+  const minute = normalizeClockMinute(parts.minute);
+  if (n === 0) return { ...parts, hour: "12", minute };
+  if (n > 12) return { hour: String(n - 12), minute, meridiem: "PM" };
+  return { ...parts, hour: String(n), minute };
+}
+
 export function normalizeClockHour(raw: string): string {
-  if (!raw.trim()) return "";
-  const n = Number(raw);
-  if (!Number.isInteger(n)) return "";
-  if (n <= 0 || n > 12) return "12";
-  return String(n);
+  return normalizeClockEntry({ hour: raw, minute: "", meridiem: "AM" }).hour;
+}
+
+/**
+ * The digits a clock box holds after typing. When the box was already full (two
+ * digits, nothing selected) a further digit starts a fresh entry instead of being
+ * thrown away, so "12" then "9" reads 9, not 12.
+ */
+export function nextClockDigits(previous: string, typed: string, maxLen: number): string {
+  const digits = typed.replace(/\D/g, "");
+  if (digits.length <= maxLen) return digits;
+  if (previous && digits.startsWith(previous)) return digits.slice(previous.length).slice(0, maxLen);
+  if (previous && digits.endsWith(previous)) return digits.slice(0, digits.length - previous.length).slice(0, maxLen);
+  return digits.slice(-maxLen);
 }
 
 export function normalizeClockMinute(raw: string): string {

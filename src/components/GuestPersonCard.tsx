@@ -51,9 +51,11 @@ export function GuestPersonCard({
     setPrevPerson(person);
     setName(person.name);
   }
+  // A refresh after another save (Save guests, a pill) must not wipe a phone being typed.
+  const [phoneDirty, setPhoneDirty] = useState(false);
   if (guest !== prevGuest) {
     setPrevGuest(guest);
-    setPhone(guest.phone ?? "");
+    if (!phoneDirty) setPhone(guest.phone ?? "");
   }
 
   const rsvp = parseRsvpStatus(person.rsvpStatus);
@@ -241,12 +243,19 @@ export function GuestPersonCard({
               <input
                 value={phone}
                 readOnly={!cardEditing}
-                onChange={(event) => setPhone(event.target.value)}
+                onChange={(event) => {
+                  setPhoneDirty(true);
+                  setPhone(event.target.value);
+                }}
                 onBlur={() => {
                   if (!cardEditing) return;
-                  if ((phone.trim() || "") === (guest.phone?.trim() || "")) return;
+                  if ((phone.trim() || "") === (guest.phone?.trim() || "")) {
+                    setPhoneDirty(false);
+                    return;
+                  }
                   startTransition(async () => {
                     await saveGuestPhone(guest.id, phone);
+                    setPhoneDirty(false);
                   });
                 }}
                 className="field-input"
