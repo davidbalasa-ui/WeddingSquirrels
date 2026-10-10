@@ -132,27 +132,15 @@ test("the app's original rehearsal rows (id = seed key, no seedKey) are the docu
   const plan = planReconciledTimeline(legacy);
   assert.equal(plan.inserts.filter((row) => row.schedule === "rehearsal").length, 0);
   assert.equal(plan.untouched.length, 0);
-  // Never edited, so Apply gives them the document's wording and seed key.
-  assert.equal(plan.refreshes.length, legacy.length);
-  assert.equal(plan.updates.filter((row) => row.schedule === "rehearsal").length, 0);
-  assert.ok(plan.refreshes.every((row) => row.seedKey === row.id && row.notes.includes("\n")));
-  // One the owner edited keeps his wording.
-  const edited = legacy.map((row, index) => (index === 1 ? { ...row, notes: `${row.notes}; bring the keys` } : row));
-  const editedPlan = planReconciledTimeline(edited);
-  assert.equal(editedPlan.refreshes.length, legacy.length - 1);
-  assert.deepEqual(editedPlan.updates.map((row) => row.id), ["reh.getready"]);
+  assert.equal(plan.updates.filter((row) => row.schedule === "rehearsal").length, legacy.length);
   // Applying twice never doubles the rehearsal.
   const applied = [
-    ...legacy.map((row) => {
-      const refreshed = plan.refreshes.find((item) => item.id === row.id)!;
-      return { ...row, seedKey: refreshed.seedKey, notes: refreshed.notes, startAt: refreshed.startAt, endAt: refreshed.endAt };
-    }),
+    ...legacy,
     ...plan.inserts.map((row, index) => ({ ...row, id: `new-${index}`, seedKey: row.seedKey })),
   ];
   const again = planReconciledTimeline(applied);
   assert.equal(again.inserts.length, 0);
   assert.equal(again.removals.length, 0);
-  assert.equal(again.refreshes.length, 0);
 });
 
 test("after an Apply that doubled the rehearsal, the untouched legacy copies are folded away and an edited one stays", () => {

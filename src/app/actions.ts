@@ -3632,8 +3632,6 @@ export async function applyReconciledTimelineAction(): Promise<
   try {
     await prisma.$transaction([
       ...plan.removals.map((row) => prisma.timelineBlock.delete({ where: { id: row.id } })),
-      // Rows still exactly as the app seeded them carry none of the owner's wording.
-      ...plan.refreshes.map(({ id, ...data }) => prisma.timelineBlock.update({ where: { id }, data })),
       ...plan.inserts.map((data) => prisma.timelineBlock.create({ data })),
     ]);
   } catch {

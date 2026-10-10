@@ -136,7 +136,6 @@ export async function applyReconciled(prisma: PrismaClient) {
   const plan = planReconciledTimeline(existing);
   await prisma.$transaction([
     ...plan.removals.map((row) => prisma.timelineBlock.delete({ where: { id: row.id } })),
-    ...plan.refreshes.map(({ id, ...data }) => prisma.timelineBlock.update({ where: { id }, data })),
     ...plan.inserts.map((data) => prisma.timelineBlock.create({ data })),
   ]);
   return plan;
