@@ -25,9 +25,9 @@ const SHARED_REHEARSAL_MOMENT = /rehearsal dinner|ceremony rehearsal/i;
 const PARTY_REHEARSAL_TRAVEL = /^depart for|return to the airbnb/i;
 
 const BRIDE_SIDE =
-  /\bMOB\b|\bFOB\b|mother of the bride|father of the bride|\bhaley with\b|haley[’']s (?:family|parents|mom|dad|paternal|maternal)|mom buttons|first look with dad/i;
+  /\bMOB\b|\bFOB\b|mother of the bride|father of the bride|\bhaley with\b|haley[’']s (?:family|parents|mom|dad|paternal|maternal)|mom buttons|first look with dad|father[- ]daughter/i;
 const GROOM_SIDE =
-  /\bMOG\b|\bFOG\b|mother of the groom|father of the groom|david[’']s (?:parents|mom|dad|family)|\bdavid with\b|\bhis parents\b/i;
+  /\bMOG\b|\bFOG\b|mother of the groom|father of the groom|david[’']s (?:parents|mom|dad|family)|\bdavid with\b|\bhis parents\b|mother[- ]son/i;
 /** "Parents gather belongings and prepare children" is about guests' children, not the couple's parents. */
 const GUEST_CHILDREN = /\bchildren\b/i;
 

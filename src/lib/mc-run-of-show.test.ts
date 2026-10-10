@@ -70,3 +70,25 @@ test("Mistress of Ceremonies and MC are both operator labels", () => {
     ["Kurt Huizenga", "Wendy Rush"],
   );
 });
+
+test("a moment's reminders print once, under its first cue, not under every cue of that moment", () => {
+  const show = buildMcRunOfShow([
+    {
+      startAt: "7:00 PM",
+      endAt: "10:00 PM",
+      notes: [
+        "Open Dancing",
+        "MC cue 7:00: \"The dance floor is officially open.\"",
+        "MC cue 8:00: \"A gentle reminder for our younger travelers.\"",
+        "MC cue 9:55: \"This is the last call for drinks.\"",
+        "9:55 PM — private last dance after last call",
+      ].join("\n"),
+      schedule: "wedding",
+    },
+  ]);
+  const spoken = show.cues.filter((cue) => cue.kind === "spoken");
+  assert.equal(spoken.length, 3);
+  assert.deepEqual(spoken[0]!.operatorNotes, ["9:55 PM — private last dance after last call"]);
+  assert.deepEqual(spoken[1]!.operatorNotes, []);
+  assert.deepEqual(spoken[2]!.operatorNotes, []);
+});

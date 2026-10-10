@@ -19,9 +19,17 @@ export function attachGuards(page: Page, options: { allow?: RegExp } = {}) {
   page.on("response", (response) => {
     if (response.status() >= 500) serverErrors.push(`${response.status()} ${response.url()}`);
   });
+  // Named in the failure message so a "Failed to fetch" says which request it was.
+  const failedRequests: string[] = [];
+  page.on("requestfailed", (request) => {
+    failedRequests.push(`${request.method()} ${request.url()} (${request.failure()?.errorText ?? "?"})`);
+  });
   return {
     assertClean() {
-      expect(pageErrors, `console/page errors:\n${pageErrors.join("\n")}`).toEqual([]);
+      expect(
+        pageErrors,
+        `console/page errors:\n${pageErrors.join("\n")}\nfailed requests:\n${failedRequests.join("\n")}`,
+      ).toEqual([]);
       expect(serverErrors, `server errors:\n${serverErrors.join("\n")}`).toEqual([]);
     },
   };
@@ -62,6 +70,11 @@ export function reviewRow(page: Page, blockId: string): Locator {
 /** Waits until no row on the page is still saving or in error. */
 export async function expectAllSaved(page: Page) {
   await expect(page.getByText("Saving…")).toHaveCount(0, { timeout: 15_000 });
+  // Typing is saved 400ms after the last keystroke; let that timer fire and its save finish
+  // before the test moves on, so a navigation never cuts a save short.
+  await page.waitForTimeout(500);
+  await expect(page.getByText("Saving…")).toHaveCount(0, { timeout: 15_000 });
+  await page.waitForLoadState("networkidle");
   await expect(page.getByText(/Couldn’t save/)).toHaveCount(0);
 }
 

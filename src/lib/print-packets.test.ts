@@ -103,3 +103,13 @@ test("packets for each group keep the moments they had before, plus only the int
   const dances = packetSchedule(moments, "brideParents").wedding.find((row) => row.title === "Formal dances");
   assert.deepEqual(dances?.lines, ["Father of the bride dance."]);
 });
+
+test("the father-daughter song is the bride's parents' line, the mother-son song the groom's", () => {
+  const moment = reviewMoment({
+    startAt: "6:30 PM",
+    endAt: "7:00 PM",
+    notes: "First dances\nFather-daughter: My Girl by The Temptations\nMother-son: What a Wonderful World",
+  });
+  assert.deepEqual(momentForAudience(moment, "brideParents", "wedding")?.lines, ["Father-daughter: My Girl by The Temptations"]);
+  assert.deepEqual(momentForAudience(moment, "groomParents", "wedding")?.lines, ["Mother-son: What a Wonderful World"]);
+});

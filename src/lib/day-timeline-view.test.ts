@@ -122,3 +122,17 @@ test("every group view keeps the shared moments under the page's earlier titles 
     }
   }
 });
+
+test("findTimelineDuplicates flags a title that sits inside another's within half an hour", () => {
+  const flags = findTimelineDuplicates([
+    { id: "a", startAt: "6:00 PM", notes: "Toasts + Cake cutting\nToasts (Best man, MOH, FOB)" },
+    { id: "b", startAt: "6:15 PM", notes: "Cake cutting\nMC cue 6:15: gather near the cake table" },
+    { id: "c", startAt: "9:00 PM", notes: "Open dancing" },
+    { id: "d", startAt: "9:45 PM", notes: "Last open dance" },
+  ]);
+  assert.deepEqual(flags.a, [{ kind: "title-in-title", otherId: "b", otherTitle: "Cake cutting" }]);
+  assert.deepEqual(flags.b, [{ kind: "title-in-title", otherId: "a", otherTitle: "Toasts + Cake cutting" }]);
+  assert.equal(flags.c, undefined);
+  assert.equal(flags.d, undefined);
+  assert.equal(duplicateFlagLabel(flags.b![0]!), "Part of “Toasts + Cake cutting”");
+});

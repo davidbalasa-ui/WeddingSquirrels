@@ -113,14 +113,19 @@ export function buildMcRunOfShow(
   blocks: Array<{ startAt: string; endAt: string | null; notes: string; schedule?: string | null; sortOrder?: number }>,
   people: Array<{ name: string; directoryLabel?: string | null }> = [],
 ): McRunOfShow {
+  // A moment's reminders ("9:55 PM — private last dance after last call") print once,
+  // under its first cue, not again under every later cue of the same moment.
+  const notedMoments = new Set<string>();
   const spoken = extractMcCues(blocks).map((cue) => {
     const block = blocks.find((row) => parseBlockNotes(row.notes).title === cue.momentTitle);
+    const firstOfMoment = !notedMoments.has(cue.momentTitle);
+    notedMoments.add(cue.momentTitle);
     return {
       ...cue,
       kind: "spoken" as const,
       nextTime: null,
       nextTitle: null,
-      operatorNotes: block ? operatorNotesForBlock(block.notes) : [],
+      operatorNotes: block && firstOfMoment ? operatorNotesForBlock(block.notes) : [],
       introduces: cue.heading,
     };
   });

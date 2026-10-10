@@ -5,6 +5,8 @@ import { isMcDirectoryLabel } from "@/lib/print-center";
 import { lineupRole } from "@/lib/print-projection";
 
 const FAMILY_LINEUP = /mother|father|\bmom\b|\bdad\b|parents?/i;
+/** "Officiant & Mother of the Bride" names roles, not people; a role word must never become a name. */
+const ROLE_NOT_NAME = /^(?:the\s+)?(?:officiant|mother|father|mom|dad|parents?|flower girl|ring bearer|bride|groom)\b/i;
 const PHOTO_LABEL = /photo|video/i;
 const VENDOR_LABEL = /planner|venue|cater|dj|florist|bar|coordinator|officiant|rental|hair|makeup/i;
 
@@ -18,14 +20,21 @@ export async function loadTimelineRoleNames(): Promise<RoleNameContext> {
     prisma.person.findMany({ select: { name: true, directoryLabel: true } }).catch(() => []),
     prisma.contact.findMany({ select: { name: true, directoryLabel: true } }).catch(() => []),
   ]);
+  return roleNamesFrom({ lineup, people: [...people, ...contacts] });
+}
 
+export function roleNamesFrom(input: {
+  lineup: Array<{ title: string }>;
+  people: Array<{ name: string; directoryLabel?: string | null }>;
+}): RoleNameContext {
+  const { lineup, people } = input;
   const party: string[] = [];
   const family: string[] = [];
   for (const row of lineup) {
     const parsed = lineupRole(row.title);
     const target = FAMILY_LINEUP.test(row.title) ? family : party;
     for (const name of parsed.names) {
-      if (/^(david|haley)\b/i.test(name)) continue;
+      if (/^(david|haley)\b/i.test(name) || ROLE_NOT_NAME.test(name)) continue;
       target.push(name);
     }
   }
@@ -33,7 +42,7 @@ export async function loadTimelineRoleNames(): Promise<RoleNameContext> {
   const mc: string[] = [];
   const photo: string[] = [];
   const vendors: string[] = [];
-  for (const row of [...people, ...contacts]) {
+  for (const row of people) {
     const label = row.directoryLabel ?? "";
     if (isMcDirectoryLabel(label)) mc.push(row.name);
     else if (PHOTO_LABEL.test(label)) photo.push(row.name);

@@ -166,11 +166,12 @@ function normalizeTitle(text: string): string {
 
 const DUPLICATE_WINDOW_MINUTES = 30;
 
-export type DuplicateFlag = { kind: "same-title" | "title-in-notes"; otherId: string; otherTitle: string };
+export type DuplicateFlag = { kind: "same-title" | "title-in-notes" | "title-in-title"; otherId: string; otherTitle: string };
 
 /**
  * Flags moments that repeat each other so the owner can decide what to merge.
- * Same title twice, or one moment's title written as a detail line in another.
+ * Same title twice, one moment's title written as a detail line in another, or one title
+ * inside another's ("Cake cutting" next to "Toasts + Cake cutting").
  * Short titles (fewer than 2 words) are skipped so "Ceremony" inside "Ceremony begins" never fires.
  * Moments more than half an hour apart are never flagged.
  */
@@ -205,9 +206,13 @@ export function findTimelineDuplicates(
         add(a.id, { kind: "same-title", otherId: b.id, otherTitle: b.title });
         continue;
       }
-      if (a.key.split(" ").length >= 2 && b.details.includes(a.key)) {
+      if (a.key.split(" ").length < 2) continue;
+      if (b.details.includes(a.key)) {
         add(a.id, { kind: "title-in-notes", otherId: b.id, otherTitle: b.title });
         add(b.id, { kind: "title-in-notes", otherId: a.id, otherTitle: a.title });
+      } else if (` ${b.key} `.includes(` ${a.key} `)) {
+        add(a.id, { kind: "title-in-title", otherId: b.id, otherTitle: b.title });
+        add(b.id, { kind: "title-in-title", otherId: a.id, otherTitle: a.title });
       }
     }
   }
@@ -216,5 +221,6 @@ export function findTimelineDuplicates(
 
 export function duplicateFlagLabel(flag: DuplicateFlag): string {
   if (flag.kind === "same-title") return `Same title as “${flag.otherTitle}”`;
+  if (flag.kind === "title-in-title") return `Part of “${flag.otherTitle}”`;
   return `Also listed inside “${flag.otherTitle}”`;
 }
