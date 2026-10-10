@@ -1021,6 +1021,9 @@ const LINEUP_NOT_PARTY =
 const PARTY_MOMENT =
   /wedding party|bridal party|groomsmen|bridesmaid|lines? up|first look|portraits|toasts|first dances|grand entrance|tear down|clean up|leaves? (the )?airbnb|getting dressed/i;
 
+/** A line for the whole party wherever it sits: what they wear, or that the venue has no signal. */
+const PARTY_WIDE = /\bclothes\b|\battire\b|\bcell service\b/i;
+
 /**
  * Open questions the planning sources still leave unanswered for the wedding
  * party. They print on purpose so nobody assumes an answer that was never given.
@@ -1105,12 +1108,16 @@ export function projectWeddingParty(input: {
   const moments: PrintPartyMoment[] = [];
   for (const block of input.weddingBlocks) {
     const parsed = parseBlockNotes(block.notes);
-    const relevant = parsed.detailLines.filter((line) => PARTY_MOMENT.test(line));
+    // A party-wide line always prints, and never narrows the moment down to itself.
+    const forParty = (line: string) => PARTY_MOMENT.test(line) && !PARTY_WIDE.test(line);
+    const relevant = parsed.detailLines.filter(forParty);
     if (!PARTY_MOMENT.test(parsed.title) && relevant.length === 0) continue;
     moments.push({
       timeLabel: formatPrintTimeRange(block.startAt, block.endAt),
       title: parsed.title,
-      notes: professionalizePrintLines(relevant.length ? relevant : parsed.detailLines).slice(0, 4),
+      notes: professionalizePrintLines(
+        relevant.length ? parsed.detailLines.filter((line) => forParty(line) || PARTY_WIDE.test(line)) : parsed.detailLines,
+      ).slice(0, 4),
     });
   }
 

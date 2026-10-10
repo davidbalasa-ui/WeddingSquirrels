@@ -5,12 +5,14 @@ import { REHEARSAL_SCHEDULE_SEED } from "./rehearsal";
 import {
   RECONCILED_RETIRED_SEED_KEYS,
   RECONCILED_TIMELINE,
+  checkinCarriesBunksNote,
   doubledMomentToRemove,
   phaseForBlock,
   planReconciledTimeline,
   reconciledNotes,
   reconciledPlanIsEmpty,
   type ExistingTimelineRow,
+  type ReconciledMoment,
 } from "./reconciled-timeline";
 
 test("every reconciled moment has a unique seedKey and a title", () => {
@@ -271,4 +273,79 @@ test("a getaway moment still worded as the app wrote it is corrected to Dan by A
   assert.equal(kept.rewords.length, 0);
   assert.equal(kept.updates.length, 1);
   assert.equal(reconciledPlanIsEmpty(kept), true);
+});
+
+// David, 2026-10-10 20:32: "skila and Trinity and bri claimed their bunks make a note of that".
+test("Thursday's check-in moment gains the bunks note while it reads as the app wrote it; an edited one stays his", () => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "reh.checkin")!;
+  assert.ok(moment.lines.includes("Skila, Trinity and Bri claimed their bunks (David, Oct 10)."));
+  const written = reconciledNotes({
+    ...moment,
+    location: undefined,
+    openItems: "Confirm the Airbnb address and who has check-in access.",
+    lines: moment.lines.filter((line) => !/bunks/.test(line)),
+  });
+  assert.equal(checkinCarriesBunksNote(written), true);
+  assert.equal(checkinCarriesBunksNote(reconciledNotes(moment)), true);
+  const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.map((m, index) => ({
+    id: m.seedKey,
+    seedKey: m.seedKey,
+    schedule: m.schedule,
+    startAt: m.startAt,
+    endAt: m.endAt,
+    notes: m === moment ? written : reconciledNotes(m),
+    sortOrder: index,
+  }));
+  const plan = planReconciledTimeline(rows);
+  assert.deepEqual(plan.rewords.map((row) => [row.id, row.correction]), [["reh.checkin", "bunks noted, Airbnb address"]]);
+  assert.equal(plan.rewords[0]!.notes, reconciledNotes(moment));
+
+  const edited = `${written}\nBring the air mattress`;
+  assert.equal(checkinCarriesBunksNote(edited), false);
+  const kept = planReconciledTimeline(rows.map((row) => (row.id === moment.seedKey ? { ...row, notes: edited } : row)));
+  assert.equal(kept.rewords.length, 0);
+});
+
+// David, 2026-10-10 20:37: "get ready clothes for the bridal party is black for Friday morning".
+test("Friday's first hair and makeup rotation gains the black clothes note while it reads as the app wrote it", () => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_hair_rotation_1")!;
+  assert.ok(moment.lines.includes("Get ready clothes for the bridal party are black (David, Oct 10)."));
+  const written = reconciledNotes({ ...moment, lines: moment.lines.filter((line) => !/black/.test(line)) });
+  const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.map((m, index) => ({
+    id: m.seedKey,
+    seedKey: m.seedKey,
+    schedule: m.schedule,
+    startAt: m.startAt,
+    endAt: m.endAt,
+    notes: m === moment ? written : reconciledNotes(m),
+    sortOrder: index,
+  }));
+  const plan = planReconciledTimeline(rows);
+  assert.deepEqual(plan.rewords.map((row) => [row.id, row.correction]), [["wedding_hair_rotation_1", "black get ready clothes"]]);
+  const kept = planReconciledTimeline(rows.map((row) => (row.id === moment.seedKey ? { ...row, notes: `${written}\nBring robes` } : row)));
+  assert.equal(kept.rewords.length, 0);
+});
+
+// David's one-week check-in to the bridal party, 2026-10-10 20:40.
+test("his one-week check-in retimes and rewords the moments the app wrote, and leaves edited ones alone", () => {
+  const earlier: Record<string, Partial<ReconciledMoment>> = {
+    wedding_party_leaves: { endAt: "12:20 PM", lines: ["Wedding party leaves for Black Sheep Shelter.", "David and Haley remain briefly for private vows with Belle."] },
+    wedding_couple_departs: { startAt: "12:20 PM", endAt: "12:30 PM" },
+    wedding_pre_ceremony: { lines: ["Guests arrive and are seated.", "Wedding party lines up.", "Barry photographs ceremony details and guest arrivals.", "No early bar service is planned."] },
+  };
+  const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.map((m, index) => {
+    const was = { ...m, ...(earlier[m.seedKey] ?? {}) };
+    return { id: m.seedKey, seedKey: m.seedKey, schedule: m.schedule, startAt: was.startAt, endAt: was.endAt, notes: reconciledNotes(was), sortOrder: index };
+  });
+  const plan = planReconciledTimeline(rows);
+  assert.deepEqual(plan.updates, []);
+  assert.deepEqual(plan.rewords.map((row) => [row.id, row.startAt, row.endAt]).sort(), [
+    ["wedding_couple_departs", "12:30 PM", null],
+    ["wedding_party_leaves", "12:00 PM", "12:30 PM"],
+    ["wedding_pre_ceremony", "3:15 PM", "3:30 PM"],
+  ]);
+  // A time he changed himself is his: nothing is reworded over it.
+  const edited = planReconciledTimeline(rows.map((row) => (row.id === "wedding_couple_departs" ? { ...row, startAt: "12:25 PM" } : row)));
+  assert.equal(edited.rewords.some((row) => row.id === "wedding_couple_departs"), false);
+  assert.equal(edited.updates.some((row) => row.id === "wedding_couple_departs"), true);
 });

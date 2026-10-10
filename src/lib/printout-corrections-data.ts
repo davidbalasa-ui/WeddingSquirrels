@@ -5,6 +5,7 @@ import { planPhoneCorrections, type PhoneCorrectionRow, type PhoneWrite } from "
 import { planDayJobRewords, planDayJobs, type DayJobDef, type DayJobReword } from "@/lib/day-job-corrections";
 import { MINI_MOON_CONTACT } from "@/lib/mini-moon";
 import { planPlaybookRewords, type PlaybookReword } from "@/lib/playbook-corrections";
+import { checkinCarriesBunksNote, reconciledKeyForRow } from "@/lib/reconciled-timeline";
 import { planTaskCorrections, type TaskCorrectionsPlan } from "@/lib/task-corrections";
 
 export type NewContactRow = { name: string; phone: string; directoryLabel: string };
@@ -50,14 +51,20 @@ async function loadPeopleSnapshot(db: Db): Promise<EnrichmentSnapshot> {
 }
 
 export async function loadPrintoutCorrectionsPlan(db: Db = prisma): Promise<PrintoutCorrectionsPlan> {
-  const [tasks, snapshot, assignments, playbook] = await Promise.all([
+  const [tasks, snapshot, assignments, playbook, rehearsal] = await Promise.all([
     db.task.findMany({ select: { id: true, title: true, status: true, parentId: true, dueDate: true, summary: true } }),
     loadPeopleSnapshot(db),
     db.dayAssignment.findMany({ select: { id: true, title: true, notes: true } }),
     db.playbookItem.findMany({ select: { id: true, sourceKey: true, title: true, notes: true } }),
+    db.timelineBlock.findMany({ where: { schedule: "rehearsal" }, select: { id: true, seedKey: true, schedule: true, notes: true } }),
   ]);
+  // The bunks note goes on Thursday's check-in moment; only a moment David reworded himself sends it to the job.
+  // Picked the way the Wedding Day card picks it: a row carrying the key wins over one seeded under it as its id.
+  const checkins = rehearsal.filter((row) => reconciledKeyForRow(row) === "reh.checkin");
+  const checkin = checkins.find((row) => row.seedKey) ?? checkins[0];
+  const bunksOnJob = checkin != null && !checkinCarriesBunksNote(checkin.notes);
   const contacts = snapshot.contacts.some((row) => /victoria resort/i.test(row.name)) ? [] : [{ ...MINI_MOON_CONTACT }];
-  return { tasks: planTaskCorrections(tasks), phones: planPhoneCorrections(snapshot), contacts, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments), playbookRewords: planPlaybookRewords(playbook) };
+  return { tasks: planTaskCorrections(tasks, { bunksOnJob }), phones: planPhoneCorrections(snapshot), contacts, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments), playbookRewords: planPlaybookRewords(playbook) };
 }
 
 /** One phone write, inside the caller's transaction. Only ever fills or (on David's pick) replaces one number. */

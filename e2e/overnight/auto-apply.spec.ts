@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser } from "@playwright/test";
 import { parseBlockNotes } from "../../src/lib/day-of-now";
-import { RECONCILED_RETIRED_SEED_KEYS, RECONCILED_TIMELINE } from "../../src/lib/reconciled-timeline";
-import { NEW_TASKS } from "../../src/lib/task-corrections";
+import { BUNKS_NOTE, RECONCILED_RETIRED_SEED_KEYS, RECONCILED_TIMELINE, reconciledNotes } from "../../src/lib/reconciled-timeline";
+import { BUNKS_NOTE_ON_JOB, NEW_TASKS } from "../../src/lib/task-corrections";
 import { overnightPrisma, resetOvernightData, snapshotTasks } from "./db";
 import { attachGuards } from "./helpers";
 
@@ -122,5 +122,52 @@ test("a job or moment he removes after it was applied stays removed", async ({ b
   await expect(card).toContainText("0 new moments");
   await card.getByRole("button", { name: "See what changes" }).click();
   await expect(card).not.toContainText("Night-sky photos");
+  await context.close();
+});
+
+/** Thursday's check-in row: seeded with the key as its id, or carrying it as seedKey. */
+const CHECKIN = { OR: [{ seedKey: "reh.checkin" }, { id: "reh.checkin" }] };
+
+// David, 2026-10-10 20:32: "skila and Trinity and bri claimed their bunks make a note of that".
+test("the bunks note lands on Thursday's check-in moment, or on the sleeping job when he reworded the moment", async ({ browser }) => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "reh.checkin")!;
+  // As the app wrote it before his bunks note and his check-in's Airbnb address.
+  const written = reconciledNotes({
+    ...moment,
+    location: undefined,
+    openItems: "Confirm the Airbnb address and who has check-in access.",
+    lines: moment.lines.filter((line) => line !== BUNKS_NOTE),
+  });
+  const job = { title: BUNKS_NOTE_ON_JOB.title, summary: BUNKS_NOTE_ON_JOB.before };
+
+  // The moment still reads as the app wrote it: the note goes there, not on the job.
+  await resetOvernightData(prisma);
+  await restoreTasks?.();
+  await prisma.timelineBlock.updateMany({ where: CHECKIN, data: { notes: written, startAt: moment.startAt, endAt: moment.endAt } });
+  const sleeping = await prisma.task.create({ data: job });
+  let context = await freshMaster(browser);
+  let page = await context.newPage();
+  await page.goto("/today");
+  let applied = page.getByTestId("auto-applied");
+  await applied.getByRole("button", { name: /Show all \d+/ }).click({ timeout: 30_000 });
+  await expect(applied).toContainText("Corrected 1:00 PM Airbnb check in (bunks noted, Airbnb address)");
+  expect((await prisma.timelineBlock.findFirstOrThrow({ where: CHECKIN })).notes).toBe(reconciledNotes(moment));
+  expect((await prisma.task.findUniqueOrThrow({ where: { id: sleeping.id } })).summary).toBe(BUNKS_NOTE_ON_JOB.before);
+  await context.close();
+
+  // He reworded the moment himself: it stays his, and the note goes on the job instead.
+  await resetOvernightData(prisma);
+  await restoreTasks?.();
+  const edited = `${written}\nBring the air mattress`;
+  await prisma.timelineBlock.updateMany({ where: CHECKIN, data: { notes: edited, startAt: moment.startAt, endAt: moment.endAt } });
+  const sleeping2 = await prisma.task.create({ data: job });
+  context = await freshMaster(browser);
+  page = await context.newPage();
+  await page.goto("/today");
+  applied = page.getByTestId("auto-applied");
+  await applied.getByRole("button", { name: /Show all \d+/ }).click({ timeout: 30_000 });
+  await expect(applied).toContainText("Updated the note on “Finish Airbnb Sleeping Assignments”");
+  expect((await prisma.timelineBlock.findFirstOrThrow({ where: CHECKIN })).notes).toBe(edited);
+  expect((await prisma.task.findUniqueOrThrow({ where: { id: sleeping2.id } })).summary).toBe(BUNKS_NOTE_ON_JOB.summary);
   await context.close();
 });

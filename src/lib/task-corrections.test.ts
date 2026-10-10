@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DONE_JOBS, DONE_MARKS, DUE_DATE_FILLS, NEW_TASKS, NOTE_FILLS, dueDateFor, planTaskCorrections, taskCorrectionsPlanIsEmpty } from "./task-corrections";
+import { BUNKS_NOTE_ON_JOB, DONE_JOBS, DONE_MARKS, DUE_DATE_FILLS, NEW_TASKS, NOTE_FILLS, dueDateFor, planTaskCorrections, taskCorrectionsPlanIsEmpty } from "./task-corrections";
 
 const cards = [
   { id: "wk", title: "Week before", status: "todo", parentId: null },
@@ -158,4 +158,14 @@ test("the Airbnb sleeping assignments card and its bed step are ticked done (Dav
   const ids = plan.marks.map((row) => row.id);
   assert.ok(ids.includes("ab"));
   assert.ok(ids.includes("ab1"));
+});
+
+test("the bunks note goes on the sleeping job only when Thursday's check-in moment cannot carry it", () => {
+  const tasks = [{ id: "ab", title: "Finish Airbnb Sleeping Assignments", status: "todo", parentId: null, summary: BUNKS_NOTE_ON_JOB.before }];
+  assert.equal(planTaskCorrections(tasks).noteFills.some((row) => row.id === "ab"), false);
+  const [fill] = planTaskCorrections(tasks, { bunksOnJob: true }).noteFills.filter((row) => row.id === "ab");
+  assert.equal(fill?.summary, "Assign the remaining required Airbnb beds. Overflow can stay empty. Skila, Trinity and Bri claimed their bunks (David, Oct 10).");
+  // A note David wrote himself stays.
+  const edited = [{ ...tasks[0]!, summary: "Beds sorted" }];
+  assert.equal(planTaskCorrections(edited, { bunksOnJob: true }).noteFills.length, 0);
 });
