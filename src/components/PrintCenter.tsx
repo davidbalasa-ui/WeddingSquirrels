@@ -213,7 +213,7 @@ function PrintSection({
               <li key={`${cue.time ?? "cue"}-${cue.kind ?? "spoken"}-${index}`} className="binder-cue binder-card">
                 <p className="binder-time">
                   {cue.time ?? "Cue"}
-                  {cue.heading ? ` · ${cue.heading}` : ` · ${cue.momentTitle}`}
+                  {cue.heading && cue.kind !== "music" ? ` · ${cue.heading}` : ` · ${cue.momentTitle}`}
                 </p>
                 {cue.kind === "music" || !cue.spoken ? null : (
                   <>
