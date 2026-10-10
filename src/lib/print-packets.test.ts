@@ -127,3 +127,11 @@ test("the app's earlier one-line rehearsal rows still reach the party and the pa
   assert.ok(!parents.includes("Return to Airbnb; Game night!"));
 });
 
+test("a getaway line inside another moment is left out of the bride's copy", () => {
+  const block = {
+    notes: "Reception ends\nGuest departure and final send-off if used.\nOvernight check: guests line the path to the getaway car with the Just Married sign.",
+  };
+  const parsed = parseBlockNotes(withoutBrideSecrets(block).notes);
+  assert.equal(parsed.title, "Reception ends");
+  assert.deepEqual(parsed.detailLines, ["Guest departure and final send-off if used."]);
+});

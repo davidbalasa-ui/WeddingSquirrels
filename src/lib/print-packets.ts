@@ -113,17 +113,22 @@ export function packetSchedule(
 
 const BRIDE_SECRET = /secret from the bride/i;
 const GETAWAY = /getaway/i;
+/** A line about the getaway car in any other moment ("Just Married" sign, the getaway itself). */
+const GETAWAY_LINE = /getaway|just married/i;
 
 /**
  * The bride's copy keeps every moment, including the getaway, but a getaway
- * moment or one marked secret from the bride shows only its time and title.
+ * moment or one marked secret from the bride shows only its time and title,
+ * and a line that mentions the getaway inside any other moment is left out.
  */
 export function withoutBrideSecrets<T extends { notes: string }>(block: T): T {
   const parsed = parseBlockNotes(block.notes);
+  if (parsed.detailLines.length === 0) return block;
   const secret = GETAWAY.test(parsed.title) || parsed.detailLines.some((line) => BRIDE_SECRET.test(line));
-  if (!secret || parsed.detailLines.length === 0) return block;
+  const detailLines = secret ? [] : parsed.detailLines.filter((line) => !GETAWAY_LINE.test(line));
+  if (detailLines.length === parsed.detailLines.length) return block;
   return {
     ...block,
-    notes: composeBlockNotes({ title: parsed.title, location: null, detailLines: [] }),
+    notes: composeBlockNotes({ title: parsed.title, location: secret ? null : parsed.location, detailLines }),
   };
 }
