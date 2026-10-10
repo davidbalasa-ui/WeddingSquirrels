@@ -2564,6 +2564,49 @@ export async function createInboxChild(parentId: string, title: string): Promise
   revalidatePath(`/work/${parentId}`);
 }
 
+/** Adds a step at the end of a task's "Steps inside this" list (the task workspace page). */
+export async function addTaskStep(
+  parentId: string,
+  title: string,
+): Promise<{ ok: true } | { error: string }> {
+  const session = await getSession();
+  if (!session?.canSeeTasks) return { error: "This PIN can't add steps." };
+
+  const trimmed = title.replace(/\s+/g, " ").trim();
+  if (!trimmed) return { error: "Type the step first." };
+
+  const parent = await prisma.task.findUnique({
+    where: { id: parentId },
+    include: { assignees: true, children: { include: { assignees: true } } },
+  });
+  // Steps sit one level deep: a step can't have steps of its own.
+  if (!parent || parent.parentId) return { error: "This task couldn't be found. Reload and try again." };
+  if (!(await sessionCanMutateTask(session, parent))) return { error: "This PIN can't change this task." };
+
+  const last = await prisma.task.findFirst({
+    where: { parentId },
+    orderBy: { sortOrder: "desc" },
+  });
+  const step = await prisma.task.create({
+    data: {
+      title: trimmed,
+      parentId,
+      status: "todo",
+      planNotes: "",
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+      amountSpent: 0,
+    },
+  });
+  // A new step belongs to the same people as the task, like the steps already there.
+  const parentOwners = parent.assignees.map((a) => a.personId);
+  if (parentOwners.length) await setTaskAssignees(step.id, parentOwners);
+
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath(`/work/${parentId}`);
+  return { ok: true };
+}
+
 export async function createTaskFromInbox(
   title: string,
   dueDateRaw?: string,

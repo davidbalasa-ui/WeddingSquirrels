@@ -1,7 +1,15 @@
 "use client";
 
-import { useActionState, useOptimistic, useTransition } from "react";
-import { saveStepNotes, saveTaskWorkspace, toggleTaskDone, renameTask, type TaskFormState } from "@/app/actions";
+import { useActionState, useOptimistic, useRef, useState, useTransition } from "react";
+import {
+  addTaskStep,
+  saveStepNotes,
+  saveTaskWorkspace,
+  toggleTaskDone,
+  renameTask,
+  type TaskFormState,
+} from "@/app/actions";
+import { AutoGrowTextarea, fitTextarea } from "@/components/AutoGrowTextarea";
 import { EscalatePriorityButton } from "@/components/EscalatePriorityButton";
 import { AssigneeFields } from "@/components/AssigneeFields";
 import { assigneeDisplayNames } from "@/lib/people";
@@ -57,78 +65,89 @@ export function TaskWorkspaceForm({
 
       <EscalatePriorityButton taskId={task.id} escalated={escalated} />
 
-      {task.children.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-[family-name:var(--font-display)] text-xl">Steps inside this</h2>
-            <p className="shrink-0 text-sm font-semibold text-[var(--accent)]">
-              {childDone}/{childTotal} done
+      <section className="flex flex-col gap-3">
+        {task.children.length > 0 ? (
+          <>
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="font-[family-name:var(--font-display)] text-xl">Steps inside this</h2>
+              <p className="shrink-0 text-sm font-semibold text-[var(--accent)]">
+                {childDone}/{childTotal} done
+              </p>
+            </div>
+            <p className="text-sm text-muted">
+              Each step can have its own note. Check it when that piece is finished.
             </p>
-          </div>
-          <p className="text-sm text-muted">
-            Each step can have its own note. Check it when that piece is finished.
-          </p>
-          {steps.map((step) => {
-            const stepDone = step.status === "done";
-            return (
-              <article key={step.id} className={`card p-4 ${stepDone ? "opacity-70" : ""}`}>
-                <div className="flex items-start gap-3">
-                  <button
-                    type="button"
-                    aria-label={stepDone ? "Mark step not done" : "Mark step done"}
-                    onClick={() =>
-                      startTransition(async () => {
-                        toggleOptimisticStep(step.id);
-                        await toggleTaskDone(step.id);
-                      })
+          </>
+        ) : null}
+        {steps.map((step) => {
+          const stepDone = step.status === "done";
+          return (
+            <article key={step.id} className={`card p-3 sm:p-4 ${stepDone ? "opacity-70" : ""}`}>
+              <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  aria-label={stepDone ? "Mark step not done" : "Mark step done"}
+                  onClick={() =>
+                    startTransition(async () => {
+                      toggleOptimisticStep(step.id);
+                      await toggleTaskDone(step.id);
+                    })
+                  }
+                  className="step-check shrink-0"
+                  style={{
+                    background: stepDone ? "var(--accent)" : "transparent",
+                    color: stepDone ? "white" : "var(--muted)",
+                  }}
+                >
+                  {stepDone ? "✓" : ""}
+                </button>
+                {/* The title wraps onto more lines instead of running off the card. */}
+                <AutoGrowTextarea
+                  aria-label="Step title"
+                  defaultValue={step.title}
+                  rows={1}
+                  className="min-w-0 flex-1 self-center border-0 bg-transparent p-0 text-[15px] font-semibold leading-snug outline-none focus:underline"
+                  onBlur={(event) => {
+                    const el = event.currentTarget;
+                    const next = el.value.replace(/\s+/g, " ").trim();
+                    if (!next) {
+                      // A step keeps its name; an emptied box shows the saved title again.
+                      el.value = step.title;
+                      fitTextarea(el);
+                      return;
                     }
-                    className="step-check mt-0.5 shrink-0"
-                    style={{
-                      background: stepDone ? "var(--accent)" : "transparent",
-                      color: stepDone ? "white" : "var(--muted)",
-                    }}
-                  >
-                    {stepDone ? "✓" : ""}
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <input
-                      defaultValue={step.title}
-                      className="w-full border-0 bg-transparent p-0 text-[15px] font-semibold leading-snug outline-none focus:underline"
-                      onBlur={(event) => {
-                        const next = event.target.value.trim();
-                        if (!next) {
-                          // A step keeps its name; an emptied box shows the saved title again.
-                          event.target.value = step.title;
-                          return;
-                        }
-                        if (next === step.title) return;
-                        startTransition(() => renameTask(step.id, next));
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") event.currentTarget.blur();
-                      }}
-                    />
-                    <form action={saveStepNotes} className="mt-2">
-                      <input type="hidden" name="id" value={step.id} />
-                      <textarea
-                        name="planNotes"
-                        defaultValue={step.planNotes || ""}
-                        rows={2}
-                        placeholder="Notes for this step…"
-                        className="w-full resize-y rounded-xl border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-                        onBlur={(e) => {
-                          const form = e.currentTarget.form;
-                          if (form) form.requestSubmit();
-                        }}
-                      />
-                    </form>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </section>
-      ) : null}
+                    if (next === step.title) return;
+                    startTransition(() => renameTask(step.id, next));
+                  }}
+                  onKeyDown={(event) => {
+                    // A title is one line: Enter saves it instead of starting a new line.
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }
+                  }}
+                />
+              </div>
+              {/* The note uses the card's full width and grows with its text. */}
+              <form action={saveStepNotes} className="mt-2">
+                <input type="hidden" name="id" value={step.id} />
+                <AutoGrowTextarea
+                  name="planNotes"
+                  defaultValue={step.planNotes || ""}
+                  rows={2}
+                  placeholder="Notes for this step…"
+                  className="w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm leading-relaxed outline-none focus:border-[var(--accent)]"
+                  onBlur={(e) => {
+                    const form = e.currentTarget.form;
+                    if (form) form.requestSubmit();
+                  }}
+                />
+              </form>
+            </article>
+          );
+        })}
+        <AddStep taskId={task.id} hasSteps={task.children.length > 0} />
+      </section>
 
       {/* With steps, the checklist comes first; the decision form stays fully visible below it. */}
       <form
@@ -162,12 +181,12 @@ export function TaskWorkspaceForm({
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
             What is this
           </span>
-          <textarea
+          <AutoGrowTextarea
             name="summary"
             defaultValue={task.summary || ""}
             rows={2}
             placeholder="Short context for what this decision is about…"
-            className="field-input text-[15px] leading-relaxed resize-y"
+            className="field-input text-[15px] leading-relaxed"
           />
         </label>
 
@@ -175,7 +194,7 @@ export function TaskWorkspaceForm({
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
             The plan / decision
           </span>
-          <textarea
+          <AutoGrowTextarea
             name="planNotes"
             defaultValue={task.planNotes || ""}
             rows={5}
@@ -278,5 +297,86 @@ export function TaskWorkspaceForm({
       </form>
 
     </div>
+  );
+}
+
+/** "+ Add a step" at the end of the steps list; stays open to add several in a row. */
+function AddStep({ taskId, hasSteps }: { taskId: string; hasSteps: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="btn-secondary self-start"
+        onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}
+      >
+        {hasSteps ? "+ Add a step" : "+ Add steps inside this"}
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="card flex flex-col gap-2 p-3 sm:p-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const next = title.replace(/\s+/g, " ").trim();
+        if (!next || pending) return;
+        setError(null);
+        startTransition(async () => {
+          try {
+            const result = await addTaskStep(taskId, next);
+            if ("error" in result) {
+              setError(result.error);
+              return;
+            }
+            setTitle("");
+            inputRef.current?.focus();
+          } catch {
+            setError("Couldn't add the step. Check the connection and try again.");
+          }
+        });
+      }}
+    >
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+          New step
+        </span>
+        <input
+          ref={inputRef}
+          value={title}
+          autoFocus
+          enterKeyHint="done"
+          placeholder="What needs doing?"
+          className="field-input text-[15px]"
+          onChange={(event) => setTitle(event.target.value)}
+        />
+      </label>
+      {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+      <div className="flex items-center gap-3">
+        <button type="submit" className="btn-primary" disabled={pending || !title.trim()}>
+          {pending ? "Adding…" : "Add step"}
+        </button>
+        <button
+          type="button"
+          className="text-sm font-semibold text-muted"
+          onClick={() => {
+            setOpen(false);
+            setTitle("");
+            setError(null);
+          }}
+        >
+          {title.trim() ? "Cancel" : "Done"}
+        </button>
+      </div>
+    </form>
   );
 }
