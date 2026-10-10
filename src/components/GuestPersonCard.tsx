@@ -39,7 +39,10 @@ export function GuestPersonCard({
   const [name, setName] = useState(person.name);
   const [phone, setPhone] = useState(guest.phone ?? "");
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Set by Escape so the blur it triggers puts the old name back instead of saving the draft.
+  const cancelNameRef = useRef(false);
   const [prevPerson, setPrevPerson] = useState(person);
   const [prevGuest, setPrevGuest] = useState(guest);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -59,8 +62,10 @@ export function GuestPersonCard({
 
   function commitName() {
     setEditingName(false);
+    const cancelled = cancelNameRef.current;
+    cancelNameRef.current = false;
     const trimmed = name.trim();
-    if (!trimmed || trimmed === person.name) {
+    if (cancelled || !trimmed || trimmed === person.name) {
       setName(person.name);
       return;
     }
@@ -79,9 +84,17 @@ export function GuestPersonCard({
 
   function handlePhotoUpload(file: File) {
     setPhotoPickerOpen(false);
+    setPhotoError(null);
     startTransition(async () => {
-      const dataUrl = await fileToResizedDataUrl(file);
-      await saveGuestPersonPhoto(person.id, dataUrl);
+      let dataUrl: string;
+      try {
+        dataUrl = await fileToResizedDataUrl(file);
+      } catch {
+        setPhotoError("That image couldn’t be read. Try a JPEG or PNG.");
+        return;
+      }
+      const result = await saveGuestPersonPhoto(person.id, dataUrl);
+      if (!result.ok) setPhotoError("Couldn’t save the photo — try again.");
     });
   }
 
@@ -128,6 +141,7 @@ export function GuestPersonCard({
                 onKeyDown={(event) => {
                   if (event.key === "Enter") event.currentTarget.blur();
                   if (event.key === "Escape") {
+                    cancelNameRef.current = true;
                     setName(person.name);
                     setEditingName(false);
                     event.currentTarget.blur();
@@ -166,6 +180,12 @@ export function GuestPersonCard({
             <span className="ml-auto w-5 shrink-0" aria-hidden />
           )}
         </div>
+
+        {photoError ? (
+          <p role="alert" className="mt-2 text-center text-xs text-[var(--danger)]">
+            {photoError}
+          </p>
+        ) : null}
 
         <div className="mt-2 grid grid-cols-2 divide-x divide-[var(--line)] border-y border-[var(--line)]">
           <div className="flex items-center justify-center px-2 py-2">
