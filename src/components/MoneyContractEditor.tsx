@@ -10,6 +10,7 @@ import {
   contractRemaining,
   formatMoney,
   hasExplicitSchedule,
+  moneyInputProblem,
   personMoneyLabel,
   type BudgetContractSnapshot,
 } from "@/lib/money";
@@ -54,6 +55,8 @@ export function MoneyContractEditor({
           <input
             name="name"
             defaultValue={contract.name}
+            required
+            onChange={(event) => event.currentTarget.setCustomValidity(event.currentTarget.value.trim() ? "" : "Enter a name")}
             className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
             autoFocus
           />
@@ -63,7 +66,9 @@ export function MoneyContractEditor({
           <input
             name="price"
             inputMode="decimal"
-            defaultValue={contract.price}
+            required
+            defaultValue={contract.price || ""}
+            onChange={(event) => event.currentTarget.setCustomValidity(moneyInputProblem(event.currentTarget.value, { required: true }) ?? "")}
             className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
           />
         </label>
@@ -74,7 +79,8 @@ export function MoneyContractEditor({
               <input
                 name="amountPaid"
                 inputMode="decimal"
-                defaultValue={contract.amountPaid}
+                defaultValue={contract.amountPaid || ""}
+                onChange={(event) => event.currentTarget.setCustomValidity(moneyInputProblem(event.currentTarget.value) ?? "")}
                 className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
               />
             </label>
@@ -174,7 +180,7 @@ export function MoneyContractEditor({
             </>
           ) : null}
         </p>
-        {contract.note ? <p className="mt-3 text-sm leading-relaxed text-muted">{contract.note}</p> : null}
+        {contract.note ? <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-muted">{contract.note}</p> : null}
       </div>
 
       <p className="mb-2 mt-8 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
