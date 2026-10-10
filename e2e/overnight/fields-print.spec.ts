@@ -75,10 +75,17 @@ function pinAlert(page: Page) {
   return page.locator('p[role="alert"]');
 }
 
+/** Dots with a colour behind them. Read from the computed style: Safari reports an inline
+ *  `transparent` as `rgba(0, 0, 0, 0)`, so the inline value cannot be compared across engines. */
 function filledDots(page: Page) {
   return page
     .locator('[aria-label="PIN length"] span')
-    .evaluateAll((els) => els.filter((el) => (el as HTMLElement).style.background !== "transparent").length);
+    .evaluateAll((els) =>
+      els.filter((el) => {
+        const colour = getComputedStyle(el).backgroundColor;
+        return colour !== "transparent" && colour !== "rgba(0, 0, 0, 0)";
+      }).length,
+    );
 }
 
 // ---------------------------------------------------------------------------------------------

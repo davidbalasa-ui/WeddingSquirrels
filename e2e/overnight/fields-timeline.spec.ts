@@ -422,9 +422,13 @@ test.describe("Rehearsal & Dinner", () => {
     await page.getByRole("button", { name: "+ Add course" }).click();
     const course = page.getByPlaceholder("Course name (Entree, Side, Drink…)").last();
     await expect(course).toBeFocused();
+    // A beat before typing, as a person's first letter never lands in the same instant the box
+    // appears (Safari and Firefox drop a keystroke typed in that instant).
+    await page.waitForTimeout(150);
     await page.keyboard.type("0");
     await page.keyboard.press("Backspace");
     await page.keyboard.type(courseName);
+    await expect(course).toHaveValue(courseName);
     await page.keyboard.press("Enter");
     await expect.poll(async () => (await prisma.mealCourse.findFirst({ where: { label: courseName } }))?.label).toBe(courseName);
     // Clearing a named course keeps its name (it is not deleted behind the typist's back).
@@ -437,9 +441,10 @@ test.describe("Rehearsal & Dinner", () => {
     await section.getByRole("button", { name: "+ Add dish" }).click();
     const dish = section.getByPlaceholder("Dish name").last();
     await expect(dish).toBeFocused();
-    // A beat before typing, as a person's first letter never lands in the same instant the box appears.
-    await page.waitForTimeout(80);
+    // The same beat before typing (see the course name above).
+    await page.waitForTimeout(150);
     await page.keyboard.type("Test dish 🎉 'q'");
+    await expect(dish).toHaveValue("Test dish 🎉 'q'");
     await page.keyboard.press("Enter");
     await expect.poll(async () => (await prisma.mealOption.findFirst({ where: { label: "Test dish 🎉 'q'" } }))?.label).toBe("Test dish 🎉 'q'");
     await page.reload({ waitUntil: "domcontentloaded" });
