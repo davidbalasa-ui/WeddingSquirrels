@@ -284,18 +284,32 @@ export function normalizeClockHour(raw: string): string {
  * The digits a clock box holds after typing. When the box was already full (two
  * digits, nothing selected) a further digit starts a fresh entry instead of being
  * thrown away, so "12" then "9" reads 9, not 12. The first digit typed after a tap
- * (`fresh`) always starts over as well: Safari puts the caret after the old digits
- * instead of selecting them, so "3" tapped and "1" typed arrives as "31" and must read 1.
+ * (`fresh`) always starts over as well: Safari on an iPhone drops the tap's selection
+ * and puts the caret where the finger landed, before, between or after the old
+ * digits (so "3" tapped and "1" typed arrives as "13", and "11" then "7" as "171");
+ * whatever was typed into the old digits is what the box reads.
  */
 export function nextClockDigits(previous: string, typed: string, maxLen: number, fresh = false): string {
   const digits = typed.replace(/\D/g, "");
-  if (fresh && previous && digits.length > previous.length && digits.startsWith(previous)) {
-    return digits.slice(previous.length).slice(0, maxLen);
+  if (fresh && previous && digits.length > previous.length) {
+    const inserted = insertedInto(previous, digits);
+    if (inserted !== null) return inserted.slice(0, maxLen);
   }
   if (digits.length <= maxLen) return digits;
   if (previous && digits.startsWith(previous)) return digits.slice(previous.length).slice(0, maxLen);
   if (previous && digits.endsWith(previous)) return digits.slice(0, digits.length - previous.length).slice(0, maxLen);
   return digits.slice(-maxLen);
+}
+
+/** The characters `next` gained over `previous` at one spot, or null if it is not `previous` with something inserted. */
+function insertedInto(previous: string, next: string): string | null {
+  const added = next.length - previous.length;
+  for (let at = 0; at <= previous.length; at += 1) {
+    if (next.slice(0, at) === previous.slice(0, at) && next.slice(at + added) === previous.slice(at)) {
+      return next.slice(at, at + added);
+    }
+  }
+  return null;
 }
 
 export function normalizeClockMinute(raw: string): string {

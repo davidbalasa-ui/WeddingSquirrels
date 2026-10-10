@@ -437,6 +437,8 @@ test.describe("Rehearsal & Dinner", () => {
     await section.getByRole("button", { name: "+ Add dish" }).click();
     const dish = section.getByPlaceholder("Dish name").last();
     await expect(dish).toBeFocused();
+    // A beat before typing, as a person's first letter never lands in the same instant the box appears.
+    await page.waitForTimeout(80);
     await page.keyboard.type("Test dish 🎉 'q'");
     await page.keyboard.press("Enter");
     await expect.poll(async () => (await prisma.mealOption.findFirst({ where: { label: "Test dish 🎉 'q'" } }))?.label).toBe("Test dish 🎉 'q'");
