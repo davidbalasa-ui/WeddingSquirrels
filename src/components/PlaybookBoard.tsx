@@ -16,6 +16,7 @@ function PlaybookEditForm({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [titleError, setTitleError] = useState<string | null>(null);
 
   return (
     <form
@@ -24,6 +25,13 @@ function PlaybookEditForm({
         event.preventDefault();
         const form = event.currentTarget;
         const formData = new FormData(form);
+        // The server ignores a blank title, so say so here instead of closing the form silently
+        // (the browser's own required check lets a whitespace-only title through).
+        if (!String(formData.get("title") || "").trim()) {
+          setTitleError("Add a title before saving.");
+          return;
+        }
+        setTitleError(null);
         if (item.id) formData.set("id", item.id);
         else formData.set("sourceKey", item.sourceKey);
         startTransition(async () => {
@@ -39,8 +47,20 @@ function PlaybookEditForm({
       </label>
       <label className="text-sm">
         <span className="mb-1 block text-xs text-muted">Title</span>
-        <input name="title" required defaultValue={item.title} className="field-input" />
+        <input
+          name="title"
+          required
+          defaultValue={item.title}
+          className="field-input"
+          aria-invalid={titleError ? true : undefined}
+          onChange={() => setTitleError(null)}
+        />
       </label>
+      {titleError ? (
+        <p role="alert" className="text-sm text-[var(--danger)]">
+          {titleError}
+        </p>
+      ) : null}
       <label className="text-sm">
         <span className="mb-1 block text-xs text-muted">Detail</span>
         <input name="detail" defaultValue={item.detail ?? ""} className="field-input" />
@@ -113,7 +133,7 @@ export function PlaybookBoard({
                         <p className="mt-1 text-sm font-semibold text-[var(--accent)]">{item.location}</p>
                       ) : null}
                       {item.notes ? (
-                        <p className="mt-1 text-sm leading-relaxed text-muted">{item.notes}</p>
+                        <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-muted">{item.notes}</p>
                       ) : null}
                       {editing ? (
                         <PlaybookEditForm
