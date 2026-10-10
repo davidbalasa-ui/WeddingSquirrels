@@ -3,6 +3,7 @@ import { CANDIDATE_WEDDING_TIMELINE, planCandidateWeddingImport } from "../../sr
 import { parsedTimeFields } from "../../src/lib/day-of-time";
 import { planReconciledTimeline } from "../../src/lib/reconciled-timeline";
 import { REHEARSAL_SCHEDULE_SEED } from "../../src/lib/rehearsal";
+import { planWeddingOpsUpdate } from "../../src/lib/wedding-ops-update";
 
 /**
  * Test copy of the data for the overnight end-to-end checks. Local Postgres only,
@@ -67,6 +68,24 @@ export async function resetOvernightData(prisma: PrismaClient, options: ResetOpt
   // 19 canonical wedding blocks, as production started.
   const plan = planCandidateWeddingImport([], CANDIDATE_WEDDING_TIMELINE.map((row) => row.seedKey));
   for (const row of plan.inserts) await prisma.timelineBlock.create({ data: row });
+
+  // The wedding-ops enrichment production received (MC cues, playlists, arrival lines).
+  const seeded = await prisma.timelineBlock.findMany();
+  const ops = planWeddingOpsUpdate({
+    coupleNames: "David & Haley",
+    weddingDateIso: "2026-10-16",
+    timezone: "America/Detroit",
+    timeline: seeded.map((row) => ({ id: row.id, seedKey: row.seedKey, startAt: row.startAt, endAt: row.endAt, notes: row.notes, sortOrder: row.sortOrder, schedule: row.schedule })),
+    contacts: [],
+    people: [],
+    playbook: [],
+    tasks: [],
+    assignments: [],
+  });
+  if (ops.identityError) throw new Error(ops.identityError);
+  for (const update of ops.timelineUpdates) {
+    await prisma.timelineBlock.update({ where: { id: update.id }, data: { notes: update.to.notes! } });
+  }
 
   // 7 rehearsal rows as the app seeded them (ids, no seedKey).
   await prisma.timelineBlock.createMany({
