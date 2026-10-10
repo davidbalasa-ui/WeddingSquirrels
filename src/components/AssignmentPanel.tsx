@@ -160,6 +160,7 @@ function AssignmentForm({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [titleError, setTitleError] = useState<string | null>(null);
   const preselected = new Set(assignment?.assignees.map((a) => a.personId) ?? []);
 
   const formClass = "flex flex-col gap-3 px-3 py-3";
@@ -167,7 +168,17 @@ function AssignmentForm({
   return (
     <form
       className={formClass}
+      onSubmit={(event) => {
+        // The server ignores a blank task, so say so here instead of closing the form silently
+        // (preventing the action keeps the notes and names typed with it).
+        const title = String(new FormData(event.currentTarget).get("title") || "").trim();
+        if (!title) {
+          event.preventDefault();
+          setTitleError("Add a task before saving.");
+        }
+      }}
       action={async (formData) => {
+        setTitleError(null);
         startTransition(async () => {
           if (assignment) formData.set("id", assignment.id);
           if (assignment) {
@@ -192,8 +203,15 @@ function AssignmentForm({
           defaultValue={assignment?.title ?? ""}
           placeholder="e.g. Keep the bar stocked"
           className="field-input"
+          aria-invalid={titleError ? true : undefined}
+          onChange={() => setTitleError(null)}
         />
       </label>
+      {titleError ? (
+        <p role="alert" className="text-sm text-[var(--danger)]">
+          {titleError}
+        </p>
+      ) : null}
       <label className="text-sm">
         <span className="mb-1 block text-xs text-muted">Notes</span>
         <textarea
