@@ -280,7 +280,7 @@ test("Thursday's check-in moment gains the bunks note while it reads as the app 
     ...moment,
     location: undefined,
     openItems: "Confirm the Airbnb address and who has check-in access.",
-    lines: moment.lines.filter((line) => !/bunks/.test(line)),
+    lines: moment.lines.filter((line) => !/bunks|getting the access/.test(line)),
   });
   assert.equal(checkinCarriesBunksNote(written), true);
   assert.equal(checkinCarriesBunksNote(reconciledNotes(moment)), true);
@@ -296,6 +296,14 @@ test("Thursday's check-in moment gains the bunks note while it reads as the app 
   const plan = planReconciledTimeline(rows);
   assert.deepEqual(plan.rewords.map((row) => [row.id, row.correction]), [["reh.checkin", "bunks noted, Airbnb address"]]);
   assert.equal(plan.rewords[0]!.notes, reconciledNotes(moment));
+
+  // David, 22:27: "haley will be getting the access" closes the check-in access line.
+  assert.ok(moment.lines.includes("Haley will be getting the access (David, Oct 10)."));
+  assert.equal(moment.openItems, undefined);
+  const at154 = reconciledNotes({ ...moment, openItems: "Confirm who has check-in access.", lines: moment.lines.filter((line) => !/getting the access/.test(line)) });
+  assert.equal(checkinCarriesBunksNote(at154), true);
+  const closed = planReconciledTimeline(rows.map((row) => (row.id === moment.seedKey ? { ...row, notes: at154 } : row)));
+  assert.deepEqual(closed.rewords.map((row) => [row.id, row.correction, row.notes]), [["reh.checkin", "Haley has check-in access", reconciledNotes(moment)]]);
 
   const edited = `${written}\nBring the air mattress`;
   assert.equal(checkinCarriesBunksNote(edited), false);
@@ -425,8 +433,32 @@ test("his evening closures reword the moments the app wrote and close their open
   const plan = planReconciledTimeline(rows);
   assert.deepEqual(plan.updates, []);
   assert.deepEqual(plan.rewords.map((row) => row.id).sort(), Object.keys(earlier).sort());
-  const stillOpen = ["wedding_toasts_cake", "wedding_children_ready", "wedding_cake_cutting"];
+  const stillOpen = ["wedding_toasts_cake", "wedding_children_ready"];
   for (const row of plan.rewords.filter((r) => !stillOpen.includes(r.id))) {
     assert.equal(/Open items:/.test(row.notes), false, row.id);
   }
+});
+
+// David, 2026-10-10 22:27: "not sure about the call but precious peony serves out of the food truck".
+test("the 5:00 PM dinner moment says Precious Peony serves from the food truck and asks only who calls tables", () => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_dinner")!;
+  assert.ok(moment.lines.includes("Precious Peony serves out of the food truck (David, Oct 10)."));
+  assert.equal(moment.openItems, "Choose who calls tables.");
+  const before = reconciledNotes({
+    ...moment,
+    lines: moment.lines.filter((line) => !/food truck/.test(line)),
+    openItems: "Choose who calls tables and confirm how Precious Peony will serve dinner.",
+  });
+  const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.map((m, index) => ({
+    id: m.seedKey,
+    seedKey: m.seedKey,
+    schedule: m.schedule,
+    startAt: m.startAt,
+    endAt: m.endAt,
+    notes: m === moment ? before : reconciledNotes(m),
+    sortOrder: index,
+  }));
+  const plan = planReconciledTimeline(rows);
+  assert.deepEqual(plan.rewords.map((row) => [row.id, row.correction]), [["wedding_dinner", "Precious Peony serves from the food truck"]]);
+  assert.equal(planReconciledTimeline(rows.map((row) => (row.id === moment.seedKey ? { ...row, notes: `${before}\nAsk Wendy` } : row))).rewords.length, 0);
 });

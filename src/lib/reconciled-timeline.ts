@@ -57,6 +57,8 @@ export const HAWKSHEAD_DRESS_CODE_NOTE =
   "Hawkshead golf dress code for the wedding party and guests (hawksheadlinks.com/golf/rates). Men: collared shirts with sleeves, slacks, golf shorts, or walking shorts are recommended; blue jeans and t-shirts are discouraged. Women: dresses, skirts, slacks, golf shorts, mid-length shorts, and blouses are recommended; halter tops, t-shirts, sweatpants, blue jeans, tennis dresses, athletic-style shorts, and cut-offs are not permitted.";
 
 /** David, 2026-10-10 20:37: "get ready clothes for the bridal party is black for Friday morning". */
+/** David, 2026-10-10 22:27, on "Confirm who has check-in access.": "Its not an open item, haley will be getting the access". */
+export const CHECKIN_ACCESS_NOTE = "Haley will be getting the access (David, Oct 10).";
 export const BLACK_CLOTHES_NOTE = "Get ready clothes for the bridal party are black (David, Oct 10).";
 
 const W = "wedding" as const;
@@ -66,8 +68,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   // Thursday
   { seedKey: "reh.checkin", schedule: R, phase: "rehearsal", startAt: "1:00 PM", endAt: "2:30 PM", title: "Airbnb check in",
     location: "Airbnb, 10268 51st St, Grand Junction, MI 49056",
-    lines: ["Wedding party arrives and chooses rooms.", BUNKS_NOTE, "David and Haley plan to arrive around 1:00 PM."],
-    openItems: "Confirm who has check-in access." },
+    lines: ["Wedding party arrives and chooses rooms.", BUNKS_NOTE, "David and Haley plan to arrive around 1:00 PM.", CHECKIN_ACCESS_NOTE] },
   { seedKey: "reh.getready", schedule: R, phase: "rehearsal", startAt: "2:30 PM", endAt: "3:45 PM", title: "Get ready",
     lines: ["Hair, makeup, clothing, and final items before departure.", "Victoria meets the group at Hawkshead; Braxton meets the group at the reception/rehearsal.", NO_SIGNAL_NOTE],
     openItems: "Confirm whether anyone else will skip the Airbnb arrival window." },
@@ -162,8 +163,8 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
 
   // Dinner, dances and evening
   { seedKey: "wedding_dinner", schedule: W, phase: "evening", startAt: "5:00 PM", endAt: null, title: "Grand entrance and dinner begins",
-    lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Once David and Haley have food, tables are called up."],
-    openItems: "Choose who calls tables and confirm how Precious Peony will serve dinner." },
+    lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Once David and Haley have food, tables are called up.", "Precious Peony serves out of the food truck (David, Oct 10)."],
+    openItems: "Choose who calls tables." },
   { seedKey: "wedding_dinner_service", schedule: W, phase: "evening", startAt: "5:00 PM", endAt: "6:00 PM", title: "Dinner service",
     lines: ["Guests eat while the couple circulates only as time permits.", "Prepare toast speakers near the end of dinner."] },
   { seedKey: "wedding_toasts_cake", schedule: W, phase: "evening", startAt: "6:00 PM", endAt: "6:15 PM", title: "Toasts",
@@ -173,8 +174,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
       "Cut the cake immediately after toasts.",
       "Photographer and videographer are cued before cutting begins.",
       "Cake placed in center and desserts rotated around on the glass plates on small plates (David, Oct 10).",
-    ],
-    openItems: "Confirm when the cake arrives, who receives it, and who has the knife." },
+    ] },
   { seedKey: "wedding_first_dances", schedule: W, phase: "evening", startAt: "6:25 PM", endAt: "6:45 PM", title: "Formal dances",
     lines: ["First dance.", "Father of the bride dance.", "Any additional formal dance must be confirmed before the event."] },
   { seedKey: "wedding_golden_hour", schedule: W, phase: "evening", startAt: "6:23 PM", endAt: "7:18 PM", title: "Golden-hour photos",
@@ -239,6 +239,12 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
       openItems: "Confirm the Airbnb address and who has check-in access.",
       correction: "bunks noted, Airbnb address",
     },
+    // David, 2026-10-10 22:27: "Its not an open item, haley will be getting the access".
+    {
+      lines: ["Wedding party arrives and chooses rooms.", BUNKS_NOTE, "David and Haley plan to arrive around 1:00 PM."],
+      openItems: "Confirm who has check-in access.",
+      correction: "Haley has check-in access",
+    },
   ],
   // David's one-week check-in, 2026-10-10 20:40.
   "reh.getready": [
@@ -295,11 +301,29 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
     },
   ],
   // David, 2026-10-10 22:06: "Add, Cake placed in center and desserts rotated around on the glass plates on small plates".
+  // David, 2026-10-10 22:27: "not sure about the call but precious peony serves out of the food truck".
+  wedding_dinner: [
+    {
+      lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Once David and Haley have food, tables are called up."],
+      openItems: "Choose who calls tables and confirm how Precious Peony will serve dinner.",
+      correction: "Precious Peony serves from the food truck",
+    },
+  ],
   wedding_cake_cutting: [
     {
       lines: ["Cut the cake immediately after toasts.", "Photographer and videographer are cued before cutting begins."],
       openItems: "Confirm when the cake arrives, who receives it, and who has the knife, plates, and serving plan.",
       correction: "cake and dessert layout",
+    },
+    // David, 2026-10-10 22:15, of the rest of the cake question: "close it".
+    {
+      lines: [
+        "Cut the cake immediately after toasts.",
+        "Photographer and videographer are cued before cutting begins.",
+        "Cake placed in center and desserts rotated around on the glass plates on small plates (David, Oct 10).",
+      ],
+      openItems: "Confirm when the cake arrives, who receives it, and who has the knife.",
+      correction: "cake question closed",
     },
   ],
   wedding_quiet_time: [

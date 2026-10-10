@@ -20,7 +20,13 @@ export type DoneMarkDef = { card: string; step: string };
 const HARMONY_MELODY_NOTE_14_45 =
   "Current schedule discussed (all PM): 12:15–12:30 Wedding party arrives; 1:15 Harmony and Melody arrive; Haley’s first look with her dad; 1:30 Haley’s portraits; 1:45 David’s portraits; 2:00 Wedding party dressed; your first look together; 2:15 Couple portraits; 2:45 Bridal-party photos. No revised arrival time was decided for the girls. Confirm when Skila will do their hair, allow dressing time before photos, and choose when to give them their gifts.";
 /** 16:33, David: "Keep kids at 115 for now." */
-const HARMONY_MELODY_NOTE = `${HARMONY_MELODY_NOTE_14_45} Kids stay at 1:15 for now (David, Oct 10).`;
+const HARMONY_MELODY_NOTE_16_33 = `${HARMONY_MELODY_NOTE_14_45} Kids stay at 1:15 for now (David, Oct 10).`;
+/** 22:27, David: "arrive at 1:15, first look photos will need to fit with family photos maybe". */
+const HARMONY_MELODY_NOTE = `${HARMONY_MELODY_NOTE_16_33} They arrive at 1:15; first look photos will need to fit with family photos maybe (David, Oct 10).`;
+/** Card 3's dinnerware and $800 notes as it first wrote them; David's 22:27 answers follow them. */
+const DINNERWARE_NOTE_14_45 =
+  "Four sets and $150 were mentioned; clarify what the $150 covers. Black Sheep is paid except for the refundable dinnerware payment.";
+const SET_ASIDE_NOTE_14_45 = "The recipient’s name was unclear in the transcript.";
 
 /** Monday and Tuesday jobs, word for word from David's own list. */
 export const NEW_TASKS: NewTaskDef[] = [
@@ -73,12 +79,12 @@ export const NEW_TASKS: NewTaskDef[] = [
   },
   {
     title: "Confirm/pay the dinnerware amount",
-    summary: "Four sets and $150 were mentioned; clarify what the $150 covers. Black Sheep is paid except for the refundable dinnerware payment.",
+    summary: `${DINNERWARE_NOTE_14_45} Need to send (David, Oct 10).`,
   },
   { title: "Confirm Precious Peony’s payment status" },
   {
     title: "Set aside the $800 payment discussed",
-    summary: "The recipient’s name was unclear in the transcript.",
+    summary: `${SET_ASIDE_NOTE_14_45} Need to find (David, Oct 10).`,
   },
   { title: "Get envelopes and finalize remaining payments, gifts, and tips", like: /envelopes/i },
   { title: "Update the run of show and give Kurt the final copy", like: /give kurt.*(run.of.show|final)/i },
@@ -158,7 +164,13 @@ export const DONE_MARKS: DoneMarkDef[] = [
  * card wrote it. 15:47: the post office receipt for the Precious Peony check.
  * 16:22: "I just took care of the bank" (the post office half was the 11:45 receipt).
  */
-export const DONE_JOBS = ["Send the check to Precious Peony", "Bank and post office before the post office closes at noon"];
+export const DONE_JOBS = [
+  "Send the check to Precious Peony",
+  "Bank and post office before the post office closes at noon",
+  // 22:27, his open list: "12. closed." and "14. payment sent."
+  "Confirm Black Sheep has all insurance and vendor documents",
+  "Confirm Precious Peony’s payment status",
+];
 
 /**
  * A note for a job an earlier card added, written only while the job has no note yet,
@@ -166,6 +178,9 @@ export const DONE_JOBS = ["Send the check to Precious Peony", "Bank and post off
  */
 export const NOTE_FILLS: Array<{ title: string; summary: string }> = [
   { title: "Send the check to Precious Peony", summary: "Tracking number: 9505 5136 9476 6283 7277 06" },
+  // 22:27, his open list: "13 need to send" and "14. payment sent."
+  { title: "Send Black Sheep the completed selection list and the vendor information packet", summary: "Need to send (David, Oct 10)." },
+  { title: "Confirm Precious Peony’s payment status", summary: "Payment sent (David, Oct 10)." },
 ];
 
 /**
@@ -174,6 +189,9 @@ export const NOTE_FILLS: Array<{ title: string; summary: string }> = [
  */
 export const NOTE_REWORDS: Array<{ title: string; before: string; summary: string }> = [
   { title: "Harmony and Melody’s schedule: discuss with Avalon", before: HARMONY_MELODY_NOTE_14_45, summary: HARMONY_MELODY_NOTE },
+  { title: "Harmony and Melody’s schedule: discuss with Avalon", before: HARMONY_MELODY_NOTE_16_33, summary: HARMONY_MELODY_NOTE },
+  { title: "Confirm/pay the dinnerware amount", before: DINNERWARE_NOTE_14_45, summary: `${DINNERWARE_NOTE_14_45} Need to send (David, Oct 10).` },
+  { title: "Set aside the $800 payment discussed", before: SET_ASIDE_NOTE_14_45, summary: `${SET_ASIDE_NOTE_14_45} Need to find (David, Oct 10).` },
 ];
 
 /** Cards whose every step is in DONE_MARKS: the card itself is finished too. */
