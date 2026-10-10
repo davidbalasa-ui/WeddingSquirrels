@@ -1,8 +1,7 @@
 import { TaskCard } from "@/components/TaskCard";
 import { PlanAddTask } from "@/components/PlanAddTask";
 import { TaskCorrectionsCard } from "@/components/TaskCorrectionsCard";
-import { prisma } from "@/lib/db";
-import { planTaskCorrections } from "@/lib/task-corrections";
+import { loadPrintoutCorrectionsPlan } from "@/lib/printout-corrections-data";
 import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { PlanTaskFilters } from "@/components/PlanTaskFilters";
 import {
@@ -38,11 +37,7 @@ export default async function PlanTasksPage({
   const [tasks, orgCards, correctionsPlan] = await Promise.all([
     listTasks(session, { showDone }),
     listOrgCards(session, { showDone }),
-    session.isMaster
-      ? prisma.task
-          .findMany({ select: { id: true, title: true, status: true, parentId: true } })
-          .then(planTaskCorrections)
-      : Promise.resolve(null),
+    session.isMaster ? loadPrintoutCorrectionsPlan() : Promise.resolve(null),
   ]);
 
   const visibleTasks = filterTasksForPlanView(tasks, view, session, now);

@@ -368,6 +368,7 @@ function planContactAction(
 export function planContactEnrichment(
   snapshot: EnrichmentSnapshot,
   photoDataByFile: Map<string, string | null>,
+  sources: ContactEnrichmentSource[] = CONTACT_ENRICHMENT_SOURCES,
 ): EnrichmentApplyPlan {
   const rows: EnrichmentDryRunRow[] = [];
   const guestPhoneUpdates: EnrichmentApplyPlan["guestPhoneUpdates"] = [];
@@ -378,7 +379,7 @@ export function planContactEnrichment(
   const contactPhotoUpdates: EnrichmentApplyPlan["contactPhotoUpdates"] = [];
   const sharedGuestIds = sharedGuestHouseholdIds(snapshot);
 
-  for (const source of CONTACT_ENRICHMENT_SOURCES) {
+  for (const source of sources) {
     const identity = resolveIdentity(source, snapshot);
     const photoDataUrl = source.photoFile ? (photoDataByFile.get(source.photoFile) ?? null) : null;
     const photoFileFound = Boolean(photoDataUrl);

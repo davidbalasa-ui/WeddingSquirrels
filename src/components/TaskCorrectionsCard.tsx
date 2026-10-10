@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { applyTaskCorrectionsAction } from "@/app/actions";
-import { taskCorrectionsPlanIsEmpty, type TaskCorrectionsPlan } from "@/lib/task-corrections";
+import { applyTaskCorrectionsAction, pickPrintoutPhoneAction } from "@/app/actions";
+import type { PrintoutCorrectionsPlan } from "@/lib/printout-corrections-data";
+import { taskCorrectionsPlanIsEmpty } from "@/lib/task-corrections";
 
 function count(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? "" : "s"}`;
@@ -12,11 +13,67 @@ function dayLabel(day: string): string {
   return new Date(`${day}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
-/** Master-only: adds David's dated jobs and ticks the steps he marked done, in one tap. */
-export function TaskCorrectionsCard({ plan }: { plan: TaskCorrectionsPlan }) {
+/**
+ * Master-only: adds David's dated jobs, ticks the steps he marked done and saves the
+ * phone numbers he sent, in one tap. A different number already saved is shown beside
+ * his new one, and only his own tap on it replaces it.
+ */
+export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsPlan }) {
   const [state, setState] = useState<"idle" | "working" | "done" | "error">("idle");
   const [open, setOpen] = useState(false);
-  if (state === "done" || taskCorrectionsPlanIsEmpty(plan)) return null;
+  const [picking, setPicking] = useState<string | null>(null);
+  const [pickError, setPickError] = useState(false);
+  const plan = full.tasks;
+  const phonesToAdd = full.phones.filter((row) => row.status === "add");
+  const phonesDiffer = full.phones.filter((row) => row.status === "differs");
+  const nothingToApply = taskCorrectionsPlanIsEmpty(plan) && phonesToAdd.length === 0;
+  if (state === "done" || (nothingToApply && phonesDiffer.length === 0)) return null;
+
+  async function pickPhone(label: string) {
+    setPicking(label);
+    setPickError(false);
+    const result = await pickPrintoutPhoneAction(label).catch(() => ({ ok: false as const }));
+    setPicking(null);
+    if (!result.ok) {
+      setPickError(true);
+      return;
+    }
+    window.location.reload();
+  }
+
+  const differs = phonesDiffer.length ? (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Different number already saved</p>
+      <p className="mt-0.5 text-xs text-muted">Apply leaves these alone. Pick the new one only if it is right.</p>
+      <ul className="mt-1 list-none space-y-1.5 p-0">
+        {phonesDiffer.map((row) => (
+          <li key={row.label} className="flex flex-wrap items-center gap-x-2">
+            <span>
+              {row.personName} · saved: {row.current}
+            </span>
+            <button
+              type="button"
+              className="min-h-9 text-left text-xs font-semibold text-[var(--accent)]"
+              disabled={picking !== null}
+              onClick={() => void pickPhone(row.label)}
+            >
+              {picking === row.label ? "Saving…" : `Use ${row.phone} instead`}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {pickError ? <p className="mt-1 text-sm text-[var(--danger)]">Couldn’t save that number. Try again.</p> : null}
+    </div>
+  ) : null;
+
+  // Everything else is in; only a number David has to pick between is left.
+  if (nothingToApply) {
+    return (
+      <section className="card mb-5 px-3 py-3 text-sm" data-testid="task-corrections-card">
+        {differs}
+      </section>
+    );
+  }
 
   async function apply() {
     setState("working");
@@ -33,8 +90,8 @@ export function TaskCorrectionsCard({ plan }: { plan: TaskCorrectionsPlan }) {
     <section className="card mb-5 px-3 py-3" data-testid="task-corrections-card">
       <p className="text-sm font-semibold">Task update ready</p>
       <p className="mt-0.5 text-xs text-muted">
-        From your printout: {count(plan.inserts.length, "new dated job")}, {count(plan.marks.length, "item")} marked done.
-        Nothing is reworded or deleted.
+        From your printout: {count(plan.inserts.length, "new dated job")}, {count(plan.marks.length, "item")} marked done
+        {phonesToAdd.length ? `, ${count(phonesToAdd.length, "phone number")} added` : ""}. Nothing is reworded or deleted.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" className="btn-primary min-h-11 px-4 py-2 text-sm" onClick={() => void apply()} disabled={state === "working"}>
@@ -60,6 +117,17 @@ export function TaskCorrectionsCard({ plan }: { plan: TaskCorrectionsPlan }) {
               </ul>
             </div>
           ) : null}
+          {phonesToAdd.length ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Phone numbers</p>
+              <ul className="mt-1 list-none space-y-0.5 p-0">
+                {phonesToAdd.map((row) => (
+                  <li key={row.label}>{row.personName} · {row.phone}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {differs}
           {plan.marks.length ? (
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Marked done</p>
