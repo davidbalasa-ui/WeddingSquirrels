@@ -79,73 +79,86 @@ export function TaskWorkspaceForm({
             </p>
           </>
         ) : null}
-        {steps.map((step) => {
-          const stepDone = step.status === "done";
-          return (
-            <article key={step.id} className={`card p-3 sm:p-4 ${stepDone ? "opacity-70" : ""}`}>
-              <div className="flex items-start gap-3">
-                <button
-                  type="button"
-                  aria-label={stepDone ? "Mark step not done" : "Mark step done"}
-                  onClick={() =>
-                    startTransition(async () => {
-                      toggleOptimisticStep(step.id);
-                      await toggleTaskDone(step.id);
-                    })
-                  }
-                  className="step-check shrink-0"
-                  style={{
-                    background: stepDone ? "var(--accent)" : "transparent",
-                    color: stepDone ? "white" : "var(--muted)",
-                  }}
+        {/* One card holds every step as a compact row, so several read at a glance. */}
+        {steps.length > 0 ? (
+          <div className="card divide-y divide-[var(--line)] overflow-hidden">
+            {steps.map((step) => {
+              const stepDone = step.status === "done";
+              return (
+                <article
+                  key={step.id}
+                  className={`flex items-start gap-2 py-1.5 pl-1 pr-3 ${stepDone ? "opacity-70" : ""}`}
                 >
-                  {stepDone ? "✓" : ""}
-                </button>
-                {/* The title wraps onto more lines instead of running off the card. */}
-                <AutoGrowTextarea
-                  aria-label="Step title"
-                  defaultValue={step.title}
-                  rows={1}
-                  className="min-w-0 flex-1 self-center border-0 bg-transparent p-0 text-[15px] font-semibold leading-snug outline-none focus:underline"
-                  onBlur={(event) => {
-                    const el = event.currentTarget;
-                    const next = el.value.replace(/\s+/g, " ").trim();
-                    if (!next) {
-                      // A step keeps its name; an emptied box shows the saved title again.
-                      el.value = step.title;
-                      fitTextarea(el);
-                      return;
+                  {/* A 40px tap target around a smaller circle. */}
+                  <button
+                    type="button"
+                    aria-label={stepDone ? "Mark step not done" : "Mark step done"}
+                    onClick={() =>
+                      startTransition(async () => {
+                        toggleOptimisticStep(step.id);
+                        await toggleTaskDone(step.id);
+                      })
                     }
-                    if (next === step.title) return;
-                    startTransition(() => renameTask(step.id, next));
-                  }}
-                  onKeyDown={(event) => {
-                    // A title is one line: Enter saves it instead of starting a new line.
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      event.currentTarget.blur();
-                    }
-                  }}
-                />
-              </div>
-              {/* The note uses the card's full width and grows with its text. */}
-              <form action={saveStepNotes} className="mt-2">
-                <input type="hidden" name="id" value={step.id} />
-                <AutoGrowTextarea
-                  name="planNotes"
-                  defaultValue={step.planNotes || ""}
-                  rows={2}
-                  placeholder="Notes for this step…"
-                  className="w-full rounded-xl border border-line bg-transparent px-3 py-2 text-sm leading-relaxed outline-none focus:border-[var(--accent)]"
-                  onBlur={(e) => {
-                    const form = e.currentTarget.form;
-                    if (form) form.requestSubmit();
-                  }}
-                />
-              </form>
-            </article>
-          );
-        })}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center"
+                  >
+                    <span
+                      className="flex h-7 w-7 items-center justify-center rounded-full border border-line text-sm"
+                      style={{
+                        background: stepDone ? "var(--accent)" : "transparent",
+                        color: stepDone ? "white" : "var(--muted)",
+                      }}
+                    >
+                      {stepDone ? "✓" : ""}
+                    </span>
+                  </button>
+                  <div className="min-w-0 flex-1 pt-2">
+                    {/* The title wraps onto more lines instead of running off the card. */}
+                    <AutoGrowTextarea
+                      aria-label="Step title"
+                      defaultValue={step.title}
+                      rows={1}
+                      className="block w-full border-0 bg-transparent p-0 text-[15px] font-semibold leading-snug outline-none focus:underline"
+                      onBlur={(event) => {
+                        const el = event.currentTarget;
+                        const next = el.value.replace(/\s+/g, " ").trim();
+                        if (!next) {
+                          // A step keeps its name; an emptied box shows the saved title again.
+                          el.value = step.title;
+                          fitTextarea(el);
+                          return;
+                        }
+                        if (next === step.title) return;
+                        startTransition(() => renameTask(step.id, next));
+                      }}
+                      onKeyDown={(event) => {
+                        // A title is one line: Enter saves it instead of starting a new line.
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          event.currentTarget.blur();
+                        }
+                      }}
+                    />
+                    {/* The note reads as text under the title and grows with it; tap to edit, it saves on leaving. */}
+                    <form action={saveStepNotes}>
+                      <input type="hidden" name="id" value={step.id} />
+                      <AutoGrowTextarea
+                        name="planNotes"
+                        defaultValue={step.planNotes || ""}
+                        rows={1}
+                        placeholder="Add a note…"
+                        className="-mx-1.5 mt-0.5 block w-[calc(100%+0.75rem)] rounded-lg border border-transparent bg-transparent px-1.5 py-0.5 text-sm leading-snug text-ink/80 outline-none placeholder:text-muted focus:border-[var(--accent)] focus:bg-white focus:text-ink"
+                        onBlur={(e) => {
+                          const form = e.currentTarget.form;
+                          if (form) form.requestSubmit();
+                        }}
+                      />
+                    </form>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : null}
         <AddStep taskId={task.id} hasSteps={task.children.length > 0} />
       </section>
 

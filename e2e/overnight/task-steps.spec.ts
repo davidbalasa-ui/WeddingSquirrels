@@ -78,6 +78,14 @@ test.describe("task steps cards", () => {
     await expectStepsShowAllText(page);
     await expectNoSidewaysScroll(page);
 
+    // Steps are compact rows (David, 12:56: only two cards fit on his phone): the first three,
+    // notes included, fit in 460px (about 400 on a Pixel, 447 in Safari on an iPhone; the
+    // separate cards took about 530 on a Pixel), so three to four show at a glance on a phone.
+    const rows = page.locator("article").filter({ has: page.getByRole("textbox", { name: "Step title" }) });
+    const first = (await rows.nth(0).boundingBox())!;
+    const third = (await rows.nth(2).boundingBox())!;
+    expect(third.y + third.height - first.y).toBeLessThanOrEqual(460);
+
     // The s'mores title is long enough to need two lines on a phone; it wraps instead of being cut.
     const smores = page.getByRole("textbox", { name: "Step title" }).nth(1);
     await expect(smores).toHaveValue("Decide/assign who preps and sets up the s'mores station foods");
@@ -198,4 +206,29 @@ test.describe("task with no steps yet", () => {
     expect(await prisma.task.count({ where: { parentId: task.id } })).toBe(1);
     guards.assertClean();
   });
+});
+
+test("task list rows give the preview the full width and keep Escalate priority on the details row", async ({ page }) => {
+  const guards = attachGuards(page);
+  const id = await createDayOfJobs();
+  try {
+    await page.goto("/plan/tasks");
+    await waitForHydration(page);
+    const row = page.locator("article").filter({ has: page.getByText(PACKAGE_TITLE, { exact: true }) });
+    const preview = row.locator("p.line-clamp-2");
+    await expect(preview).toBeVisible();
+    const rowBox = (await row.boundingBox())!;
+    const previewBox = (await preview.boundingBox())!;
+    // Before, the button sat in a column beside the text and the preview was cut to one short line.
+    expect(previewBox.width).toBeGreaterThan(rowBox.width * 0.85);
+    const escalate = row.getByRole("button", { name: "Escalate priority" });
+    expect((await escalate.boundingBox())!.y).toBeGreaterThan(previewBox.y + previewBox.height - 1);
+    await escalate.click();
+    await expect.poll(async () => Boolean((await prisma.task.findUnique({ where: { id } }))?.escalatedAt)).toBe(true);
+    await expect(row.getByRole("button", { name: "Remove priority pin" })).toBeVisible();
+    await expectNoSidewaysScroll(page);
+    guards.assertClean();
+  } finally {
+    await prisma.task.deleteMany({ where: { title: PACKAGE_TITLE, parentId: null } });
+  }
 });

@@ -363,16 +363,6 @@ a {
   transform: scale(0.98);
 }
 
-.step-check {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-}
-
 .filter-pill {
   min-height: 44px;
   display: inline-flex;
