@@ -40,7 +40,7 @@ export type ReconciledMoment = {
 export const OPEN_ITEMS_PREFIX = /^open items?:\s*/i;
 
 /** The app's original rehearsal rows, by id, as seeded: an unedited one is safe to fold away. */
-const REHEARSAL_LEGACY_NOTES = new Map(REHEARSAL_SCHEDULE_SEED.map((block) => [block.id, block.notes]));
+const REHEARSAL_LEGACY_NOTE_SET = new Set(REHEARSAL_SCHEDULE_SEED.map((block) => block.notes));
 
 const W = "wedding" as const;
 const R = "rehearsal" as const;
@@ -266,10 +266,42 @@ export type ReconciledPlan = {
  * before seed keys existed (their ids are "reh.checkin" and so on), the id itself.
  * Without this, Apply would add the seven rehearsal moments a second time.
  */
-export function reconciledKeyForRow(row: { id: string; seedKey: string | null; schedule: string }): string | null {
+export function reconciledKeyForRow(row: {
+  id: string;
+  seedKey: string | null;
+  schedule: string;
+  notes?: string;
+}): string | null {
   if (row.seedKey) return row.seedKey;
-  if (row.schedule === "rehearsal" && RECONCILED_TIMELINE.some((moment) => moment.seedKey === row.id)) return row.id;
-  return null;
+  if (row.schedule !== "rehearsal") return null;
+  if (RECONCILED_TIMELINE.some((moment) => moment.seedKey === row.id)) return row.id;
+  // The same original rehearsal row saved under another id still answers to its moment.
+  const seeded = row.notes === undefined ? undefined : REHEARSAL_SCHEDULE_SEED.find((block) => block.notes === row.notes);
+  return seeded ? seeded.id : null;
+}
+
+const TITLE_STOPWORDS = new Set(["with", "from", "into", "the", "and", "for"]);
+
+function titleWords(notes: string): Set<string> {
+  const first = parseBlockNotes(notes).title.split(";")[0] ?? "";
+  return new Set(
+    first
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .filter((word) => word.length >= 4 && !TITLE_STOPWORDS.has(word)),
+  );
+}
+
+/**
+ * A rehearsal row with no key, typed or saved before keys existed, that is plainly the
+ * same moment as a document one: same start time and a shared title word ("Dinner" and
+ * "Rehearsal dinner", "Return to Airbnb" and "Return to the Airbnb").
+ */
+function sameRehearsalMoment(row: ExistingTimelineRow, moment: ReconciledMoment): boolean {
+  if (row.schedule !== "rehearsal" || moment.schedule !== "rehearsal") return false;
+  if (row.startAt !== moment.startAt) return false;
+  const words = titleWords(row.notes);
+  return [...titleWords(moment.title)].some((word) => words.has(word));
 }
 
 export function planReconciledTimeline(existing: ExistingTimelineRow[]): ReconciledPlan {
@@ -282,6 +314,38 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
     // A seeded row wins over a legacy row with the same key (see the duplicate check below).
     const current = bySeed.get(key);
     if (!current || (!current.seedKey && row.seedKey)) bySeed.set(key, row);
+  }
+
+  // Rehearsal rows with no key at a document moment's time: the same moment, never a second copy.
+  const removedIds = new Set<string>();
+  for (const moment of RECONCILED_TIMELINE) {
+    if (moment.schedule !== "rehearsal") continue;
+    const keyed = bySeed.get(moment.seedKey);
+    // The owner's own copy: a row with no key at this moment's time, or the original row
+    // for this moment (no seed key) once its wording was changed.
+    const twin = existing.find(
+      (row) =>
+        row !== keyed &&
+        !row.seedKey &&
+        !REHEARSAL_LEGACY_NOTE_SET.has(row.notes) &&
+        (reconciledKeyForRow(row) === moment.seedKey || (!reconciledKeyForRow(row) && sameRehearsalMoment(row, moment))),
+    );
+    if (!twin) continue;
+    if (!keyed) {
+      // Apply matches it instead of adding the document's copy beside it.
+      bySeed.set(moment.seedKey, twin);
+      continue;
+    }
+    if (!keyed.seedKey) continue;
+    // Both are on the page. A document copy nobody edited goes; the owner's own row stays.
+    const docNotes = reconciledNotes(moment);
+    const docUnchanged =
+      keyed.startAt === moment.startAt && (keyed.endAt ?? null) === moment.endAt && keyed.notes === docNotes;
+    if (docUnchanged) {
+      plan.removals.push({ id: keyed.id, seedKey: moment.seedKey, title: moment.title });
+      removedIds.add(keyed.id);
+      bySeed.set(moment.seedKey, twin);
+    }
   }
 
   RECONCILED_TIMELINE.forEach((moment, index) => {
@@ -313,14 +377,16 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
     });
   });
 
+  const claimed = new Set([...bySeed.values()].map((row) => row.id));
   for (const row of existing) {
+    if (removedIds.has(row.id)) continue;
+    if (claimed.has(row.id) && !row.seedKey && [...bySeed.values()].includes(row)) continue;
     const key = reconciledKeyForRow(row);
     if (key && wanted.has(key)) {
       if (bySeed.get(key) === row) continue;
       // An earlier Apply already added this rehearsal moment next to the legacy row.
       // The untouched legacy copy goes; one that was edited stays for the owner to merge.
-      const seeded = REHEARSAL_LEGACY_NOTES.get(row.id);
-      if (seeded !== undefined && seeded === row.notes) {
+      if (REHEARSAL_LEGACY_NOTE_SET.has(row.notes) && !row.seedKey) {
         plan.removals.push({ id: row.id, seedKey: key, title: parseBlockNotes(row.notes).title });
       } else {
         plan.untouched.push({ id: row.id, seedKey: row.seedKey, title: parseBlockNotes(row.notes).title, startAt: row.startAt });
