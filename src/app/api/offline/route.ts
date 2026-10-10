@@ -2,9 +2,23 @@ import { getSession } from "@/lib/auth";
 import { loadAppSettings, prisma, supportsBudgetPayments } from "@/lib/db";
 import { filterVisibleBudgetItems } from "@/lib/money";
 import { loadPlaybookItems } from "@/lib/playbook-data";
-import { quickReferencePlaces } from "@/lib/wedding-venue";
+import { weddingPlacesFromPlan } from "@/lib/wedding-venue";
 import { requestVisibilityWhere } from "@/lib/requests";
 import { taskVisibilityWhere } from "@/lib/tasks";
+
+/** The same places the printed quick reference shows, read from the timeline. */
+function offlinePlaces(timeline: Array<{ notes: string }> | null) {
+  if (!timeline) return null;
+  const places = weddingPlacesFromPlan(timeline);
+  return {
+    venueName: places.venue.name,
+    venueAddress: places.venue.address,
+    rehearsalDinnerName: places.rehearsalDinner.name,
+    rehearsalDinnerAddress: places.rehearsalDinner.address,
+    airbnbName: places.lodging.name,
+    airbnbAddress: places.lodging.address,
+  };
+}
 
 /**
  * Returns a JSON snapshot of everything the signed-in account can see,
@@ -108,7 +122,7 @@ export async function GET() {
     weddingDate: settings?.weddingDate?.toISOString() ?? null,
     coupleNames: settings?.coupleNames ?? null,
     timezone: settings?.timezone ?? null,
-    weddingPlaces: settings ? quickReferencePlaces(settings) : null,
+    weddingPlaces: offlinePlaces(session.canSeeTimeline ? timeline : null),
     tasks,
     people,
     timeline,

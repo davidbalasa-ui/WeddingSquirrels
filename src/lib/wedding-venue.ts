@@ -1,4 +1,4 @@
-/** Canonical wedding place fields on AppSettings (not GPS). */
+/** The old wedding place columns on AppSettings. Nothing reads them now: the places come from the plan (weddingPlacesFromPlan). */
 
 export type WeddingPlaceFields = {
   venueName?: string | null;
@@ -47,42 +47,51 @@ export function formatPlaceLabel(
   return null;
 }
 
-export function todayVenueLabel(settings: WeddingPlaceFields | null | undefined): string | null {
-  if (!settings) return null;
-  const lines = placeAddressLines({
-    street: settings.venueStreet,
-    city: settings.venueCity,
-    state: settings.venueState,
-    zip: settings.venueZip,
-  });
-  return formatPlaceLabel(settings.venueName, lines);
+export type WeddingPlace = { name: string; address: string[] };
+
+export type WeddingPlaces = {
+  venue: WeddingPlace;
+  rehearsalDinner: WeddingPlace;
+  lodging: WeddingPlace;
+};
+
+/**
+ * The three places as David's own planning documents give them (the rehearsal check-in,
+ * dinner and walkthrough lines). A line on his Wedding Day or Thursday page that carries
+ * the street address wins, so an address he corrects on the page is the one every
+ * screen and printout uses.
+ */
+const FROM_HIS_DOCUMENTS: WeddingPlaces = {
+  venue: { name: "Black Sheep Shelter", address: ["342 62nd St", "South Haven, MI 49090"] },
+  rehearsalDinner: { name: "Hawkshead", address: ["523 Hawks Nest Dr", "South Haven, MI"] },
+  lodging: { name: "Airbnb", address: ["10268 51st St", "Grand Junction, MI 49056"] },
+};
+
+const STREETS: Record<keyof WeddingPlaces, RegExp> = {
+  venue: /\b342\s+62nd\b/i,
+  rehearsalDinner: /\b523\s+Hawks\b/i,
+  lodging: /\b10268\s+51st\b/i,
+};
+
+/** "Venue: 342 62nd St, South Haven, MI 49090" → ["342 62nd St", "South Haven, MI 49090"]. */
+function addressFromLine(line: string, street: RegExp): string[] {
+  const from = line.slice(line.search(street)).trim().replace(/[.;]$/, "");
+  const parts = from.split(",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length === 3) return [parts[0]!, `${parts[1]}, ${parts[2]}`];
+  return [from];
 }
 
-export function quickReferencePlaces(settings: WeddingPlaceFields | null | undefined) {
-  const venueAddress = placeAddressLines({
-    street: settings?.venueStreet,
-    city: settings?.venueCity,
-    state: settings?.venueState,
-    zip: settings?.venueZip,
-  });
-  const rehearsalAddress = placeAddressLines({
-    street: settings?.rehearsalDinnerStreet,
-    city: settings?.rehearsalDinnerCity,
-    state: settings?.rehearsalDinnerState,
-    zip: settings?.rehearsalDinnerZip,
-  });
-  const airbnbAddress = placeAddressLines({
-    street: settings?.airbnbStreet,
-    city: settings?.airbnbCity,
-    state: settings?.airbnbState,
-    zip: settings?.airbnbZip,
-  });
-  return {
-    venueName: settings?.venueName?.trim() || null,
-    venueAddress,
-    rehearsalDinnerName: settings?.rehearsalDinnerName?.trim() || null,
-    rehearsalDinnerAddress: rehearsalAddress,
-    airbnbName: settings?.airbnbName?.trim() || null,
-    airbnbAddress,
+/** The venue, rehearsal dinner and lodging, read from the moments the app already holds. */
+export function weddingPlacesFromPlan(blocks: Array<{ notes: string }>): WeddingPlaces {
+  const lines = blocks.flatMap((block) => block.notes.split("\n"));
+  const read = (key: keyof WeddingPlaces): WeddingPlace => {
+    const line = lines.find((text) => STREETS[key].test(text));
+    return line ? { ...FROM_HIS_DOCUMENTS[key], address: addressFromLine(line, STREETS[key]) } : FROM_HIS_DOCUMENTS[key];
   };
+  return { venue: read("venue"), rehearsalDinner: read("rehearsalDinner"), lodging: read("lodging") };
+}
+
+/** "Black Sheep Shelter · 342 62nd St, South Haven, MI 49090" for the Today header. */
+export function weddingVenueLabel(places: WeddingPlaces): string | null {
+  return formatPlaceLabel(places.venue.name, places.venue.address);
 }

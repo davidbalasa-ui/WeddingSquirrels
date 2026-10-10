@@ -69,7 +69,7 @@ test("Apply adds the dated jobs once and ticks only the marked steps", async ({ 
   await expect(card).not.toContainText("Alpine Events");
   await expect(card).toContainText("Ceremony Flower Sword · Receive the ordered sword");
   await expect(card).toContainText("Pam Balasa · 269-475-3751");
-  const before = await prisma.task.findMany({ select: { id: true, title: true, status: true, parentId: true, dueDate: true } });
+  const before = await prisma.task.findMany({ select: { id: true, title: true, status: true, parentId: true, dueDate: true, summary: true } });
   const planned = planTaskCorrections(before);
   expect(planned.inserts.some((row) => row.title === "Total Wine: Pick up the alcohol order")).toBe(true);
   // The card reloads the page once the write is done; wait for that load so the next visit is not cut short.
@@ -93,6 +93,10 @@ test("Apply adds the dated jobs once and ticks only the marked steps", async ({ 
   expect(totalWine.dueDate?.getDate()).toBe(12);
 
   const status = async (title: string) => (await prisma.task.findFirstOrThrow({ where: { title } })).status;
+  // 15:47: the check went out this morning, with the tracking number from his receipt.
+  const check = await prisma.task.findFirstOrThrow({ where: { title: "Send the check to Precious Peony" } });
+  expect(check.status).toBe("done");
+  expect(check.summary).toBe("Tracking number: 9505 5136 9476 6283 7277 06");
   expect(await status("Receive the ordered sword")).toBe("done");
   expect(await status("Ceremony Flower Sword")).toBe("done");
   expect(await status("Order the remaining s'mores ingredients")).toBe("done");

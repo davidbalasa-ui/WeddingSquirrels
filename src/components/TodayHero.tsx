@@ -7,11 +7,9 @@ import type { SessionAccount } from "@/lib/types";
 export function TodayHero({
   session,
   hero,
-  canEditVenue = false,
 }: {
   session: SessionAccount;
   hero: TodayHeroData;
-  canEditVenue?: boolean;
 }) {
   const phase = hero.weddingPhase;
   const daysNumber =
@@ -106,31 +104,7 @@ export function TodayHero({
       {hero.weddingDateLabel && phase !== "post_wedding" ? (
         <p className="mt-3 text-sm text-muted">{hero.weddingDateLabel}</p>
       ) : null}
-      {hero.venue ? (
-        <p className="mt-1 text-sm text-muted">
-          {hero.venue}
-          {canEditVenue ? (
-            <>
-              {" · "}
-              <Link
-                href="/plan/timeline#venues"
-                className="font-semibold text-[var(--accent)] underline-offset-4 hover:underline"
-              >
-                Edit places
-              </Link>
-            </>
-          ) : null}
-        </p>
-      ) : canEditVenue ? (
-        <p className="mt-1 text-sm">
-          <Link
-            href="/plan/timeline#venues"
-            className="font-semibold text-[var(--accent)] underline-offset-4 hover:underline"
-          >
-            Add wedding venue
-          </Link>
-        </p>
-      ) : null}
+      {hero.venue ? <p className="mt-1 text-sm text-muted">{hero.venue}</p> : null}
       {session.canSeeRequests ? <MessagesShortcut /> : null}
     </header>
   );
