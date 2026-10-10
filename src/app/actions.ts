@@ -3486,40 +3486,6 @@ function trimPlaceField(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-export async function saveWeddingPlaceSettings(
-  input: import("@/lib/wedding-venue").WeddingPlaceFields,
-): Promise<{ ok: boolean }> {
-  if (!(await requireDayDataEditor())) return { ok: false };
-
-  await prisma.appSettings.update({
-    where: { id: 1 },
-    data: {
-      venueName: trimPlaceField(input.venueName),
-      venueStreet: trimPlaceField(input.venueStreet),
-      venueCity: trimPlaceField(input.venueCity),
-      venueState: trimPlaceField(input.venueState),
-      venueZip: trimPlaceField(input.venueZip),
-      rehearsalDinnerName: trimPlaceField(input.rehearsalDinnerName),
-      rehearsalDinnerStreet: trimPlaceField(input.rehearsalDinnerStreet),
-      rehearsalDinnerCity: trimPlaceField(input.rehearsalDinnerCity),
-      rehearsalDinnerState: trimPlaceField(input.rehearsalDinnerState),
-      rehearsalDinnerZip: trimPlaceField(input.rehearsalDinnerZip),
-      airbnbName: trimPlaceField(input.airbnbName),
-      airbnbStreet: trimPlaceField(input.airbnbStreet),
-      airbnbCity: trimPlaceField(input.airbnbCity),
-      airbnbState: trimPlaceField(input.airbnbState),
-      airbnbZip: trimPlaceField(input.airbnbZip),
-    },
-  });
-
-  revalidatePath("/plan/timeline");
-  revalidatePath("/plan/rehearsal");
-  revalidatePath("/today");
-  revalidatePath("/print");
-  refresh();
-  return { ok: true };
-}
-
 function parseCalendarDate(value: string): Date {
   const trimmed = value.trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? new Date(`${trimmed}T12:00:00`) : new Date(trimmed);
@@ -3786,7 +3752,14 @@ export async function applyTaskCorrectionsAction(): Promise<
   try {
     await prisma.$transaction(async (tx) => {
       for (const row of plan.inserts) {
-        await tx.task.create({ data: { title: row.title, summary: row.summary, dueDate: row.due ? dueDateFor(row.due) : null } });
+        await tx.task.create({
+          data: {
+            title: row.title,
+            summary: row.summary,
+            dueDate: row.due ? dueDateFor(row.due) : null,
+            ...(row.done ? { status: "done", completedAt: now } : {}),
+          },
+        });
       }
       for (const row of plan.marks) {
         await tx.task.updateMany({ where: { id: row.id, status: { not: "done" } }, data: { status: "done", completedAt: now } });
@@ -3794,6 +3767,10 @@ export async function applyTaskCorrectionsAction(): Promise<
       // A day only where the job still has none, so a date David set himself stays.
       for (const row of plan.dueFills) {
         await tx.task.updateMany({ where: { id: row.id, dueDate: null }, data: { dueDate: dueDateFor(row.due) } });
+      }
+      // A note only where the job still has none, so a note David wrote himself stays.
+      for (const row of plan.noteFills) {
+        await tx.task.updateMany({ where: { id: row.id, OR: [{ summary: null }, { summary: "" }] }, data: { summary: row.summary } });
       }
       // New numbers only; a person with a different number saved is left for David to pick.
       for (const row of phones) {

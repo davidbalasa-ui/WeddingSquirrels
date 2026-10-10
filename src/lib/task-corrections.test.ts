@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DONE_MARKS, DUE_DATE_FILLS, NEW_TASKS, dueDateFor, planTaskCorrections, taskCorrectionsPlanIsEmpty } from "./task-corrections";
+import { DONE_JOBS, DONE_MARKS, DUE_DATE_FILLS, NEW_TASKS, NOTE_FILLS, dueDateFor, planTaskCorrections, taskCorrectionsPlanIsEmpty } from "./task-corrections";
 
 const cards = [
   { id: "wk", title: "Week before", status: "todo", parentId: null },
@@ -46,8 +46,9 @@ test("task corrections are empty once applied", () => {
     ...NEW_TASKS.map((def, i) => ({
       id: `n${i}`,
       title: def.title,
-      status: "todo",
+      status: DONE_JOBS.includes(def.title) ? "done" : "todo",
       parentId: null,
+      summary: NOTE_FILLS.find((fill) => fill.title === def.title)?.summary ?? def.summary ?? null,
       dueDate: def.due || DUE_DATE_FILLS.some((fill) => fill.title === def.title) ? dueDateFor("2026-10-13") : null,
     })),
     ...DONE_MARKS.filter((def) => def.card === "Week before").map((def, i) => ({
@@ -109,4 +110,23 @@ test("names in the 14:45 notes are spelled as David confirmed: Skila and Andi", 
   assert.doesNotMatch(text, /Skylar|\bAndy\b/);
   assert.match(text, /when Skila will do their hair/);
   assert.match(text, /Braxton, Andi, and Marie/);
+});
+
+test("the Precious Peony check is ticked done with the tracking number from his receipt, only as the card wrote it", () => {
+  const check = { id: "pp", title: "Send the check to Precious Peony", status: "todo", parentId: null, dueDate: dueDateFor("2026-10-10"), summary: null };
+  const plan = planTaskCorrections([check]);
+  assert.deepEqual(plan.marks, [{ id: "pp", card: null, title: "Send the check to Precious Peony" }]);
+  assert.deepEqual(plan.noteFills, [{ id: "pp", title: "Send the check to Precious Peony", summary: "Tracking number: 9505 5136 9476 6283 7277 06" }]);
+  // A note David wrote himself stays, and a job he already ticked is left alone.
+  const own = planTaskCorrections([{ ...check, status: "done", summary: "Mailed it" }]);
+  assert.equal(own.marks.length, 0);
+  assert.equal(own.noteFills.length, 0);
+  // His own task in other words is not touched: no tick, no note.
+  const reworded = planTaskCorrections([{ ...check, title: "Mail Precious Peony the check" }]);
+  assert.equal(reworded.marks.some((row) => row.id === "pp"), false);
+  assert.equal(reworded.noteFills.length, 0);
+  // Not on the list yet: this tap adds it already done, with the note.
+  const fresh = planTaskCorrections([]).inserts.find((row) => row.title === check.title);
+  assert.deepEqual(fresh, { title: check.title, summary: NOTE_FILLS[0]!.summary, due: "2026-10-10", done: true });
+  assert.deepEqual(DONE_JOBS, [check.title]);
 });

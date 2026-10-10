@@ -8,7 +8,6 @@ import { TodayHero } from "@/components/TodayHero";
 import { TodayInboxAddBar } from "@/components/TodayInboxAddBar";
 import { TodayPulseStrip } from "@/components/TodayPulseStrip";
 import { TodayWaitingSection } from "@/components/TodayWaitingSection";
-import { timelineEditable } from "@/lib/access";
 import { loadTodayPageData } from "@/lib/today";
 import { usesExecutionLayout } from "@/lib/wedding-phase";
 import { requireHomeSession } from "@/lib/session";
@@ -41,11 +40,7 @@ export default async function TodayPage({
   return (
     <>
       <OfflineSetupCard />
-      <TodayHero
-        session={session}
-        hero={data.hero}
-        canEditVenue={timelineEditable(session) && session.canSeeTimeline}
-      />
+      <TodayHero session={session} hero={data.hero} />
       {execution ? (
         <>
           <Suspense>

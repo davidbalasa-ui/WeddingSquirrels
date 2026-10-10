@@ -143,18 +143,42 @@ export const DONE_MARKS: DoneMarkDef[] = [
   { card: "Finalize & Send Black Sheep Details", step: "Finalize remaining decor/rental selections for Black Sheep" },
 ];
 
+/**
+ * Jobs David has since done, ticked only while the job still reads exactly as an earlier
+ * card wrote it. 15:47: the post office receipt for the Precious Peony check.
+ */
+export const DONE_JOBS = ["Send the check to Precious Peony"];
+
+/**
+ * A note for a job an earlier card added, written only while the job has no note yet,
+ * so a note David wrote himself stays. The tracking number is copied from his receipt.
+ */
+export const NOTE_FILLS: Array<{ title: string; summary: string }> = [
+  { title: "Send the check to Precious Peony", summary: "Tracking number: 9505 5136 9476 6283 7277 06" },
+];
+
 /** Cards whose every step is in DONE_MARKS: the card itself is finished too. */
 export const DONE_CARDS = ["Ceremony Flower Sword", "Rehearsal Dinner Menu"];
 
-export type TaskRow = { id: string; title: string; status: string; parentId: string | null; dueDate?: Date | null };
+export type TaskRow = {
+  id: string;
+  title: string;
+  status: string;
+  parentId: string | null;
+  dueDate?: Date | null;
+  summary?: string | null;
+};
 
 export type TaskCorrectionsPlan = {
-  inserts: Array<{ title: string; summary: string | null; due: string | null }>;
+  /** `done`: a job David has already finished by the time this tap adds it. */
+  inserts: Array<{ title: string; summary: string | null; due: string | null; done?: boolean }>;
   /** Jobs left out because a task already on his list reads like them. */
   alreadyListed: Array<{ title: string; existing: string }>;
   marks: Array<{ id: string; card: string | null; title: string }>;
   /** Jobs an earlier card added with no day that now get the day David gave. */
   dueFills: Array<{ id: string; title: string; due: string }>;
+  /** Jobs an earlier card added with no note that now get the note David sent. */
+  noteFills: Array<{ id: string; title: string; summary: string }>;
 };
 
 /** Same noon-of-the-day time the Due date box saves. */
@@ -180,7 +204,9 @@ export function planTaskCorrections(tasks: TaskRow[]): TaskCorrectionsPlan {
     if (def.like && inserts.some((row) => def.like!.test(row.title))) continue;
     // A job with no day of its own takes the day David gave later (DUE_DATE_FILLS).
     const due = def.due ?? DUE_DATE_FILLS.find((fill) => fill.title === def.title)?.due ?? null;
-    inserts.push({ title: def.title, summary: def.summary ?? null, due });
+    const note = NOTE_FILLS.find((fill) => fill.title === def.title)?.summary;
+    const done = DONE_JOBS.includes(def.title);
+    inserts.push({ title: def.title, summary: def.summary ?? note ?? null, due, ...(done ? { done } : {}) });
   }
 
   const marks: TaskCorrectionsPlan["marks"] = [];
@@ -198,6 +224,9 @@ export function planTaskCorrections(tasks: TaskRow[]): TaskCorrectionsPlan {
       }),
     );
   }
+  for (const title of DONE_JOBS) {
+    mark(tasks.find((task) => !task.parentId && task.title === title));
+  }
   for (const title of DONE_CARDS) {
     mark(tasks.find((task) => !task.parentId && titlesMatch(task.title, title)));
   }
@@ -206,9 +235,14 @@ export function planTaskCorrections(tasks: TaskRow[]): TaskCorrectionsPlan {
     const task = tasks.find((row) => row.title === def.title && !row.dueDate && row.status !== "done");
     if (task) dueFills.push({ id: task.id, title: task.title, due: def.due });
   }
-  return { inserts, alreadyListed, marks, dueFills };
+  const noteFills: TaskCorrectionsPlan["noteFills"] = [];
+  for (const def of NOTE_FILLS) {
+    const task = tasks.find((row) => !row.parentId && row.title === def.title && !row.summary);
+    if (task) noteFills.push({ id: task.id, title: task.title, summary: def.summary });
+  }
+  return { inserts, alreadyListed, marks, dueFills, noteFills };
 }
 
 export function taskCorrectionsPlanIsEmpty(plan: TaskCorrectionsPlan): boolean {
-  return plan.inserts.length === 0 && plan.marks.length === 0 && (plan.dueFills ?? []).length === 0;
+  return plan.inserts.length === 0 && plan.marks.length === 0 && (plan.dueFills ?? []).length === 0 && (plan.noteFills ?? []).length === 0;
 }

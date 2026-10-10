@@ -509,35 +509,15 @@ test.describe("Preview time (master only)", () => {
 });
 
 test.describe("Wedding places", () => {
-  test("venue fields save what is typed, and a cleared field stays empty after reload", async ({ page }) => {
+  test("no box asks for the places again: Today shows the venue the plan already has", async ({ page }) => {
     const guards = attachGuards(page);
-    const before = await prisma.appSettings.findUnique({ where: { id: 1 } });
-    await page.goto("/plan/timeline#venues");
-    const venue = page.locator("#venues");
-    const name = venue.getByLabel("Place name").first();
-    const zip = venue.getByLabel("ZIP").first();
-    await expect(name).toBeVisible();
-    await name.fill("");
-    await name.pressSequentially("Test venue 'q' 🎉");
-    await zip.fill("");
-    await zip.pressSequentially("0");
-    await zip.press("Backspace");
-    await zip.pressSequentially("9");
-    await expect(zip).toHaveValue("9");
-    await venue.getByRole("button", { name: "Save wedding places" }).click();
-    await expect.poll(async () => (await prisma.appSettings.findUnique({ where: { id: 1 } }))?.venueName).toBe("Test venue 'q' 🎉");
-    expect((await prisma.appSettings.findUnique({ where: { id: 1 } }))?.venueZip).toBe("9");
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator("#venues").getByLabel("Place name").first()).toHaveValue("Test venue 'q' 🎉");
-    // Clear the name (whitespace only) and save: it must come back empty, not as spaces.
-    const nameAgain = page.locator("#venues").getByLabel("Place name").first();
-    await nameAgain.fill("   ");
-    await page.locator("#venues").getByRole("button", { name: "Save wedding places" }).click();
-    await expect.poll(async () => (await prisma.appSettings.findUnique({ where: { id: 1 } }))?.venueName).toBeNull();
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator("#venues").getByLabel("Place name").first()).toHaveValue("");
-    // Put the seeded values back so the page reads as before.
-    await prisma.appSettings.update({ where: { id: 1 }, data: { venueName: before?.venueName ?? null, venueZip: before?.venueZip ?? null } });
+    await page.goto("/plan/timeline");
+    await expect(page.getByRole("heading", { name: "Wedding Day" })).toBeVisible();
+    await expect(page.getByText("Wedding places", { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/Add venue, rehearsal dinner/)).toHaveCount(0);
+    await page.goto("/today");
+    await expect(page.locator("header").getByText("Black Sheep Shelter · 342 62nd St, South Haven, MI 49090")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Add wedding venue|Edit places/ })).toHaveCount(0);
     await guards.assertClean();
   });
 });
