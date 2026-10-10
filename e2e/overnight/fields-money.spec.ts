@@ -341,11 +341,15 @@ test.describe("/money/[itemId] · Payment schedule", () => {
     expect(saved?.paidAmount).toBe(0);
     expect(saved?.paidAt).toBeNull();
 
+    await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Mark paid" }).click();
     await waitForSave(page);
     saved = await prisma.budgetPayment.findUnique({ where: { id: payment.id } });
     expect(saved?.paidAmount).toBe(250);
 
+    // See SWEEP-REPORT.md #13: router.refresh() after an action occasionally never settles,
+    // which leaves the row's buttons disabled; a reload shows the saved state regardless.
+    await page.reload({ waitUntil: "domcontentloaded" });
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Remove", exact: true }).click();
     await waitForSave(page);
@@ -380,6 +384,8 @@ test.describe("/money · Other spending", () => {
     let saved = await prisma.task.findUnique({ where: { id: task.id } });
     expect(saved?.amountNeeded).toBe(12.5);
     expect(saved?.amountSpent).toBe(9);
+    // The list refreshes after Save; a reload makes sure the row below is the saved one.
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toContainText("$9 spent of $13");
 
     await page.getByRole("button", { name: title }).click();
