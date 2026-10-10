@@ -42,8 +42,8 @@ test.describe("Print Center packets", () => {
           await expect(row.locator(".binder-item-title")).not.toBeEmpty();
         }
       }
-      // Every packet keeps the moments everyone attends.
-      if (packet.id !== "binder" && packet.id !== "bride" && packet.id !== "packet") {
+      // Every schedule packet keeps the moments everyone attends ("What's left" is only the open work).
+      if (!["binder", "bride", "packet", "left"].includes(packet.id)) {
         // The page may still carry the earlier titles for moments David has not switched to the document's wording.
         for (const shared of [/Ceremony/, /Grand entrance|Dinner begins/, /Toasts/, /Cake cutting/, /Formal dances|First dances/]) {
           expect(text, `${packet.title} keeps ${shared}`).toMatch(shared);
