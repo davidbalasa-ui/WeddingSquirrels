@@ -116,11 +116,23 @@ test("Plan: open Tasks, '← Plan' returns to the same spot on Plan", async ({ p
 test("Tasks: open a task, '← Back to Tasks' returns to the same spot in the list", async ({ page }) => {
   const guards = attachGuards(page);
   await page.goto("/plan/tasks", { waitUntil: "networkidle" });
-  const link = page.locator('a[href^="/work/"]').last();
-  await link.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(200);
+  // The list scrolls only a little on a tall desktop window; any real offset will do.
+  await page.evaluate(() => window.scrollTo({ top: 100_000, behavior: "instant" }));
+  await page.waitForTimeout(250);
   const y = await scrollY(page);
-  await link.click();
+  expect(y, "the task list scrolls").toBeGreaterThan(10);
+  // Tap a task that sits clear of the top bar and the fixed bottom nav. A link tucked
+  // under the nav makes the tap scroll the list again first (on the iPhone viewport the
+  // last link lands there), and the app then rightly remembers that new spot, not `y`.
+  const links = page.locator('a[href^="/work/"]');
+  const index = await links.evaluateAll((els) =>
+    els.findIndex((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top >= 80 && r.bottom <= window.innerHeight - 120;
+    }),
+  );
+  expect(index, "a task link is on screen clear of the bars").toBeGreaterThanOrEqual(0);
+  await links.nth(index).click();
   await expect(page).toHaveURL(/\/work\//);
   await page.getByRole("link", { name: /← Back/ }).click();
   await expectBackAt(page, "/plan/tasks", y);
