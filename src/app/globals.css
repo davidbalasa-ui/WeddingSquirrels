@@ -446,6 +446,11 @@ a {
     background: white;
   }
 
+  /* Screen-only bottom padding; on paper it pushed a blank trailing page. */
+  .print-center {
+    padding-bottom: 0;
+  }
+
   .nav-bar,
   .print-hide {
     display: none !important;
@@ -851,6 +856,13 @@ a {
   border-bottom: 1px solid var(--print-hairline);
 }
 
+/* The owner column keeps its words whole ("Assigned crew"), wrapping between words only. */
+.binder-row > :first-child {
+  flex-shrink: 0;
+  max-width: 50%;
+  overflow-wrap: normal;
+}
+
 .binder-unassigned {
   margin-top: 0.25rem;
   font-size: 0.8rem;
@@ -956,6 +968,11 @@ a {
   flex: none;
   width: 1rem;
   color: var(--print-burgundy);
+}
+
+/* A shot's note sits under its title instead of running into it. */
+.binder-shot .binder-note {
+  display: block;
 }
 
 .binder-doc--compact .binder-title {

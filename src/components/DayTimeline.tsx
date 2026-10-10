@@ -1021,6 +1021,14 @@ function EditCard({
   const [notesDraft, setNotesDraft] = useState<string | null>(null);
   const location = locationDraft ?? parseBlockNotes(row.notes).location ?? "";
   const notesBody = notesDraft ?? notesBodyForEditor(row.notes);
+  const notesRef = useRef<HTMLTextAreaElement | null>(null);
+  // Grow the notes box with its wrapped text so long lines are never clipped on a phone.
+  useEffect(() => {
+    const el = notesRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [notesBody]);
 
   return (
     <article
@@ -1077,6 +1085,7 @@ function EditCard({
         />
       </label>
       <textarea
+        ref={notesRef}
         value={notesBody}
         rows={Math.min(8, Math.max(2, notesBody.split(/\r?\n/).length))}
         onChange={(event) => {

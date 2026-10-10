@@ -1,7 +1,7 @@
-import { differenceInCalendarDays } from "date-fns";
 import { lockAction } from "@/app/actions";
 import type { SessionAccount } from "@/lib/types";
 import { weddingDate } from "@/lib/due-dates";
+import { daysUntilWedding } from "@/lib/today";
 
 export function AppHeader({
   session,
@@ -14,7 +14,8 @@ export function AppHeader({
   subtitle?: string;
   children?: React.ReactNode;
 }) {
-  const days = differenceInCalendarDays(weddingDate(), new Date());
+  // Count days in the wedding timezone, the way Today does, so both headers agree.
+  const days = daysUntilWedding(weddingDate(), "America/Detroit");
 
   return (
     <header className="sticky top-0 z-20 -mx-4 mb-4 border-b border-line bg-[color-mix(in_srgb,var(--bg)_88%,transparent)] px-4 py-3 backdrop-blur-md">

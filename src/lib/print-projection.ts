@@ -124,6 +124,20 @@ const TIME_PREFIX = new RegExp(
   "i",
 );
 const RANGE_OR = new RegExp(`${TIME_TOKEN}\\s+or\\s+${TIME_TOKEN}`, "i");
+/** An optional "–12:25 PM" after a time, so "at 12:15–12:25 PM" reads as one range. */
+const TIME_RANGE_TAIL = `(?:\\s*[–—-]\\s*${TIME_TOKEN})?`;
+
+function meridiemOf(raw: string): "AM" | "PM" | null {
+  const match = raw.match(/\b(AM|PM)\b/i);
+  return match ? (match[1]!.toUpperCase() as "AM" | "PM") : null;
+}
+
+/** "12:15" + "12:25 PM" → "12:15 PM – 12:25 PM"; a lone time keeps its own AM/PM. */
+function timeRangeLabel(start: string, end: string | undefined): string {
+  if (!end) return normalizePrintTime(start);
+  const shared = meridiemOf(end) ?? meridiemOf(start) ?? "PM";
+  return `${normalizePrintTime(start, shared)} – ${normalizePrintTime(end, shared)}`;
+}
 
 const STAY_PRINT_TITLES: Record<string, string> = {
   bride: "Bedroom 1 — Bride Side",
@@ -188,6 +202,7 @@ export function professionalizePrintLine(raw: string): string | null {
   line = line.replace(/\bdo not treat this as diy\.?/gi, "");
   line = line.replace(/\bmoney fact, not a new task\.?/gi, "");
   line = line.replace(/\bnot a new task\.?/gi, "");
+  line = line.replace(/\s*\(\s*see hair & makeup page\s*\)/gi, "");
   line = line.replace(/\s*see hair & makeup page\b/gi, "");
   line = line.replace(/\bcake cutting stays at 6:15 with toasts\b/gi, "Cake cutting at 6:15 PM with toasts");
   line = line.replace(/\bdance floor opens at 7:00 pm in the glass house\b/gi, "Dance floor opens at 7:00 PM in the glass house");
@@ -643,8 +658,9 @@ function timedEventFromLine(line: string): PrintRunSheetEvent | null {
     };
   }
   if (rangeOr) {
-    const start = normalizePrintTime(rangeOr[1]!);
-    const end = normalizePrintTime(rangeOr[2]!);
+    const sharedMeridiem = meridiemOf(rangeOr[2]!) ?? meridiemOf(rangeOr[1]!) ?? "PM";
+    const start = normalizePrintTime(rangeOr[1]!, sharedMeridiem);
+    const end = normalizePrintTime(rangeOr[2]!, sharedMeridiem);
     const title = cleaned.replace(RANGE_OR, "").replace(/\s{2,}/g, " ").replace(/^[:\s—–-]+/, "").trim();
     return {
       timeLabel: `${start} – ${end}`,
@@ -654,21 +670,21 @@ function timedEventFromLine(line: string): PrintRunSheetEvent | null {
     };
   }
 
-  const arrive = cleaned.match(new RegExp(`^(.*?)\\s+(arrives?) at\\s+${TIME_TOKEN}(.*)$`, "i"));
+  const arrive = cleaned.match(new RegExp(`^(.*?)\\s+(arrives?) at\\s+${TIME_TOKEN}${TIME_RANGE_TAIL}(.*)$`, "i"));
   if (arrive) {
     return {
-      timeLabel: normalizePrintTime(arrive[3]!),
-      title: withoutTime(`${arrive[1]} ${arrive[2]}`, arrive[4]!),
+      timeLabel: timeRangeLabel(arrive[3]!, arrive[4]),
+      title: withoutTime(`${arrive[1]} ${arrive[2]}`, arrive[5]!),
       notes: [],
       kind: "event",
     };
   }
 
-  const atTime = cleaned.match(new RegExp(`^(.*?)\\s+at\\s+${TIME_TOKEN}(.*)$`, "i"));
+  const atTime = cleaned.match(new RegExp(`^(.*?)\\s+at\\s+${TIME_TOKEN}${TIME_RANGE_TAIL}(.*)$`, "i"));
   if (atTime && atTime[1]!.trim().length > 0 && atTime[1]!.trim().length < 80) {
     return {
-      timeLabel: normalizePrintTime(atTime[2]!),
-      title: withoutTime(atTime[1]!, atTime[3]!),
+      timeLabel: timeRangeLabel(atTime[2]!, atTime[3]),
+      title: withoutTime(atTime[1]!, atTime[4]!),
       notes: [],
       kind: "event",
     };
