@@ -71,9 +71,9 @@ export function attachGuards(page: Page, options: { allow?: RegExp } = {}) {
     // WebKit words a same-origin fetch killed by navigation as an access-control failure
     // (a same-origin request cannot fail access control for real).
     if (/Fetch API cannot load http: \/127\.0\.0\.1:\d+\/.* due to access control checks/.test(text) && realFailures === 0) return true;
-    // WebKit's and Firefox's unhandled rejection for a fetch or a response stream cut short, when nothing else failed.
+    // The unhandled rejection for a fetch or a response stream cut short (Chromium says "Failed to fetch"), when nothing else failed.
     // (WebKit does not always report the cancelled request itself, so only "nothing else failed" is required.)
-    if (/^TypeError: (Load failed|Error in input stream)$/.test(text) && realFailures === 0) return true;
+    if (/^TypeError: (Load failed|Error in input stream|Failed to fetch)$/.test(text) && realFailures === 0) return true;
     // Next's own note when a navigation cut its data fetch short; it then loads the page the plain way.
     if (/^Failed to fetch RSC payload for .* Falling back to browser navigation\. TypeError: (Load failed|NetworkError)/.test(text) && realFailures === 0) return true;
     return false;
