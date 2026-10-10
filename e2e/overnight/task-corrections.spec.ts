@@ -97,6 +97,8 @@ test("Apply adds the dated jobs once and ticks only the marked steps", async ({ 
   const check = await prisma.task.findFirstOrThrow({ where: { title: "Send the check to Precious Peony" } });
   expect(check.status).toBe("done");
   expect(check.summary).toBe("Tracking number: 9505 5136 9476 6283 7277 06");
+  // 16:22: "I just took care of the bank."
+  expect(await status("Bank and post office before the post office closes at noon")).toBe("done");
   expect(await status("Receive the ordered sword")).toBe("done");
   expect(await status("Ceremony Flower Sword")).toBe("done");
   expect(await status("Order the remaining s'mores ingredients")).toBe("done");

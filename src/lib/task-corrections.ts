@@ -146,8 +146,9 @@ export const DONE_MARKS: DoneMarkDef[] = [
 /**
  * Jobs David has since done, ticked only while the job still reads exactly as an earlier
  * card wrote it. 15:47: the post office receipt for the Precious Peony check.
+ * 16:22: "I just took care of the bank" (the post office half was the 11:45 receipt).
  */
-export const DONE_JOBS = ["Send the check to Precious Peony"];
+export const DONE_JOBS = ["Send the check to Precious Peony", "Bank and post office before the post office closes at noon"];
 
 /**
  * A note for a job an earlier card added, written only while the job has no note yet,
