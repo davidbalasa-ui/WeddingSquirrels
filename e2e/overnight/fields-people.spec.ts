@@ -363,6 +363,8 @@ test.describe("Person profile · guest record", () => {
     await page.getByRole("radio", { name: "Attending" }).click();
     await expect(page.getByRole("radio", { name: "Attending" })).toHaveAttribute("aria-checked", "true");
     await expect.poll(async () => (await prisma.guestPerson.findUnique({ where: { id: guestPersonId } }))?.rsvpStatus).toBe("attending");
+    // Firefox aborts a reload that starts while the save's own refresh is still in flight.
+    await page.waitForLoadState("networkidle");
     await page.reload();
     await expect(page.getByRole("radio", { name: "Attending" })).toHaveAttribute("aria-checked", "true");
     await page.getByRole("radio", { name: "Declined" }).click();
