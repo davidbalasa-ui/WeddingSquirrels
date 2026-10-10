@@ -280,6 +280,9 @@ test.describe("stay", () => {
     test.skip(!slot, "no stay slots in the test data");
     const before = slot!.occupant;
     await page.goto("/plan/stay");
+    // The bed box is a controlled input: a letter typed before React takes over is dropped
+    // when it hydrates (CI once read "weep guest"), so wait the way a person's pause would.
+    await waitForHydration(page);
     const input = page.getByPlaceholder("Tap to claim").first();
     await input.click();
     await page.keyboard.press("Control+a");
