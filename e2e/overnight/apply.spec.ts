@@ -31,6 +31,10 @@ test.describe("Apply the reconciled document", () => {
     const rehearsal = await titles("rehearsal");
     expect(wedding.length, "wedding moments after Apply").toBe(DOC_WEDDING);
     expect(rehearsal.length, "rehearsal moments after Apply (the 7 old rows must not be doubled)").toBe(DOC_REHEARSAL);
+    // The never-edited original rehearsal rows take the document's wording.
+    expect(rehearsal.sort()).toEqual(
+      RECONCILED_TIMELINE.filter((m) => m.schedule === "rehearsal").map((m) => m.title).sort(),
+    );
     const dupes = [...rehearsal, ...wedding].filter((title, i, all) => all.indexOf(title) !== i);
     expect(dupes, "repeated titles").toEqual([]);
     // Every page section shows the document's rows, none twice.
