@@ -93,7 +93,34 @@ export function momentForAudience(
     time: moment.timeLabel,
     title: moment.title,
     location: moment.location,
-    lines: scheduleLines(lines.map((detail) => detail.text)),
+    lines: scheduleLines(lines.map(labeledLine)),
+  };
+}
+
+/** A line as the page shows it, with the page's own label ("MC cue", "Music", "Open"). */
+function labeledLine(detail: ReviewMoment["details"][number]): string {
+  return `${DETAIL_LABEL[detail.kind]}${detail.text}`;
+}
+
+const DETAIL_LABEL: Record<ReviewMoment["details"][number]["kind"], string> = {
+  note: "",
+  cue: "MC cue: ",
+  music: "Music: ",
+  open: "Open: ",
+};
+
+/**
+ * A page moment as the binder prints it: the Wedding Day (or Thursday) page's own
+ * lines, in the page's order, with the page's labels. The only changes are the two
+ * schedule rules every schedule shares (scheduleLines): the individual shots read
+ * "Bridal party photos", and a bare line repeated by a timed one is printed once.
+ */
+export function momentPrintRow(moment: ReviewMoment): PacketScheduleRow {
+  return {
+    time: moment.timeLabel,
+    title: moment.title,
+    location: moment.location,
+    lines: scheduleLines(moment.details.map(labeledLine)),
   };
 }
 

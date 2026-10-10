@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { BudgetContractSnapshot } from "./money";
 import { MODULES } from "./modules";
+import { reviewMoment } from "./day-timeline-view";
 import {
   DAY_OF_PACKET_SECTIONS,
   PRINT_PACKETS,
@@ -244,18 +245,10 @@ test("money fingerprint formats the current production totals", () => {
 test("printable packet omits money and guests even if those sections have data", () => {
   const doc: PrintCenterDocument = {
     ...emptyPrintDocument(),
-    timeline: Array.from({ length: 19 }, (_, i) => ({
-      timeLabel: `${i}`,
-      title: `Moment ${i}`,
-      location: null,
-      notes: ["detail"],
-    })),
-    rehearsal: Array.from({ length: 7 }, (_, i) => ({
-      timeLabel: `${i}`,
-      title: `Rehearsal ${i}`,
-      location: null,
-      notes: [],
-    })),
+    moments: {
+      wedding: Array.from({ length: 19 }, (_, i) => reviewMoment({ startAt: "4:00 PM", endAt: null, notes: `Moment ${i}\ndetail` })),
+      rehearsal: Array.from({ length: 7 }, (_, i) => reviewMoment({ startAt: "5:00 PM", endAt: null, notes: `Rehearsal ${i}` })),
+    },
     households: [{ title: "Guest", members: [{ name: "Guest", rsvpLabel: "Awaiting RSVP" }] }],
     money: {
       committed: 21485.83,
@@ -268,8 +261,8 @@ test("printable packet omits money and guests even if those sections have data",
   assert.equal(printed.includes("money"), false);
   assert.equal(printed.includes("guests"), false);
   assert.equal(printed.includes("timeline"), true);
-  assert.equal(doc.timeline.length, 19);
-  assert.equal(doc.rehearsal.length, 7);
+  assert.equal(doc.moments.wedding.length, 19);
+  assert.equal(doc.moments.rehearsal.length, 7);
 });
 
 test("packet prints hair, shots, and decor when those projections have content", () => {
@@ -323,9 +316,11 @@ test("a binder prints open work first, then Thursday and Friday, then everything
     {
       ...doc,
       taskGroups: [{ title: "Monday, October 12", items: [{ title: "Total Wine", done: false, dueLabel: null, assignees: [] }] }],
-      rehearsal: [{ timeLabel: "1:00 PM", title: "Airbnb check in", location: null, notes: [] }],
-      timeline: [{ timeLabel: "3:30 PM", title: "Ceremony", location: null, notes: [] }],
-    } as typeof doc,
+      moments: {
+        rehearsal: [reviewMoment({ startAt: "1:00 PM", endAt: null, notes: "Airbnb check in" })],
+        wedding: [reviewMoment({ startAt: "3:30 PM", endAt: null, notes: "Ceremony" })],
+      },
+    },
     sectionsForPreset("binder"),
   );
   assert.deepEqual(order.slice(0, 3), ["tasks", "rehearsal", "timeline"]);

@@ -17,7 +17,6 @@ import {
   type PrintMealSectionView,
   type PrintQuickReference,
   type PrintRsvpSummary,
-  type PrintRunSheetPhase,
   type PrintSetupConfirmed,
   type PrintShotGroup,
   type PrintStaySectionView,
@@ -306,13 +305,13 @@ export type PrintCenterDocument = {
   timezone: string;
   mcNames: string[];
   quickReference: PrintQuickReference;
-  rehearsal: PrintTimelineRow[];
-  timeline: PrintTimelineRow[];
-  runSheet: PrintRunSheetPhase[];
-  /** The run sheet as the bride's packet prints it: getaway vehicle details left out. */
-  brideRunSheet: PrintRunSheetPhase[];
-  /** Every moment read for roles, so each packet can print its own schedule. */
+  /**
+   * Every moment exactly as the Wedding Day and Thursday pages read it. Every printed
+   * schedule (binder run sheet, rehearsal, each packet's own schedule) is drawn from these.
+   */
   moments: { rehearsal: ReviewMoment[]; wedding: ReviewMoment[] };
+  /** The wedding-day moments as the bride's packet prints them: getaway vehicle details left out. */
+  brideMoments: ReviewMoment[];
   mcCues: PrintMcCue[];
   vendorContacts: PrintContact[];
   dayOfContacts: PrintContact[];
@@ -785,9 +784,9 @@ export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId):
     case "schedule":
       return doc.moments.wedding.length + doc.moments.rehearsal.length > 0;
     case "rehearsal":
-      return doc.rehearsal.length > 0;
+      return doc.moments.rehearsal.length > 0;
     case "timeline":
-      return doc.runSheet.length > 0 || doc.timeline.length > 0;
+      return doc.moments.wedding.length > 0;
     case "mc":
       // A name alone is not a run of show; with no cue lines the section stays off the page.
       return doc.mcCues.length > 0;
@@ -878,11 +877,8 @@ export function emptyPrintDocument(): PrintCenterDocument {
       venueCloses: "11:00 PM",
       rsvp: null,
     },
-    rehearsal: [],
-    timeline: [],
-    runSheet: [],
-    brideRunSheet: [],
     moments: { rehearsal: [], wedding: [] },
+    brideMoments: [],
     mcCues: [],
     vendorContacts: [],
     dayOfContacts: [],

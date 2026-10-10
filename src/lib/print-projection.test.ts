@@ -12,7 +12,6 @@ import {
   printContactRole,
   projectCoordinatorRows,
   projectMealSections,
-  projectRunSheet,
   projectShotGroups,
   projectStaySections,
   projectTaskGroups,
@@ -121,44 +120,6 @@ test("print never copies household RSVP onto individual members", () => {
     legacy.households[0]?.members.map((row) => `${row.name}:${row.rsvpLabel}`),
     ["Household:Attending"],
   );
-});
-
-test("run sheet prefers precise timed details over the broad block window", () => {
-  const phases = projectRunSheet([
-    {
-      startAt: "2:45 PM",
-      endAt: "3:15 PM",
-      notes:
-        "First Look + Portraits\n2:00 PM — Haley and David first look\n2:15 PM — couple portraits\n2:30 PM — immediate family portraits\n2:45 PM — bridal party photos",
-      schedule: "wedding",
-      sortOrder: 10,
-    },
-    {
-      startAt: "1:00 PM",
-      endAt: "2:15 PM",
-      notes: "Final getting ready\nCaterer arrival time TBD\nMarriage license signing time still TBD (before ceremony vs 4:00 PM)",
-      schedule: "wedding",
-      sortOrder: 8,
-    },
-  ]);
-  const portraits = phases.find((phase) => phase.title === "First Look + Portraits");
-  assert.deepEqual(
-    portraits?.events.map((event) => `${event.timeLabel}|${event.title}`),
-    [
-      "2:00 PM|Haley and David first look",
-      "2:15 PM|couple portraits",
-      "2:30 PM|immediate family portraits",
-      "2:45 PM|bridal party photos",
-    ],
-  );
-  assert.equal(portraits?.events.some((event) => event.timeLabel.includes("3:15")), false);
-  const gettingReady = phases.find((phase) => phase.title === "Final getting ready");
-  assert.equal(gettingReady?.events.some((event) => event.title === "Caterer arrival" && event.timeLabel === "Time TBD"), true);
-  assert.equal(
-    gettingReady?.events.some((event) => event.title === "Marriage-license signing" && event.timeLabel === "Time TBD"),
-    true,
-  );
-  assert.equal(gettingReady?.events.some((event) => /before ceremony vs/i.test(event.title)), false);
 });
 
 test("duplicate MC cues keep the complete spoken version once", () => {
@@ -517,42 +478,7 @@ test("a first name shared with someone who has no phone prints TBD, not the othe
   assert.equal(view.members.find((m) => m.name === "Kaylie")?.phone, "231-329-3264");
 });
 
-test("run sheet: a time moved to the margin keeps the verb and leaves no stranded period", () => {
-  const [phase] = projectRunSheet([
-    {
-      startAt: "8:50 PM",
-      endAt: "9:00 PM",
-      notes: "Overnight check moment\nChildren arrive at 1:15 PM.\nReturn to dancing at 9:00 PM.\nOpen items: Confirm whether children leave at 8:00 PM or after the 8:15 PM send-off.",
-      schedule: "wedding",
-    },
-  ]);
-  assert.deepEqual(
-    phase!.events.map((event) => [event.timeLabel, event.title]),
-    [
-      ["1:15 PM", "Children arrive"],
-      ["9:00 PM", "Return to dancing"],
-    ],
-  );
-  // An open question stays a note, unmangled.
-  assert.deepEqual(phase!.notes, ["Open items: Confirm whether children leave at 8:00 PM or after the 8:15 PM send-off."]);
-});
-
-test("run sheet keeps a time range on one line and shares its AM/PM across both ends", () => {
-  const phases = projectRunSheet([
-    {
-      startAt: "10:30 AM",
-      endAt: "12:30 PM",
-      notes:
-        "Venue opens\nAvalon (coordinator) arrives 10:30 or 11:00 AM\nParty stations: bathrooms for hair, bedrooms for makeup (see Hair & Makeup page)\nWedding party arrives at 12:15–12:25 PM",
-      schedule: "wedding",
-      sortOrder: 1,
-    },
-  ]);
-  const venue = phases.find((phase) => phase.title === "Venue opens");
-  const lines = venue?.events.map((event) => `${event.timeLabel}|${event.title}`) ?? [];
-  assert.equal(lines.includes("10:30 AM – 11:00 AM|Avalon (coordinator) arrives"), true, lines.join("\n"));
-  assert.equal(lines.includes("12:15 PM – 12:25 PM|Wedding party arrives"), true, lines.join("\n"));
-  assert.equal(lines.some((line) => /–12:25|\(\s*\)/.test(line)), false, lines.join("\n"));
+test("print cleanup still drops the page pointer from a hair-and-makeup line elsewhere in the binder", () => {
   assert.equal(
     professionalizePrintLine("Party stations: bathrooms for hair, bedrooms for makeup (see Hair & Makeup page)"),
     "Party stations: bathrooms for hair, bedrooms for makeup",

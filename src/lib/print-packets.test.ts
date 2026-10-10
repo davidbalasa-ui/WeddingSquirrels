@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseBlockNotes } from "./day-of-now";
 import { reviewMoment } from "./day-timeline-view";
-import { momentForAudience, packetSchedule, withoutBrideSecrets } from "./print-packets";
+import { momentForAudience, momentPrintRow, packetSchedule, withoutBrideSecrets } from "./print-packets";
 import { RECONCILED_TIMELINE, reconciledNotes } from "./reconciled-timeline";
 import { REHEARSAL_SCHEDULE_SEED } from "./rehearsal";
 
@@ -144,4 +144,44 @@ test("a getaway line inside another moment is left out of the bride's copy", () 
   const parsed = parseBlockNotes(withoutBrideSecrets(block).notes);
   assert.equal(parsed.title, "Reception ends");
   assert.deepEqual(parsed.detailLines, ["Guest departure and final send-off if used."]);
+});
+
+test("the binder prints each page moment with the page's own lines, in the page's order", () => {
+  const page = reviewMoment(
+    {
+      startAt: "10:30 AM",
+      endAt: "12:30 PM",
+      notes:
+        "Venue opens\nAvalon (coordinator) arrives 10:30 or 11:00 AM\nKatie does Haley's hair — confirmed, not DIY\nChildren arrive at 1:15 PM.\nMC cue 4:55: \"Honored guests, cocktail hour is nearing its end.\"\nOpen items: Confirm MOB will meet Dan.",
+    },
+    ctx,
+  );
+  const printed = momentPrintRow(page);
+  assert.equal(printed.time, page.timeLabel);
+  assert.equal(printed.title, "Venue opens");
+  // Nothing reworded, re-timed or moved: the words David sees on the page.
+  assert.deepEqual(printed.lines, [
+    "Avalon (coordinator) arrives 10:30 or 11:00 AM",
+    "Katie does Haley's hair — confirmed, not DIY",
+    "Children arrive at 1:15 PM.",
+    'MC cue: 4:55: "Honored guests, cocktail hour is nearing its end."',
+    "Open: Confirm MOB will meet Dan.",
+  ]);
+});
+
+test("every line the binder prints for the reconciled day is a line of that page moment", () => {
+  for (const moment of [...moments.rehearsal, ...moments.wedding]) {
+    const page = new Set(moment.details.map((detail) => detail.text));
+    for (const line of momentPrintRow(moment).lines) {
+      const text = line.replace(/^(?:MC cue|Music|Open): /, "");
+      assert.ok(page.has(text) || line === "Bridal party photos", `${moment.title}: ${line}`);
+    }
+  }
+  const getaway = moments.wedding.find((moment) => moment.title === "Getaway vehicle arrives")!;
+  assert.deepEqual(momentPrintRow(getaway).lines, [
+    "MOB or another helper meets Dan Vandenheede.",
+    "Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
+    "Keep the vehicle details secret from the bride.",
+    "Open: Confirm MOB will meet Dan and give her his phone number and arrival time.",
+  ]);
 });
