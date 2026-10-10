@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser } from "@playwright/test";
 import { parseBlockNotes } from "../../src/lib/day-of-now";
-import { BUNKS_NOTE, RECONCILED_RETIRED_SEED_KEYS, RECONCILED_TIMELINE, reconciledNotes } from "../../src/lib/reconciled-timeline";
+import { BUNKS_NOTE, CHECKIN_ACCESS_NOTE, RECONCILED_RETIRED_SEED_KEYS, RECONCILED_TIMELINE, reconciledNotes } from "../../src/lib/reconciled-timeline";
 import { BUNKS_NOTE_ON_JOB, NEW_TASKS } from "../../src/lib/task-corrections";
 import { overnightPrisma, resetOvernightData, snapshotTasks } from "./db";
 import { attachGuards } from "./helpers";
@@ -136,7 +136,7 @@ test("the bunks note lands on Thursday's check-in moment, or on the sleeping job
     ...moment,
     location: undefined,
     openItems: "Confirm the Airbnb address and who has check-in access.",
-    lines: moment.lines.filter((line) => line !== BUNKS_NOTE),
+    lines: moment.lines.filter((line) => line !== BUNKS_NOTE && line !== CHECKIN_ACCESS_NOTE),
   });
   const job = { title: BUNKS_NOTE_ON_JOB.title, summary: BUNKS_NOTE_ON_JOB.before };
 

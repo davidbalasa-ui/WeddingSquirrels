@@ -141,13 +141,51 @@ test("the bank and post office job is ticked done, only while it reads as card 3
 
 test("David's 16:33 'Keep kids at 115 for now' joins card 3's Harmony and Melody note, only while it reads as the card wrote it", () => {
   const item = NEW_TASKS.find((def) => def.title === "Harmony and Melody’s schedule: discuss with Avalon")!;
-  assert.match(item.summary!, /Kids stay at 1:15 for now \(David, Oct 10\)\.$/);
-  const was = item.summary!.replace(" Kids stay at 1:15 for now (David, Oct 10).", "");
+  const latest = " They arrive at 1:15; first look photos will need to fit with family photos maybe (David, Oct 10).";
+  assert.ok(item.summary!.endsWith(` Kids stay at 1:15 for now (David, Oct 10).${latest}`));
+  const was = item.summary!.replace(` Kids stay at 1:15 for now (David, Oct 10).${latest}`, "");
   const row = { id: "hm", title: item.title, status: "todo", parentId: null, summary: was };
   assert.deepEqual(planTaskCorrections([row]).noteFills, [{ id: "hm", title: item.title, summary: item.summary, before: was }]);
   // Changed by David, or already up to date: left alone.
   assert.equal(planTaskCorrections([{ ...row, summary: `${was} Ask Avalon Monday.` }]).noteFills.length, 0);
   assert.equal(planTaskCorrections([{ ...row, summary: item.summary }]).noteFills.length, 0);
+  // 22:27: the 16:33 note also comes up to date.
+  const at1633 = item.summary!.replace(latest, "");
+  assert.deepEqual(planTaskCorrections([{ ...row, summary: at1633 }]).noteFills, [{ id: "hm", title: item.title, summary: item.summary, before: at1633 }]);
+});
+
+test("David's 22:27 answers on the open list: two jobs closed, three noted, his own notes left alone", () => {
+  const job = (id: string, title: string, summary: string | null = null) => ({ id, title, status: "todo", parentId: null, summary });
+  const def = (title: string) => NEW_TASKS.find((row) => row.title === title)!;
+  const insurance = def("Confirm Black Sheep has all insurance and vendor documents");
+  const payment = def("Confirm Precious Peony’s payment status");
+  const selection = def("Send Black Sheep the completed selection list and the vendor information packet");
+  const dinnerware = def("Confirm/pay the dinnerware amount");
+  const setAside = def("Set aside the $800 payment discussed");
+  const dinnerwareWas = dinnerware.summary!.replace(" Need to send (David, Oct 10).", "");
+  const setAsideWas = setAside.summary!.replace(" Need to find (David, Oct 10).", "");
+  const plan = planTaskCorrections([
+    job("in", insurance.title, insurance.summary),
+    job("pp", payment.title),
+    job("sl", selection.title),
+    job("dw", dinnerware.title, dinnerwareWas),
+    job("sa", setAside.title, setAsideWas),
+  ]);
+  assert.deepEqual(
+    plan.marks.map((row) => row.id),
+    ["in", "pp"],
+  );
+  assert.deepEqual(plan.noteFills, [
+    { id: "sl", title: selection.title, summary: "Need to send (David, Oct 10)." },
+    { id: "pp", title: payment.title, summary: "Payment sent (David, Oct 10)." },
+    { id: "dw", title: dinnerware.title, summary: dinnerware.summary, before: dinnerwareWas },
+    { id: "sa", title: setAside.title, summary: setAside.summary, before: setAsideWas },
+  ]);
+  assert.ok(dinnerware.summary!.endsWith("Need to send (David, Oct 10)."));
+  assert.ok(setAside.summary!.endsWith("Need to find (David, Oct 10)."));
+  // A note he wrote himself stays.
+  const own = planTaskCorrections([job("sl", selection.title, "Sent Monday"), job("dw", dinnerware.title, "Paid")]);
+  assert.equal(own.noteFills.length, 0);
 });
 
 test("the Airbnb sleeping assignments card and its bed step are ticked done (David, 16:36)", () => {
