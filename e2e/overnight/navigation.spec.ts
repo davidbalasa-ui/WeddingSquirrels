@@ -21,10 +21,17 @@ async function scrollDown(page: Page, to = 100_000) {
   return y;
 }
 
+/** What the app remembered and where the page is, for the message when a position comes back wrong. */
+const describeScroll = (page: Page) =>
+  page.evaluate(() => {
+    const root = document.scrollingElement ?? document.documentElement;
+    return `scrollY=${Math.round(window.scrollY)} height=${root.scrollHeight} viewport=${window.innerHeight} memory=${window.sessionStorage.getItem("ws:navigation") ?? "(none)"}`;
+  });
+
 async function expectBackAt(page: Page, path: string, y: number) {
   await expect(page).toHaveURL(new RegExp(`${path.replace(/[?]/g, "\\?")}$`));
   await expect.poll(() => scrollY(page), { timeout: 5000 }).toBeGreaterThan(y - 6);
-  expect(await scrollY(page)).toBeLessThan(y + 6);
+  expect(await scrollY(page), `back to ${path} at ${y}: ${await describeScroll(page)}`).toBeLessThan(y + 6);
 }
 
 test("the app restores scroll positions itself", async ({ page }) => {
