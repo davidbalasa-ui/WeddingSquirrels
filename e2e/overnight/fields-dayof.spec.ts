@@ -69,9 +69,10 @@ test.describe("Day-of pages", () => {
       const response = await page.goto(path);
       expect(response?.status() ?? 0, `${path} status`).toBeLessThan(400);
       await expect(page.locator("body")).not.toContainText(/Something went wrong|Application error/);
+      // /day/now sends the browser on to /day; reading the page mid-redirect loses the page.
+      if (path === "/day/now") await expect(page, "/day/now redirects to /day").toHaveURL(/\/day$/);
       await expectNoSidewaysScroll(page);
     }
-    await expect(page, "/day/now redirects to /day").toHaveURL(/\/day$/);
 
     await page.goto("/day/mc");
     expect(await page.locator("main input:not([type=hidden]), main textarea, main select").count(), "MC run of show is read-only").toBe(0);
