@@ -41,8 +41,10 @@ const KEPT = [
 
 test("Shots page lists the family shots without the extended family", async ({ page }) => {
   await page.goto("/day/shots");
-  const body = await page.locator("main").innerText();
-  for (const title of KEPT) expect(body).toContain(title);
+  const main = page.locator("main");
+  // Wait for the list itself, not the loading screen, before reading it.
+  for (const title of KEPT) await expect(main).toContainText(title);
+  const body = await main.innerText();
   for (const title of REMOVED) expect(body).not.toContain(title);
 });
 
