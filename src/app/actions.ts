@@ -26,6 +26,7 @@ import {
   MONEY_EPSILON,
   canSeeBudgetItem,
   clampNonNegativeMoney,
+  parseMoneyText,
 } from "@/lib/money";
 import { syncBudgetItemAmountPaid } from "@/lib/money-page";
 import {
@@ -202,10 +203,18 @@ export async function saveTaskWorkspace(
     return { error: "You can only save tasks assigned to you." };
   }
 
-  const amountNeeded =
-    amountNeededRaw === "" ? null : Number.parseFloat(amountNeededRaw.replace(/[$,]/g, ""));
-  const amountSpent =
-    amountSpentRaw === "" ? 0 : Number.parseFloat(amountSpentRaw.replace(/[$,]/g, ""));
+  if (!title) return { error: "Add a title." };
+
+  // A typed value that is not a number is an error, never a silent 0 or blank.
+  const amountNeeded = parseMoneyText(amountNeededRaw);
+  if (amountNeeded === undefined) {
+    return { error: "Money needed must be a number, like 250 or 12.50." };
+  }
+  const amountSpentParsed = parseMoneyText(amountSpentRaw);
+  if (amountSpentParsed === undefined) {
+    return { error: "Money spent must be a number, like 250 or 12.50." };
+  }
+  const amountSpent = amountSpentParsed ?? 0;
 
   // Only masters (or unscoped accounts) can reassign / add new people
   const canManageOwners = session.isMaster || !session.assigneeFilter?.length;
@@ -214,12 +223,12 @@ export async function saveTaskWorkspace(
     await prisma.task.update({
       where: { id },
       data: {
-        ...(title ? { title } : {}),
+        title,
         planNotes,
         summary,
         dueDate: parseDueDate(dueDateRaw),
-        amountNeeded: Number.isFinite(amountNeeded as number) ? amountNeeded : null,
-        amountSpent: Number.isFinite(amountSpent) ? amountSpent : 0,
+        amountNeeded,
+        amountSpent,
         status: markDone ? "done" : task.status === "done" ? "todo" : task.status,
         completedAt: markDone ? new Date() : null,
       },

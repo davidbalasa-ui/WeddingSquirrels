@@ -96,8 +96,16 @@ export function TaskWorkspaceForm({
                       className="w-full border-0 bg-transparent p-0 text-[15px] font-semibold leading-snug outline-none focus:underline"
                       onBlur={(event) => {
                         const next = event.target.value.trim();
-                        if (!next || next === step.title) return;
+                        if (!next) {
+                          // A step keeps its name; an emptied box shows the saved title again.
+                          event.target.value = step.title;
+                          return;
+                        }
+                        if (next === step.title) return;
                         startTransition(() => renameTask(step.id, next));
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") event.currentTarget.blur();
                       }}
                     />
                     <form action={saveStepNotes} className="mt-2">

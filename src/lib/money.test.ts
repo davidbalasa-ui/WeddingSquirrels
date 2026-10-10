@@ -9,6 +9,7 @@ import {
   buildMoneySummary,
   canSeeBudgetItem,
   clampNonNegativeMoney,
+  parseMoneyText,
   completedPayments,
   contractPaidTotal,
   contractRemaining,
@@ -482,4 +483,18 @@ test("moneyInputProblem accepts the ways people type dollars and names what is w
   assert.equal(moneyInputProblem("0", { positive: true }), "Enter an amount greater than $0");
   assert.equal(moneyInputProblem("0.00", { required: true, positive: true }), "Enter an amount greater than $0");
   assert.equal(moneyInputProblem("0.01", { positive: true }), null);
+});
+
+test("parseMoneyText reads plain amounts, blank as none, and words as invalid", () => {
+  assert.equal(parseMoneyText("250"), 250);
+  assert.equal(parseMoneyText("$1,250.50"), 1250.5);
+  assert.equal(parseMoneyText(" 12.50 "), 12.5);
+  assert.equal(parseMoneyText(".5"), 0.5);
+  assert.equal(parseMoneyText("007"), 7);
+  assert.equal(parseMoneyText("-5"), -5);
+  assert.equal(parseMoneyText(""), null);
+  assert.equal(parseMoneyText("   "), null);
+  assert.equal(parseMoneyText("abc"), undefined);
+  assert.equal(parseMoneyText("12 dollars"), undefined);
+  assert.equal(parseMoneyText("1.2.3"), undefined);
 });

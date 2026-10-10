@@ -124,6 +124,7 @@ function ShoppingItemRow({
   tasks: TaskOption[];
 }) {
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const ownerLabel =
     item.owner?.name ||
@@ -197,9 +198,20 @@ function ShoppingItemRow({
 
       {open ? (
         <form
-          action={async (fd) => {
-            await saveShoppingItem(fd);
-            setOpen(false);
+          onSubmit={(event) => {
+            // Submitting through a transition keeps the typed values on screen
+            // when the name is blank (a plain form action would reset them).
+            event.preventDefault();
+            const fd = new FormData(event.currentTarget);
+            if (!String(fd.get("name") || "").trim()) {
+              setError("Add an item name.");
+              return;
+            }
+            setError(null);
+            startTransition(async () => {
+              await saveShoppingItem(fd);
+              setOpen(false);
+            });
           }}
           className="flex flex-col gap-3 border-t border-line px-3 pb-3 pt-2"
         >
@@ -214,6 +226,7 @@ function ShoppingItemRow({
             />
             <span className="text-sm font-semibold">Purchased</span>
           </label>
+          {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
           <div className="flex flex-wrap gap-2">
             <button type="submit" className="btn-primary">
               Save item
@@ -248,6 +261,8 @@ export function ShoppingListBoard({
   showPurchased: boolean;
 }) {
   const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addPending, startAdding] = useTransition();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -346,15 +361,25 @@ export function ShoppingListBoard({
             </button>
           </div>
           <form
-            action={async (fd) => {
-              await createShoppingItem(fd);
-              setAdding(false);
+            onSubmit={(event) => {
+              event.preventDefault();
+              const fd = new FormData(event.currentTarget);
+              if (!String(fd.get("name") || "").trim()) {
+                setAddError("Add an item name.");
+                return;
+              }
+              setAddError(null);
+              startAdding(async () => {
+                await createShoppingItem(fd);
+                setAdding(false);
+              });
             }}
             className="flex flex-col gap-3 px-3 py-3"
           >
             <ItemFields tasks={tasks} autoFocus />
-            <button type="submit" className="btn-primary">
-              Add to list
+            {addError ? <p className="text-sm text-[var(--danger)]">{addError}</p> : null}
+            <button type="submit" className="btn-primary" disabled={addPending}>
+              {addPending ? "Adding…" : "Add to list"}
             </button>
           </form>
         </section>

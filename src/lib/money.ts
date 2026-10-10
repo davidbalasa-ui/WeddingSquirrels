@@ -131,6 +131,19 @@ export function clampNonNegativeMoney(value: number) {
   return Math.max(0, value);
 }
 
+/**
+ * Reads a typed money amount ("250", "$1,250.50", ".5", "-5"). Blank means no
+ * amount (null); anything that is not a plain number ("abc", "12 dollars") is
+ * invalid (undefined) so a form can say so instead of saving 0.
+ */
+export function parseMoneyText(raw: string): number | null | undefined {
+  const cleaned = raw.replace(/[$,\s]/g, "");
+  if (!cleaned) return null;
+  if (!/^-?(\d+\.?\d*|\.\d+)$/.test(cleaned)) return undefined;
+  const value = Number.parseFloat(cleaned);
+  return Number.isFinite(value) ? value : undefined;
+}
+
 export function hasExplicitSchedule(
   contract: { payments?: BudgetPaymentSnapshot[] },
 ): boolean {
