@@ -26,7 +26,7 @@ export function EscalatePriorityButton({
       }}
       className={
         compact
-          ? `shrink-0 rounded-full border px-3 py-2 text-xs font-semibold min-h-[40px] ${
+          ? `shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold leading-tight min-h-[32px] ${
               escalated
                 ? "border-[var(--warn)] bg-[var(--warn-soft)] text-[var(--warn)]"
                 : "border-line text-muted"
