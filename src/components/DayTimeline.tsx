@@ -186,6 +186,9 @@ export function DayTimeline({
   const draftRef = useRef(draft);
   const timersRef = useRef<Map<string, number>>(new Map());
   const inflightRef = useRef<Map<string, number>>(new Map());
+  /** What this device last sent for a row while that save is still in flight, so a second save typed
+   *  behind it builds on it instead of being merged against it as if another device had made it. */
+  const sentRef = useRef<Map<string, { startAt: string; endAt: string; notes: string }>>(new Map());
   const draftSavingRef = useRef(false);
   const persistRowRef = useRef<(row: Row, opts: { reorder: boolean }) => Promise<void>>(async () => {});
   const persistDraftRef = useRef<(draft: Draft, opts?: { abandon?: boolean }) => Promise<unknown>>(
@@ -317,14 +320,13 @@ export function DayTimeline({
       ),
     );
 
-    const result = await runAction(() => saveTimelineBlock({
-      id: row.id,
-      startAt: prepared.startAt,
-      endAt: prepared.endAt ?? "",
-      notes: prepared.notes,
-    }));
+    const sending = { startAt: prepared.startAt, endAt: prepared.endAt ?? "", notes: prepared.notes };
+    const base = sentRef.current.get(row.id) ?? row.lastSaved;
+    sentRef.current.set(row.id, sending);
+    const result = await runAction(() => saveTimelineBlock({ id: row.id, ...sending, base }));
 
     if (inflightRef.current.get(row.id) !== row.localRev) return;
+    sentRef.current.delete(row.id);
 
     if (!result.ok) {
       if (result.reason === "unreachable") setUnreachable(true);
@@ -347,16 +349,13 @@ export function DayTimeline({
       return;
     }
 
+    // Another phone or tab may have changed the moment since this one loaded it; the server
+    // then merged the two edits and sends back what it kept.
+    const saved = result.merged ?? sending;
     const updated: Row = {
       ...row,
-      startAt: prepared.startAt,
-      endAt: prepared.endAt ?? "",
-      notes: prepared.notes,
-      lastSaved: {
-        startAt: prepared.startAt,
-        endAt: prepared.endAt ?? "",
-        notes: prepared.notes,
-      },
+      ...saved,
+      lastSaved: { ...saved },
       status: "saved",
       error: null,
       notice: keptNotice(prepared),
