@@ -2510,7 +2510,8 @@ export async function updateInboxTask(
     const people = await resolveAssigneeIds(input.ownerIds, null, {
       restrictTo: session.assigneeFilter,
     });
-    if (people.length) await setTaskAssignees(taskId, people);
+    // An empty list means "nobody": the note shows Unassigned, like the workspace editor.
+    await setTaskAssignees(taskId, people);
   }
 
   revalidatePath("/today");
