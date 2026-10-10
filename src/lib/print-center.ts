@@ -814,7 +814,8 @@ export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId):
     case "guests":
       return doc.households.length > 0;
     case "stay":
-      return doc.stay.length > 0;
+      // The mini moon always has something to say, even before the Airbnb rooms are set.
+      return true;
     case "meals":
       return doc.meals.length > 0 || doc.shopping.length > 0;
     case "tasks":
@@ -833,10 +834,17 @@ export function printableSections(
   selected: Iterable<PrintSectionId>,
 ): PrintSectionId[] {
   const chosen = new Set(selected);
-  return PRINT_SECTION_IDS.filter(
+  const printed = PRINT_SECTION_IDS.filter(
     (id) => chosen.has(id) && doc.availableSections.includes(id) && sectionHasContent(doc, id),
   );
+  // David, 2026-10-10: in a binder the open items come first, then Thursday's and
+  // Friday's schedules, then everything else. Packets without open work keep their order.
+  if (!printed.includes("tasks")) return printed;
+  const first = BINDER_PRIORITY.filter((id) => printed.includes(id));
+  return [...first, ...printed.filter((id) => !first.includes(id))];
 }
+
+const BINDER_PRIORITY: PrintSectionId[] = ["tasks", "rehearsal", "timeline"];
 
 export function documentContainsInternalSecrets(text: string): boolean {
   return /pinHash|PinAccount|ws_session|DATABASE_URL|PIN_SESSION_SECRET/i.test(text);

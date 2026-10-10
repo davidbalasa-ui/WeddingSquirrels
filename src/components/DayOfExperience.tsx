@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { lockAction } from "@/app/actions";
 import { DayTabs } from "@/components/DayTabs";
 import { NeedSomeone } from "@/components/DayOfContacts";
+import { scheduleLines } from "@/lib/schedule-consistency";
 import {
   formatMinutesUntil,
   viewFromExperienceSource,
@@ -54,7 +55,7 @@ function LogoutButton() {
 }
 
 function MomentNotes({ moment, limit = 3 }: { moment: DayOfMoment; limit?: number }) {
-  const lines = moment.detailLines.slice(0, limit);
+  const lines = scheduleLines(moment.detailLines).slice(0, limit);
   if (!moment.location && lines.length === 0) return null;
   return (
     <div className="mt-2 space-y-1">

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { buildMcRunOfShow } from "@/lib/mc-run-of-show";
 import { loadPlaybookItems } from "@/lib/playbook-data";
 import { requirePageSession } from "@/lib/session";
+import { ceremonyLineUpTime } from "@/lib/schedule-consistency";
 
 export default async function McRunOfShowPage() {
   await requirePageSession({ need: "canSeeTimeline" });
@@ -18,6 +19,7 @@ export default async function McRunOfShowPage() {
     loadPlaybookItems("lineup"),
   ]);
   const show = buildMcRunOfShow(blocks, people);
+  const lineUpTime = ceremonyLineUpTime(blocks) ?? lineup.find((row) => row.startAt)?.startAt ?? null;
 
   return (
     <>
@@ -28,7 +30,7 @@ export default async function McRunOfShowPage() {
         backLabel="Day-of"
       />
       <DayTabs />
-      <McRunOfShowView show={show} lineup={lineup} />
+      <McRunOfShowView show={show} lineup={lineup} lineUpTime={lineUpTime} />
     </>
   );
 }

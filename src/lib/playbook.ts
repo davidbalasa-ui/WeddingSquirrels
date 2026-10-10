@@ -339,39 +339,39 @@ const DECOR: PlaybookRecord[] = [
 const LINEUP: PlaybookRecord[] = [
   item("lineup", "Ceremony processional", 0, "Mother of the Groom & Father of the Groom", {
     key: "lineup-mog-fog",
-    startAt: "3:20 PM",
+    startAt: "3:15 PM",
   }),
   item("lineup", "Ceremony processional", 1, "Officiant & Mother of the Bride", {
     key: "lineup-officiant-mob",
-    startAt: "3:20 PM",
+    startAt: "3:15 PM",
   }),
   item("lineup", "Ceremony processional", 2, "David", {
     key: "lineup-david",
-    startAt: "3:20 PM",
+    startAt: "3:15 PM",
   }),
   item("lineup", "Ceremony processional", 3, "Skila & Trinity", {
     key: "lineup-skila-trinity",
-    startAt: "3:20 PM",
+    startAt: "3:15 PM",
   }),
   item("lineup", "Ceremony processional", 4, "Victoria & Bri", {
     key: "lineup-victoria-bri",
-    startAt: "3:20 PM",
+    startAt: "3:15 PM",
   }),
   item("lineup", "Ceremony processional", 5, "Kaylie & Evan", {
     key: "lineup-kaylie-evan",
-    startAt: "3:20 PM",
+    startAt: "3:15 PM",
   }),
   item("lineup", "Ceremony processional", 6, "Braxton & Andi", {
     key: "lineup-braxton-andi",
-    startAt: "3:20 PM",
+    startAt: "3:15 PM",
   }),
   item("lineup", "Ceremony processional", 7, "Melody — flower girl", {
     key: "lineup-melody",
-    startAt: "3:20 PM",
+    startAt: "3:15 PM",
   }),
   item("lineup", "Ceremony processional", 8, "Haley with Dad", {
     key: "lineup-haley-dad",
-    startAt: "3:20 PM",
+    startAt: "3:15 PM",
   }),
 ];
 

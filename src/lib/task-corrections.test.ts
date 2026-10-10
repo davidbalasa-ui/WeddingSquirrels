@@ -48,8 +48,23 @@ test("task corrections are empty once applied", () => {
 });
 
 test("jobs are due on David's days, at the same noon the Due date box saves", () => {
-  assert.deepEqual([...new Set(NEW_TASKS.map((def) => def.due))], ["2026-10-12", "2026-10-13"]);
+  assert.deepEqual([...new Set(NEW_TASKS.map((def) => def.due).filter(Boolean))], ["2026-10-12", "2026-10-13", "2026-10-10"]);
+  // The marriage license day is the one David wasn't sure of; it gets no date.
+  assert.equal(NEW_TASKS.find((def) => /marriage license/.test(def.title))?.due, undefined);
   assert.equal(NEW_TASKS.filter((def) => def.due === "2026-10-12").length, 1);
   assert.equal(dueDateFor("2026-10-13").getDate(), 13);
   assert.equal(dueDateFor("2026-10-13").getHours(), 12);
+});
+
+test("a job already on the list in other words is not added twice", () => {
+  const plan = planTaskCorrections([
+    { id: "a", title: "Mail Precious Peony the final check", status: "todo", parentId: null },
+    { id: "b", title: "Get the marriage license", status: "todo", parentId: null },
+  ]);
+  assert.deepEqual(plan.alreadyListed, [
+    { title: "Send the check to Precious Peony", existing: "Mail Precious Peony the final check" },
+    { title: "Pick up the marriage license from the courthouse", existing: "Get the marriage license" },
+  ]);
+  assert.equal(plan.inserts.some((row) => /Precious Peony|marriage license/.test(row.title)), false);
+  assert.equal(plan.inserts.some((row) => row.title === "Find my rehearsal outfit" && row.due === null), true);
 });

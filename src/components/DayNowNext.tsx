@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PersonAvatar } from "@/components/PersonAvatar";
+import { scheduleLines } from "@/lib/schedule-consistency";
 import { profileHref } from "@/lib/connections";
 import {
   buildDayNowNextSnapshot,
@@ -80,7 +81,7 @@ function BlockRow({
         : "";
 
   const detailLimit = emphasis === "now" ? 4 : emphasis === "next" ? 3 : 2;
-  const visibleDetails = block.detailLines.slice(0, detailLimit);
+  const visibleDetails = scheduleLines(block.detailLines).slice(0, detailLimit);
 
   return (
     <article className={`px-3 py-2 ${bgClass}`}>
