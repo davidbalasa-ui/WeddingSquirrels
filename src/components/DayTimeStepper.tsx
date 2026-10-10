@@ -32,11 +32,18 @@ function ClockFace({
   const minuteRef = useRef<HTMLInputElement>(null);
   const focusedRef = useRef(0);
   const partsRef = useRef(parts);
+  /** The raw time last handed to the parent, until the next render has checked what it kept. */
+  const [pendingRaw, setPendingRaw] = useState<string | null>(null);
 
   if (value !== seen) {
     setSeen(value);
     setParts(clockPartsFromRaw(value));
+  } else if (pendingRaw !== null && value !== pendingRaw) {
+    // The parent kept a different time (a start typed away stays as saved), so its
+    // value never changed and the digits must be re-read from it.
+    setParts(clockPartsFromRaw(value));
   }
+  if (pendingRaw !== null) setPendingRaw(null);
 
   useEffect(() => {
     partsRef.current = parts;
@@ -48,7 +55,9 @@ function ClockFace({
     const committed = { ...next, hour, minute };
     partsRef.current = committed;
     setParts(committed);
-    onCommit(rawFromClockParts(committed));
+    const raw = rawFromClockParts(committed);
+    setPendingRaw(raw);
+    onCommit(raw);
   }
 
   function handleFocus() {
