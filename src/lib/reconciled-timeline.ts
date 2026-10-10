@@ -166,8 +166,8 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
     lines: ["Shift to the later-evening music plan.", "Pause for the children’s farewell/send-off."],
     openItems: "Confirm each child’s ride and whether children leave at 8:00 PM or after the 8:15 PM send-off." },
   { seedKey: "wedding_getaway_arrives", schedule: W, phase: "evening", startAt: "8:20 PM", endAt: "8:35 PM", title: "Getaway vehicle arrives",
-    lines: ["MOB or another helper meets San Vandenheede.", "Show San where to park, give him the “Just Married” sign, and tell the groom.", "Keep the vehicle details secret from the bride."],
-    openItems: "Confirm MOB will meet San and give her his phone number and arrival time." },
+    lines: ["MOB or another helper meets Dan Vandenheede.", "Show Dan where to park, give him the “Just Married” sign, and tell the groom.", "Keep the vehicle details secret from the bride."],
+    openItems: "Confirm MOB will meet Dan and give her his phone number and arrival time." },
   { seedKey: "wedding_dollar_dance", schedule: W, phase: "evening", startAt: "8:30 PM", endAt: "8:40 PM", title: "Dollar dance",
     lines: ["MC announces the dollar dance.", "Barry photographs the dance."] },
   { seedKey: "wedding_getaway_photos", schedule: W, phase: "evening", startAt: "8:40 PM", endAt: "8:50 PM", title: "Getaway vehicle photos",
@@ -201,6 +201,27 @@ export function reconciledNotes(moment: ReconciledMoment): string {
   const detailLines = [...moment.lines];
   if (moment.openItems) detailLines.push(`Open items: ${moment.openItems}`);
   return composeBlockNotes({ title: moment.title, location: moment.location ?? null, detailLines });
+}
+
+/**
+ * Earlier wordings of a moment as the app itself wrote them. A row that still reads
+ * exactly like one was never edited, so Apply brings it up to date; any other wording
+ * is the owner's and stays.
+ */
+const EARLIER_WORDINGS: Record<string, Array<Pick<ReconciledMoment, "lines" | "openItems"> & { correction: string }>> = {
+  // David, 2026-10-10: the driver is Dan, not San (the document had it wrong).
+  wedding_getaway_arrives: [
+    {
+      lines: ["MOB or another helper meets San Vandenheede.", "Show San where to park, give him the “Just Married” sign, and tell the groom.", "Keep the vehicle details secret from the bride."],
+      openItems: "Confirm MOB will meet San and give her his phone number and arrival time.",
+      correction: "San → Dan",
+    },
+  ],
+};
+
+function earlierWording(moment: ReconciledMoment, notes: string): string | null {
+  const match = (EARLIER_WORDINGS[moment.seedKey] ?? []).find((wording) => reconciledNotes({ ...moment, ...wording }) === notes);
+  return match ? match.correction : null;
 }
 
 export function phaseForSeedKey(seedKey: string | null | undefined): string | null {
@@ -257,6 +278,8 @@ export type ReconciledPlan = {
   updates: Array<ReconciledWrite & { id: string; before: { startAt: string; endAt: string | null; title: string } }>;
   unchanged: string[];
   removals: Array<{ id: string; seedKey: string; title: string }>;
+  /** Moments still worded exactly as the app first wrote them, brought up to the document's corrected wording. */
+  rewords: Array<ReconciledWrite & { id: string; correction: string; before: { startAt: string; endAt: string | null; title: string } }>;
   /** Rows in the database the document does not mention. Left alone. */
   untouched: Array<{ id: string; seedKey: string | null; title: string; startAt: string }>;
   /**
@@ -314,7 +337,7 @@ function sameRehearsalMoment(row: ExistingTimelineRow, moment: ReconciledMoment)
 }
 
 export function planReconciledTimeline(existing: ExistingTimelineRow[]): ReconciledPlan {
-  const plan: ReconciledPlan = { inserts: [], updates: [], unchanged: [], removals: [], untouched: [], doubles: [] };
+  const plan: ReconciledPlan = { inserts: [], updates: [], rewords: [], unchanged: [], removals: [], untouched: [], doubles: [] };
   const wanted = new Set(RECONCILED_TIMELINE.map((moment) => moment.seedKey));
   const bySeed = new Map<string, ExistingTimelineRow>();
   for (const row of existing) {
@@ -385,11 +408,15 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
       plan.unchanged.push(moment.seedKey);
       return;
     }
-    plan.updates.push({
+    const change = {
       ...write,
       id: row.id,
       before: { startAt: row.startAt, endAt: row.endAt, title: parseBlockNotes(row.notes).title },
-    });
+    };
+    const sameTimes = row.startAt === write.startAt && (row.endAt ?? null) === write.endAt;
+    const correction = sameTimes ? earlierWording(moment, row.notes) : null;
+    if (correction) plan.rewords.push({ ...change, correction });
+    else plan.updates.push(change);
   });
 
   const claimed = new Set([...bySeed.values()].map((row) => row.id));
@@ -419,7 +446,7 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
 }
 
 export function reconciledPlanIsEmpty(plan: ReconciledPlan): boolean {
-  return plan.inserts.length === 0 && plan.removals.length === 0;
+  return plan.inserts.length === 0 && plan.removals.length === 0 && (plan.rewords ?? []).length === 0;
 }
 
 /** The other copy of a doubled moment, when `keepId` is one of a pair the owner can choose between. */

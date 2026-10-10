@@ -27,7 +27,7 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
   const phonesToAdd = full.phones.filter((row) => row.status === "add");
   const phonesDiffer = full.phones.filter((row) => row.status === "differs");
   const phonesNotFound = full.phones.filter((row) => row.status === "not_found");
-  const nothingToApply = taskCorrectionsPlanIsEmpty(plan) && phonesToAdd.length === 0 && full.contacts.length === 0 && full.dayJobs.length === 0;
+  const nothingToApply = taskCorrectionsPlanIsEmpty(plan) && phonesToAdd.length === 0 && full.contacts.length === 0 && full.dayJobs.length === 0 && full.dayJobRewords.length === 0;
   if (state === "done" || (nothingToApply && phonesDiffer.length === 0)) return null;
 
   async function pickPhone(label: string) {
@@ -94,7 +94,8 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
         From your printout: {count(plan.inserts.length, "new job")}, {count(plan.marks.length, "item")} marked done
         {phonesToAdd.length ? `, ${count(phonesToAdd.length, "phone number")} added` : ""}
         {full.contacts.length ? `, ${count(full.contacts.length, "contact")} added` : ""}
-        {full.dayJobs.length ? `, ${count(full.dayJobs.length, "Day-of job")} added` : ""}. Nothing is reworded or deleted.
+        {full.dayJobs.length ? `, ${count(full.dayJobs.length, "Day-of job")} added` : ""}
+        {full.dayJobRewords.length ? `, ${count(full.dayJobRewords.length, "Day-of job")} corrected` : ""}. Nothing you wrote is reworded or deleted.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" className="btn-primary min-h-11 px-4 py-2 text-sm" onClick={() => void apply()} disabled={state === "working"}>
@@ -127,6 +128,18 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
                 {full.dayJobs.map((row) => (
                   <li key={row.title}>
                     {row.title} <span className="text-muted">({row.notes.split(" · ")[0]})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {full.dayJobRewords.length ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Corrected Day-of jobs</p>
+              <ul className="mt-1 list-none space-y-0.5 p-0">
+                {full.dayJobRewords.map((row) => (
+                  <li key={row.id}>
+                    {row.title} <span className="text-muted">({row.correction})</span>
                   </li>
                 ))}
               </ul>

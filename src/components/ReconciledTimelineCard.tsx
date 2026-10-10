@@ -147,7 +147,8 @@ export function ReconciledTimelineCard({ plan }: { plan: ReconciledPlan }) {
       <p className="text-sm font-semibold">Reconciled timeline update ready</p>
       <p className="mt-0.5 text-xs text-muted">
         From the “David and Haley Reconciled Wedding Timeline” document: {count(plan.inserts.length, "new moment")},
-        {" "}{count(plan.removals.length, "moment")} folded into others. Moments already on the timeline keep your wording
+        {" "}{count(plan.removals.length, "moment")} folded into others
+        {plan.rewords.length ? `, ${count(plan.rewords.length, "moment")} corrected where the app’s own wording was wrong` : ""}. Moments already on the timeline keep your wording
         {plan.updates.length ? ` (${plan.updates.length} ${plan.updates.length === 1 ? "reads" : "read"} differently from the document)` : ""}.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -169,6 +170,19 @@ export function ReconciledTimelineCard({ plan }: { plan: ReconciledPlan }) {
               <ul className="mt-1 list-none space-y-0.5 p-0">
                 {plan.inserts.map((row) => (
                   <li key={row.seedKey}>{row.startAt}{row.endAt ? ` – ${row.endAt}` : ""} · {row.notes.split("\n")[0]}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {plan.rewords.length ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Corrected</p>
+              <ul className="mt-1 list-none space-y-0.5 p-0">
+                {plan.rewords.map((row) => (
+                  <li key={row.id}>
+                    {row.startAt} · {row.before.title}
+                    <span className="text-muted"> ({row.correction})</span>
+                  </li>
                 ))}
               </ul>
             </div>

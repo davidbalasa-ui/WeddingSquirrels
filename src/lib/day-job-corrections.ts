@@ -20,16 +20,44 @@ export const SCHEDULE_DAY_JOBS: DayJobDef[] = [
     notes: "4:00 PM · Sign the marriage license",
   },
   {
-    title: "MOB or another helper meets San Vandenheede.",
-    notes: "8:20 PM · Getaway vehicle arrives. Show San where to park, give him the “Just Married” sign, and tell the groom.",
+    title: "MOB or another helper meets Dan Vandenheede.",
+    notes: "8:20 PM · Getaway vehicle arrives. Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
   },
 ];
+
+/**
+ * Jobs as this card first wrote them, before a correction. A job still reading exactly
+ * like this was never edited, so the card brings it up to date; an edited one stays.
+ */
+const EARLIER_DAY_JOBS: Array<DayJobDef & { now: string; correction: string }> = [
+  {
+    // David, 2026-10-10: the driver is Dan, not San.
+    title: "MOB or another helper meets San Vandenheede.",
+    notes: "8:20 PM · Getaway vehicle arrives. Show San where to park, give him the “Just Married” sign, and tell the groom.",
+    now: "MOB or another helper meets Dan Vandenheede.",
+    correction: "San → Dan",
+  },
+];
+
+export type DayJobReword = { id: string; title: string; notes: string; before: string; correction: string };
 
 function key(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 export function planDayJobs(existing: Array<{ title: string }>): DayJobDef[] {
-  const have = new Set(existing.map((row) => key(row.title)));
+  // A job still under an earlier title is the same job: it is corrected, never added again.
+  const have = new Set(
+    existing.map((row) => key(EARLIER_DAY_JOBS.find((old) => key(old.title) === key(row.title))?.now ?? row.title)),
+  );
   return SCHEDULE_DAY_JOBS.filter((job) => !have.has(key(job.title)));
+}
+
+/** Jobs this card added that still read exactly as it first wrote them, with their corrected words. */
+export function planDayJobRewords(existing: Array<{ id: string; title: string; notes: string | null }>): DayJobReword[] {
+  return existing.flatMap((row) => {
+    const old = EARLIER_DAY_JOBS.find((job) => job.title === row.title && job.notes === row.notes);
+    const now = old && SCHEDULE_DAY_JOBS.find((job) => job.title === old.now);
+    return old && now ? [{ id: row.id, title: now.title, notes: now.notes, before: row.title, correction: old.correction }] : [];
+  });
 }
