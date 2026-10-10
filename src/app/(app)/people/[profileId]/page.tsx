@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { BackLink } from "@/components/BackLink";
 import { lockAction } from "@/app/actions";
 import { PeopleProfileView } from "@/components/PeopleProfileView";
 import { parseProfileId } from "@/lib/people-directory";
@@ -25,9 +25,9 @@ export default async function PeopleProfilePage({
   return (
     <>
       <div className="flex items-center justify-between gap-3 pt-5">
-        <Link href="/people" className="min-h-11 text-sm font-semibold text-[var(--accent)]">
+        <BackLink href="/people" className="min-h-11 text-sm font-semibold text-[var(--accent)]">
           ← People
-        </Link>
+        </BackLink>
         <form action={lockAction}>
           <button
             type="submit"

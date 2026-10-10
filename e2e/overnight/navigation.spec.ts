@@ -1,0 +1,133 @@
+import { expect, test, type Page } from "@playwright/test";
+import { overnightPrisma, resetOvernightData } from "./db";
+import { attachGuards } from "./helpers";
+
+/**
+ * Going back lands where you were, not at the top: the browser's back button,
+ * a reload, and the app's own "← Back" links alike.
+ */
+const prisma = overnightPrisma();
+test.beforeAll(async () => resetOvernightData(prisma));
+test.afterAll(async () => prisma.$disconnect());
+
+const scrollY = (page: Page) => page.evaluate(() => Math.round(window.scrollY));
+
+/** Scrolls a long way down and returns where that landed (the page may be shorter than asked). */
+async function scrollDown(page: Page, to = 100_000) {
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), to);
+  await page.waitForTimeout(250);
+  const y = await scrollY(page);
+  expect(y, "the page is long enough to scroll").toBeGreaterThan(100);
+  return y;
+}
+
+async function expectBackAt(page: Page, path: string, y: number) {
+  await expect(page).toHaveURL(new RegExp(`${path.replace(/[?]/g, "\\?")}$`));
+  await expect.poll(() => scrollY(page), { timeout: 5000 }).toBeGreaterThan(y - 6);
+  expect(await scrollY(page)).toBeLessThan(y + 6);
+}
+
+test("the app restores scroll positions itself", async ({ page }) => {
+  await page.goto("/today");
+  await expect.poll(() => page.evaluate(() => window.history.scrollRestoration)).toBe("manual");
+});
+
+for (const [from, label] of [
+  ["/plan/timeline", "Wedding Day"],
+  ["/day", "Day-of"],
+  ["/print", "Print Center"],
+] as const) {
+  test(`${label}: bottom nav to Today, browser back keeps the position`, async ({ page }) => {
+    const guards = attachGuards(page);
+    await page.goto(from, { waitUntil: "networkidle" });
+    const y = await scrollDown(page);
+    await page.locator('nav.nav-bar a[href="/today"]').click();
+    await expect(page).toHaveURL(/\/today$/);
+    await expect.poll(() => scrollY(page)).toBe(0);
+    await page.goBack();
+    await expectBackAt(page, from, y);
+    guards.assertClean();
+  });
+}
+
+test("Wedding Day: a reload keeps the position", async ({ page }) => {
+  await page.goto("/plan/timeline", { waitUntil: "networkidle" });
+  const y = await scrollDown(page, 3000);
+  await page.reload({ waitUntil: "networkidle" });
+  await expectBackAt(page, "/plan/timeline", y);
+});
+
+test("Day-of: open a person from the bottom of the page, browser back keeps the position", async ({ page }) => {
+  const guards = attachGuards(page);
+  await page.goto("/day", { waitUntil: "networkidle" });
+  const link = page.locator('a[href^="/people/"]').last();
+  await link.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
+  const y = await scrollY(page);
+  expect(y).toBeGreaterThan(100);
+  await link.click();
+  await expect(page).toHaveURL(/\/people\//);
+  await page.goBack();
+  await expectBackAt(page, "/day", y);
+  guards.assertClean();
+});
+
+test("People: open a day-of contact, '← People' brings the list back as it was", async ({ page }) => {
+  const guards = attachGuards(page);
+  await page.goto("/people?tab=day-of", { waitUntil: "networkidle" });
+  const link = page.locator('a[href^="/people/contact"]').last();
+  await link.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
+  const y = await scrollY(page);
+  expect(y).toBeGreaterThan(50);
+  await link.click();
+  await expect(page).toHaveURL(/\/people\/contact/);
+  await page.getByRole("link", { name: "← People" }).click();
+  // Same tab, same place, not the top of the guest list.
+  await expectBackAt(page, "/people?tab=day-of", y);
+  guards.assertClean();
+});
+
+test("Plan: open Tasks, '← Plan' returns to the same spot on Plan", async ({ page }) => {
+  const guards = attachGuards(page);
+  await page.goto("/plan", { waitUntil: "networkidle" });
+  await scrollDown(page);
+  const link = page.locator('a[href="/plan/tasks"]').first();
+  await link.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
+  const y = await scrollY(page);
+  expect(y).toBeGreaterThan(50);
+  await link.click();
+  await expect(page).toHaveURL(/\/plan\/tasks$/);
+  await page.getByRole("link", { name: "← Plan" }).click();
+  await expectBackAt(page, "/plan", y);
+  guards.assertClean();
+});
+
+test("Tasks: open a task, '← Back to Tasks' returns to the same spot in the list", async ({ page }) => {
+  const guards = attachGuards(page);
+  await page.goto("/plan/tasks", { waitUntil: "networkidle" });
+  const link = page.locator('a[href^="/work/"]').last();
+  await link.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
+  const y = await scrollY(page);
+  await link.click();
+  await expect(page).toHaveURL(/\/work\//);
+  await page.getByRole("link", { name: /← Back/ }).click();
+  await expectBackAt(page, "/plan/tasks", y);
+  guards.assertClean();
+});
+
+test("'← Plan' opened fresh (no history) still goes to Plan", async ({ page }) => {
+  await page.goto("/plan/calendar", { waitUntil: "networkidle" });
+  await page.getByRole("link", { name: "← Plan" }).click();
+  await expect(page).toHaveURL(/\/plan$/);
+});
+
+test("a tap on a far-away link lands at the top of the new page", async ({ page }) => {
+  await page.goto("/plan/timeline", { waitUntil: "networkidle" });
+  await scrollDown(page);
+  await page.locator('nav.nav-bar a[href^="/people"]').click();
+  await expect(page).toHaveURL(/\/people/);
+  await expect.poll(() => scrollY(page)).toBe(0);
+});

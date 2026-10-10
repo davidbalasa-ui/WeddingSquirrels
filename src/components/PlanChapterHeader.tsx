@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackLink } from "@/components/BackLink";
 import { lockAction } from "@/app/actions";
 
 export function PlanChapterHeader({
@@ -15,12 +15,12 @@ export function PlanChapterHeader({
   return (
     <header className="plan-chapter-header mb-6 pt-5">
       <div className="flex items-center justify-between gap-3">
-        <Link
+        <BackLink
           href={backHref}
           className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent)]"
         >
           ← {backLabel}
-        </Link>
+        </BackLink>
         <form action={lockAction}>
           <button
             type="submit"

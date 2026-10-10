@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackLink } from "@/components/BackLink";
 import { lockAction } from "@/app/actions";
 
 export function MoneyChapterHeader({
@@ -11,12 +11,12 @@ export function MoneyChapterHeader({
   return (
     <header className="mb-6 pt-5">
       <div className="flex items-center justify-between gap-3">
-        <Link
+        <BackLink
           href="/money"
           className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent)]"
         >
           ← Money
-        </Link>
+        </BackLink>
         <form action={lockAction}>
           <button
             type="submit"

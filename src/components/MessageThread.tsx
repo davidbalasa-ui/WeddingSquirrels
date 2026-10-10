@@ -1,4 +1,5 @@
 "use client";
+import { BackLink } from "@/components/BackLink";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -127,13 +128,13 @@ export function MessageThread({ thread }: { thread: MessageThreadView }) {
     <div className="flex min-h-[calc(100dvh-140px)] flex-col pb-2">
       <header className="sticky top-0 z-20 -mx-4 border-b border-line bg-[color-mix(in_srgb,var(--bg)_88%,transparent)] px-4 py-3 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <Link
+          <BackLink
             href="/messages"
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-lg text-[var(--accent)]"
             aria-label="Back to messages"
           >
             ←
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-[family-name:var(--font-display)] text-2xl leading-tight tracking-tight">
               {thread.withName}

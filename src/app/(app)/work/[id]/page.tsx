@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackLink } from "@/components/BackLink";
 import { AppHeader } from "@/components/AppHeader";
 import { RelatedLinkList } from "@/components/RelatedLinkList";
 import { TaskWorkspaceForm } from "@/components/TaskWorkspaceForm";
@@ -75,9 +75,9 @@ export default async function WorkPage({
   return (
     <>
       <AppHeader session={session} title={task.title} subtitle="Task workspace" />
-      <Link href={returnTo} className="mb-3 inline-block text-sm font-semibold text-[var(--accent)]">
+      <BackLink href={returnTo} className="mb-3 inline-block text-sm font-semibold text-[var(--accent)]">
         {taskWorkspaceBackLabel(returnTo)}
-      </Link>
+      </BackLink>
       <RelatedLinkList title="People" items={peopleLinks} />
       <RelatedLinkList title="Money" items={moneyLinks} />
       <RelatedLinkList
