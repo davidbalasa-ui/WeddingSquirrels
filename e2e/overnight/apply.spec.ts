@@ -162,3 +162,87 @@ test("a doubled rehearsal day is folded back to one row per moment, keeping Davi
   }).toPass({ timeout: 20_000 });
   await resetOvernightData(prisma);
 });
+
+test("a timeline that matches the document says there is nothing to apply", async ({ page }) => {
+  await resetOvernightData(prisma, { reconciled: false });
+  const { parsedTimeFields } = await import("../../src/lib/day-of-time");
+  await prisma.task.updateMany({ where: { timelineBlockId: { not: null } }, data: { timelineBlockId: null } });
+  await prisma.timelineBlock.deleteMany({});
+  for (const [index, moment] of RECONCILED_TIMELINE.entries()) {
+    await prisma.timelineBlock.create({
+      data: {
+        seedKey: moment.seedKey,
+        schedule: moment.schedule,
+        sortOrder: index,
+        startAt: moment.startAt,
+        endAt: moment.endAt,
+        notes: reconciledNotes(moment),
+        ...parsedTimeFields(moment.startAt, moment.endAt),
+      },
+    });
+  }
+  await page.goto("/plan/timeline");
+  await expect(page.getByTestId("reconciled-up-to-date")).toHaveText(
+    "Everything from the reconciled timeline document is already on the page. Nothing to apply.",
+  );
+  await expect(page.getByRole("button", { name: "Apply to the timeline" })).toHaveCount(0);
+  await resetOvernightData(prisma);
+});
+
+// David, 2026-10-10: "No apply button on wedding day." When nothing is left to apply the
+// page says so, and a Thursday moment doubled with both copies edited is listed for him to
+// pick which one stays.
+test("a doubled rehearsal moment with both copies edited is listed with one tap to keep either", async ({ page }) => {
+  await resetOvernightData(prisma);
+  const guards = attachGuards(page);
+  const { parsedTimeFields } = await import("../../src/lib/day-of-time");
+  // The document's Thursday copies (as an earlier Apply left them), the dinner one edited,
+  // next to David's own dinner row saved without a key.
+  await prisma.timelineBlock.deleteMany({ where: { schedule: "rehearsal" } });
+  for (const [index, moment] of RECONCILED_TIMELINE.filter((m) => m.schedule === "rehearsal").entries()) {
+    const notes = reconciledNotes(moment);
+    await prisma.timelineBlock.create({
+      data: {
+        seedKey: moment.seedKey,
+        schedule: "rehearsal",
+        sortOrder: index,
+        startAt: moment.startAt,
+        endAt: moment.endAt,
+        notes: moment.seedKey === "reh.dinner" ? `${notes}\nBring the place cards` : notes,
+        ...parsedTimeFields(moment.startAt, moment.endAt),
+      },
+    });
+  }
+  const dinner = RECONCILED_TIMELINE.find((m) => m.seedKey === "reh.dinner")!;
+  const docCopy = await prisma.timelineBlock.findFirstOrThrow({ where: { seedKey: dinner.seedKey } });
+  await prisma.timelineBlock.create({
+    data: {
+      id: "own-dinner",
+      schedule: "rehearsal",
+      sortOrder: 50,
+      startAt: dinner.startAt,
+      endAt: dinner.endAt,
+      notes: "Dinner\nLocation: Hawkshead",
+      ...parsedTimeFields(dinner.startAt, dinner.endAt),
+    },
+  });
+
+  await page.goto("/plan/timeline");
+  const doubles = page.getByTestId("reconciled-doubles");
+  await expect(doubles).toContainText("1 rehearsal moment is on the page twice");
+  await expect(doubles.getByRole("button", { name: "Keep “Dinner”" })).toBeVisible();
+  const reloaded = page.waitForEvent("load");
+  await doubles.getByRole("button", { name: "Keep “Dinner”" }).click();
+  await reloaded;
+
+  await expect.poll(() => prisma.timelineBlock.count({ where: { id: docCopy.id } })).toBe(0);
+  expect((await prisma.timelineBlock.findUnique({ where: { id: "own-dinner" } }))?.notes).toBe("Dinner\nLocation: Hawkshead");
+  await expect(async () => {
+    await page.goto("/plan/timeline");
+    await expect(page.getByRole("heading").first()).toBeVisible();
+    await expect(page.getByTestId("reconciled-doubles")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Apply to the timeline" })).toHaveCount(0);
+  }).toPass({ timeout: 20_000 });
+  await guards.assertClean();
+  await resetOvernightData(prisma);
+});

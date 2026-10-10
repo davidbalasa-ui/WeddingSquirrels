@@ -5,6 +5,7 @@ import { REHEARSAL_SCHEDULE_SEED } from "./rehearsal";
 import {
   RECONCILED_RETIRED_SEED_KEYS,
   RECONCILED_TIMELINE,
+  doubledMomentToRemove,
   phaseForBlock,
   planReconciledTimeline,
   reconciledNotes,
@@ -224,4 +225,17 @@ test("rehearsal rows typed by hand at the document's times are matched, never do
   const after = doubled.filter((row) => !second.removals.some((gone) => gone.id === row.id));
   assert.equal(planReconciledTimeline(after).removals.length, 0);
   assert.equal(planReconciledTimeline(after).inserts.filter((row) => row.schedule === "rehearsal").length, 0);
+
+  // David, 2026-10-10: "No apply button" — the edited pair is listed for him to pick one.
+  const left = planReconciledTimeline(after);
+  assert.deepEqual(left.doubles, [
+    { startAt: "4:15 PM", mine: { id: "typed-2", title: "Dinner" }, document: { id: "doc-3", title: parseBlockNotes(doubled.find((row) => row.id === "doc-3")!.notes).title } },
+  ]);
+  assert.equal(doubledMomentToRemove(left, "typed-2"), "doc-3");
+  assert.equal(doubledMomentToRemove(left, "doc-3"), "typed-2");
+  assert.equal(doubledMomentToRemove(left, "typed-0"), null);
+  // Once one copy goes, nothing is left to pick.
+  const picked = after.filter((row) => row.id !== "doc-3");
+  assert.deepEqual(planReconciledTimeline(picked).doubles, []);
+  assert.equal(planReconciledTimeline(picked).inserts.filter((row) => row.schedule === "rehearsal").length, 0);
 });
