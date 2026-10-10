@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { PeopleGroupList } from "@/components/PeopleGroupList";
+import { BackLink } from "@/components/BackLink";
 import { V2PageHeader } from "@/components/V2PageHeader";
 import { groupDirectoryEntries } from "@/lib/people-directory";
 import { loadPeopleHubData } from "@/lib/people-hub";
@@ -23,9 +23,9 @@ export default async function PeopleFamilyPage() {
         entries={entries}
       />
       <div className="mt-6">
-        <Link href="/people" className="text-sm font-semibold text-[var(--accent)]">
+        <BackLink href="/people" className="text-sm font-semibold text-[var(--accent)]">
           ← Back to People
-        </Link>
+        </BackLink>
       </div>
     </>
   );

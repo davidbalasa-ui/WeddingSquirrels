@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { PeopleEntryList } from "@/components/PeopleEntryList";
+import { BackLink } from "@/components/BackLink";
 import { peopleHubEmptyLabel } from "@/lib/people-experience";
 import { loadPeopleHubData } from "@/lib/people-hub";
 import { requirePageSession } from "@/lib/session";
@@ -23,9 +23,9 @@ export default async function PeopleVendorsPage() {
         tab="vendors"
       />
       <div className="mt-6">
-        <Link href="/people" className="text-sm font-semibold text-[var(--accent)]">
+        <BackLink href="/people" className="text-sm font-semibold text-[var(--accent)]">
           ← Back to People
-        </Link>
+        </BackLink>
       </div>
     </>
   );
