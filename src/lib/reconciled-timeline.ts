@@ -259,6 +259,15 @@ export type ReconciledPlan = {
   removals: Array<{ id: string; seedKey: string; title: string }>;
   /** Rows in the database the document does not mention. Left alone. */
   untouched: Array<{ id: string; seedKey: string | null; title: string; startAt: string }>;
+  /**
+   * A rehearsal moment on the page twice where both copies were edited: Apply removes
+   * neither, and the owner picks which one stays.
+   */
+  doubles: Array<{
+    startAt: string;
+    mine: { id: string; title: string };
+    document: { id: string; title: string };
+  }>;
 };
 
 /**
@@ -305,7 +314,7 @@ function sameRehearsalMoment(row: ExistingTimelineRow, moment: ReconciledMoment)
 }
 
 export function planReconciledTimeline(existing: ExistingTimelineRow[]): ReconciledPlan {
-  const plan: ReconciledPlan = { inserts: [], updates: [], unchanged: [], removals: [], untouched: [] };
+  const plan: ReconciledPlan = { inserts: [], updates: [], unchanged: [], removals: [], untouched: [], doubles: [] };
   const wanted = new Set(RECONCILED_TIMELINE.map((moment) => moment.seedKey));
   const bySeed = new Map<string, ExistingTimelineRow>();
   for (const row of existing) {
@@ -345,6 +354,12 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
       plan.removals.push({ id: keyed.id, seedKey: moment.seedKey, title: moment.title });
       removedIds.add(keyed.id);
       bySeed.set(moment.seedKey, twin);
+    } else {
+      plan.doubles.push({
+        startAt: twin.startAt,
+        mine: { id: twin.id, title: parseBlockNotes(twin.notes).title },
+        document: { id: keyed.id, title: parseBlockNotes(keyed.notes).title },
+      });
     }
   }
 
@@ -405,4 +420,13 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
 
 export function reconciledPlanIsEmpty(plan: ReconciledPlan): boolean {
   return plan.inserts.length === 0 && plan.removals.length === 0;
+}
+
+/** The other copy of a doubled moment, when `keepId` is one of a pair the owner can choose between. */
+export function doubledMomentToRemove(plan: ReconciledPlan, keepId: string): string | null {
+  for (const pair of plan.doubles) {
+    if (pair.mine.id === keepId) return pair.document.id;
+    if (pair.document.id === keepId) return pair.mine.id;
+  }
+  return null;
 }

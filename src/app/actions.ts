@@ -60,7 +60,7 @@ import {
 import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { taskHref } from "@/lib/entity-links";
-import { planReconciledTimeline } from "@/lib/reconciled-timeline";
+import { doubledMomentToRemove, planReconciledTimeline } from "@/lib/reconciled-timeline";
 import { dueDateFor } from "@/lib/task-corrections";
 import { loadPrintoutCorrectionsPlan, addContact, writePhone } from "@/lib/printout-corrections-data";
 import { safeReturnTo, TASKS_HOME } from "@/lib/return-to";
@@ -3738,6 +3738,32 @@ export async function restoreReconciledMomentAction(
   }
   await resequenceTimeline(update.schedule);
   revalidateSchedule(update.schedule);
+  return { ok: true };
+}
+
+/**
+ * A rehearsal moment on the page twice, both copies edited: keeps the one the owner
+ * taps and removes the other. Only rows the plan lists as such a pair can go.
+ */
+export async function keepDoubledMomentAction(
+  keepId: string,
+): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "not_found" | "failed" }> {
+  const session = await requireScheduleEditor("wedding");
+  if (!session || !session.isMaster) return { ok: false, reason: "forbidden" };
+
+  const existing = await prisma.timelineBlock.findMany({
+    select: { id: true, seedKey: true, schedule: true, startAt: true, endAt: true, notes: true, sortOrder: true },
+  });
+  const removeId = doubledMomentToRemove(planReconciledTimeline(existing), keepId);
+  if (!removeId) return { ok: false, reason: "not_found" };
+  try {
+    await prisma.timelineBlock.delete({ where: { id: removeId } });
+  } catch {
+    return { ok: false, reason: "failed" };
+  }
+  await resequenceTimeline("rehearsal");
+  revalidateSchedule("rehearsal");
+  revalidateSchedule("wedding");
   return { ok: true };
 }
 
