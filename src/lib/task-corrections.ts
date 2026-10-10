@@ -147,6 +147,8 @@ export const DONE_MARKS: DoneMarkDef[] = [
   // 14:45: "Black Sheep’s tables, chairs, décor, and rental selections are completed and highlighted. Still need to send them."
   { card: "Finalize & Send Black Sheep Details", step: "Finalize table and chair quantities for Black Sheep" },
   { card: "Finalize & Send Black Sheep Details", step: "Finalize remaining decor/rental selections for Black Sheep" },
+  // 20:40: his one-week check-in gave the wedding party every Friday time.
+  { card: "Day before", step: "Confirm tomorrow’s call times with wedding party" },
   // 16:36: "I had given updates about not continuing with sleeping arrangements."
   { card: "Finish Airbnb Sleeping Assignments", step: "Assign the remaining required Airbnb beds" },
 ];

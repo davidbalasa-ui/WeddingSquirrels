@@ -23,6 +23,8 @@ export const SCHEDULE_DAY_JOBS: DayJobDef[] = [
     title: "MOB or another helper meets Dan Vandenheede.",
     notes: "8:20 PM · Getaway vehicle arrives. Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
   },
+  // David, 2026-10-10 22:04: "Wendy is in charge of teardown".
+  { title: "Wendy is in charge of teardown.", notes: "10:00 PM · Tear down and cleanup" },
 ];
 
 /**
