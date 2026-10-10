@@ -50,6 +50,13 @@ export const BUNKS_NOTE = "Skila, Trinity and Bri claimed their bunks (David, Oc
 export const NO_SIGNAL_NOTE =
   "Black Sheep Shelter has little to no internet or cell service. Save or screenshot the addresses, directions, and schedule before leaving the Airbnb.";
 
+/**
+ * David, 2026-10-10 21:08: "Add it" to Hawkshead's published golf dress code as the rehearsal
+ * dinner outfit note. Quoted from https://www.hawksheadlinks.com/golf/rates.
+ */
+export const HAWKSHEAD_DRESS_CODE_NOTE =
+  "Hawkshead golf dress code for the wedding party and guests (hawksheadlinks.com/golf/rates). Men: collared shirts with sleeves, slacks, golf shorts, or walking shorts are recommended; blue jeans and t-shirts are discouraged. Women: dresses, skirts, slacks, golf shorts, mid-length shorts, and blouses are recommended; halter tops, t-shirts, sweatpants, blue jeans, tennis dresses, athletic-style shorts, and cut-offs are not permitted.";
+
 export const BLACK_CLOTHES_NOTE = "Get ready clothes for the bridal party are black (David, Oct 10).";
 
 const W = "wedding" as const;
@@ -67,7 +74,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "reh.depart-airbnb", schedule: R, phase: "rehearsal", startAt: "3:45 PM", endAt: null, title: "Depart for Hawkshead",
     location: "Hawkshead, 523 Hawks Nest Drive, South Haven", lines: ["Allow 25–30 minutes."] },
   { seedKey: "reh.dinner", schedule: R, phase: "rehearsal", startAt: "4:15 PM", endAt: "5:40 PM", title: "Rehearsal dinner",
-    lines: ["Dinner, welcome toasts, reminders, and logistics."] },
+    lines: ["Dinner, welcome toasts, reminders, and logistics.", HAWKSHEAD_DRESS_CODE_NOTE] },
   { seedKey: "reh.depart-bss", schedule: R, phase: "rehearsal", startAt: "5:40 PM", endAt: null, title: "Depart for Black Sheep Shelter",
     lines: ["Allow 10–15 minutes."] },
   { seedKey: "reh.ceremony", schedule: R, phase: "rehearsal", startAt: "6:00 PM", endAt: "7:00 PM", title: "Ceremony rehearsal",
@@ -238,6 +245,7 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
       correction: "no cell service at Black Sheep",
     },
   ],
+  "reh.dinner": [{ lines: ["Dinner, welcome toasts, reminders, and logistics."], correction: "Hawkshead dress code" }],
   "reh.return": [{ lines: ["Steam dresses and suits.", "Dessert and game night."], correction: "dessert most likely at the Airbnb" }],
   wedding_party_leaves: [
     {

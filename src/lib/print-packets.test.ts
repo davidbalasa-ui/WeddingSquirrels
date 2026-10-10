@@ -185,3 +185,10 @@ test("every line the binder prints for the reconciled day is a line of that page
     "Open: Confirm MOB will meet Dan and give her his phone number and arrival time.",
   ]);
 });
+
+// David, 2026-10-10 21:08: add Hawkshead's golf dress code to Thursday's rehearsal dinner.
+test("the wedding party schedule prints the Hawkshead dress code under the rehearsal dinner", () => {
+  const dinner = packetSchedule(moments, "party").rehearsal.find((row) => row.title === "Rehearsal dinner");
+  assert.ok(dinner);
+  assert.ok(dinner.lines.some((line) => line.includes("Hawkshead golf dress code") && line.includes("cut-offs are not permitted")));
+});
