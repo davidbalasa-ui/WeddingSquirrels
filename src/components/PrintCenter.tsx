@@ -59,7 +59,7 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
           </p>
         </header>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {PRINT_PACKETS.map((card) => (
             <PresetCard
               key={card.id}
