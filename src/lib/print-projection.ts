@@ -461,15 +461,18 @@ export function projectTaskGroups(
     dueLabel: string | null;
     assignees: string[];
   }>,
+  /** "open" for the Open work pages; "done" for the separate Completed work section. */
+  which: "open" | "done" = "open",
 ): PrintTaskGroupView[] {
+  const keep = (status: string) => taskStatusIsDone(status) === (which === "done");
   const childrenByParent = new Map<string, typeof tasks>();
   const parents = new Map<string, (typeof tasks)[number]>();
   const standalone: typeof tasks = [];
 
   for (const task of tasks) {
     if (task.parentId) {
-      // Open work prints only what is still open; finished steps stay in the app.
-      if (taskStatusIsDone(task.status)) continue;
+      // Open work prints only what is still open; finished steps print under Completed work.
+      if (!keep(task.status)) continue;
       const list = childrenByParent.get(task.parentId) ?? [];
       list.push(task);
       childrenByParent.set(task.parentId, list);
@@ -501,13 +504,13 @@ export function projectTaskGroups(
     if (usedParents.has(task.id)) continue;
     if (childrenByParent.has(task.id)) continue;
     if (tasks.some((other) => other.parentId === task.id)) continue;
-    if (taskStatusIsDone(task.status)) continue;
+    if (!keep(task.status)) continue;
     standalone.push(task);
   }
 
   if (standalone.length) {
     groups.push({
-      title: "Other open work",
+      title: which === "done" ? "Other completed work" : "Other open work",
       items: standalone.map((task) => ({
         title: task.title,
         done: taskStatusIsDone(task.status),

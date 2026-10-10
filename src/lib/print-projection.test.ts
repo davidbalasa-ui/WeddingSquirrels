@@ -251,6 +251,23 @@ test("open work leaves out finished steps, finished cards and groups with nothin
     projectTaskGroups([{ id: "s1", title: "Call crossbow", status: "done", parentId: null, dueLabel: null, assignees: [] }]),
     [],
   );
+  const done = projectTaskGroups(
+    [
+      { id: "p", title: "Ceremony Flower Sword", status: "todo", parentId: null, dueLabel: null, assignees: [] },
+      { id: "c1", title: "Receive the ordered sword", status: "done", parentId: "p", dueLabel: null, assignees: [] },
+      { id: "c2", title: "Decorate the sword with faux flowers", status: "todo", parentId: "p", dueLabel: null, assignees: [] },
+      { id: "s1", title: "Call crossbow", status: "done", parentId: null, dueLabel: null, assignees: [] },
+      { id: "s2", title: "Meet with Avalon", status: "todo", parentId: null, dueLabel: null, assignees: [] },
+    ],
+    "done",
+  );
+  assert.deepEqual(
+    done.map((group) => [group.title, group.items.map((item) => item.title)]),
+    [
+      ["Ceremony Flower Sword", ["Receive the ordered sword"]],
+      ["Other completed work", ["Call crossbow"]],
+    ],
+  );
 });
 
 test("key dates keep rehearsal and wedding day, not bachelor weekend", () => {

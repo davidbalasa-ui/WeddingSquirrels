@@ -36,3 +36,27 @@ test("Open work prints only what is still open", async ({ page }) => {
   }
   expect(withOpenWork).toBeGreaterThan(0);
 });
+
+test("What's left prints only the open work, and completed work is its own section", async ({ page }) => {
+  const text = await openPacket(page, "left");
+  await expect(page.getByTestId("print-section-tasks")).toBeVisible();
+  await expect(page.getByTestId("print-section-tasks-done")).toHaveCount(0);
+  expect(text).toContain(OPEN_STEP);
+  expect(text).not.toContain(DONE_STEP);
+  expect(text).not.toContain("☑");
+  // Only the open work: no run sheet, guests or money.
+  await expect(page.locator(".binder-doc h2")).toHaveText(["Open work"]);
+
+  // The binder leaves completed work out until it is ticked on; then it prints in its own section.
+  await openPacket(page, "binder");
+  const doneBox = page.locator('input[data-print-section="tasksDone"]');
+  await expect(doneBox).not.toBeChecked();
+  await expect(page.getByTestId("print-section-tasks-done")).toHaveCount(0);
+  await doneBox.check();
+  const done = page.getByTestId("print-section-tasks-done");
+  await expect(done).toContainText("Completed work");
+  await expect(done).toContainText(DONE_STEP);
+  await expect(done).toContainText("Rehearsal time + dinner locked");
+  await expect(done).not.toContainText(OPEN_STEP);
+  await expect(page.getByTestId("print-section-tasks")).not.toContainText(DONE_STEP);
+});
