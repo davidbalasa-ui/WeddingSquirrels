@@ -45,7 +45,7 @@ async function loadPeopleSnapshot(): Promise<EnrichmentSnapshot> {
 
 export async function loadPrintoutCorrectionsPlan(): Promise<PrintoutCorrectionsPlan> {
   const [tasks, snapshot, assignments] = await Promise.all([
-    prisma.task.findMany({ select: { id: true, title: true, status: true, parentId: true } }),
+    prisma.task.findMany({ select: { id: true, title: true, status: true, parentId: true, dueDate: true } }),
     loadPeopleSnapshot(),
     prisma.dayAssignment.findMany({ select: { id: true, title: true, notes: true } }),
   ]);

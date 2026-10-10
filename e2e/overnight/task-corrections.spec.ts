@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { overnightPrisma, resetOvernightData, snapshotTasks } from "./db";
 import { openPacket } from "./helpers";
-import { NEW_TASKS } from "../../src/lib/task-corrections";
+import { NEW_TASKS, planTaskCorrections } from "../../src/lib/task-corrections";
 
 const prisma = overnightPrisma();
 
@@ -69,6 +69,9 @@ test("Apply adds the dated jobs once and ticks only the marked steps", async ({ 
   await expect(card).not.toContainText("Alpine Events");
   await expect(card).toContainText("Ceremony Flower Sword · Receive the ordered sword");
   await expect(card).toContainText("Pam Balasa · 269-475-3751");
+  const before = await prisma.task.findMany({ select: { id: true, title: true, status: true, parentId: true, dueDate: true } });
+  const planned = planTaskCorrections(before);
+  expect(planned.inserts.some((row) => row.title === "Total Wine: Pick up the alcohol order")).toBe(true);
   // The card reloads the page once the write is done; wait for that load so the next visit is not cut short.
   const reloaded = page.waitForEvent("load");
   await card.getByRole("button", { name: "Apply to tasks" }).click();
@@ -77,8 +80,12 @@ test("Apply adds the dated jobs once and ticks only the marked steps", async ({ 
 
   for (const def of NEW_TASKS) {
     const rows = await prisma.task.findMany({ where: { title: def.title } });
-    expect(rows, def.title).toHaveLength(1);
+    // A job already on the list in other words, or one this tap already adds, is not added again.
+    const there = before.some((row) => row.title === def.title) || planned.inserts.some((row) => row.title === def.title);
+    expect(rows, def.title).toHaveLength(there ? 1 : 0);
   }
+  // A day only where an earlier card left none: the license is Tuesday, the outfit today.
+  expect((await prisma.task.findFirstOrThrow({ where: { title: "Pick up the marriage license from the courthouse" } })).dueDate?.getDate()).toBe(13);
   const alpine = await prisma.task.findFirstOrThrow({ where: { title: "Alpine Events: Pick up the rentals" } });
   expect(alpine.planNotes).toBe("Kept as typed");
   expect(alpine.dueDate?.getDate()).toBe(14);

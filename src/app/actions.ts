@@ -3791,6 +3791,10 @@ export async function applyTaskCorrectionsAction(): Promise<
       for (const row of plan.marks) {
         await tx.task.updateMany({ where: { id: row.id, status: { not: "done" } }, data: { status: "done", completedAt: now } });
       }
+      // A day only where the job still has none, so a date David set himself stays.
+      for (const row of plan.dueFills) {
+        await tx.task.updateMany({ where: { id: row.id, dueDate: null }, data: { dueDate: dueDateFor(row.due) } });
+      }
       // New numbers only; a person with a different number saved is left for David to pick.
       for (const row of phones) {
         if (row.status === "add" && row.write) await writePhone(tx, row.write);
