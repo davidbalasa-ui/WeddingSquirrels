@@ -1,9 +1,20 @@
 import { prisma } from "@/lib/db";
 import type { EnrichmentSnapshot } from "@/lib/contact-enrichment";
 import { planPhoneCorrections, type PhoneCorrectionRow, type PhoneWrite } from "@/lib/phone-corrections";
+import { planDayJobs, type DayJobDef } from "@/lib/day-job-corrections";
+import { MINI_MOON_CONTACT } from "@/lib/mini-moon";
 import { planTaskCorrections, type TaskCorrectionsPlan } from "@/lib/task-corrections";
 
-export type PrintoutCorrectionsPlan = { tasks: TaskCorrectionsPlan; phones: PhoneCorrectionRow[] };
+export type NewContactRow = { name: string; phone: string; directoryLabel: string };
+
+export type PrintoutCorrectionsPlan = {
+  tasks: TaskCorrectionsPlan;
+  phones: PhoneCorrectionRow[];
+  /** Contacts to add; one already saved under the same name is left as it is. */
+  contacts: NewContactRow[];
+  /** Day-of jobs written into the schedule that are not on Day-of → Assignments yet. */
+  dayJobs: DayJobDef[];
+};
 
 async function loadPeopleSnapshot(): Promise<EnrichmentSnapshot> {
   const [persons, guestPeople, guests, contacts] = await Promise.all([
@@ -31,11 +42,13 @@ async function loadPeopleSnapshot(): Promise<EnrichmentSnapshot> {
 }
 
 export async function loadPrintoutCorrectionsPlan(): Promise<PrintoutCorrectionsPlan> {
-  const [tasks, snapshot] = await Promise.all([
+  const [tasks, snapshot, assignments] = await Promise.all([
     prisma.task.findMany({ select: { id: true, title: true, status: true, parentId: true } }),
     loadPeopleSnapshot(),
+    prisma.dayAssignment.findMany({ select: { title: true } }),
   ]);
-  return { tasks: planTaskCorrections(tasks), phones: planPhoneCorrections(snapshot) };
+  const contacts = snapshot.contacts.some((row) => /victoria resort/i.test(row.name)) ? [] : [{ ...MINI_MOON_CONTACT }];
+  return { tasks: planTaskCorrections(tasks), phones: planPhoneCorrections(snapshot), contacts, dayJobs: planDayJobs(assignments) };
 }
 
 /** One phone write, inside the caller's transaction. Only ever fills or (on David's pick) replaces one number. */
@@ -61,4 +74,20 @@ export async function writePhone(
       },
     });
   }
+}
+
+/** Adds one contact at the end of the vendors list, inside the caller's transaction. */
+export async function addContact(tx: Pick<typeof prisma, "contact">, row: NewContactRow): Promise<void> {
+  if (await tx.contact.findFirst({ where: { name: { equals: row.name, mode: "insensitive" } } })) return;
+  const last = await tx.contact.findFirst({ orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
+  await tx.contact.create({
+    data: {
+      name: row.name,
+      phone: row.phone,
+      directoryLabel: row.directoryLabel,
+      directoryList: "vendors",
+      isDayOfContact: false,
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+    },
+  });
 }

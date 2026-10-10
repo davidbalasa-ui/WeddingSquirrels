@@ -1,5 +1,6 @@
 import { composeBlockNotes, parseBlockNotes } from "@/lib/day-of-now";
 import { SHARED_WEDDING_MOMENT, type ReviewMoment } from "@/lib/day-timeline-view";
+import { scheduleLines } from "@/lib/schedule-consistency";
 
 /**
  * Who a printed packet is for. Each packet reads as "my schedule": the moments
@@ -92,7 +93,7 @@ export function momentForAudience(
     time: moment.timeLabel,
     title: moment.title,
     location: moment.location,
-    lines: lines.map((detail) => detail.text),
+    lines: scheduleLines(lines.map((detail) => detail.text)),
   };
 }
 

@@ -28,6 +28,7 @@ import {
   projectShotGroups,
   projectStaySections,
   projectTaskGroups,
+  projectTimelineOpenItems,
   projectWeddingParty,
 } from "@/lib/print-projection";
 import {
@@ -103,6 +104,16 @@ export function mergePartyPhoneSources(
     merged.push({ name: row.name, phone: row.phone });
   }
   return merged;
+}
+
+/** "Friday, October 16" for the wedding date, or a day before or after it. */
+function printDay(date: Date, timezone: string, offsetDays: number): string {
+  return new Date(date.getTime() + offsetDays * 86_400_000).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: timezone,
+  });
 }
 
 export async function loadPrintCenterDocument(
@@ -399,7 +410,18 @@ export async function loadPrintCenterDocument(
       dueLabel: task.dueLabel,
       assignees: task.assignees,
     })),
-    taskGroups: projectTaskGroups(taskViews),
+    // Open lines on the Wedding Day page are open work too (David, 2026-10-10).
+    taskGroups: [
+      ...projectTaskGroups(taskViews),
+      ...(tasksOn
+        ? projectTimelineOpenItems({
+            rehearsal: rehearsalSorted,
+            wedding: weddingSorted,
+            rehearsalDay: settings?.weddingDate ? printDay(settings.weddingDate, timezone, -1) : null,
+            weddingDay: settings?.weddingDate ? printDay(settings.weddingDate, timezone, 0) : null,
+          })
+        : []),
+    ],
     doneTaskGroups: projectTaskGroups(taskViews, "done"),
     calendar: projectKeyDates(calendarRows, timezone, settings?.weddingDate ?? null, rehearsalSorted.length > 0),
     money: moneyFingerprint(contracts),

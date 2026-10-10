@@ -570,6 +570,10 @@ a {
     break-inside: avoid;
   }
 
+  .binder-block-lone {
+    break-after: avoid;
+  }
+
   /* Wedding Day page printed straight from the page: same ink and rules as the binder. */
   .timeline-print-page .plan-chapter-header,
   .timeline-print-page .day-tabs {

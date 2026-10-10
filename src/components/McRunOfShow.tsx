@@ -5,9 +5,12 @@ import { groupPlaybookSections, type PlaybookItemView } from "@/lib/playbook";
 export function McRunOfShowView({
   show,
   lineup,
+  lineUpTime,
 }: {
   show: McRunOfShow;
   lineup: PlaybookItemView[];
+  /** From the wedding-day schedule, so this page and every packet agree. */
+  lineUpTime: string | null;
 }) {
   const lineupGroups = groupPlaybookSections(lineup);
   return (
@@ -77,7 +80,7 @@ export function McRunOfShowView({
             id="ceremony-lineup-heading"
             className="font-[family-name:var(--font-display)] text-[1.65rem] leading-tight"
           >
-            Ceremony lineup · 3:20 PM
+            Ceremony lineup{lineUpTime ? ` · ${lineUpTime}` : ""}
           </h2>
           <p className="mt-2 text-sm text-muted">
             Processional order. This is the same lineup stored for setup — not a second copy of the

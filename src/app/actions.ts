@@ -62,7 +62,7 @@ import { sessionCanMutateTask } from "@/lib/tasks";
 import { taskHref } from "@/lib/entity-links";
 import { planReconciledTimeline } from "@/lib/reconciled-timeline";
 import { dueDateFor } from "@/lib/task-corrections";
-import { loadPrintoutCorrectionsPlan, writePhone } from "@/lib/printout-corrections-data";
+import { loadPrintoutCorrectionsPlan, addContact, writePhone } from "@/lib/printout-corrections-data";
 import { safeReturnTo, TASKS_HOME } from "@/lib/return-to";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
 import { applyRsvpChange, effectiveInvitedCount, isRsvpStatus, parseRsvpStatus, RSVP_STATUSES, syncLegacyGuestNames, type RsvpStatus } from "@/lib/guest-gifts";
@@ -3751,12 +3751,12 @@ export async function applyTaskCorrectionsAction(): Promise<
   const session = await getSession();
   if (!session?.isMaster) return { ok: false, reason: "forbidden" };
 
-  const { tasks: plan, phones } = await loadPrintoutCorrectionsPlan();
+  const { tasks: plan, phones, contacts, dayJobs } = await loadPrintoutCorrectionsPlan();
   const now = new Date();
   try {
     await prisma.$transaction(async (tx) => {
       for (const row of plan.inserts) {
-        await tx.task.create({ data: { title: row.title, summary: row.summary, dueDate: dueDateFor(row.due) } });
+        await tx.task.create({ data: { title: row.title, summary: row.summary, dueDate: row.due ? dueDateFor(row.due) : null } });
       }
       for (const row of plan.marks) {
         await tx.task.updateMany({ where: { id: row.id, status: { not: "done" } }, data: { status: "done", completedAt: now } });
@@ -3764,6 +3764,14 @@ export async function applyTaskCorrectionsAction(): Promise<
       // New numbers only; a person with a different number saved is left for David to pick.
       for (const row of phones) {
         if (row.status === "add" && row.write) await writePhone(tx, row.write);
+      }
+      for (const row of contacts) await addContact(tx, row);
+      if (dayJobs.length) {
+        const last = await tx.dayAssignment.findFirst({ orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
+        let next = (last?.sortOrder ?? -1) + 1;
+        for (const job of dayJobs) {
+          await tx.dayAssignment.create({ data: { title: job.title, notes: job.notes, sortOrder: next++ } });
+        }
       }
     });
   } catch {
@@ -3774,6 +3782,7 @@ export async function applyTaskCorrectionsAction(): Promise<
   revalidatePath("/print");
   revalidatePath("/people");
   revalidatePath("/day");
+  revalidatePath("/day/assignments");
   return { ok: true, inserted: plan.inserts.length, marked: plan.marks.length };
 }
 
