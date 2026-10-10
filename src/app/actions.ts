@@ -60,6 +60,7 @@ import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { taskHref } from "@/lib/entity-links";
 import { planReconciledTimeline } from "@/lib/reconciled-timeline";
+import { dueDateFor, planTaskCorrections } from "@/lib/task-corrections";
 import { safeReturnTo, TASKS_HOME } from "@/lib/return-to";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
 import { applyRsvpChange, effectiveInvitedCount, isRsvpStatus, parseRsvpStatus, RSVP_STATUSES, syncLegacyGuestNames, type RsvpStatus } from "@/lib/guest-gifts";
@@ -3687,4 +3688,35 @@ export async function restoreReconciledMomentAction(
   await resequenceTimeline(update.schedule);
   revalidateSchedule(update.schedule);
   return { ok: true };
+}
+
+/**
+ * David's task corrections: adds his dated Monday/Tuesday jobs and ticks the steps he
+ * marked done. Never rewords, re-dates, deletes or unticks a task.
+ */
+export async function applyTaskCorrectionsAction(): Promise<
+  { ok: true; inserted: number; marked: number } | { ok: false; reason: "forbidden" | "failed" }
+> {
+  const session = await getSession();
+  if (!session?.isMaster) return { ok: false, reason: "forbidden" };
+
+  const tasks = await prisma.task.findMany({ select: { id: true, title: true, status: true, parentId: true } });
+  const plan = planTaskCorrections(tasks);
+  const now = new Date();
+  try {
+    await prisma.$transaction([
+      ...plan.inserts.map((row) =>
+        prisma.task.create({ data: { title: row.title, summary: row.summary, dueDate: dueDateFor(row.due) } }),
+      ),
+      ...plan.marks.map((row) =>
+        prisma.task.updateMany({ where: { id: row.id, status: { not: "done" } }, data: { status: "done", completedAt: now } }),
+      ),
+    ]);
+  } catch {
+    return { ok: false, reason: "failed" };
+  }
+  revalidatePath("/today");
+  revalidatePath("/plan/tasks");
+  revalidatePath("/print");
+  return { ok: true, inserted: plan.inserts.length, marked: plan.marks.length };
 }

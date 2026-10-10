@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { overnightPrisma, resetOvernightData } from "./db";
+import { overnightPrisma, resetOvernightData, snapshotTasks } from "./db";
 import { PACKETS, openPacket } from "./helpers";
 
 const prisma = overnightPrisma();
@@ -8,8 +8,11 @@ const OPEN_STEP = "Confirm final payments / tip envelopes ready";
 const DATED_TASK = "Test task due Tuesday";
 const UNDATED_TASK = "Test task with no date";
 
+let restoreTasks: (() => Promise<void>) | null = null;
+
 test.beforeAll(async () => {
   await resetOvernightData(prisma);
+  restoreTasks = await snapshotTasks(prisma);
   // One finished step in "Week before", and every step of "Day before" finished.
   await prisma.task.updateMany({ where: { title: DONE_STEP }, data: { status: "done", completedAt: new Date() } });
   const dayBefore = await prisma.task.findFirstOrThrow({ where: { title: "Day before", parentId: null } });
@@ -19,7 +22,7 @@ test.beforeAll(async () => {
   await prisma.task.create({ data: { title: UNDATED_TASK } });
 });
 test.afterAll(async () => {
-  await resetOvernightData(prisma);
+  await restoreTasks?.();
   await prisma.$disconnect();
 });
 

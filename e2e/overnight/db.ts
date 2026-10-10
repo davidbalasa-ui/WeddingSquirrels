@@ -151,3 +151,18 @@ if (process.argv[1] && /db\.ts$/.test(process.argv[1])) {
     })
     .finally(() => prisma.$disconnect());
 }
+
+/**
+ * Tasks are not part of the reset above. A check that adds or ticks tasks takes a
+ * snapshot first and puts the task list back exactly when it is done.
+ */
+export async function snapshotTasks(prisma: PrismaClient): Promise<() => Promise<void>> {
+  const before = await prisma.task.findMany({ select: { id: true, status: true, completedAt: true } });
+  return async () => {
+    const keep = before.map((row) => row.id);
+    await prisma.task.deleteMany({ where: { id: { notIn: keep } } });
+    for (const row of before) {
+      await prisma.task.update({ where: { id: row.id }, data: { status: row.status, completedAt: row.completedAt } });
+    }
+  };
+}
