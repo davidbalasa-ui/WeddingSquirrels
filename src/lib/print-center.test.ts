@@ -18,6 +18,7 @@ import {
   mcPeopleFromDirectory,
   moneyFingerprint,
   presetMatchesSelection,
+  sectionHasContent,
   printTitleKicker,
   printableSections,
   sectionsForPreset,
@@ -305,4 +306,13 @@ test("a packet still counts as picked when the session cannot see one of its sec
   const available = sectionsForPreset("bride").filter((id) => id !== "stay");
   assert.equal(activePreset(available, "bride", available), "bride");
   assert.equal(activePreset(available, "bride"), null);
+});
+
+test("the MC Run of Show section prints only when there are cues, not for a name alone", () => {
+  const doc = { ...emptyPrintDocument(), mcNames: ["Kurt Huizenga"] };
+  assert.equal(sectionHasContent(doc, "mc"), false);
+  assert.equal(
+    sectionHasContent({ ...doc, mcCues: [{ time: "5:00 PM", heading: null, momentTitle: "Dinner begins", spoken: "Overnight check", music: [] }] }, "mc"),
+    true,
+  );
 });

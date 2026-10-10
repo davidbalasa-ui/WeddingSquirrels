@@ -776,7 +776,8 @@ export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId):
     case "timeline":
       return doc.runSheet.length > 0 || doc.timeline.length > 0;
     case "mc":
-      return doc.mcCues.length > 0 || doc.mcNames.length > 0;
+      // A name alone is not a run of show; with no cue lines the section stays off the page.
+      return doc.mcCues.length > 0;
     case "hair":
       return doc.hairRooms.length + doc.hairSchedule.length + doc.hairMakeup.length > 0;
     case "shots":
