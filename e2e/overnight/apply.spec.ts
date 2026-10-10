@@ -98,3 +98,67 @@ test.describe("Apply the reconciled document", () => {
     await guards.assertClean();
   });
 });
+
+// David, 2026-10-10: his printed rehearsal day showed every moment twice. His own rehearsal
+// rows (saved without the app's keys) sat next to the document's copies from an earlier Apply.
+test("a doubled rehearsal day is folded back to one row per moment, keeping David's own rows", async ({ page }) => {
+  await resetOvernightData(prisma, { reconciled: false });
+  const { parsedTimeFields } = await import("../../src/lib/day-of-time");
+  const own = [
+    { startAt: "1:00 PM", endAt: null, notes: "Airbnb Check-in\n- Wedding party arrives" },
+    { startAt: "2:30 PM", endAt: null, notes: "Get ready; Hair and makeup" },
+    { startAt: "3:45 PM", endAt: null, notes: "Depart Airbnb" },
+    { startAt: "4:15 PM", endAt: "5:40 PM", notes: "Dinner\nLocation: Hawkshead" },
+    { startAt: "5:40 PM", endAt: null, notes: "Depart for Black Sheep Shelter" },
+    { startAt: "6:00 PM", endAt: "7:00 PM", notes: "Rehearsal" },
+    { startAt: "7:15 PM", endAt: null, notes: "Return to Airbnb" },
+  ];
+  await prisma.timelineBlock.deleteMany({ where: { schedule: "rehearsal" } });
+  for (const [index, row] of own.entries()) {
+    await prisma.timelineBlock.create({
+      data: { id: `own-${index}`, schedule: "rehearsal", sortOrder: index, ...row, ...parsedTimeFields(row.startAt, row.endAt) },
+    });
+  }
+  // The copies an earlier Apply put beside them, word for word from the document.
+  for (const [index, moment] of RECONCILED_TIMELINE.filter((m) => m.schedule === "rehearsal").entries()) {
+    await prisma.timelineBlock.create({
+      data: {
+        seedKey: moment.seedKey,
+        schedule: "rehearsal",
+        sortOrder: 20 + index,
+        startAt: moment.startAt,
+        endAt: moment.endAt,
+        notes: reconciledNotes(moment),
+        ...parsedTimeFields(moment.startAt, moment.endAt),
+      },
+    });
+  }
+  await page.goto("/plan/timeline");
+  const card = page.locator("section").filter({ hasText: "Reconciled timeline update ready" });
+  await card.getByRole("button", { name: "See what changes" }).click();
+  await expect(card).toContainText("Folded into other moments");
+  const reloaded = page.waitForEvent("load");
+  await card.getByRole("button", { name: "Apply to the timeline" }).click();
+  await reloaded;
+  await expect(page.getByRole("button", { name: /Apply(ing…| to the timeline)/ })).toHaveCount(0, { timeout: 20_000 });
+
+  const rows = await prisma.timelineBlock.findMany({ where: { schedule: "rehearsal" } });
+  const times = rows.map((row) => row.startAt);
+  expect(times.filter((time, i) => times.indexOf(time) !== i), "a start time twice").toEqual([]);
+  // David's own rows are all still there, word for word. The one still reading exactly as the
+  // app first seeded it ("Get ready; Hair and makeup") gives way to the document's copy.
+  for (const [index, row] of own.entries()) {
+    if (index === 1) continue;
+    expect(rows.find((r) => r.id === `own-${index}`)?.notes).toBe(row.notes);
+  }
+  expect(rows.find((r) => r.id === "own-1")).toBeUndefined();
+  expect(rows.filter((r) => r.seedKey === "reh.getready")).toHaveLength(1);
+  // A second visit has nothing left to fold. The card reloads the page itself after Apply,
+  // so a visit can be cut short by that reload; try again until one lands.
+  await expect(async () => {
+    await page.goto("/plan/timeline");
+    await expect(page.getByRole("heading").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Apply to the timeline" })).toHaveCount(0);
+  }).toPass({ timeout: 20_000 });
+  await resetOvernightData(prisma);
+});

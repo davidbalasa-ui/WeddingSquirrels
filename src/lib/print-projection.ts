@@ -459,15 +459,24 @@ export function projectTaskGroups(
     parentId: string | null;
     parentTitle?: string | null;
     dueLabel: string | null;
+    /** Printed day heading for a dated task, e.g. "Monday, October 12". */
+    dueDay?: string | null;
+    /** Due time in ms, for putting the days in order. */
+    dueAt?: number | null;
     assignees: string[];
   }>,
+  /** "open" for the Open work pages; "done" for the separate Completed work section. */
+  which: "open" | "done" = "open",
 ): PrintTaskGroupView[] {
+  const keep = (status: string) => taskStatusIsDone(status) === (which === "done");
   const childrenByParent = new Map<string, typeof tasks>();
   const parents = new Map<string, (typeof tasks)[number]>();
   const standalone: typeof tasks = [];
 
   for (const task of tasks) {
     if (task.parentId) {
+      // Open work prints only what is still open; finished steps print under Completed work.
+      if (!keep(task.status)) continue;
       const list = childrenByParent.get(task.parentId) ?? [];
       list.push(task);
       childrenByParent.set(task.parentId, list);
@@ -498,13 +507,38 @@ export function projectTaskGroups(
     if (task.parentId) continue;
     if (usedParents.has(task.id)) continue;
     if (childrenByParent.has(task.id)) continue;
+    if (tasks.some((other) => other.parentId === task.id)) continue;
+    if (!keep(task.status)) continue;
     standalone.push(task);
   }
 
-  if (standalone.length) {
+  // A task of its own with a due date prints under its day, days in order; the rest stay together.
+  const dated = standalone
+    .filter((task) => task.dueDay)
+    .sort((a, b) => (a.dueAt ?? 0) - (b.dueAt ?? 0));
+  const undated = standalone.filter((task) => !task.dueDay);
+  const byDay = new Map<string, typeof tasks>();
+  for (const task of dated) {
+    const list = byDay.get(task.dueDay!) ?? [];
+    list.push(task);
+    byDay.set(task.dueDay!, list);
+  }
+  for (const [day, dayTasks] of byDay) {
     groups.push({
-      title: "Other open work",
-      items: standalone.map((task) => ({
+      title: day,
+      items: dayTasks.map((task) => ({
+        title: task.title,
+        done: taskStatusIsDone(task.status),
+        dueLabel: task.dueLabel,
+        assignees: task.assignees,
+      })),
+    });
+  }
+
+  if (undated.length) {
+    groups.push({
+      title: which === "done" ? "Other completed work" : "Other open work",
+      items: undated.map((task) => ({
         title: task.title,
         done: taskStatusIsDone(task.status),
         dueLabel: task.dueLabel,

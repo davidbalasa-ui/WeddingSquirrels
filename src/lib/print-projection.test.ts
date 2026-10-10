@@ -229,8 +229,62 @@ test("open work groups children under the parent workspace", () => {
   ]);
   assert.equal(groups[0]?.title, "Wedding drinks & serving supplies");
   assert.equal(groups[0]?.items.some((item) => item.title === "Wedding drinks & serving supplies"), false);
-  assert.equal(groups[0]?.items.find((item) => item.title === "Order remaining s'mores ingredients")?.done, true);
+  assert.equal(groups[0]?.items.some((item) => item.title === "Order remaining s'mores ingredients"), false);
+  assert.equal(groups[0]?.items.some((item) => item.title === "Buy wedding booze"), true);
   assert.equal(groups.at(-1)?.title, "Other open work");
+});
+
+test("open work leaves out finished steps, finished cards and groups with nothing open", () => {
+  const groups = projectTaskGroups([
+    { id: "p", title: "Ceremony Flower Sword", status: "todo", parentId: null, dueLabel: null, assignees: [] },
+    { id: "c1", title: "Receive the ordered sword", status: "done", parentId: "p", dueLabel: null, assignees: [] },
+    { id: "c2", title: "Decorate the sword with faux flowers", status: "done", parentId: "p", dueLabel: null, assignees: [] },
+    { id: "s1", title: "Call crossbow", status: "done", parentId: null, dueLabel: null, assignees: [] },
+    { id: "s2", title: "Meet with Avalon", status: "todo", parentId: null, dueLabel: null, assignees: [] },
+  ]);
+  assert.deepEqual(
+    groups.map((group) => [group.title, group.items.map((item) => item.title)]),
+    [["Other open work", ["Meet with Avalon"]]],
+  );
+  assert.equal(groups.flatMap((group) => group.items).some((item) => item.done), false);
+  assert.deepEqual(
+    projectTaskGroups([{ id: "s1", title: "Call crossbow", status: "done", parentId: null, dueLabel: null, assignees: [] }]),
+    [],
+  );
+  const done = projectTaskGroups(
+    [
+      { id: "p", title: "Ceremony Flower Sword", status: "todo", parentId: null, dueLabel: null, assignees: [] },
+      { id: "c1", title: "Receive the ordered sword", status: "done", parentId: "p", dueLabel: null, assignees: [] },
+      { id: "c2", title: "Decorate the sword with faux flowers", status: "todo", parentId: "p", dueLabel: null, assignees: [] },
+      { id: "s1", title: "Call crossbow", status: "done", parentId: null, dueLabel: null, assignees: [] },
+      { id: "s2", title: "Meet with Avalon", status: "todo", parentId: null, dueLabel: null, assignees: [] },
+    ],
+    "done",
+  );
+  assert.deepEqual(
+    done.map((group) => [group.title, group.items.map((item) => item.title)]),
+    [
+      ["Ceremony Flower Sword", ["Receive the ordered sword"]],
+      ["Other completed work", ["Call crossbow"]],
+    ],
+  );
+});
+
+test("open tasks with a due date print under their day, in date order", () => {
+  const groups = projectTaskGroups([
+    { id: "a", title: "Later task", status: "todo", parentId: null, dueLabel: "Oct 13, 2026", dueDay: "Tuesday, October 13", dueAt: 2, assignees: [] },
+    { id: "b", title: "Undated task", status: "todo", parentId: null, dueLabel: null, assignees: [] },
+    { id: "c", title: "Earlier task", status: "todo", parentId: null, dueLabel: "Oct 12, 2026", dueDay: "Monday, October 12", dueAt: 1, assignees: [] },
+    { id: "d", title: "Same day task", status: "todo", parentId: null, dueLabel: "Oct 13, 2026", dueDay: "Tuesday, October 13", dueAt: 3, assignees: [] },
+  ]);
+  assert.deepEqual(
+    groups.map((group) => [group.title, group.items.map((item) => item.title)]),
+    [
+      ["Monday, October 12", ["Earlier task"]],
+      ["Tuesday, October 13", ["Later task", "Same day task"]],
+      ["Other open work", ["Undated task"]],
+    ],
+  );
 });
 
 test("key dates keep rehearsal and wedding day, not bachelor weekend", () => {

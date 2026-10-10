@@ -61,6 +61,8 @@ import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { taskHref } from "@/lib/entity-links";
 import { planReconciledTimeline } from "@/lib/reconciled-timeline";
+import { dueDateFor } from "@/lib/task-corrections";
+import { loadPrintoutCorrectionsPlan, writePhone } from "@/lib/printout-corrections-data";
 import { safeReturnTo, TASKS_HOME } from "@/lib/return-to";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
 import { applyRsvpChange, effectiveInvitedCount, isRsvpStatus, parseRsvpStatus, RSVP_STATUSES, syncLegacyGuestNames, type RsvpStatus } from "@/lib/guest-gifts";
@@ -3736,5 +3738,62 @@ export async function restoreReconciledMomentAction(
   }
   await resequenceTimeline(update.schedule);
   revalidateSchedule(update.schedule);
+  return { ok: true };
+}
+
+/**
+ * David's task corrections: adds his dated Monday/Tuesday jobs and ticks the steps he
+ * marked done. Never rewords, re-dates, deletes or unticks a task.
+ */
+export async function applyTaskCorrectionsAction(): Promise<
+  { ok: true; inserted: number; marked: number } | { ok: false; reason: "forbidden" | "failed" }
+> {
+  const session = await getSession();
+  if (!session?.isMaster) return { ok: false, reason: "forbidden" };
+
+  const { tasks: plan, phones } = await loadPrintoutCorrectionsPlan();
+  const now = new Date();
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const row of plan.inserts) {
+        await tx.task.create({ data: { title: row.title, summary: row.summary, dueDate: dueDateFor(row.due) } });
+      }
+      for (const row of plan.marks) {
+        await tx.task.updateMany({ where: { id: row.id, status: { not: "done" } }, data: { status: "done", completedAt: now } });
+      }
+      // New numbers only; a person with a different number saved is left for David to pick.
+      for (const row of phones) {
+        if (row.status === "add" && row.write) await writePhone(tx, row.write);
+      }
+    });
+  } catch {
+    return { ok: false, reason: "failed" };
+  }
+  revalidatePath("/today");
+  revalidatePath("/plan/tasks");
+  revalidatePath("/print");
+  revalidatePath("/people");
+  revalidatePath("/day");
+  return { ok: true, inserted: plan.inserts.length, marked: plan.marks.length };
+}
+
+/** David's pick when a different number is already saved: use the one he sent in chat. */
+export async function pickPrintoutPhoneAction(
+  label: string,
+): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "not_found" | "failed" }> {
+  const session = await getSession();
+  if (!session?.isMaster) return { ok: false, reason: "forbidden" };
+  const { phones } = await loadPrintoutCorrectionsPlan();
+  const row = phones.find((candidate) => candidate.label === label && candidate.status === "differs");
+  if (!row?.write) return { ok: false, reason: "not_found" };
+  try {
+    await prisma.$transaction(async (tx) => writePhone(tx, row.write!));
+  } catch {
+    return { ok: false, reason: "failed" };
+  }
+  revalidatePath("/plan/tasks");
+  revalidatePath("/print");
+  revalidatePath("/people");
+  revalidatePath("/day");
   return { ok: true };
 }

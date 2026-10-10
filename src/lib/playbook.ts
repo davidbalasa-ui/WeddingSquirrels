@@ -270,16 +270,6 @@ const SHOTS: PlaybookRecord[] = [
   item("shot", "Family", 53, "Bride with dad", { key: "shot-fam-bride-dad" }),
   item("shot", "Family", 54, "Couple with mom", { key: "shot-fam-couple-mom" }),
   item("shot", "Family", 55, "Couple with dad", { key: "shot-fam-couple-dad" }),
-  item("shot", "Family", 56, "Bride with Grandma", { key: "shot-fam-bride-grandma" }),
-  item("shot", "Family", 57, "Bride with Grandpa", { key: "shot-fam-bride-grandpa" }),
-  item("shot", "Family", 58, "Bride with grandparents", { key: "shot-fam-bride-grandparents" }),
-  item("shot", "Family", 59, "Couple with grandparents", { key: "shot-fam-couple-grandparents" }),
-  item("shot", "Family", 60, "Couple with bride's parental side of family", {
-    key: "shot-fam-parental-side",
-  }),
-  item("shot", "Family", 61, "Couple with bride's maternal side of family", {
-    key: "shot-fam-maternal-side",
-  }),
 ];
 
 const DECOR: PlaybookRecord[] = [

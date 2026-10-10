@@ -158,6 +158,7 @@ export const PACKETS = [
   { id: "photo", title: "Photographer & Shot List", kicker: "Photographer · Shot List" },
   { id: "brideParents", title: "Parents of the Bride", kicker: "Parents of the Bride" },
   { id: "groomParents", title: "Parents of the Groom", kicker: "Parents of the Groom" },
+  { id: "left", title: "What's left", kicker: "What's Left" },
 ] as const;
 
 export type PacketId = (typeof PACKETS)[number]["id"];
