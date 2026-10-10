@@ -45,6 +45,7 @@ export const PRINT_SECTION_IDS = [
   "stay",
   "meals",
   "tasks",
+  "tasksDone",
   "calendar",
   "money",
 ] as const;
@@ -58,7 +59,8 @@ export type PrintPresetId =
   | "party"
   | "photo"
   | "brideParents"
-  | "groomParents";
+  | "groomParents"
+  | "left";
 
 export const PRINT_SECTION_LABELS: Record<PrintSectionId, string> = {
   overview: "Quick reference",
@@ -78,6 +80,7 @@ export const PRINT_SECTION_LABELS: Record<PrintSectionId, string> = {
   stay: "Stay",
   meals: "Meals / food & supplies",
   tasks: "Open work",
+  tasksDone: "Completed work",
   calendar: "Key dates",
   money: "Money",
 };
@@ -208,6 +211,15 @@ export const PRINT_PACKETS: PrintPacket[] = [
     audience: "groomParents",
     compact: true,
   },
+  {
+    id: "left",
+    title: "What's left",
+    body: "Only the open work still to do, grouped by card. Nothing that is already done.",
+    kicker: "What's Left",
+    sections: ["tasks"],
+    audience: null,
+    compact: true,
+  },
 ];
 
 export function printPacket(id: PrintPresetId): PrintPacket {
@@ -326,6 +338,7 @@ export type PrintCenterDocument = {
   shopping: PrintShoppingItem[];
   tasks: PrintTask[];
   taskGroups: PrintTaskGroupView[];
+  doneTaskGroups: PrintTaskGroupView[];
   calendar: PrintCalendarEvent[];
   money: {
     committed: number;
@@ -805,7 +818,9 @@ export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId):
     case "meals":
       return doc.meals.length > 0 || doc.shopping.length > 0;
     case "tasks":
-      return doc.taskGroups.length > 0 || doc.tasks.length > 0;
+      return doc.taskGroups.length > 0;
+    case "tasksDone":
+      return doc.doneTaskGroups.length > 0;
     case "calendar":
       return doc.calendar.length > 0;
     case "money":
@@ -885,6 +900,7 @@ export function emptyPrintDocument(): PrintCenterDocument {
     shopping: [],
     tasks: [],
     taskGroups: [],
+    doneTaskGroups: [],
     calendar: [],
     money: { committed: 0, paid: 0, remaining: 0, items: [] },
     weddingParty: {

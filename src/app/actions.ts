@@ -61,6 +61,8 @@ import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { taskHref } from "@/lib/entity-links";
 import { planReconciledTimeline } from "@/lib/reconciled-timeline";
+import { dueDateFor } from "@/lib/task-corrections";
+import { loadPrintoutCorrectionsPlan, writePhone } from "@/lib/printout-corrections-data";
 import { safeReturnTo, TASKS_HOME } from "@/lib/return-to";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
 import { applyRsvpChange, effectiveInvitedCount, isRsvpStatus, parseRsvpStatus, RSVP_STATUSES, syncLegacyGuestNames, type RsvpStatus } from "@/lib/guest-gifts";
@@ -2564,6 +2566,49 @@ export async function createInboxChild(parentId: string, title: string): Promise
   revalidatePath(`/work/${parentId}`);
 }
 
+/** Adds a step at the end of a task's "Steps inside this" list (the task workspace page). */
+export async function addTaskStep(
+  parentId: string,
+  title: string,
+): Promise<{ ok: true } | { error: string }> {
+  const session = await getSession();
+  if (!session?.canSeeTasks) return { error: "This PIN can't add steps." };
+
+  const trimmed = title.replace(/\s+/g, " ").trim();
+  if (!trimmed) return { error: "Type the step first." };
+
+  const parent = await prisma.task.findUnique({
+    where: { id: parentId },
+    include: { assignees: true, children: { include: { assignees: true } } },
+  });
+  // Steps sit one level deep: a step can't have steps of its own.
+  if (!parent || parent.parentId) return { error: "This task couldn't be found. Reload and try again." };
+  if (!(await sessionCanMutateTask(session, parent))) return { error: "This PIN can't change this task." };
+
+  const last = await prisma.task.findFirst({
+    where: { parentId },
+    orderBy: { sortOrder: "desc" },
+  });
+  const step = await prisma.task.create({
+    data: {
+      title: trimmed,
+      parentId,
+      status: "todo",
+      planNotes: "",
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+      amountSpent: 0,
+    },
+  });
+  // A new step belongs to the same people as the task, like the steps already there.
+  const parentOwners = parent.assignees.map((a) => a.personId);
+  if (parentOwners.length) await setTaskAssignees(step.id, parentOwners);
+
+  revalidatePath("/today");
+  revalidatePath("/people");
+  revalidatePath(`/work/${parentId}`);
+  return { ok: true };
+}
+
 export async function createTaskFromInbox(
   title: string,
   dueDateRaw?: string,
@@ -3693,5 +3738,62 @@ export async function restoreReconciledMomentAction(
   }
   await resequenceTimeline(update.schedule);
   revalidateSchedule(update.schedule);
+  return { ok: true };
+}
+
+/**
+ * David's task corrections: adds his dated Monday/Tuesday jobs and ticks the steps he
+ * marked done. Never rewords, re-dates, deletes or unticks a task.
+ */
+export async function applyTaskCorrectionsAction(): Promise<
+  { ok: true; inserted: number; marked: number } | { ok: false; reason: "forbidden" | "failed" }
+> {
+  const session = await getSession();
+  if (!session?.isMaster) return { ok: false, reason: "forbidden" };
+
+  const { tasks: plan, phones } = await loadPrintoutCorrectionsPlan();
+  const now = new Date();
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const row of plan.inserts) {
+        await tx.task.create({ data: { title: row.title, summary: row.summary, dueDate: dueDateFor(row.due) } });
+      }
+      for (const row of plan.marks) {
+        await tx.task.updateMany({ where: { id: row.id, status: { not: "done" } }, data: { status: "done", completedAt: now } });
+      }
+      // New numbers only; a person with a different number saved is left for David to pick.
+      for (const row of phones) {
+        if (row.status === "add" && row.write) await writePhone(tx, row.write);
+      }
+    });
+  } catch {
+    return { ok: false, reason: "failed" };
+  }
+  revalidatePath("/today");
+  revalidatePath("/plan/tasks");
+  revalidatePath("/print");
+  revalidatePath("/people");
+  revalidatePath("/day");
+  return { ok: true, inserted: plan.inserts.length, marked: plan.marks.length };
+}
+
+/** David's pick when a different number is already saved: use the one he sent in chat. */
+export async function pickPrintoutPhoneAction(
+  label: string,
+): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "not_found" | "failed" }> {
+  const session = await getSession();
+  if (!session?.isMaster) return { ok: false, reason: "forbidden" };
+  const { phones } = await loadPrintoutCorrectionsPlan();
+  const row = phones.find((candidate) => candidate.label === label && candidate.status === "differs");
+  if (!row?.write) return { ok: false, reason: "not_found" };
+  try {
+    await prisma.$transaction(async (tx) => writePhone(tx, row.write!));
+  } catch {
+    return { ok: false, reason: "failed" };
+  }
+  revalidatePath("/plan/tasks");
+  revalidatePath("/print");
+  revalidatePath("/people");
+  revalidatePath("/day");
   return { ok: true };
 }

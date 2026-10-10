@@ -74,6 +74,7 @@ function availableForSession(session: SessionAccount): PrintSectionId[] {
       case "stay":
         return can(session.canSeeStay);
       case "tasks":
+      case "tasksDone":
         return can(session.canSeeTasks);
       case "calendar":
         return can(session.canSeeCalendar);
@@ -114,7 +115,7 @@ export async function loadPrintCenterDocument(
   const stayOn = availableSections.includes("stay");
   const mealsOn = availableSections.includes("meals");
   const shopOn = session.isMaster || session.canSeeShop;
-  const tasksOn = availableSections.includes("tasks");
+  const tasksOn = availableSections.includes("tasks") || availableSections.includes("tasksDone");
   const calendarOn = availableSections.includes("calendar");
   const moneyOn = availableSections.includes("money");
   const peopleOn = session.isMaster || session.canSeePeople || session.canSeeTimeline;
@@ -287,6 +288,10 @@ export async function loadPrintCenterDocument(
     dueLabel: task.dueDate
       ? task.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : null,
+    dueDay: task.dueDate
+      ? task.dueDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+      : null,
+    dueAt: task.dueDate ? task.dueDate.getTime() : null,
     assignees: task.assignees.map((row) => row.person.name).filter(Boolean),
   }));
   const setupPlan = projectSetupPlan({
@@ -395,6 +400,7 @@ export async function loadPrintCenterDocument(
       assignees: task.assignees,
     })),
     taskGroups: projectTaskGroups(taskViews),
+    doneTaskGroups: projectTaskGroups(taskViews, "done"),
     calendar: projectKeyDates(calendarRows, timezone, settings?.weddingDate ?? null, rehearsalSorted.length > 0),
     money: moneyFingerprint(contracts),
     weddingParty: projectWeddingParty({

@@ -166,7 +166,7 @@ test.describe("task steps", () => {
     const original = step!.title;
     await page.goto(`/work/${parent!.id}`);
     await waitForHydration(page);
-    const input = page.locator("article input").first();
+    const input = page.getByRole("textbox", { name: "Step title" }).first();
     await expect(input).toHaveValue(original);
 
     await input.fill("");
@@ -284,6 +284,14 @@ test.describe("stay", () => {
     // when it hydrates (CI once read "weep guest"), so wait the way a person's pause would.
     await waitForHydration(page);
     const input = page.getByPlaceholder("Tap to claim").first();
+    // The page's first button can hydrate before the stay board does; wait for the bed box itself.
+    await input.evaluate((el) =>
+      new Promise<void>((resolve) => {
+        const ready = () => Object.keys(el).some((key) => key.startsWith("__reactProps"));
+        if (ready()) return resolve();
+        const timer = setInterval(() => ready() && (clearInterval(timer), resolve()), 50);
+      }),
+    );
     await input.click();
     await page.keyboard.press("Control+a");
     await page.keyboard.type("Sweep guest");

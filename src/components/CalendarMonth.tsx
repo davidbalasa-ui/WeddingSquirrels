@@ -17,6 +17,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { saveCalendarEvent } from "@/app/actions";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 export type PlanCalendarEventView = {
   id: string;
@@ -142,7 +143,7 @@ function CalendarEventCard({
         </label>
         <label className="text-sm">
           <span className="mb-1 block text-xs text-muted">Notes</span>
-          <textarea name="notes" rows={2} defaultValue={event.notes ?? ""} className="field-input resize-y" />
+          <AutoGrowTextarea name="notes" rows={2} defaultValue={event.notes ?? ""} className="field-input" />
         </label>
         {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
         <div className="flex flex-wrap gap-2">

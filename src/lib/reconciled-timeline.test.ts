@@ -143,7 +143,7 @@ test("the app's original rehearsal rows (id = seed key, no seedKey) are the docu
   assert.equal(again.removals.length, 0);
 });
 
-test("after an Apply that doubled the rehearsal, the untouched legacy copies are folded away and an edited one stays", () => {
+test("after an Apply that doubled the rehearsal, the untouched legacy copies are folded away and an edited one replaces the document copy", () => {
   const legacy = REHEARSAL_SCHEDULE_SEED.map((block, index) => ({
     id: block.id,
     seedKey: null,
@@ -164,9 +164,64 @@ test("after an Apply that doubled the rehearsal, the untouched legacy copies are
   }));
   const plan = planReconciledTimeline([...legacy, ...seeded]);
   assert.equal(plan.inserts.filter((row) => row.schedule === "rehearsal").length, 0);
+  // David (2026-10-10): no moment twice. His edited 1:00 PM row stays; the unedited document copy beside it goes.
   assert.deepEqual(
     plan.removals.map((row) => row.id).sort(),
-    legacy.slice(1).map((row) => row.id).sort(),
+    [...legacy.slice(1).map((row) => row.id), "seeded-0"].sort(),
   );
-  assert.deepEqual(plan.untouched.map((row) => row.id), ["reh.checkin"]);
+  assert.deepEqual(plan.untouched.filter((row) => row.id.startsWith("reh.") || row.id.startsWith("seeded")), []);
+  assert.deepEqual(
+    plan.updates.filter((row) => row.schedule === "rehearsal").map((row) => row.id),
+    ["reh.checkin"],
+  );
+});
+
+test("rehearsal rows typed by hand at the document's times are matched, never doubled", () => {
+  const typed = [
+    { title: "Airbnb Check-in", startAt: "1:00 PM" },
+    { title: "Depart Airbnb", startAt: "3:45 PM" },
+    { title: "Dinner", startAt: "4:15 PM" },
+    { title: "Rehearsal", startAt: "6:00 PM" },
+    { title: "Return to Airbnb", startAt: "7:15 PM" },
+    { title: "Photos by the lake", startAt: "1:00 PM" },
+  ].map((row, index) => ({
+    id: `typed-${index}`,
+    seedKey: null,
+    schedule: "rehearsal",
+    startAt: row.startAt,
+    endAt: null,
+    notes: row.title,
+    sortOrder: index,
+  }));
+  // First Apply: the five that are plainly the same moment are matched; the lake photos are their own row.
+  const first = planReconciledTimeline(typed);
+  assert.deepEqual(
+    first.inserts.filter((row) => row.schedule === "rehearsal").map((row) => row.seedKey),
+    ["reh.getready", "reh.depart-bss"],
+  );
+  assert.equal(first.removals.length, 0);
+  assert.ok(first.untouched.some((row) => row.id === "typed-5"));
+
+  // Already doubled by an earlier Apply: each unedited document copy goes, the typed row stays.
+  const doubled = [
+    ...typed,
+    ...RECONCILED_TIMELINE.filter((moment) => moment.schedule === "rehearsal").map((moment, index) => ({
+      id: `doc-${index}`,
+      seedKey: moment.seedKey,
+      schedule: "rehearsal",
+      startAt: moment.startAt,
+      endAt: moment.endAt,
+      notes: index === 3 ? `${reconciledNotes(moment)}\nOwner note` : reconciledNotes(moment),
+      sortOrder: 20 + index,
+    })),
+  ];
+  const second = planReconciledTimeline(doubled);
+  assert.deepEqual(second.removals.map((row) => row.id).sort(), ["doc-0", "doc-2", "doc-5", "doc-6"]);
+  // The dinner copy was edited too: both stay for the owner, nothing of his is removed.
+  assert.ok(second.untouched.some((row) => row.id === "typed-2"));
+  assert.equal(second.removals.some((row) => row.id.startsWith("typed")), false);
+  // Applying again changes nothing more.
+  const after = doubled.filter((row) => !second.removals.some((gone) => gone.id === row.id));
+  assert.equal(planReconciledTimeline(after).removals.length, 0);
+  assert.equal(planReconciledTimeline(after).inserts.filter((row) => row.schedule === "rehearsal").length, 0);
 });

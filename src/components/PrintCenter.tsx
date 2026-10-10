@@ -533,33 +533,9 @@ function PrintSection({
         </section>
       );
     case "tasks":
-      return (
-        <section className="binder-section">
-          <h2>Open work</h2>
-          {(document.taskGroups.length ? document.taskGroups : []).map((group) => (
-            <div key={group.title} className="binder-block">
-              <h3>{group.title}</h3>
-              <ul className="binder-list">
-                {group.items.map((item) => (
-                  <li key={item.title} className="binder-shot">
-                    <span className="binder-check" aria-hidden>
-                      {item.done ? "☑" : "☐"}
-                    </span>
-                    <span>
-                      <span className="binder-item-title">{item.title}</span>
-                      {item.dueLabel || item.assignees.length ? (
-                        <p className="binder-note">
-                          {[item.dueLabel, item.assignees.join(" · ")].filter(Boolean).join(" · ")}
-                        </p>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </section>
-      );
+      return <PrintTaskGroups heading="Open work" groups={document.taskGroups} testId="print-section-tasks" />;
+    case "tasksDone":
+      return <PrintTaskGroups heading="Completed work" groups={document.doneTaskGroups} testId="print-section-tasks-done" />;
     case "calendar":
       return (
         <section className="binder-section">
@@ -642,6 +618,8 @@ function WeddingPartySection({ document, preset }: { document: PrintCenterDocume
   // Parents walk in the processional; the roster and party call times are the party's own.
   const parents = preset === "brideParents" || preset === "groomParents";
   const ownSchedule = preset === "party" || parents;
+  // The party's own packet is who walks with whom and in what order; numbers stay in the binder and coordinator copies.
+  const showPhones = preset !== "party";
   if (parents) {
     return party.processional.length ? (
       <section className="binder-section" data-testid="print-section-party">
@@ -666,7 +644,7 @@ function WeddingPartySection({ document, preset }: { document: PrintCenterDocume
                 <th>Name</th>
                 <th>Role</th>
                 <th>Walks with</th>
-                <th>Phone</th>
+                {showPhones ? <th>Phone</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -675,7 +653,7 @@ function WeddingPartySection({ document, preset }: { document: PrintCenterDocume
                   <td>{member.name}</td>
                   <td>{member.role}</td>
                   <td>{member.walksWith ?? "—"}</td>
-                  <td>{member.phone ?? "TBD"}</td>
+                  {showPhones ? <td>{member.phone ?? "TBD"}</td> : null}
                 </tr>
               ))}
             </tbody>
@@ -911,5 +889,43 @@ function ContactList({ rows }: { rows: PrintCenterDocument["vendorContacts"] }) 
         </li>
       ))}
     </ul>
+  );
+}
+
+function PrintTaskGroups({
+  heading,
+  groups,
+  testId,
+}: {
+  heading: string;
+  groups: PrintCenterDocument["taskGroups"];
+  testId: string;
+}) {
+  return (
+    <section className="binder-section" data-testid={testId}>
+      <h2>{heading}</h2>
+      {groups.map((group) => (
+        <div key={group.title} className="binder-block">
+          <h3>{group.title}</h3>
+          <ul className="binder-list">
+            {group.items.map((item) => (
+              <li key={item.title} className="binder-shot">
+                <span className="binder-check" aria-hidden>
+                  {item.done ? "☑" : "☐"}
+                </span>
+                <span>
+                  <span className="binder-item-title">{item.title}</span>
+                  {item.dueLabel || item.assignees.length ? (
+                    <p className="binder-note">
+                      {[item.dueLabel, item.assignees.join(" · ")].filter(Boolean).join(" · ")}
+                    </p>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </section>
   );
 }
