@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { applyReconciledTimelineAction, restoreReconciledMomentAction } from "@/app/actions";
+import { applyReconciledTimelineAction, keepDoubledMomentAction, restoreReconciledMomentAction } from "@/app/actions";
 import { reconciledPlanIsEmpty, type ReconciledPlan } from "@/lib/reconciled-timeline";
 
 /**
@@ -18,9 +18,19 @@ export function ReconciledTimelineCard({ plan }: { plan: ReconciledPlan }) {
   const [open, setOpen] = useState(false);
   const [restoring, setRestoring] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState(false);
+  const [keeping, setKeeping] = useState<string | null>(null);
+  const [keepError, setKeepError] = useState(false);
   if (state === "done") return null;
   const onlyDifferences = reconciledPlanIsEmpty(plan);
-  if (onlyDifferences && plan.updates.length === 0) return null;
+  const doubles = plan.doubles ?? [];
+  if (onlyDifferences && plan.updates.length === 0 && doubles.length === 0) {
+    // The owner looks here for the Apply button; say why there is none.
+    return (
+      <p className="mb-3 text-xs text-muted print-hide" data-testid="reconciled-up-to-date">
+        Everything from the reconciled timeline document is already on the page. Nothing to apply.
+      </p>
+    );
+  }
 
   async function apply() {
     setState("working");
@@ -44,6 +54,49 @@ export function ReconciledTimelineCard({ plan }: { plan: ReconciledPlan }) {
     }
     window.location.reload();
   }
+
+  async function keep(id: string) {
+    setKeeping(id);
+    setKeepError(false);
+    const result = await keepDoubledMomentAction(id).catch(() => ({ ok: false as const }));
+    setKeeping(null);
+    if (!result.ok) {
+      setKeepError(true);
+      return;
+    }
+    window.location.reload();
+  }
+
+  // Both copies of these Thursday moments were edited, so Apply leaves both; one tap keeps one.
+  const doubled = doubles.length ? (
+    <section className="card mb-3 px-3 py-3 text-sm print-hide" data-testid="reconciled-doubles">
+      <p className="text-sm font-semibold">
+        {doubles.length === 1 ? "1 rehearsal moment is on the page twice" : `${doubles.length} rehearsal moments are on the page twice`}
+      </p>
+      <p className="mt-0.5 text-xs text-muted">Both copies were edited, so Apply leaves them. Tap the one to keep; the other is removed.</p>
+      <ul className="mt-2 list-none space-y-2 p-0">
+        {doubles.map((pair) => (
+          <li key={pair.document.id}>
+            <p className="text-xs font-semibold text-muted">{pair.startAt}</p>
+            <div className="mt-0.5 flex flex-wrap gap-2">
+              {[pair.mine, pair.document].map((copy) => (
+                <button
+                  key={copy.id}
+                  type="button"
+                  className="btn-secondary min-h-11 px-3 py-2 text-left text-sm"
+                  disabled={keeping !== null}
+                  onClick={() => void keep(copy.id)}
+                >
+                  {keeping === copy.id ? "Keeping…" : `Keep “${copy.title}”`}
+                </button>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {keepError ? <p className="mt-1 text-sm text-[var(--danger)]">Couldn’t remove the other copy. Try again.</p> : null}
+    </section>
+  ) : null;
 
   const differences = plan.updates.length ? (
     <div>
@@ -73,16 +126,23 @@ export function ReconciledTimelineCard({ plan }: { plan: ReconciledPlan }) {
   // Everything from the document is on the timeline; only the owner's own edits differ.
   if (onlyDifferences) {
     return (
-      <section className="mb-3 print-hide">
-        <button type="button" className="min-h-9 text-xs font-semibold text-muted" onClick={() => setOpen((v) => !v)}>
-          {open ? "Hide" : plan.updates.length === 1 ? "1 moment reads differently from the reconciled document" : `${plan.updates.length} moments read differently from the reconciled document`}
-        </button>
-        {open ? <div className="card mt-1 px-3 py-3 text-sm">{differences}</div> : null}
-      </section>
+      <>
+        {doubled}
+        {plan.updates.length ? (
+          <section className="mb-3 print-hide">
+            <button type="button" className="min-h-9 text-xs font-semibold text-muted" onClick={() => setOpen((v) => !v)}>
+              {open ? "Hide" : plan.updates.length === 1 ? "1 moment reads differently from the reconciled document" : `${plan.updates.length} moments read differently from the reconciled document`}
+            </button>
+            {open ? <div className="card mt-1 px-3 py-3 text-sm">{differences}</div> : null}
+          </section>
+        ) : null}
+      </>
     );
   }
 
   return (
+    <>
+    {doubled}
     <section className="card mb-3 px-3 py-3 print-hide">
       <p className="text-sm font-semibold">Reconciled timeline update ready</p>
       <p className="mt-0.5 text-xs text-muted">
@@ -133,5 +193,6 @@ export function ReconciledTimelineCard({ plan }: { plan: ReconciledPlan }) {
         </div>
       ) : null}
     </section>
+    </>
   );
 }
