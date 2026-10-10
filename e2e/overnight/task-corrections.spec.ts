@@ -69,7 +69,10 @@ test("Apply adds the dated jobs once and ticks only the marked steps", async ({ 
   await expect(card).not.toContainText("Alpine Events");
   await expect(card).toContainText("Ceremony Flower Sword · Receive the ordered sword");
   await expect(card).toContainText("Pam Balasa · 269-475-3751");
+  // The card reloads the page once the write is done; wait for that load so the next visit is not cut short.
+  const reloaded = page.waitForEvent("load");
   await card.getByRole("button", { name: "Apply to tasks" }).click();
+  await reloaded;
   await expect(page.getByTestId("task-corrections-card")).toHaveCount(0);
 
   for (const def of NEW_TASKS) {
@@ -128,7 +131,9 @@ test("a different number already saved is shown beside Pam's new one, and only h
   const card = page.getByTestId("task-corrections-card");
   await card.getByRole("button", { name: "See what changes" }).click();
   await expect(card).toContainText("Pam Balasa · saved: 231-555-0100");
+  const reloaded = page.waitForEvent("load");
   await card.getByRole("button", { name: "Apply to tasks" }).click();
+  await reloaded;
   await expect(card).toContainText("Pam Balasa · saved: 231-555-0100");
   expect((await prisma.contact.findFirstOrThrow({ where: { personId: "e2e-pam" } })).phone).toBe("231-555-0100");
   await card.getByRole("button", { name: "Use 269-475-3751 instead" }).click();

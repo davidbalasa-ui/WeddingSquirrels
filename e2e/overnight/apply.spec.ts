@@ -137,7 +137,9 @@ test("a doubled rehearsal day is folded back to one row per moment, keeping Davi
   const card = page.locator("section").filter({ hasText: "Reconciled timeline update ready" });
   await card.getByRole("button", { name: "See what changes" }).click();
   await expect(card).toContainText("Folded into other moments");
+  const reloaded = page.waitForEvent("load");
   await card.getByRole("button", { name: "Apply to the timeline" }).click();
+  await reloaded;
   await expect(page.getByRole("button", { name: /Apply(ing…| to the timeline)/ })).toHaveCount(0, { timeout: 20_000 });
 
   const rows = await prisma.timelineBlock.findMany({ where: { schedule: "rehearsal" } });
@@ -151,8 +153,12 @@ test("a doubled rehearsal day is folded back to one row per moment, keeping Davi
   }
   expect(rows.find((r) => r.id === "own-1")).toBeUndefined();
   expect(rows.filter((r) => r.seedKey === "reh.getready")).toHaveLength(1);
-  // A second visit has nothing left to fold.
-  await page.reload();
-  await expect(page.getByRole("button", { name: "Apply to the timeline" })).toHaveCount(0);
+  // A second visit has nothing left to fold. The card reloads the page itself after Apply,
+  // so a visit can be cut short by that reload; try again until one lands.
+  await expect(async () => {
+    await page.goto("/plan/timeline");
+    await expect(page.getByRole("heading").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Apply to the timeline" })).toHaveCount(0);
+  }).toPass({ timeout: 20_000 });
   await resetOvernightData(prisma);
 });
