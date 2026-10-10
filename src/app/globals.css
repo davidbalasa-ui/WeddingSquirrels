@@ -1020,17 +1020,43 @@ a {
   padding: 0;
 }
 
+/* Dense run sheet (David, 2026-10-10: "too spread out and I can't tell when things are happening"):
+   the start time leads each row, the title sits beside it, the lines sit tight underneath. */
 .binder-schedule li {
   display: grid;
-  grid-template-columns: 9.75rem minmax(0, 1fr);
-  gap: 0 0.85rem;
-  padding: 0.32rem 0;
+  grid-template-columns: 5.6rem minmax(0, 1fr);
+  gap: 0 0.7rem;
+  padding: 0.2rem 0;
   border-bottom: 1px solid var(--print-hairline);
 }
 
+.binder-schedule .binder-item-title {
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
 .binder-schedule .binder-note {
-  font-size: 0.88rem;
-  line-height: 1.35;
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.binder-schedule .binder-time {
+  font-size: 0.92rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.binder-schedule .binder-time-end {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--print-body);
+}
+
+.binder-schedule .binder-line-time {
+  font-weight: 700;
+  color: var(--print-burgundy);
+  font-variant-numeric: tabular-nums;
 }
 
 .binder-processional {

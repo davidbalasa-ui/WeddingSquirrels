@@ -745,23 +745,50 @@ function PacketScheduleSection({
   );
 }
 
+/** "11:30 AM — Airbnb cleaned": the line's own time, so it can be set in bold without changing a word. */
+const LEADING_TIME = /^(\d{1,2}:\d{2}(?:\s*[AP]M)?(?:\s*[–-]\s*\d{1,2}:\d{2}(?:\s*[AP]M)?)?)(\s*[—–:-]\s.*)$/i;
+
+function ScheduleLine({ line }: { line: string }) {
+  const timed = line.match(LEADING_TIME);
+  return (
+    <p className="binder-note">
+      {timed ? (
+        <>
+          <strong className="binder-line-time">{timed[1]}</strong>
+          {timed[2]}
+        </>
+      ) : (
+        line
+      )}
+    </p>
+  );
+}
+
+/**
+ * One row per moment: the start time leads in the left column (the end time under it),
+ * the title beside it, and the moment's lines tight underneath, so a page scans by time.
+ */
 function ScheduleRows({ rows }: { rows: PacketScheduleRow[] }) {
   return (
     <ol className="binder-schedule">
-      {rows.map((row, index) => (
-        <li key={`${row.time}-${row.title}-${index}`}>
-          <p className="binder-time">{row.time}</p>
-          <div>
-            <p className="binder-item-title">{row.title}</p>
-            {row.location ? <p className="binder-note">{row.location}</p> : null}
-            {row.lines.map((line) => (
-              <p key={line} className="binder-note">
-                {line}
-              </p>
-            ))}
-          </div>
-        </li>
-      ))}
+      {rows.map((row, index) => {
+        const [start, end] = row.time.split(" – ");
+        return (
+          <li key={`${row.time}-${row.title}-${index}`}>
+            <p className="binder-time">
+              {start}
+              {end ? <span className="binder-time-end"> – {end}</span> : null}
+            </p>
+            <div>
+              <p className="binder-item-title">{row.title}</p>
+              {row.location ? <p className="binder-note">{row.location}</p> : null}
+              {row.lines.map((line) => (
+                <ScheduleLine key={line} line={line} />
+              ))}
+            </div>
+          </li>
+        );
+      })}
     </ol>
   );
 }
