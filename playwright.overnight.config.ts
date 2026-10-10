@@ -12,6 +12,8 @@ loadEnv();
  */
 const PORT = Number(process.env.OVERNIGHT_PORT || 3200);
 const BASE_URL = process.env.OVERNIGHT_BASE_URL || `http://127.0.0.1:${PORT}`;
+// The container's Chromium; a different Playwright build would otherwise try to download its own.
+const chromiumLaunch = process.env.OVERNIGHT_CHROMIUM ? { executablePath: process.env.OVERNIGHT_CHROMIUM } : undefined;
 
 export default defineConfig({
   testDir: "./e2e/overnight",
@@ -26,8 +28,6 @@ export default defineConfig({
   outputDir: "test-artifacts/overnight/output",
   use: {
     baseURL: BASE_URL,
-    // The container's Chromium; a different Playwright build would otherwise try to download its own.
-    launchOptions: process.env.OVERNIGHT_CHROMIUM ? { executablePath: process.env.OVERNIGHT_CHROMIUM } : undefined,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "off",
@@ -50,11 +50,22 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      use: { ...devices["Desktop Chrome"], channel: undefined, viewport: { width: 1280, height: 900 } },
+      use: { ...devices["Desktop Chrome"], channel: undefined, viewport: { width: 1280, height: 900 }, launchOptions: chromiumLaunch },
     },
     {
       name: "phone",
-      use: { ...devices["Pixel 7"], channel: undefined },
+      use: { ...devices["Pixel 7"], channel: undefined, launchOptions: chromiumLaunch },
+    },
+    // Safari's engine, as an iPhone, and Firefox: the same checks in the other two
+    // engines. Run with `--project iphone --project firefox` once
+    // `npx playwright install webkit firefox` has fetched them.
+    {
+      name: "iphone",
+      use: { ...devices["iPhone 14"] },
+    },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"], viewport: { width: 1280, height: 900 } },
     },
   ],
 });
