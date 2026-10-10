@@ -4,6 +4,7 @@ import { parseBlockNotes } from "./day-of-now";
 import { reviewMoment } from "./day-timeline-view";
 import { momentForAudience, packetSchedule, withoutBrideSecrets } from "./print-packets";
 import { RECONCILED_TIMELINE, reconciledNotes } from "./reconciled-timeline";
+import { REHEARSAL_SCHEDULE_SEED } from "./rehearsal";
 
 const ctx = { party: ["Skila", "Braxton"], mc: ["Kurt", "Wendy"], photo: ["Barry"] };
 const moments = {
@@ -103,3 +104,26 @@ test("packets for each group keep the moments they had before, plus only the int
   const dances = packetSchedule(moments, "brideParents").wedding.find((row) => row.title === "Formal dances");
   assert.deepEqual(dances?.lines, ["Father of the bride dance."]);
 });
+
+test("the app's earlier one-line rehearsal rows still reach the party and the parents", () => {
+  const legacy = {
+    rehearsal: REHEARSAL_SCHEDULE_SEED.map((row) => reviewMoment({ startAt: row.startAt, endAt: row.endAt, notes: row.notes }, ctx)),
+    wedding: [],
+  };
+  const party = titles(packetSchedule(legacy, "party").rehearsal);
+  for (const title of [
+    "Airbnb Check-in; Wedding party arrives; Rooms are picked",
+    "Depart Airbnb; Drive time 25-30 minutes; Location: Hawkshead 523 Hawks Nest Dr, South Haven",
+    "Dinner; Welcome toasts; Reminders & logistics",
+    "Depart for BSS; Drive time 10-15 minutes",
+    "Rehearsal; Ceremony rehearsal at BSS",
+    "Return to Airbnb; Game night!",
+  ]) {
+    assert.ok(party.includes(title), title);
+  }
+  const parents = titles(packetSchedule(legacy, "brideParents").rehearsal);
+  assert.ok(parents.includes("Dinner; Welcome toasts; Reminders & logistics"));
+  assert.ok(parents.includes("Rehearsal; Ceremony rehearsal at BSS"));
+  assert.ok(!parents.includes("Return to Airbnb; Game night!"));
+});
+

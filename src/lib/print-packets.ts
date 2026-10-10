@@ -20,9 +20,10 @@ export type PacketSchedule = {
   wedding: PacketScheduleRow[];
 };
 
-const SHARED_REHEARSAL_MOMENT = /rehearsal dinner|ceremony rehearsal/i;
+/** The document's titles and the app's earlier one-line rows ("Dinner; Welcome toasts…", "Rehearsal; Ceremony rehearsal at BSS"). */
+const SHARED_REHEARSAL_MOMENT = /rehearsal dinner|ceremony rehearsal|^dinner\b|^rehearsal\b/i;
 /** The party travels together on Thursday, so their copy keeps the departures and the return. */
-const PARTY_REHEARSAL_TRAVEL = /^depart for|return to the airbnb/i;
+const PARTY_REHEARSAL_TRAVEL = /^depart\b|^return to (?:the )?airbnb/i;
 
 const BRIDE_SIDE =
   /\bMOB\b|\bFOB\b|mother of the bride|father of the bride|\bhaley with\b|haley[’']s (?:family|parents|mom|dad|paternal|maternal)|mom buttons|first look with dad/i;
