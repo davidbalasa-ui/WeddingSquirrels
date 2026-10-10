@@ -805,7 +805,7 @@ export function sectionHasContent(doc: PrintCenterDocument, id: PrintSectionId):
     case "meals":
       return doc.meals.length > 0 || doc.shopping.length > 0;
     case "tasks":
-      return doc.taskGroups.length > 0 || doc.tasks.length > 0;
+      return doc.taskGroups.length > 0;
     case "calendar":
       return doc.calendar.length > 0;
     case "money":

@@ -534,7 +534,7 @@ function PrintSection({
       );
     case "tasks":
       return (
-        <section className="binder-section">
+        <section className="binder-section" data-testid="print-section-tasks">
           <h2>Open work</h2>
           {(document.taskGroups.length ? document.taskGroups : []).map((group) => (
             <div key={group.title} className="binder-block">

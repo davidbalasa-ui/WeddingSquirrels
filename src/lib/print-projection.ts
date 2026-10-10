@@ -468,6 +468,8 @@ export function projectTaskGroups(
 
   for (const task of tasks) {
     if (task.parentId) {
+      // Open work prints only what is still open; finished steps stay in the app.
+      if (taskStatusIsDone(task.status)) continue;
       const list = childrenByParent.get(task.parentId) ?? [];
       list.push(task);
       childrenByParent.set(task.parentId, list);
@@ -498,6 +500,8 @@ export function projectTaskGroups(
     if (task.parentId) continue;
     if (usedParents.has(task.id)) continue;
     if (childrenByParent.has(task.id)) continue;
+    if (tasks.some((other) => other.parentId === task.id)) continue;
+    if (taskStatusIsDone(task.status)) continue;
     standalone.push(task);
   }
 
