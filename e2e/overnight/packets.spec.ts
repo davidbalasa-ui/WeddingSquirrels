@@ -27,7 +27,7 @@ test.describe("Print Center packets", () => {
       if (packet.id !== "binder") expect(text).not.toMatch(/\$\s?\d[\d,]*\.\d{2}/);
       // Haley's copy never carries the getaway details.
       if (packet.id === "bride") {
-        expect(text).not.toMatch(/San Vandenheede|Just Married|secret from the bride|Mustang/i);
+        expect(text).not.toMatch(/\b[DS]an Vandenheede|Just Married|secret from the bride|Mustang/i);
       }
       // Packets for one group stay short and do not carry other groups' sections.
       if (["mc", "party", "photo", "brideParents", "groomParents"].includes(packet.id)) {

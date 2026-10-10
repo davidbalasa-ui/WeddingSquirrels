@@ -3706,6 +3706,10 @@ export async function applyReconciledTimelineAction(): Promise<
     await prisma.$transaction([
       ...plan.removals.map((row) => prisma.timelineBlock.delete({ where: { id: row.id } })),
       ...plan.inserts.map((data) => prisma.timelineBlock.create({ data })),
+      // Only rows still worded exactly as the app wrote them; the owner's own wording is never touched.
+      ...plan.rewords.map(({ id, before: _before, sortOrder: _sortOrder, correction: _correction, ...data }) =>
+        prisma.timelineBlock.update({ where: { id }, data }),
+      ),
     ]);
   } catch {
     return { ok: false, reason: "failed" };
@@ -3777,7 +3781,7 @@ export async function applyTaskCorrectionsAction(): Promise<
   const session = await getSession();
   if (!session?.isMaster) return { ok: false, reason: "forbidden" };
 
-  const { tasks: plan, phones, contacts, dayJobs } = await loadPrintoutCorrectionsPlan();
+  const { tasks: plan, phones, contacts, dayJobs, dayJobRewords } = await loadPrintoutCorrectionsPlan();
   const now = new Date();
   try {
     await prisma.$transaction(async (tx) => {
@@ -3798,6 +3802,10 @@ export async function applyTaskCorrectionsAction(): Promise<
         for (const job of dayJobs) {
           await tx.dayAssignment.create({ data: { title: job.title, notes: job.notes, sortOrder: next++ } });
         }
+      }
+      // Only while the job still reads exactly as this card first wrote it.
+      for (const row of dayJobRewords) {
+        await tx.dayAssignment.updateMany({ where: { id: row.id, title: row.before }, data: { title: row.title, notes: row.notes } });
       }
     });
   } catch {

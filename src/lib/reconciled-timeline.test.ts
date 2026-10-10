@@ -239,3 +239,36 @@ test("rehearsal rows typed by hand at the document's times are matched, never do
   assert.deepEqual(planReconciledTimeline(picked).doubles, []);
   assert.equal(planReconciledTimeline(picked).inserts.filter((row) => row.schedule === "rehearsal").length, 0);
 });
+
+// David, 2026-10-10: the getaway driver is Dan; the document said San.
+test("a getaway moment still worded as the app wrote it is corrected to Dan by Apply; an edited one stays his", () => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_getaway_arrives")!;
+  assert.doesNotMatch(reconciledNotes(moment), /\bSan\b/);
+  const written = reconciledNotes({
+    ...moment,
+    lines: ["MOB or another helper meets San Vandenheede.", "Show San where to park, give him the “Just Married” sign, and tell the groom.", "Keep the vehicle details secret from the bride."],
+    openItems: "Confirm MOB will meet San and give her his phone number and arrival time.",
+  });
+  const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.map((m, index) => ({
+    id: m.seedKey,
+    seedKey: m.seedKey,
+    schedule: m.schedule,
+    startAt: m.startAt,
+    endAt: m.endAt,
+    notes: m === moment ? written : reconciledNotes(m),
+    sortOrder: index,
+  }));
+  const plan = planReconciledTimeline(rows);
+  assert.equal(plan.rewords.length, 1);
+  assert.equal(plan.rewords[0]!.id, moment.seedKey);
+  assert.equal(plan.rewords[0]!.correction, "San → Dan");
+  assert.equal(plan.rewords[0]!.notes, reconciledNotes(moment));
+  assert.equal(plan.updates.length, 0);
+  assert.equal(reconciledPlanIsEmpty(plan), false);
+
+  const edited = rows.map((row) => (row.id === moment.seedKey ? { ...row, notes: `${written}\nHe parks by the barn` } : row));
+  const kept = planReconciledTimeline(edited);
+  assert.equal(kept.rewords.length, 0);
+  assert.equal(kept.updates.length, 1);
+  assert.equal(reconciledPlanIsEmpty(kept), true);
+});

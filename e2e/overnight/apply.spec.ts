@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { parseBlockNotes } from "../../src/lib/day-of-now";
 import { RECONCILED_TIMELINE, reconciledNotes } from "../../src/lib/reconciled-timeline";
-import { overnightPrisma, resetOvernightData } from "./db";
+import { overnightPrisma, resetOvernightData, snapshotTasks } from "./db";
 import { attachGuards, blockByTitle, editCard, expectAllSaved, openTimelineEditor } from "./helpers";
 
 const prisma = overnightPrisma();
@@ -244,5 +244,50 @@ test("a doubled rehearsal moment with both copies edited is listed with one tap 
     await expect(page.getByRole("button", { name: "Apply to the timeline" })).toHaveCount(0);
   }).toPass({ timeout: 20_000 });
   await guards.assertClean();
+  await resetOvernightData(prisma);
+});
+
+// David, 2026-10-10: "it says san instead of dan, that needs corrected everywhere, but it
+// should come from one spot". The spot is the reconciled timeline; rows the app wrote with
+// San and never edited are corrected by the two Apply cards, nothing else is touched.
+test("the getaway moment and its Day-of job read Dan after the Apply taps", async ({ page }) => {
+  await resetOvernightData(prisma);
+  // The tasks card also adds David's jobs; they go again afterwards so later checks start clean.
+  const restoreTasks = await snapshotTasks(prisma);
+  const guards = attachGuards(page);
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_getaway_arrives")!;
+  const oldNotes = reconciledNotes(moment).replace(/\bDan\b/g, "San");
+  const row = await prisma.timelineBlock.findFirstOrThrow({ where: { seedKey: moment.seedKey } });
+  await prisma.timelineBlock.update({ where: { id: row.id }, data: { notes: oldNotes } });
+  const job = await prisma.dayAssignment.create({
+    data: {
+      title: "MOB or another helper meets San Vandenheede.",
+      notes: "8:20 PM · Getaway vehicle arrives. Show San where to park, give him the “Just Married” sign, and tell the groom.",
+      sortOrder: 99,
+    },
+  });
+
+  await page.goto("/plan/timeline");
+  const card = page.locator("section").filter({ hasText: "Reconciled timeline update ready" });
+  await card.getByRole("button", { name: "See what changes" }).click();
+  await expect(card).toContainText("Getaway vehicle arrives (San → Dan)");
+  let reloaded = page.waitForEvent("load");
+  await card.getByRole("button", { name: "Apply to the timeline" }).click();
+  await reloaded;
+  await expect.poll(async () => (await prisma.timelineBlock.findUnique({ where: { id: row.id } }))?.notes).toBe(reconciledNotes(moment));
+
+  await page.goto("/plan/tasks");
+  const tasksCard = page.getByTestId("task-corrections-card");
+  await tasksCard.getByRole("button", { name: "See what changes" }).click();
+  await expect(tasksCard).toContainText("MOB or another helper meets Dan Vandenheede. (San → Dan)");
+  reloaded = page.waitForEvent("load");
+  await tasksCard.getByRole("button", { name: "Apply to tasks" }).click();
+  await reloaded;
+  await expect.poll(async () => (await prisma.dayAssignment.findUnique({ where: { id: job.id } }))?.title).toBe(
+    "MOB or another helper meets Dan Vandenheede.",
+  );
+  expect(await prisma.dayAssignment.count({ where: { title: { contains: "Vandenheede" } } })).toBe(1);
+  await guards.assertClean();
+  await restoreTasks();
   await resetOvernightData(prisma);
 });

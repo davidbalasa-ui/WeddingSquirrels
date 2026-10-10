@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import type { EnrichmentSnapshot } from "@/lib/contact-enrichment";
 import { planPhoneCorrections, type PhoneCorrectionRow, type PhoneWrite } from "@/lib/phone-corrections";
-import { planDayJobs, type DayJobDef } from "@/lib/day-job-corrections";
+import { planDayJobRewords, planDayJobs, type DayJobDef, type DayJobReword } from "@/lib/day-job-corrections";
 import { MINI_MOON_CONTACT } from "@/lib/mini-moon";
 import { planTaskCorrections, type TaskCorrectionsPlan } from "@/lib/task-corrections";
 
@@ -14,6 +14,8 @@ export type PrintoutCorrectionsPlan = {
   contacts: NewContactRow[];
   /** Day-of jobs written into the schedule that are not on Day-of → Assignments yet. */
   dayJobs: DayJobDef[];
+  /** Day-of jobs this card added that still read as it first wrote them, with corrected words. */
+  dayJobRewords: DayJobReword[];
 };
 
 async function loadPeopleSnapshot(): Promise<EnrichmentSnapshot> {
@@ -45,10 +47,10 @@ export async function loadPrintoutCorrectionsPlan(): Promise<PrintoutCorrections
   const [tasks, snapshot, assignments] = await Promise.all([
     prisma.task.findMany({ select: { id: true, title: true, status: true, parentId: true } }),
     loadPeopleSnapshot(),
-    prisma.dayAssignment.findMany({ select: { title: true } }),
+    prisma.dayAssignment.findMany({ select: { id: true, title: true, notes: true } }),
   ]);
   const contacts = snapshot.contacts.some((row) => /victoria resort/i.test(row.name)) ? [] : [{ ...MINI_MOON_CONTACT }];
-  return { tasks: planTaskCorrections(tasks), phones: planPhoneCorrections(snapshot), contacts, dayJobs: planDayJobs(assignments) };
+  return { tasks: planTaskCorrections(tasks), phones: planPhoneCorrections(snapshot), contacts, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments) };
 }
 
 /** One phone write, inside the caller's transaction. Only ever fills or (on David's pick) replaces one number. */

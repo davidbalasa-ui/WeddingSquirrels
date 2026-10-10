@@ -73,7 +73,7 @@ test("David's first look with his parents goes to the groom's parents only", () 
 test("Parents of the Bride get the instruction that follows the MOB's getaway line", () => {
   const bride = packetSchedule(moments, "brideParents");
   const getaway = bride.wedding.find((row) => row.title === "Getaway vehicle arrives");
-  assert.ok(getaway?.lines.some((line) => /Show San where to park/.test(line)));
+  assert.ok(getaway?.lines.some((line) => /Show Dan where to park/.test(line)));
 });
 
 test("the wedding party's copy has the Thursday departures and the return", () => {
@@ -84,10 +84,10 @@ test("the wedding party's copy has the Thursday departures and the return", () =
   assert.equal(titles(packetSchedule(moments, "mc").rehearsal).length, 0);
 });
 
-test("nothing in the bride's copy of the whole timeline mentions San, the sign or the secret", () => {
+test("nothing in the bride's copy of the whole timeline mentions Dan, the sign or the secret", () => {
   for (const moment of RECONCILED_TIMELINE) {
     const notes = withoutBrideSecrets({ notes: reconciledNotes(moment) }).notes;
-    assert.doesNotMatch(notes, /\bSan\b|Just Married|secret from the bride/i, moment.title);
+    assert.doesNotMatch(notes, /\b[DS]an\b|Just Married|secret from the bride/i, moment.title);
   }
 });
 

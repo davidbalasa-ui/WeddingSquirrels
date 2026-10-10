@@ -40,7 +40,7 @@ function familyLineFits(text: string, audience: "brideParents" | "groomParents")
 
 const NAME_WORD = /\b[A-Z][a-z]{2,}\b/g;
 
-/** "MOB meets San." then "Show San where to park…": the second line names the same person. */
+/** "MOB meets Dan." then "Show Dan where to park…": the second line names the same person. */
 function continuesLine(line: string, previous: string): boolean {
   const names = new Set(previous.match(NAME_WORD) ?? []);
   return (line.match(NAME_WORD) ?? []).some((word) => names.has(word));
@@ -68,7 +68,7 @@ export function momentForAudience(
 
   const titleIsTheirs = moment.roles.includes(role) && fits(moment.title);
   // A line with no group of its own that follows one of theirs and names the same
-  // person finishes their instruction ("MOB meets San." then "Show San where to park…").
+  // person finishes their instruction ("MOB meets Dan." then "Show Dan where to park…").
   const lines = titleIsTheirs
     ? readable.filter((detail) => fits(detail.text))
     : readable.filter((detail, index) => {
