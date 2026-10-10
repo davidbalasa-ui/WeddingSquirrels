@@ -141,7 +141,7 @@ export function setDayOfContactInStore(
   if (target.kind === "person") {
     const person = store.persons.find((row) => row.id === target.id);
     if (!person) return { ok: false, reason: "not_found" };
-    person.isDayOfContact = on;
+    setPersonDayOfInStore(store, person, on);
     return { ok: true, personId: person.id };
   }
 
@@ -151,10 +151,11 @@ export function setDayOfContactInStore(
     if (contact.personId) {
       const person = store.persons.find((row) => row.id === contact.personId);
       if (!person) return { ok: false, reason: "not_found" };
-      person.isDayOfContact = on;
+      setPersonDayOfInStore(store, person, on);
       return { ok: true, personId: person.id };
     }
     contact.isDayOfContact = on;
+    if (!on) contact.directoryList = contactListAfterDayOfRemoval(contact.directoryList);
     return { ok: true, personId: null };
   }
 
@@ -163,11 +164,39 @@ export function setDayOfContactInStore(
   if (guestPerson.personId) {
     const person = store.persons.find((row) => row.id === guestPerson.personId);
     if (!person) return { ok: false, reason: "not_found" };
-    person.isDayOfContact = on;
+    setPersonDayOfInStore(store, person, on);
     return { ok: true, personId: person.id };
   }
   guestPerson.isDayOfContact = on;
   return { ok: true, personId: null };
+}
+
+/**
+ * A contact saved straight onto the day-of list has no guest/vendor list of its own
+ * (`directoryList: "day-of"`), and the profile reads that list as "on the call list".
+ * Removing it from the call list therefore has to give it the ordinary contact list,
+ * otherwise the Remove button does nothing visible.
+ */
+export function contactListAfterDayOfRemoval(directoryList: string | null): string | null {
+  return directoryList === "day-of" ? "vendors" : directoryList;
+}
+
+/**
+ * Person.isDayOfContact is canonical, but the profile also reads the flag on the linked
+ * Contact and GuestPerson rows, so turning it off has to clear those too or the person
+ * stays on the call list. Turning it on leaves the linked rows untouched.
+ */
+function setPersonDayOfInStore(store: IdentityStore, person: IdentityPerson, on: boolean) {
+  person.isDayOfContact = on;
+  if (on) return;
+  for (const contact of store.contacts) {
+    if (contact.personId !== person.id) continue;
+    contact.isDayOfContact = false;
+    contact.directoryList = contactListAfterDayOfRemoval(contact.directoryList);
+  }
+  for (const guestPerson of store.guestPeople) {
+    if (guestPerson.personId === person.id) guestPerson.isDayOfContact = false;
+  }
 }
 
 export async function applyDayOfContactForIdentity(
@@ -180,14 +209,14 @@ export async function applyDayOfContactForIdentity(
       select: { id: true },
     });
     if (!person) return { ok: false, reason: "not_found" };
-    await prisma.person.update({ where: { id: person.id }, data: { isDayOfContact: on } });
+    await setPersonDayOf(person.id, on);
     return { ok: true, personId: person.id };
   }
 
   if (target.kind === "contact") {
     const contact = await prisma.contact.findUnique({
       where: { id: target.id },
-      select: { id: true, personId: true },
+      select: { id: true, personId: true, directoryList: true },
     });
     if (!contact) return { ok: false, reason: "not_found" };
     if (contact.personId) {
@@ -196,10 +225,16 @@ export async function applyDayOfContactForIdentity(
         select: { id: true },
       });
       if (!person) return { ok: false, reason: "not_found" };
-      await prisma.person.update({ where: { id: person.id }, data: { isDayOfContact: on } });
+      await setPersonDayOf(person.id, on);
       return { ok: true, personId: person.id };
     }
-    await prisma.contact.update({ where: { id: contact.id }, data: { isDayOfContact: on } });
+    await prisma.contact.update({
+      where: { id: contact.id },
+      data: {
+        isDayOfContact: on,
+        ...(on ? {} : { directoryList: contactListAfterDayOfRemoval(contact.directoryList) }),
+      },
+    });
     return { ok: true, personId: null };
   }
 
@@ -214,7 +249,7 @@ export async function applyDayOfContactForIdentity(
       select: { id: true },
     });
     if (!person) return { ok: false, reason: "not_found" };
-    await prisma.person.update({ where: { id: person.id }, data: { isDayOfContact: on } });
+    await setPersonDayOf(person.id, on);
     return { ok: true, personId: person.id };
   }
   await prisma.guestPerson.update({
@@ -222,6 +257,18 @@ export async function applyDayOfContactForIdentity(
     data: { isDayOfContact: on },
   });
   return { ok: true, personId: null };
+}
+
+/** Database twin of setPersonDayOfInStore. */
+async function setPersonDayOf(personId: string, on: boolean) {
+  await prisma.person.update({ where: { id: personId }, data: { isDayOfContact: on } });
+  if (on) return;
+  await prisma.contact.updateMany({
+    where: { personId, directoryList: "day-of" },
+    data: { directoryList: "vendors" },
+  });
+  await prisma.contact.updateMany({ where: { personId }, data: { isDayOfContact: false } });
+  await prisma.guestPerson.updateMany({ where: { personId }, data: { isDayOfContact: false } });
 }
 
 export function editGuestPersonInStore(

@@ -440,3 +440,51 @@ test("keeping an unlinked guest on the guest list does not create a Person", () 
   assert.equal(store.persons.length, 0);
   assert.equal(store.guestPeople[0]?.personId, null);
 });
+
+test("removing a day-of-only Contact from the call list leaves it off the list (and gives it the vendors list)", () => {
+  const store = emptyStore();
+  addContact(store, {
+    id: "c-dayof",
+    name: "Test Dayof",
+    directoryList: "day-of",
+    isDayOfContact: true,
+  });
+
+  const removed = setDayOfContactInStore(store, { kind: "contact", id: "c-dayof" }, false);
+  assert.equal(removed.ok, true);
+  assert.equal(store.contacts[0]?.isDayOfContact, false);
+  assert.equal(store.contacts[0]?.directoryList, "vendors");
+
+  const added = setDayOfContactInStore(store, { kind: "contact", id: "c-dayof" }, true);
+  assert.equal(added.ok, true);
+  assert.equal(store.contacts[0]?.isDayOfContact, true);
+  assert.equal(store.contacts[0]?.directoryList, "vendors");
+});
+
+test("removing a Person from the call list also clears the flag on its linked Contact and GuestPerson rows", () => {
+  const store = emptyStore();
+  const person = addPerson(store, "test_person", "Test Person");
+  person.isDayOfContact = true;
+  addContact(store, {
+    id: "c-test",
+    name: "Test Person",
+    personId: "test_person",
+    directoryList: "day-of",
+    isDayOfContact: true,
+  });
+  addGuestPerson(store, { id: "gp-test", name: "Test Person", personId: "test_person", isDayOfContact: true });
+
+  const removed = setDayOfContactInStore(store, { kind: "person", id: "test_person" }, false);
+  assert.equal(removed.ok, true);
+  assert.equal(store.persons[0]?.isDayOfContact, false);
+  assert.equal(store.contacts[0]?.isDayOfContact, false);
+  assert.equal(store.contacts[0]?.directoryList, "vendors");
+  assert.equal(store.guestPeople[0]?.isDayOfContact, false);
+
+  // Turning it back on keeps Person canonical and leaves the linked rows alone.
+  const added = setDayOfContactInStore(store, { kind: "guest", id: "gp-test" }, true);
+  assert.equal(added.ok, true);
+  assert.equal(store.persons[0]?.isDayOfContact, true);
+  assert.equal(store.contacts[0]?.isDayOfContact, false);
+  assert.equal(store.guestPeople[0]?.isDayOfContact, false);
+});
