@@ -184,6 +184,7 @@ function ContactForm({
   const [photoData, setPhotoData] = useState<string | null>(contact?.photoData ?? null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -204,7 +205,17 @@ function ContactForm({
   return (
     <form
       className="flex flex-col gap-3 px-3 py-3"
+      onSubmit={(event) => {
+        // The server ignores a blank name, so say so here instead of closing the form silently
+        // (preventing the action keeps what was typed in the other fields).
+        const name = String(new FormData(event.currentTarget).get("name") || "").trim();
+        if (!name) {
+          event.preventDefault();
+          setNameError("Add a name before saving.");
+        }
+      }}
       action={async (formData) => {
+        setNameError(null);
         startTransition(async () => {
           if (photoData) formData.set("photoData", photoData);
           if (contact) {
@@ -277,7 +288,10 @@ function ContactForm({
           defaultValue={contact?.name ?? ""}
           placeholder="e.g. Avalon Green"
           className="field-input"
+          aria-invalid={nameError ? true : undefined}
+          onChange={() => setNameError(null)}
         />
+        {nameError ? <p className="mt-1 text-sm text-[var(--danger)]">{nameError}</p> : null}
       </label>
       <label className="text-sm">
         <span className="mb-1 block text-xs text-muted">Phone</span>
