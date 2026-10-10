@@ -166,7 +166,7 @@ test.describe("task steps", () => {
     const original = step!.title;
     await page.goto(`/work/${parent!.id}`);
     await waitForHydration(page);
-    const input = page.locator("article input").first();
+    const input = page.getByRole("textbox", { name: "Step title" }).first();
     await expect(input).toHaveValue(original);
 
     await input.fill("");
