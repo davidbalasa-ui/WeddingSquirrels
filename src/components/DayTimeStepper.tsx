@@ -3,32 +3,39 @@
 import { useEffect, useRef, useState } from "react";
 import {
   clockPartsFromRaw,
-  normalizeClockHour,
-  normalizeClockMinute,
+  nextClockDigits,
+  normalizeClockEntry,
   rawFromClockParts,
-  sanitizeClockDigits,
   type ClockMeridiem,
   type ClockParts,
 } from "@/lib/day-of-time";
 
+// Selected right away, not on the next frame: a digit typed straight after the tap
+// must replace what the box held, never land next to it or get selected away.
 function selectAll(event: { currentTarget: HTMLInputElement }) {
-  const input = event.currentTarget;
-  requestAnimationFrame(() => input.select());
+  event.currentTarget.select();
 }
 
 function ClockFace({
   value,
   ariaLabel,
+  fallbackMeridiem = "AM",
   onCommit,
   onFocusChange,
 }: {
   value: string;
   ariaLabel: string;
+  /** AM or PM an empty box starts on, so an end typed after a 3 PM start reads PM. */
+  fallbackMeridiem?: ClockMeridiem;
   onCommit: (raw: string) => void;
   onFocusChange?: (focused: boolean) => void;
 }) {
+  function partsFor(raw: string): ClockParts {
+    const parsed = clockPartsFromRaw(raw);
+    return parsed.hour ? parsed : { ...parsed, meridiem: fallbackMeridiem };
+  }
   const [seen, setSeen] = useState(value);
-  const [parts, setParts] = useState<ClockParts>(() => clockPartsFromRaw(value));
+  const [parts, setParts] = useState<ClockParts>(() => partsFor(value));
   const minuteRef = useRef<HTMLInputElement>(null);
   const focusedRef = useRef(0);
   const partsRef = useRef(parts);
@@ -37,11 +44,11 @@ function ClockFace({
 
   if (value !== seen) {
     setSeen(value);
-    setParts(clockPartsFromRaw(value));
+    setParts(partsFor(value));
   } else if (pendingRaw !== null && value !== pendingRaw) {
     // The parent kept a different time (a start typed away stays as saved), so its
     // value never changed and the digits must be re-read from it.
-    setParts(clockPartsFromRaw(value));
+    setParts(partsFor(value));
   }
   if (pendingRaw !== null) setPendingRaw(null);
 
@@ -50,9 +57,7 @@ function ClockFace({
   }, [parts]);
 
   function finishIfIdle(next: ClockParts) {
-    const hour = normalizeClockHour(next.hour);
-    const minute = hour ? normalizeClockMinute(next.minute) : "";
-    const committed = { ...next, hour, minute };
+    const committed = normalizeClockEntry(next);
     partsRef.current = committed;
     setParts(committed);
     const raw = rawFromClockParts(committed);
@@ -74,7 +79,7 @@ function ClockFace({
   }
 
   function setHour(raw: string) {
-    const hour = sanitizeClockDigits(raw, 2);
+    const hour = nextClockDigits(partsRef.current.hour, raw, 2);
     setParts((prev) => {
       const next = { ...prev, hour };
       partsRef.current = next;
@@ -84,8 +89,9 @@ function ClockFace({
   }
 
   function setMinute(raw: string) {
+    const minute = nextClockDigits(partsRef.current.minute, raw, 2);
     setParts((prev) => {
-      const next = { ...prev, minute: sanitizeClockDigits(raw, 2) };
+      const next = { ...prev, minute };
       partsRef.current = next;
       return next;
     });
@@ -319,6 +325,7 @@ export function DayTimeRange({
         <ClockFace
           ariaLabel="End time"
           value={endAt}
+          fallbackMeridiem={clockPartsFromRaw(startAt).hour ? clockPartsFromRaw(startAt).meridiem : "AM"}
           onCommit={(raw) => onCommit({ endAt: raw })}
           onFocusChange={handleFocusChange}
         />
