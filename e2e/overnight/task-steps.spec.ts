@@ -79,11 +79,12 @@ test.describe("task steps cards", () => {
     await expectNoSidewaysScroll(page);
 
     // Steps are compact rows (David, 12:56: only two cards fit on his phone): the first three,
-    // notes included, fit in 400px, so three to four show at a glance on a phone.
+    // notes included, fit in 460px (about 400 on a Pixel, 447 in Safari on an iPhone; the
+    // separate cards took about 530 on a Pixel), so three to four show at a glance on a phone.
     const rows = page.locator("article").filter({ has: page.getByRole("textbox", { name: "Step title" }) });
     const first = (await rows.nth(0).boundingBox())!;
     const third = (await rows.nth(2).boundingBox())!;
-    expect(third.y + third.height - first.y).toBeLessThanOrEqual(400);
+    expect(third.y + third.height - first.y).toBeLessThanOrEqual(460);
 
     // The s'mores title is long enough to need two lines on a phone; it wraps instead of being cut.
     const smores = page.getByRole("textbox", { name: "Step title" }).nth(1);
