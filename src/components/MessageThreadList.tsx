@@ -64,6 +64,11 @@ export function MessageThreadList({
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             setError(null);
+            // The server drops a blank title silently; say so instead of closing the form.
+            if (!String(formData.get("title") || "").trim()) {
+              setError("Add what it's about.");
+              return;
+            }
             startTransition(async () => {
               try {
                 await createRequest(formData);
