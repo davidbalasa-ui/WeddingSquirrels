@@ -37,6 +37,7 @@ import {
 } from "@/lib/requests";
 import type { SessionAccount } from "@/lib/types";
 import type { TaskOption } from "@/lib/inbox";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -451,12 +452,12 @@ export function InboxRow({
                   className="field-input text-sm"
                   aria-label="Ask title"
                 />
-                <textarea
+                <AutoGrowTextarea
                   name="note"
                   rows={2}
                   defaultValue={item.askData.note ?? ""}
                   placeholder="Details…"
-                  className="field-input resize-y text-sm"
+                  className="field-input text-sm"
                 />
                 {session.canSeeTasks ? (
                   <select name="taskId" defaultValue={item.linkedTaskId ?? ""} className="field-input text-sm">
@@ -499,11 +500,11 @@ export function InboxRow({
                   });
                 }}
               >
-                <textarea
+                <AutoGrowTextarea
                   value={reply}
                   rows={2}
                   placeholder="Write a reply…"
-                  className="field-input resize-y text-sm"
+                  className="field-input text-sm"
                   onChange={(e) => setReply(e.target.value)}
                 />
                 <button type="submit" className="btn-primary self-start min-h-[44px]" disabled={pending || !reply.trim()}>

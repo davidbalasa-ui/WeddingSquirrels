@@ -89,7 +89,7 @@ test.describe("Day-of pages", () => {
     await expect(page).toHaveURL(/\/day\/assignments$/);
     await tabs.getByRole("link", { name: "Day", exact: true }).click();
     await expect(page).toHaveURL(/\/day$/);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Log out on /day ends the session and the day pages ask for a PIN again", async ({ page }) => {
@@ -101,7 +101,7 @@ test.describe("Day-of pages", () => {
     await page.goto("/day/shots");
     await expect(page.getByRole("button", { name: "Edit", exact: true }), "no editors when logged out").toHaveCount(0);
     await expect(page.getByRole("button", { name: "Mark done" })).toHaveCount(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -125,7 +125,7 @@ test.describe("Playbook editor (Shots, Decor, Hair & Makeup)", () => {
     const saved = await prisma.playbookItem.findUnique({ where: { sourceKey: "shot-details-invitations" } });
     expect(saved?.notes).toBe("Test note kept");
     expect(saved?.title).toBe("Invitations");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("every shot field saves what was typed, comes back after reload, and clears to nothing (not 0, not the old value)", async ({ page }) => {
@@ -202,7 +202,7 @@ test.describe("Playbook editor (Shots, Decor, Hair & Makeup)", () => {
     form = await openPlaybookEditor(page, "Invitations");
     await expect(form.locator("[name=startAt]")).toHaveValue("");
     await expect(form.locator("[name=notes]")).toHaveValue("");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Escape keeps the editor open, Enter in a text field saves, Cancel and Close discard what was typed", async ({ page }) => {
@@ -253,7 +253,7 @@ test.describe("Playbook editor (Shots, Decor, Hair & Makeup)", () => {
     await expect(playbookRow(page, "Invitations")).toContainText("Test escape");
     const saved = await prisma.playbookItem.findUnique({ where: { sourceKey: "shot-details-invitations" } });
     expect(saved?.detail).toBe("Test escape");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Mark done and Mark open on a shot persist across reload", async ({ page }) => {
@@ -275,7 +275,7 @@ test.describe("Playbook editor (Shots, Decor, Hair & Makeup)", () => {
     await page.reload();
     await expect(playbookRow(page, "Invitations")).toContainText("Open");
     expect((await prisma.playbookItem.findUnique({ where: { sourceKey: "shot-details-invitations" } }))?.completed).toBe(false);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Decor (both boards) and Hair & Makeup editors save a seed item the same way", async ({ page }) => {
@@ -302,7 +302,7 @@ test.describe("Playbook editor (Shots, Decor, Hair & Makeup)", () => {
     await expect(playbookRow(page, "Bedroom 1")).toContainText("Test location");
     expect((await prisma.playbookItem.findUnique({ where: { sourceKey: "hm-room-bed1" } }))?.location).toBe("Test location");
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -350,7 +350,7 @@ test.describe("Assignments", () => {
     const row = assignmentRow(page, "Test assignment kept");
     await expect(row).toContainText("Test note kept");
     await expect(row).toContainText("Test Person Kept");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("adding, editing (names, notes, Enter), cancelling and deleting an assignment", async ({ page }) => {
@@ -452,6 +452,6 @@ test.describe("Assignments", () => {
     await page.reload();
     await expect(page.locator("article").filter({ hasText: "Test assignment xxxx" })).toHaveCount(0);
     expect(await prisma.dayAssignment.count({ where: { title: { startsWith: "Test assignment xxxx" } } })).toBe(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });

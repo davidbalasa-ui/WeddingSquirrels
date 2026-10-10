@@ -74,6 +74,11 @@ async function syncOfflineCopy(force = false): Promise<void> {
     credentials: "same-origin",
     headers: { Accept: "application/json" },
   });
+  // Logged out meanwhile (a page brought back from history after Log out): nothing to sync, and nothing wrong.
+  if (response.status === 401) {
+    window.dispatchEvent(new CustomEvent(PACK_UPDATED_EVENT, { detail: existing }));
+    return;
+  }
   if (!response.ok) throw new Error(`Offline sync failed: HTTP ${response.status}`);
 
   const pack = (await response.json()) as OfflinePack;

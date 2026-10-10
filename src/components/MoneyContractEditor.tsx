@@ -15,6 +15,7 @@ import {
   type BudgetContractSnapshot,
 } from "@/lib/money";
 import { useRefreshAfterSave } from "@/lib/use-refresh-after-save";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 function toDateInput(value: Date | null | undefined) {
   if (!value) return "";
@@ -125,11 +126,11 @@ export function MoneyContractEditor({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block text-xs text-muted">Notes</span>
-          <textarea
+          <AutoGrowTextarea
             name="note"
             defaultValue={contract.note || ""}
             rows={3}
-            className="w-full resize-y rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
           />
         </label>
         <div className="flex flex-wrap gap-2">

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { createBudgetItem } from "@/app/actions";
 import { StarIcon } from "@/components/StarIcon";
 import { moneyInputProblem } from "@/lib/money";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 export function MoneyAddContract({ canEdit }: { canEdit: boolean }) {
   const router = useRouter();
@@ -66,7 +67,7 @@ export function MoneyAddContract({ canEdit }: { canEdit: boolean }) {
           aria-label="Pay by date"
           className="w-full rounded-xl border border-line bg-transparent px-3 py-2.5 outline-none focus:border-[var(--accent)]"
         />
-        <textarea
+        <AutoGrowTextarea
           name="note"
           rows={2}
           placeholder="Notes…"

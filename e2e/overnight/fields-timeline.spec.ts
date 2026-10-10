@@ -109,7 +109,7 @@ test.describe("Wedding Day editor · start and end time boxes", () => {
     expect((await saved("hour-13")).startAt).toBe("1:00 PM");
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(reviewRow(page, block("hour-13"))).toContainText("1:00 PM");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("a 9 typed into a full hour box replaces 12 instead of being thrown away", async ({ page }) => {
@@ -130,7 +130,7 @@ test.describe("Wedding Day editor · start and end time boxes", () => {
     await expectAllSaved(page);
     await expect(hour).toHaveValue("9");
     expect((await saved("hour-full")).startAt).toBe("9:00 PM");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("digits typed straight after a click are all kept", async ({ page }) => {
@@ -155,7 +155,7 @@ test.describe("Wedding Day editor · start and end time boxes", () => {
     await expectAllSaved(page);
     await expect(minute).toHaveValue("30");
     expect((await saved("hour-fast")).startAt).toBe("7:30 PM");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("typing 0 reads 12, and 9 can then be typed over it", async ({ page }) => {
@@ -196,7 +196,7 @@ test.describe("Wedding Day editor · start and end time boxes", () => {
     await expectAllSaved(page);
     await expect(hour).toHaveValue("5");
     expect((await saved("hour-zero")).startAt).toBe("5:00 PM");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("clearing the start hour keeps the saved time and says so", async ({ page }) => {
@@ -219,7 +219,7 @@ test.describe("Wedding Day editor · start and end time boxes", () => {
     await expectAllSaved(page);
     await expect(card).not.toContainText("kept the saved one");
     expect((await saved("hour-clear")).startAt).toBe("6:00 PM");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("clearing the end time empties it and stays empty after reload", async ({ page }) => {
@@ -233,8 +233,7 @@ test.describe("Wedding Day editor · start and end time boxes", () => {
     await page.keyboard.press("Enter");
     await expectAllSaved(page);
     expect((await saved("end-clear")).endAt).toBeNull();
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await openTimelineEditor(page);
     await expect(card.getByLabel("End time hour")).toHaveValue("");
     // Typing it back works and it reads after the start.
     await tap(page, card.getByLabel("End time hour"));
@@ -244,7 +243,7 @@ test.describe("Wedding Day editor · start and end time boxes", () => {
     // An end typed after a 3 PM start reads PM, not 5 AM the next morning.
     expect((await saved("end-clear")).endAt).toBe("5:00 PM");
     await expect(card.getByText("Ends before it starts")).toHaveCount(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -269,7 +268,7 @@ test.describe("Wedding Day editor · notes and location", () => {
     await notes.blur();
     await expectAllSaved(page);
     expect((await saved("notes-clear")).notes).toBe(`${PREFIX} notes-clear\nTest line`);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("typed, pasted and backspaced notes save exactly and come back after reload", async ({ page }) => {
@@ -314,7 +313,7 @@ test.describe("Wedding Day editor · notes and location", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(reviewRow(page, block("notes-type"))).toContainText(`Test 'q' "dq" \`bt\` <b>x</b> 🎉`);
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("the location box saves what is typed and stays empty once cleared", async ({ page }) => {
@@ -337,10 +336,9 @@ test.describe("Wedding Day editor · notes and location", () => {
     await location.blur();
     await expectAllSaved(page);
     expect((await saved("location")).notes).toBe(`${PREFIX} location\nTest line`);
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await openTimelineEditor(page);
     await expect(card.getByPlaceholder("Where this happens")).toHaveValue("");
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -379,7 +377,7 @@ test.describe("Wedding Day editor · adding and removing moments", () => {
     await expect(draft).toHaveCount(0);
     await page.waitForTimeout(600);
     expect(await prisma.timelineBlock.count({ where: { notes: { startsWith: `${PREFIX} draft discarded` } } })).toBe(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Keep leaves a moment alone and Remove? takes it away for good", async ({ page }) => {
@@ -395,7 +393,7 @@ test.describe("Wedding Day editor · adding and removing moments", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).not.toContainText(`${PREFIX} remove`);
     expect(await prisma.timelineBlock.findUnique({ where: { id: block("remove") } })).toBeNull();
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -410,7 +408,7 @@ test.describe("Rehearsal & Dinner", () => {
     await expectAllSaved(page);
     await expect(hour).toHaveValue("7");
     expect((await saved("reh-hour")).startAt).toBe("7:00 PM");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("menu courses and dishes save on Enter, keep their name when cleared, and go with Remove", async ({ page }) => {
@@ -422,9 +420,13 @@ test.describe("Rehearsal & Dinner", () => {
     await page.getByRole("button", { name: "+ Add course" }).click();
     const course = page.getByPlaceholder("Course name (Entree, Side, Drink…)").last();
     await expect(course).toBeFocused();
+    // A beat before typing, as a person's first letter never lands in the same instant the box
+    // appears (Safari and Firefox drop a keystroke typed in that instant).
+    await page.waitForTimeout(150);
     await page.keyboard.type("0");
     await page.keyboard.press("Backspace");
     await page.keyboard.type(courseName);
+    await expect(course).toHaveValue(courseName);
     await page.keyboard.press("Enter");
     await expect.poll(async () => (await prisma.mealCourse.findFirst({ where: { label: courseName } }))?.label).toBe(courseName);
     // Clearing a named course keeps its name (it is not deleted behind the typist's back).
@@ -437,9 +439,10 @@ test.describe("Rehearsal & Dinner", () => {
     await section.getByRole("button", { name: "+ Add dish" }).click();
     const dish = section.getByPlaceholder("Dish name").last();
     await expect(dish).toBeFocused();
-    // A beat before typing, as a person's first letter never lands in the same instant the box appears.
-    await page.waitForTimeout(80);
+    // The same beat before typing (see the course name above).
+    await page.waitForTimeout(150);
     await page.keyboard.type("Test dish 🎉 'q'");
+    await expect(dish).toHaveValue("Test dish 🎉 'q'");
     await page.keyboard.press("Enter");
     await expect.poll(async () => (await prisma.mealOption.findFirst({ where: { label: "Test dish 🎉 'q'" } }))?.label).toBe("Test dish 🎉 'q'");
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -457,7 +460,7 @@ test.describe("Rehearsal & Dinner", () => {
     await expect.poll(() => prisma.mealOption.count({ where: { label: "Test dish 🎉 'q'" } })).toBe(0);
     await again.getByRole("button", { name: "Remove course" }).click();
     await expect.poll(() => prisma.mealCourse.count({ where: { label: courseName } })).toBe(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("the menu visibility toggle saves and reads back after reload", async ({ page }) => {
@@ -471,7 +474,7 @@ test.describe("Rehearsal & Dinner", () => {
     await expect(page.getByRole("button", { name: /Visible to guests|Hidden from guests/ })).not.toHaveText(before);
     await page.getByRole("button", { name: /Visible to guests|Hidden from guests/ }).click();
     await expect(page.getByRole("button", { name: /Visible to guests|Hidden from guests/ })).toHaveText(before);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -501,7 +504,7 @@ test.describe("Preview time (master only)", () => {
     await expect(page.getByRole("checkbox").first()).toBeChecked();
     await page.getByRole("button", { name: "Clear preview" }).click();
     await expect(page).not.toHaveURL(/asOf=|fixture=/);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -535,6 +538,6 @@ test.describe("Wedding places", () => {
     await expect(page.locator("#venues").getByLabel("Place name").first()).toHaveValue("");
     // Put the seeded values back so the page reads as before.
     await prisma.appSettings.update({ where: { id: 1 }, data: { venueName: before?.venueName ?? null, venueZip: before?.venueZip ?? null } });
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
