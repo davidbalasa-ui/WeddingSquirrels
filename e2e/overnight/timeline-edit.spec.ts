@@ -13,6 +13,10 @@ import {
 
 const prisma = overnightPrisma();
 
+// These checks shape the network with page.route, which cannot see requests that a
+// service worker handles in WebKit and Firefox, so the worker stays out of these pages.
+test.use({ serviceWorkers: "block" });
+
 test.beforeAll(async () => {
   await resetOvernightData(prisma);
 });
@@ -45,7 +49,7 @@ test.describe("Wedding Day editor", () => {
     const saved = await prisma.timelineBlock.findUnique({ where: { id: block.id } });
     expect(saved?.notes).toBe(`${block.notes}\nOvernight check: rings on the entry table at 3:20 PM`);
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("a location edit is saved and shown after reload", async ({ page }) => {
@@ -64,7 +68,7 @@ test.describe("Wedding Day editor", () => {
     await expect(reviewRow(page, block.id)).toContainText("Head table");
     const saved = await prisma.timelineBlock.findUnique({ where: { id: block.id } });
     expect(saved?.notes.split("\n")[1]).toBe("location: Head table");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("a start time change moves the moment and survives reload", async ({ page }) => {
@@ -89,7 +93,7 @@ test.describe("Wedding Day editor", () => {
     const index = times.findIndex((text) => text.startsWith("9:05 PM"));
     expect(index).toBeGreaterThan(0);
     expect(times[index - 1]).toMatch(/^(8|9:0[0-4]) ?/);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Remove takes the moment off the page and out of the data", async ({ page }) => {
@@ -104,7 +108,7 @@ test.describe("Wedding Day editor", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).not.toContainText("Night-sky photos and Barry finishes");
     expect(await prisma.timelineBlock.findUnique({ where: { id: block.id } })).toBeNull();
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Remove still works after the app was redeployed under an open page", async ({ page }) => {
@@ -135,7 +139,7 @@ test.describe("Wedding Day editor", () => {
     await expect(card).toHaveCount(0);
     await expect(alert).toHaveCount(0);
     expect(await prisma.timelineBlock.findUnique({ where: { id: block.id } })).toBeNull();
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Reload prompt asks before throwing away unsaved text, then retry saves it", async ({ page }) => {
@@ -177,6 +181,6 @@ test.describe("Wedding Day editor", () => {
     await expect(alert).toHaveCount(0);
     const saved = await prisma.timelineBlock.findUnique({ where: { id: block.id } });
     expect(saved?.notes.endsWith("Overnight check: typed while offline")).toBe(true);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });

@@ -4,31 +4,87 @@ import { parseBlockNotes } from "../../src/lib/day-of-now";
 
 const IGNORE_CONSOLE = /Download the React DevTools|beforeinstallprompt|net::ERR_|favicon|hydrat/i;
 
+/** A request the browser itself gave up on because the page moved on (a prefetch or chunk cut short by a navigation or reload). */
+const CANCELLED = /cancel|abort|NS_BINDING_ABORTED/i;
+
 /** Collects browser and server errors so a test fails on anything the page logged. */
 export function attachGuards(page: Page, options: { allow?: RegExp } = {}) {
   const pageErrors: string[] = [];
   const serverErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(String(error)));
+  const pending: Promise<void>[] = [];
   page.on("console", (msg) => {
     if (msg.type() !== "error") return;
-    const text = msg.text();
-    if (IGNORE_CONSOLE.test(text)) return;
-    if (options.allow?.test(text)) return;
-    pageErrors.push(text);
+    // Firefox prints a logged Error object as "JSHandle@object"; read its message instead.
+    const described = Promise.all(
+      msg.args().map((arg) =>
+        arg
+          .evaluate((value) => {
+            const error = value as { name?: unknown; message?: unknown } | null;
+            if (error && typeof error === "object" && typeof error.message === "string") {
+              return `${typeof error.name === "string" ? error.name : "Error"}: ${error.message}`;
+            }
+            if (value && typeof value === "object") {
+              try {
+                return JSON.stringify(value);
+              } catch {
+                return String(value);
+              }
+            }
+            return String(value);
+          })
+          .catch(() => ""),
+      ),
+    )
+      .then((parts) => {
+        const text = /JSHandle@/.test(msg.text()) ? parts.filter(Boolean).join(" ") || msg.text() : msg.text();
+        if (IGNORE_CONSOLE.test(text)) return;
+        if (options.allow?.test(text)) return;
+        pageErrors.push(text);
+      })
+      .catch(() => undefined);
+    pending.push(described);
   });
   page.on("response", (response) => {
     if (response.status() >= 500) serverErrors.push(`${response.status()} ${response.url()}`);
   });
   // Named in the failure message so a "Failed to fetch" says which request it was.
   const failedRequests: string[] = [];
+  const cancelledUrls = new Set<string>();
+  let realFailures = 0;
   page.on("requestfailed", (request) => {
-    failedRequests.push(`${request.method()} ${request.url()} (${request.failure()?.errorText ?? "?"})`);
+    const reason = request.failure()?.errorText ?? "?";
+    failedRequests.push(`${request.method()} ${request.url()} (${reason})`);
+    if (CANCELLED.test(reason)) cancelledUrls.add(request.url());
+    else realFailures += 1;
   });
+  /**
+   * WebKit and Firefox log a console error for every request a navigation or reload
+   * cut short (Chromium's equivalent, net::ERR_ABORTED, is already ignored above).
+   * Those are not errors in the app, so they are set aside when the request was cancelled.
+   */
+  function isCancellationNoise(text: string) {
+    if (/Load request cancelled/.test(text)) return true;
+    if (/ServiceWorker intercepted the request and encountered an unexpected error/.test(text)) {
+      return [...cancelledUrls].some((url) => text.includes(url));
+    }
+    // WebKit words a same-origin fetch killed by navigation as an access-control failure
+    // (a same-origin request cannot fail access control for real).
+    if (/Fetch API cannot load http: \/127\.0\.0\.1:\d+\/.* due to access control checks/.test(text) && realFailures === 0) return true;
+    // The unhandled rejection for a fetch or a response stream cut short (Chromium says "Failed to fetch"), when nothing else failed.
+    // (WebKit does not always report the cancelled request itself, so only "nothing else failed" is required.)
+    if (/^TypeError: (Load failed|Error in input stream|Failed to fetch)$/.test(text) && realFailures === 0) return true;
+    // Next's own note when a navigation cut its data fetch short; it then loads the page the plain way.
+    if (/^Failed to fetch RSC payload for .* Falling back to browser navigation\. TypeError: (Load failed|NetworkError)/.test(text) && realFailures === 0) return true;
+    return false;
+  }
   return {
-    assertClean() {
+    async assertClean() {
+      await Promise.all(pending);
+      const errors = pageErrors.filter((text) => !isCancellationNoise(text));
       expect(
-        pageErrors,
-        `console/page errors:\n${pageErrors.join("\n")}\nfailed requests:\n${failedRequests.join("\n")}`,
+        errors,
+        `console/page errors:\n${errors.join("\n")}\nfailed requests:\n${failedRequests.join("\n")}`,
       ).toEqual([]);
       expect(serverErrors, `server errors:\n${serverErrors.join("\n")}`).toEqual([]);
     },

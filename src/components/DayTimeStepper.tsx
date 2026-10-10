@@ -39,6 +39,9 @@ function ClockFace({
   const minuteRef = useRef<HTMLInputElement>(null);
   const focusedRef = useRef(0);
   const partsRef = useRef(parts);
+  /** True from a tap until the first digit typed into that box, see nextClockDigits. */
+  const freshHourRef = useRef(false);
+  const freshMinuteRef = useRef(false);
   /** The raw time last handed to the parent, until the next render has checked what it kept. */
   const [pendingRaw, setPendingRaw] = useState<string | null>(null);
 
@@ -79,7 +82,8 @@ function ClockFace({
   }
 
   function setHour(raw: string) {
-    const hour = nextClockDigits(partsRef.current.hour, raw, 2);
+    const hour = nextClockDigits(partsRef.current.hour, raw, 2, freshHourRef.current);
+    freshHourRef.current = false;
     setParts((prev) => {
       const next = { ...prev, hour };
       partsRef.current = next;
@@ -89,7 +93,8 @@ function ClockFace({
   }
 
   function setMinute(raw: string) {
-    const minute = nextClockDigits(partsRef.current.minute, raw, 2);
+    const minute = nextClockDigits(partsRef.current.minute, raw, 2, freshMinuteRef.current);
+    freshMinuteRef.current = false;
     setParts((prev) => {
       const next = { ...prev, minute };
       partsRef.current = next;
@@ -123,6 +128,7 @@ function ClockFace({
         placeholder="—"
         onFocus={(event) => {
           handleFocus();
+          freshHourRef.current = true;
           selectAll(event);
         }}
         onClick={selectAll}
@@ -152,6 +158,7 @@ function ClockFace({
         placeholder="——"
         onFocus={(event) => {
           handleFocus();
+          freshMinuteRef.current = true;
           selectAll(event);
         }}
         onClick={selectAll}

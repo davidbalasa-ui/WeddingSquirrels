@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { savePlaybookItem, togglePlaybookCompleted } from "@/app/actions";
 import { groupPlaybookSections, type PlaybookItemView } from "@/lib/playbook";
 
@@ -99,6 +99,8 @@ export function PlaybookBoard({
   const router = useRouter();
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  // Two boards on one page (Decor) must not share heading ids.
+  const headingId = useId();
   const groups = groupPlaybookSections(items);
 
   if (groups.length === 0) {
@@ -108,9 +110,9 @@ export function PlaybookBoard({
   return (
     <div className="space-y-8">
       {groups.map((group, groupIndex) => (
-        <section key={group.section} aria-labelledby={`playbook-section-${groupIndex}`}>
+        <section key={group.section} aria-labelledby={`${headingId}-section-${groupIndex}`}>
           <h2
-            id={`playbook-section-${groupIndex}`}
+            id={`${headingId}-section-${groupIndex}`}
             className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted"
           >
             {group.section}

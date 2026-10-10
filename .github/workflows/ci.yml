@@ -1,0 +1,104 @@
+# Merge gate: every pull request and every push to main must pass the typecheck,
+# the unit tests and the overnight browser suite (e2e/overnight) before it can merge.
+# The browser suite runs against a throwaway Postgres in the job, seeded from repo
+# data only (prisma/seed.ts without spreadsheets + e2e/overnight/db.ts); the live
+# database is never involved.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://wedding:wedding@127.0.0.1:5432/wedding_overnight?sslmode=disable
+  OVERNIGHT_DATABASE_URL: postgresql://wedding:wedding@127.0.0.1:5432/wedding_overnight?sslmode=disable
+  PIN_SESSION_SECRET: ci-only-session-secret
+  VERCEL_ENV: development
+
+jobs:
+  checks:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: ${{ !matrix.blocking }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The gate everything runs in: Chrome's engine at desktop and phone size.
+          - name: Typecheck, unit tests, browser suite (Chromium)
+            browsers: chromium
+            projects: --project desktop --project phone
+            artifact: chromium
+            blocking: true
+          # The same checks in Safari's engine (as an iPhone) and in Firefox. Reported, not yet
+          # blocking: the field-sweep checks were written against Chromium and a number of them
+          # still read differently in WebKit and Firefox (see reviews/deeper-testing/README.md).
+          - name: Browser suite (WebKit iPhone, Firefox)
+            browsers: webkit firefox
+            projects: --project iphone --project firefox
+            artifact: webkit-firefox
+            blocking: false
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: wedding
+          POSTGRES_PASSWORD: wedding
+          POSTGRES_DB: wedding_overnight
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wedding"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Playwright browsers and PDF tools
+        run: |
+          npx playwright install --with-deps ${{ matrix.browsers }}
+          sudo apt-get install -y --no-install-recommends poppler-utils
+
+      - name: Test database (schema + accounts + overnight data)
+        run: |
+          npx prisma db push --skip-generate
+          npx tsx prisma/seed.ts
+          npx tsx e2e/overnight/db.ts
+
+      - name: Build
+        run: npx next build
+
+      - name: Browser suite
+        run: npx playwright test -c playwright.overnight.config.ts ${{ matrix.projects }}
+
+      - name: Keep traces and screenshots of failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: overnight-browser-artifacts-${{ matrix.artifact }}
+          path: |
+            test-artifacts/overnight/report
+            test-artifacts/overnight/output
+          if-no-files-found: ignore
+          retention-days: 7

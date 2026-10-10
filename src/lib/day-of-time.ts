@@ -283,10 +283,15 @@ export function normalizeClockHour(raw: string): string {
 /**
  * The digits a clock box holds after typing. When the box was already full (two
  * digits, nothing selected) a further digit starts a fresh entry instead of being
- * thrown away, so "12" then "9" reads 9, not 12.
+ * thrown away, so "12" then "9" reads 9, not 12. The first digit typed after a tap
+ * (`fresh`) always starts over as well: Safari puts the caret after the old digits
+ * instead of selecting them, so "3" tapped and "1" typed arrives as "31" and must read 1.
  */
-export function nextClockDigits(previous: string, typed: string, maxLen: number): string {
+export function nextClockDigits(previous: string, typed: string, maxLen: number, fresh = false): string {
   const digits = typed.replace(/\D/g, "");
+  if (fresh && previous && digits.length > previous.length && digits.startsWith(previous)) {
+    return digits.slice(previous.length).slice(0, maxLen);
+  }
   if (digits.length <= maxLen) return digits;
   if (previous && digits.startsWith(previous)) return digits.slice(previous.length).slice(0, maxLen);
   if (previous && digits.endsWith(previous)) return digits.slice(0, digits.length - previous.length).slice(0, maxLen);

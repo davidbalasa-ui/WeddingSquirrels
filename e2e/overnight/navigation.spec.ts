@@ -46,7 +46,7 @@ for (const [from, label] of [
     await expect.poll(() => scrollY(page)).toBe(0);
     await page.goBack();
     await expectBackAt(page, from, y);
-    guards.assertClean();
+    await guards.assertClean();
   });
 }
 
@@ -69,7 +69,7 @@ test("Day-of: open a person from the bottom of the page, browser back keeps the 
   await expect(page).toHaveURL(/\/people\//);
   await page.goBack();
   await expectBackAt(page, "/day", y);
-  guards.assertClean();
+  await guards.assertClean();
 });
 
 test("People: open a day-of contact, '← People' brings the list back as it was", async ({ page }) => {
@@ -85,15 +85,17 @@ test("People: open a day-of contact, '← People' brings the list back as it was
   await page.getByRole("link", { name: "← People" }).click();
   // Same tab, same place, not the top of the guest list.
   await expectBackAt(page, "/people?tab=day-of", y);
-  guards.assertClean();
+  await guards.assertClean();
 });
 
 test("Plan: open Tasks, '← Plan' returns to the same spot on Plan", async ({ page }) => {
   const guards = attachGuards(page);
   await page.goto("/plan", { waitUntil: "networkidle" });
   await scrollDown(page);
+  // The Tasks link sits near the top of Plan: scroll so it is on screen a little way
+  // down, rather than letting the click scroll it into view after the position is read.
   const link = page.locator('a[href="/plan/tasks"]').first();
-  await link.scrollIntoViewIfNeeded();
+  await link.evaluate((el) => window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 60, behavior: "instant" }));
   await page.waitForTimeout(200);
   const y = await scrollY(page);
   expect(y).toBeGreaterThan(50);
@@ -101,7 +103,7 @@ test("Plan: open Tasks, '← Plan' returns to the same spot on Plan", async ({ p
   await expect(page).toHaveURL(/\/plan\/tasks$/);
   await page.getByRole("link", { name: "← Plan" }).click();
   await expectBackAt(page, "/plan", y);
-  guards.assertClean();
+  await guards.assertClean();
 });
 
 test("Tasks: open a task, '← Back to Tasks' returns to the same spot in the list", async ({ page }) => {
@@ -115,7 +117,7 @@ test("Tasks: open a task, '← Back to Tasks' returns to the same spot in the li
   await expect(page).toHaveURL(/\/work\//);
   await page.getByRole("link", { name: /← Back/ }).click();
   await expectBackAt(page, "/plan/tasks", y);
-  guards.assertClean();
+  await guards.assertClean();
 });
 
 test("'← Plan' opened fresh (no history) still goes to Plan", async ({ page }) => {

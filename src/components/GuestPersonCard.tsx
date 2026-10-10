@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 import {
   cycleGuestPersonRsvp,
   cycleGuestPersonRole,
@@ -21,6 +21,7 @@ import {
 import type { GuestRecord } from "@/lib/guests";
 import type { UploadedPhotoOption } from "@/lib/people-sort";
 import { fileToResizedDataUrl } from "@/lib/resize-image";
+import { useRefreshAfterSave } from "@/lib/use-refresh-after-save";
 
 export function GuestPersonCard({
   person,
@@ -40,7 +41,7 @@ export function GuestPersonCard({
   const [phone, setPhone] = useState(guest.phone ?? "");
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { pending, save: startTransition } = useRefreshAfterSave();
   // Set by Escape so the blur it triggers puts the old name back instead of saving the draft.
   const cancelNameRef = useRef(false);
   const [prevPerson, setPrevPerson] = useState(person);
