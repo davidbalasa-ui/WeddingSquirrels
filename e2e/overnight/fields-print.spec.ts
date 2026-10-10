@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { compare, hash } from "bcryptjs";
-import { overnightPrisma } from "./db";
+import { AUTO_APPLIED_ORIGINS, overnightPrisma } from "./db";
 import { attachGuards, expectNoSidewaysScroll, PACKETS } from "./helpers";
 
 /**
@@ -8,7 +8,8 @@ import { attachGuards, expectNoSidewaysScroll, PACKETS } from "./helpers";
  * Every test creates what it edits; accounts it makes start with "Sweep " and are removed again.
  */
 const prisma = overnightPrisma();
-const NO_COOKIE = { cookies: [], origins: [] };
+// Signed out, but a PIN typed here signs in as David, so his first page must not apply the cards.
+const NO_COOKIE = { cookies: [], origins: AUTO_APPLIED_ORIGINS };
 const RESTRICTED_PIN = "4320";
 const RESTRICTED_NAME = "Sweep no modules";
 const LONG_PIN_NAME = "Sweep long pin";

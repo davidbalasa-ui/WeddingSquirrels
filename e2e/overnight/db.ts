@@ -22,6 +22,18 @@ function assertLocal(url: string) {
   }
 }
 
+/**
+ * The suite's pages start as if this build's changes were already applied, so the
+ * "Applied just now" pass does not run under every spec; auto-apply.spec.ts clears it.
+ * Every context that signs in as David needs it, or his first page load applies the cards.
+ */
+export const AUTO_APPLIED_ORIGINS = [
+  {
+    origin: process.env.OVERNIGHT_BASE_URL || `http://127.0.0.1:${process.env.OVERNIGHT_PORT || 3200}`,
+    localStorage: [{ name: "ws-auto-applied:local", value: "1" }],
+  },
+];
+
 export function overnightPrisma(): PrismaClient {
   assertLocal(OVERNIGHT_DATABASE_URL);
   return new PrismaClient({ datasourceUrl: OVERNIGHT_DATABASE_URL });
