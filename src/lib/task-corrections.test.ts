@@ -103,3 +103,10 @@ test("the 14:45 notes keep David's open questions as questions", () => {
   assert.match(byTitle("Confirm/pay the dinnerware amount").summary!, /clarify what the \$150 covers/);
   assert.match(byTitle("Harmony and Melody’s schedule: discuss with Avalon").summary!, /No revised arrival time was decided/);
 });
+
+test("names in the 14:45 notes are spelled as David confirmed: Skila and Andi", () => {
+  const text = NEW_TASKS.map((def) => `${def.title} ${def.summary ?? ""}`).join("\n");
+  assert.doesNotMatch(text, /Skylar|\bAndy\b/);
+  assert.match(text, /when Skila will do their hair/);
+  assert.match(text, /Braxton, Andi, and Marie/);
+});

@@ -94,7 +94,7 @@ export const NEW_TASKS: NewTaskDef[] = [
   {
     title: "License: bring the knight pen and a regular backup pen",
     summary:
-      "Keep everything in the changing room and sign immediately after the ceremony. Braxton will help make that happen; Braxton, Andy, and Marie were named for signing. Choose between the milking tables and changing room.",
+      "Keep everything in the changing room and sign immediately after the ceremony. Braxton will help make that happen; Braxton, Andi, and Marie were named for signing. Choose between the milking tables and changing room.",
   },
   {
     title: "Finish the cocoa selection",
@@ -106,7 +106,7 @@ export const NEW_TASKS: NewTaskDef[] = [
   {
     title: "Harmony and Melody’s schedule: discuss with Avalon",
     summary:
-      "Current schedule discussed (all PM): 12:15–12:30 Wedding party arrives; 1:15 Harmony and Melody arrive; Haley’s first look with her dad; 1:30 Haley’s portraits; 1:45 David’s portraits; 2:00 Wedding party dressed; your first look together; 2:15 Couple portraits; 2:45 Bridal-party photos. No revised arrival time was decided for the girls. Confirm when Skylar will do their hair, allow dressing time before photos, and choose when to give them their gifts.",
+      "Current schedule discussed (all PM): 12:15–12:30 Wedding party arrives; 1:15 Harmony and Melody arrive; Haley’s first look with her dad; 1:30 Haley’s portraits; 1:45 David’s portraits; 2:00 Wedding party dressed; your first look together; 2:15 Couple portraits; 2:45 Bridal-party photos. No revised arrival time was decided for the girls. Confirm when Skila will do their hair, allow dressing time before photos, and choose when to give them their gifts.",
   },
 ];
 
