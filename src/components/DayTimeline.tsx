@@ -1128,10 +1128,9 @@ function PeerHandle({
   }
 
   function onPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
-    const handle = event.currentTarget;
+    const pointerId = event.pointerId;
     // Phones send no click after a touch drag, so clear the flag here too.
     draggedRef.current = false;
-    handle.setPointerCapture(event.pointerId);
     const startY = event.clientY;
     let current = [...peerIds];
     let lastIndex = current.indexOf(rowId);
@@ -1157,6 +1156,7 @@ function PeerHandle({
     }
 
     function onMove(moveEvent: PointerEvent) {
+      if (moveEvent.pointerId !== pointerId) return;
       if (Math.abs(moveEvent.clientY - startY) < 8) return;
       const nextIndex = yToIndex(moveEvent.clientY);
       if (nextIndex === lastIndex) return;
@@ -1169,18 +1169,21 @@ function PeerHandle({
       onReorder(next, false);
     }
 
-    function onUp() {
-      if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
-      handle.removeEventListener("pointermove", onMove);
-      handle.removeEventListener("pointerup", onUp);
-      handle.removeEventListener("pointercancel", onUp);
+    function onUp(upEvent: PointerEvent) {
+      if (upEvent.pointerId !== pointerId) return;
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
       // A plain tap falls through to onClick (nudge one place); only a real drag saves here.
       if (moved) onReorder(current, true);
     }
 
-    handle.addEventListener("pointermove", onMove);
-    handle.addEventListener("pointerup", onUp);
-    handle.addEventListener("pointercancel", onUp);
+    // The first move re-sorts the rows, and React moves this row's element to its new
+    // place, which drops any pointer capture on the handle. Listening on the document
+    // keeps the rest of the drag (and the save on release) arriving.
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
   }
 
   return (
