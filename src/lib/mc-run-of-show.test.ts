@@ -70,3 +70,10 @@ test("Mistress of Ceremonies and MC are both operator labels", () => {
     ["Kurt Huizenga", "Wendy Rush"],
   );
 });
+
+test("a 'next' pointer at a music bed names the moment, not the word Music", () => {
+  const show = buildMcRunOfShow(PRODUCTION_CUE_BLOCKS);
+  const welcome = show.cues.find((cue) => cue.kind === "spoken" && /welcome/i.test(cue.spoken));
+  assert.equal(welcome?.nextTime, "3:30 PM");
+  assert.equal(welcome?.nextTitle, "Ceremony");
+});
