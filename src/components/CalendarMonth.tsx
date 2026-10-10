@@ -56,6 +56,7 @@ function CalendarEventCard({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { start, end } = eventRange(event);
   const span =
@@ -73,7 +74,7 @@ function CalendarEventCard({
             <p className="font-[family-name:var(--font-display)] text-xl leading-tight">{event.title}</p>
             {span ? <p className="mt-1 text-sm text-muted">{span}</p> : null}
             {event.location ? <p className="mt-1 text-sm text-muted">{event.location}</p> : null}
-            {event.notes ? <p className="mt-1 text-sm leading-relaxed text-muted">{event.notes}</p> : null}
+            {event.notes ? <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-muted">{event.notes}</p> : null}
           </div>
           {canEdit ? (
             <button
@@ -97,10 +98,16 @@ function CalendarEventCard({
           submitEvent.preventDefault();
           const form = submitEvent.currentTarget;
           const formData = new FormData(form);
+          const title = String(formData.get("title") || "").trim();
+          if (!title) {
+            setError("Add a title.");
+            return;
+          }
+          setError(null);
           startTransition(async () => {
             const result = await saveCalendarEvent({
               id: event.id,
-              title: String(formData.get("title") || ""),
+              title,
               location: String(formData.get("location") || ""),
               notes: String(formData.get("notes") || ""),
               startDate: String(formData.get("startDate") || ""),
@@ -109,6 +116,8 @@ function CalendarEventCard({
             if (result.ok) {
               setEditing(false);
               router.refresh();
+            } else {
+              setError("Couldn’t save that event. Check the dates and try again.");
             }
           });
         }}
@@ -135,6 +144,7 @@ function CalendarEventCard({
           <span className="mb-1 block text-xs text-muted">Notes</span>
           <textarea name="notes" rows={2} defaultValue={event.notes ?? ""} className="field-input resize-y" />
         </label>
+        {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
         <div className="flex flex-wrap gap-2">
           <button type="submit" className="btn-primary" disabled={pending}>
             {pending ? "Saving…" : "Save event"}
