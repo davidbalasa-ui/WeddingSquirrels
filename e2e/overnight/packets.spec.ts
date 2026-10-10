@@ -94,3 +94,18 @@ test("Wedding party packet lists who walks with whom without phone numbers; the 
   await openPacket(page, "binder");
   await expect(page.getByTestId("print-section-party").locator("th")).toHaveText(["Name", "Role", "Walks with", "Phone"]);
 });
+
+// David, 2026-10-10: "compress the shot list to just say bridal party photos" in the schedule,
+// and the line-up time "need[s] to be consistent" with the schedule.
+test("Schedules say Bridal party photos and the processional lines up when the schedule says", async ({ page }) => {
+  for (const id of ["party", "binder"]) {
+    const text = await openPacket(page, id);
+    const schedule = text.split(/\nShot list/i)[0]!;
+    expect(schedule, `${id}: the schedule lists single shots`).not.toMatch(/Groom with Evan|Bride with Skila/);
+    expect(schedule, id).toContain("Bridal party photos");
+    const lineUp = text.match(/Ceremony processional · line up at (\d{1,2}:\d{2} [AP]M)/)?.[1];
+    expect(lineUp, `${id}: processional time`).toBeTruthy();
+    // This test copy's pre-ceremony moment carries "3:20 PM — wedding party lines up".
+    expect(text, `${id}: the schedule says the same line-up time`).toMatch(new RegExp(`${lineUp}[^\\n]*wedding party lines up`, "i"));
+  }
+});
