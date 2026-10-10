@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, startOfDay } from "date-fns";
-import { parseDayOfAsOf } from "@/lib/day-of";
+import { parseDayOfAsOf, weddingLocalClockParts } from "@/lib/day-of";
 import { loadAppSettings, prisma } from "@/lib/db";
 import {
   contractPaidTotal,
@@ -160,8 +160,9 @@ const RANK = {
   dueSoonTask: 40,
 } as const;
 
-export function greetingForHour(date = new Date()): string {
-  const hour = date.getHours();
+/** Time-of-day greeting in the wedding timezone, never the server's clock. */
+export function greetingForHour(date = new Date(), timeZone = "America/Detroit"): string {
+  const hour = weddingLocalClockParts(date, timeZone).hour;
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";
@@ -283,7 +284,7 @@ export function buildTodayHero(
   const timezone = settings?.timezone ?? "America/Detroit";
   const weddingDate = settings?.weddingDate ?? null;
   const coupleNames = settings?.coupleNames?.trim() || null;
-  const greeting = greetingForHour(now);
+  const greeting = greetingForHour(now, timezone);
   const who = coupleNames ?? sessionName.split(" ")[0] ?? null;
   const rawDays = weddingDate ? daysUntilWedding(weddingDate, timezone, now) : null;
   const phase: TodayHeroPhase | null =
