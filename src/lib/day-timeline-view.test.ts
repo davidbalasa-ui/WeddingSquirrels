@@ -113,3 +113,12 @@ test("every group view keeps the ceremony with its time and title", () => {
   const ceremony = reviewMoment({ startAt: "3:30 PM", endAt: "4:00 PM", notes: "Ceremony\n@ Under the shelter" }, {});
   for (const role of ["mc", "party", "family", "photo", "vendors"] as const) assert.ok(momentForRole(ceremony, role), role);
 });
+
+test("every group view keeps the shared moments under the page's earlier titles too", () => {
+  for (const title of ["Dinner begins", "First dances", "Toasts + Cake cutting", "Grand entrance and dinner begins", "Formal dances", "Toasts"]) {
+    const moment = reviewMoment({ startAt: "5:00 PM", endAt: null, notes: `${title}\nGuests eat.` });
+    for (const role of ["mc", "party", "family", "photo"] as const) {
+      assert.ok(momentForRole(moment, role), `${role} keeps ${title}`);
+    }
+  }
+});

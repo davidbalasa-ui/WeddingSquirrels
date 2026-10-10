@@ -9,6 +9,7 @@
  */
 import { parseDayOfTime, parsedTimeFields } from "@/lib/day-of-time";
 import { composeBlockNotes, parseBlockNotes } from "@/lib/day-of-now";
+import { REHEARSAL_SCHEDULE_SEED } from "@/lib/rehearsal";
 
 export type TimelinePhase = {
   id: string;
@@ -37,6 +38,9 @@ export type ReconciledMoment = {
 };
 
 export const OPEN_ITEMS_PREFIX = /^open items?:\s*/i;
+
+/** The app's original rehearsal rows, by id, as seeded: an unedited one is safe to fold away. */
+const REHEARSAL_LEGACY_NOTES = new Map(REHEARSAL_SCHEDULE_SEED.map((block) => [block.id, block.notes]));
 
 const W = "wedding" as const;
 const R = "rehearsal" as const;
@@ -257,10 +261,28 @@ export type ReconciledPlan = {
   untouched: Array<{ id: string; seedKey: string | null; title: string; startAt: string }>;
 };
 
+/**
+ * The key a row answers to: its seedKey, or, for the rehearsal rows the app seeded
+ * before seed keys existed (their ids are "reh.checkin" and so on), the id itself.
+ * Without this, Apply would add the seven rehearsal moments a second time.
+ */
+export function reconciledKeyForRow(row: { id: string; seedKey: string | null; schedule: string }): string | null {
+  if (row.seedKey) return row.seedKey;
+  if (row.schedule === "rehearsal" && RECONCILED_TIMELINE.some((moment) => moment.seedKey === row.id)) return row.id;
+  return null;
+}
+
 export function planReconciledTimeline(existing: ExistingTimelineRow[]): ReconciledPlan {
   const plan: ReconciledPlan = { inserts: [], updates: [], unchanged: [], removals: [], untouched: [] };
-  const bySeed = new Map(existing.filter((row) => row.seedKey).map((row) => [row.seedKey as string, row]));
   const wanted = new Set(RECONCILED_TIMELINE.map((moment) => moment.seedKey));
+  const bySeed = new Map<string, ExistingTimelineRow>();
+  for (const row of existing) {
+    const key = reconciledKeyForRow(row);
+    if (!key) continue;
+    // A seeded row wins over a legacy row with the same key (see the duplicate check below).
+    const current = bySeed.get(key);
+    if (!current || (!current.seedKey && row.seedKey)) bySeed.set(key, row);
+  }
 
   RECONCILED_TIMELINE.forEach((moment, index) => {
     const notes = reconciledNotes(moment);
@@ -292,7 +314,19 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
   });
 
   for (const row of existing) {
-    if (row.seedKey && wanted.has(row.seedKey)) continue;
+    const key = reconciledKeyForRow(row);
+    if (key && wanted.has(key)) {
+      if (bySeed.get(key) === row) continue;
+      // An earlier Apply already added this rehearsal moment next to the legacy row.
+      // The untouched legacy copy goes; one that was edited stays for the owner to merge.
+      const seeded = REHEARSAL_LEGACY_NOTES.get(row.id);
+      if (seeded !== undefined && seeded === row.notes) {
+        plan.removals.push({ id: row.id, seedKey: key, title: parseBlockNotes(row.notes).title });
+      } else {
+        plan.untouched.push({ id: row.id, seedKey: row.seedKey, title: parseBlockNotes(row.notes).title, startAt: row.startAt });
+      }
+      continue;
+    }
     const title = parseBlockNotes(row.notes).title;
     if (row.seedKey && RECONCILED_RETIRED_SEED_KEYS.includes(row.seedKey)) {
       plan.removals.push({ id: row.id, seedKey: row.seedKey, title });

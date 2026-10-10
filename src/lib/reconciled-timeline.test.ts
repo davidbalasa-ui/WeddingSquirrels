@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseBlockNotes } from "./day-of-now";
+import { REHEARSAL_SCHEDULE_SEED } from "./rehearsal";
 import {
   RECONCILED_RETIRED_SEED_KEYS,
   RECONCILED_TIMELINE,
@@ -116,4 +117,56 @@ test("Apply on an edited timeline writes only new and retired moments, never the
   assert.deepEqual(plan.removals.map((row) => row.seedKey), ["wedding_settle_in"]);
   // Listed so the owner can switch it back by hand, but Apply does not write it.
   assert.deepEqual(plan.updates.map((row) => row.seedKey), ["wedding_ceremony"]);
+});
+
+test("the app's original rehearsal rows (id = seed key, no seedKey) are the document's rows, not extras", () => {
+  const legacy = REHEARSAL_SCHEDULE_SEED.map((block, index) => ({
+    id: block.id,
+    seedKey: null,
+    schedule: "rehearsal",
+    startAt: block.startAt,
+    endAt: block.endAt,
+    notes: block.notes,
+    sortOrder: index,
+  }));
+  const plan = planReconciledTimeline(legacy);
+  assert.equal(plan.inserts.filter((row) => row.schedule === "rehearsal").length, 0);
+  assert.equal(plan.untouched.length, 0);
+  assert.equal(plan.updates.filter((row) => row.schedule === "rehearsal").length, legacy.length);
+  // Applying twice never doubles the rehearsal.
+  const applied = [
+    ...legacy,
+    ...plan.inserts.map((row, index) => ({ ...row, id: `new-${index}`, seedKey: row.seedKey })),
+  ];
+  const again = planReconciledTimeline(applied);
+  assert.equal(again.inserts.length, 0);
+  assert.equal(again.removals.length, 0);
+});
+
+test("after an Apply that doubled the rehearsal, the untouched legacy copies are folded away and an edited one stays", () => {
+  const legacy = REHEARSAL_SCHEDULE_SEED.map((block, index) => ({
+    id: block.id,
+    seedKey: null,
+    schedule: "rehearsal",
+    startAt: block.startAt,
+    endAt: block.endAt,
+    notes: index === 0 ? `${block.notes}; David: bring the keys` : block.notes,
+    sortOrder: index,
+  }));
+  const seeded = RECONCILED_TIMELINE.filter((moment) => moment.schedule === "rehearsal").map((moment, index) => ({
+    id: `seeded-${index}`,
+    seedKey: moment.seedKey,
+    schedule: "rehearsal",
+    startAt: moment.startAt,
+    endAt: moment.endAt,
+    notes: reconciledNotes(moment),
+    sortOrder: 10 + index,
+  }));
+  const plan = planReconciledTimeline([...legacy, ...seeded]);
+  assert.equal(plan.inserts.filter((row) => row.schedule === "rehearsal").length, 0);
+  assert.deepEqual(
+    plan.removals.map((row) => row.id).sort(),
+    legacy.slice(1).map((row) => row.id).sort(),
+  );
+  assert.deepEqual(plan.untouched.map((row) => row.id), ["reh.checkin"]);
 });

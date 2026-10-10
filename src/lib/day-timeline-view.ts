@@ -134,9 +134,13 @@ export function reviewMoment(
   };
 }
 
-/** Wedding-day moments every group attends, shown in each group's view even with no line of their own. */
+/**
+ * Wedding-day moments every group attends, shown in each group's view even with no line of their own.
+ * Matches the document's titles and the page's earlier wording ("Dinner begins", "First dances",
+ * "Toasts + Cake cutting"), since Apply keeps the owner's titles.
+ */
 export const SHARED_WEDDING_MOMENT =
-  /^ceremony$|grand entrance|^toasts?$|cake cutting|formal dances|last (?:open )?dance|reception ends/i;
+  /^ceremony$|grand entrance|dinner begins|^toasts?\b|cake cutting|formal dances|first dances?|last (?:open )?dance|reception ends/i;
 
 /**
  * The moment as one role sees it: everything when the title names the role,
