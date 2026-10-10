@@ -142,7 +142,24 @@ test("prepareTimelineSave does not wipe a blank time", () => {
   const last = { startAt: "10:30 AM", endAt: "11:00 AM", notes: "Getting ready" };
   const result = prepareTimelineSave({ startAt: "", endAt: "11:00 AM", notes: "Getting ready" }, last);
   assert.equal(result.ok, false);
-  if (!result.ok) assert.equal(result.reason, "noop");
+  if (!result.ok) {
+    assert.equal(result.reason, "noop");
+    // The row shows the saved start again instead of sitting in Untimed with a blank hour.
+    assert.equal(result.revertStartAt, "10:30 AM");
+  }
+});
+
+test("prepareTimelineSave only reverts the start when it was typed away", () => {
+  const last = { startAt: "10:30 AM", endAt: "", notes: "Getting ready" };
+  const unchanged = prepareTimelineSave({ startAt: "10:30 AM", endAt: "", notes: "Getting ready " }, last);
+  assert.equal(unchanged.ok, false);
+  if (!unchanged.ok) assert.equal(unchanged.revertStartAt, undefined);
+  const blankNotes = prepareTimelineSave({ startAt: "", endAt: "", notes: "" }, { ...last, notes: "" });
+  assert.equal(blankNotes.ok, false);
+  if (!blankNotes.ok) {
+    assert.equal(blankNotes.reason, "empty_notes");
+    assert.equal(blankNotes.revertStartAt, "10:30 AM");
+  }
 });
 
 test("prepareTimelineSave keeps a note change when time was cleared", () => {
