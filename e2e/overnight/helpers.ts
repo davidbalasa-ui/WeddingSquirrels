@@ -74,6 +74,9 @@ export function attachGuards(page: Page, options: { allow?: RegExp } = {}) {
     // The unhandled rejection for a fetch or a response stream cut short (Chromium says "Failed to fetch"), when nothing else failed.
     // (WebKit does not always report the cancelled request itself, so only "nothing else failed" is required.)
     if (/^TypeError: (Load failed|Error in input stream|Failed to fetch|NetworkError when attempting to fetch resource\.)$/.test(text) && realFailures === 0) return true;
+    // Firefox logged an Error object the page could no longer describe (the navigation that cut
+    // the request short also took the page), when nothing else failed.
+    if (/^JSHandle@object$/.test(text) && realFailures === 0) return true;
     // Next's own note when a navigation cut its data fetch short; it then loads the page the plain way.
     if (/^Failed to fetch RSC payload for .* Falling back to browser navigation\. TypeError: (Load failed|NetworkError)/.test(text) && realFailures === 0) return true;
     return false;
