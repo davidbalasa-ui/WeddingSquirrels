@@ -27,7 +27,7 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
   const phonesToAdd = full.phones.filter((row) => row.status === "add");
   const phonesDiffer = full.phones.filter((row) => row.status === "differs");
   const phonesNotFound = full.phones.filter((row) => row.status === "not_found");
-  const nothingToApply = taskCorrectionsPlanIsEmpty(plan) && phonesToAdd.length === 0 && full.contacts.length === 0 && full.dayJobs.length === 0 && full.dayJobRewords.length === 0;
+  const nothingToApply = taskCorrectionsPlanIsEmpty(plan) && phonesToAdd.length === 0 && full.contacts.length === 0 && full.dayJobs.length === 0 && full.dayJobRewords.length === 0 && full.playbookRewords.length === 0;
   if (state === "done" || (nothingToApply && phonesDiffer.length === 0)) return null;
 
   async function pickPhone(label: string) {
@@ -97,7 +97,8 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
         {phonesToAdd.length ? `, ${count(phonesToAdd.length, "phone number")} added` : ""}
         {full.contacts.length ? `, ${count(full.contacts.length, "contact")} added` : ""}
         {full.dayJobs.length ? `, ${count(full.dayJobs.length, "Day-of job")} added` : ""}
-        {full.dayJobRewords.length ? `, ${count(full.dayJobRewords.length, "Day-of job")} corrected` : ""}. Nothing you wrote is reworded or deleted.
+        {full.dayJobRewords.length ? `, ${count(full.dayJobRewords.length, "Day-of job")} corrected` : ""}
+        {full.playbookRewords.length ? `, ${count(full.playbookRewords.length, "Coordinator scope line")} corrected` : ""}. Nothing you wrote is reworded or deleted.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" className="btn-primary min-h-11 px-4 py-2 text-sm" onClick={() => void apply()} disabled={state === "working"}>
@@ -167,6 +168,18 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
                 {full.dayJobRewords.map((row) => (
                   <li key={row.id}>
                     {row.title} <span className="text-muted">({row.correction})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {full.playbookRewords.length ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Corrected Coordinator scope</p>
+              <ul className="mt-1 list-none space-y-0.5 p-0">
+                {full.playbookRewords.map((row) => (
+                  <li key={row.id}>
+                    {row.title}: {row.notes} <span className="text-muted">({row.correction})</span>
                   </li>
                 ))}
               </ul>

@@ -61,8 +61,8 @@ import { canManageOwners, nextCoupleOwnerIds } from "@/lib/inbox";
 import { sessionCanMutateTask } from "@/lib/tasks";
 import { taskHref } from "@/lib/entity-links";
 import { doubledMomentToRemove, planReconciledTimeline } from "@/lib/reconciled-timeline";
-import { dueDateFor } from "@/lib/task-corrections";
-import { loadPrintoutCorrectionsPlan, addContact, writePhone } from "@/lib/printout-corrections-data";
+import { loadPrintoutCorrectionsPlan, writePhone } from "@/lib/printout-corrections-data";
+import { applyCorrections } from "@/lib/auto-apply";
 import { safeReturnTo, TASKS_HOME } from "@/lib/return-to";
 import { isMealGuestId, shouldDeleteMealOptionOnClear } from "@/lib/meals";
 import { applyRsvpChange, effectiveInvitedCount, isRsvpStatus, parseRsvpStatus, RSVP_STATUSES, syncLegacyGuestNames, type RsvpStatus } from "@/lib/guest-gifts";
@@ -3664,28 +3664,56 @@ export async function applyReconciledTimelineAction(): Promise<
   const session = await requireScheduleEditor("wedding");
   if (!session || !session.isMaster) return { ok: false, reason: "forbidden" };
 
-  const existing = await prisma.timelineBlock.findMany({
-    select: { id: true, seedKey: true, schedule: true, startAt: true, endAt: true, notes: true, sortOrder: true },
-  });
-  const plan = planReconciledTimeline(existing);
+  let result;
   try {
-    await prisma.$transaction([
-      ...plan.removals.map((row) => prisma.timelineBlock.delete({ where: { id: row.id } })),
-      ...plan.inserts.map((data) => prisma.timelineBlock.create({ data })),
-      // Only rows still worded exactly as the app wrote them; the owner's own wording is never touched.
-      ...plan.rewords.map(({ id, before: _before, sortOrder: _sortOrder, correction: _correction, ...data }) =>
-        prisma.timelineBlock.update({ where: { id }, data }),
-      ),
-    ]);
+    // David's tap: the new moments and corrections, and the duplicate rows folded away.
+    result = await applyCorrections({ tasks: false, timeline: true, removals: true });
   } catch {
     return { ok: false, reason: "failed" };
   }
-  // Same per-schedule numbering the page's own saves use.
-  await resequenceTimeline("wedding");
-  await resequenceTimeline("rehearsal");
-  revalidateSchedule("wedding");
-  revalidateSchedule("rehearsal");
-  return { ok: true, inserted: plan.inserts.length, removed: plan.removals.length };
+  await afterCorrections(result);
+  return {
+    ok: true,
+    inserted: result.lines.filter((line) => line.startsWith("Added")).length,
+    removed: result.lines.filter((line) => line.startsWith("Removed")).length,
+  };
+}
+
+/** Same per-schedule numbering and page refresh the page's own saves use. */
+async function afterCorrections(result: { tasksChanged: boolean; timelineChanged: boolean }) {
+  if (result.timelineChanged) {
+    await resequenceTimeline("wedding");
+    await resequenceTimeline("rehearsal");
+    revalidateSchedule("wedding");
+    revalidateSchedule("rehearsal");
+    revalidatePath("/print");
+  }
+  if (result.tasksChanged) {
+    revalidatePath("/today");
+    revalidatePath("/plan/tasks");
+    revalidatePath("/print");
+    revalidatePath("/people");
+    revalidatePath("/day");
+    revalidatePath("/day/assignments");
+  }
+}
+
+/**
+ * David, 2026-10-10: "can you auto apply the changes so I stop needing to hit apply?"
+ * On his master account, every Apply card's additive changes land on their own the first
+ * time a page loads after a deploy. Removing rows and picking between two copies or two
+ * numbers still wait for his tap.
+ */
+export async function autoApplyCorrectionsAction(): Promise<{ ok: true; lines: string[] } | { ok: false }> {
+  const session = await getSession();
+  if (!session?.isMaster || !timelineEditable(session)) return { ok: false };
+  try {
+    const result = await applyCorrections({ tasks: true, timeline: true, removals: false });
+    await afterCorrections(result);
+    return { ok: true, lines: result.lines };
+  } catch {
+    return { ok: false };
+  }
 }
 
 /** Puts the document's wording back on one moment, only when the owner taps it for that moment. */
@@ -3747,58 +3775,18 @@ export async function applyTaskCorrectionsAction(): Promise<
   const session = await getSession();
   if (!session?.isMaster) return { ok: false, reason: "forbidden" };
 
-  const { tasks: plan, phones, contacts, dayJobs, dayJobRewords } = await loadPrintoutCorrectionsPlan();
-  const now = new Date();
+  let result;
   try {
-    await prisma.$transaction(async (tx) => {
-      for (const row of plan.inserts) {
-        await tx.task.create({
-          data: {
-            title: row.title,
-            summary: row.summary,
-            dueDate: row.due ? dueDateFor(row.due) : null,
-            ...(row.done ? { status: "done", completedAt: now } : {}),
-          },
-        });
-      }
-      for (const row of plan.marks) {
-        await tx.task.updateMany({ where: { id: row.id, status: { not: "done" } }, data: { status: "done", completedAt: now } });
-      }
-      // A day only where the job still has none, so a date David set himself stays.
-      for (const row of plan.dueFills) {
-        await tx.task.updateMany({ where: { id: row.id, dueDate: null }, data: { dueDate: dueDateFor(row.due) } });
-      }
-      // A note only where the job still has none, so a note David wrote himself stays.
-      for (const row of plan.noteFills) {
-        await tx.task.updateMany({ where: { id: row.id, OR: [{ summary: null }, { summary: "" }] }, data: { summary: row.summary } });
-      }
-      // New numbers only; a person with a different number saved is left for David to pick.
-      for (const row of phones) {
-        if (row.status === "add" && row.write) await writePhone(tx, row.write);
-      }
-      for (const row of contacts) await addContact(tx, row);
-      if (dayJobs.length) {
-        const last = await tx.dayAssignment.findFirst({ orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
-        let next = (last?.sortOrder ?? -1) + 1;
-        for (const job of dayJobs) {
-          await tx.dayAssignment.create({ data: { title: job.title, notes: job.notes, sortOrder: next++ } });
-        }
-      }
-      // Only while the job still reads exactly as this card first wrote it.
-      for (const row of dayJobRewords) {
-        await tx.dayAssignment.updateMany({ where: { id: row.id, title: row.before }, data: { title: row.title, notes: row.notes } });
-      }
-    });
+    result = await applyCorrections({ tasks: true, timeline: false, removals: false });
   } catch {
     return { ok: false, reason: "failed" };
   }
-  revalidatePath("/today");
-  revalidatePath("/plan/tasks");
-  revalidatePath("/print");
-  revalidatePath("/people");
-  revalidatePath("/day");
-  revalidatePath("/day/assignments");
-  return { ok: true, inserted: plan.inserts.length, marked: plan.marks.length };
+  await afterCorrections(result);
+  return {
+    ok: true,
+    inserted: result.lines.filter((line) => line.startsWith("Added")).length,
+    marked: result.lines.filter((line) => line.startsWith("Marked done")).length,
+  };
 }
 
 /** David's pick when a different number is already saved: use the one he sent in chat. */

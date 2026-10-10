@@ -138,3 +138,14 @@ test("the bank and post office job is ticked done, only while it reads as card 3
   assert.equal(planTaskCorrections([{ ...job, status: "done" }]).marks.length, 0);
   assert.equal(planTaskCorrections([]).inserts.find((row) => row.title === job.title)?.done, true);
 });
+
+test("David's 16:33 'Keep kids at 115 for now' joins card 3's Harmony and Melody note, only while it reads as the card wrote it", () => {
+  const item = NEW_TASKS.find((def) => def.title === "Harmony and Melody’s schedule: discuss with Avalon")!;
+  assert.match(item.summary!, /Kids stay at 1:15 for now \(David, Oct 10\)\.$/);
+  const was = item.summary!.replace(" Kids stay at 1:15 for now (David, Oct 10).", "");
+  const row = { id: "hm", title: item.title, status: "todo", parentId: null, summary: was };
+  assert.deepEqual(planTaskCorrections([row]).noteFills, [{ id: "hm", title: item.title, summary: item.summary, before: was }]);
+  // Changed by David, or already up to date: left alone.
+  assert.equal(planTaskCorrections([{ ...row, summary: `${was} Ask Avalon Monday.` }]).noteFills.length, 0);
+  assert.equal(planTaskCorrections([{ ...row, summary: item.summary }]).noteFills.length, 0);
+});

@@ -61,6 +61,8 @@ export async function resetOvernightData(prisma: PrismaClient, options: ResetOpt
   const reconciled = options.reconciled ?? true;
 
   await prisma.task.updateMany({ where: { timelineBlockId: { not: null } }, data: { timelineBlockId: null } }).catch(() => undefined);
+  // Nothing has been applied on the fresh copy, so the cards' changes can apply again.
+  await prisma.$executeRawUnsafe('DELETE FROM "AppliedCorrection"').catch(() => undefined);
   await prisma.timelineBlock.deleteMany({});
   await prisma.dayAssignment.deleteMany({});
   await prisma.contact.deleteMany({});
@@ -157,12 +159,14 @@ if (process.argv[1] && /db\.ts$/.test(process.argv[1])) {
  * snapshot first and puts the task list back exactly when it is done.
  */
 export async function snapshotTasks(prisma: PrismaClient): Promise<() => Promise<void>> {
-  const before = await prisma.task.findMany({ select: { id: true, status: true, completedAt: true } });
+  const before = await prisma.task.findMany({ select: { id: true, status: true, completedAt: true, summary: true, dueDate: true } });
   return async () => {
     const keep = before.map((row) => row.id);
     await prisma.task.deleteMany({ where: { id: { notIn: keep } } });
-    for (const row of before) {
-      await prisma.task.update({ where: { id: row.id }, data: { status: row.status, completedAt: row.completedAt } });
+    for (const { id, ...data } of before) {
+      await prisma.task.update({ where: { id }, data });
     }
+    // The tasks are back to before any card applied, so its changes are no longer on record.
+    await prisma.$executeRawUnsafe('DELETE FROM "AppliedCorrection"').catch(() => undefined);
   };
 }

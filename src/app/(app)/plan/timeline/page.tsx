@@ -4,8 +4,7 @@ import { PlanChapterHeader } from "@/components/PlanChapterHeader";
 import { timelineEditable } from "@/lib/access";
 import { loadTimelineRoleNames } from "@/lib/day-timeline-roles";
 import { ReconciledTimelineCard } from "@/components/ReconciledTimelineCard";
-import { prisma } from "@/lib/db";
-import { planReconciledTimeline } from "@/lib/reconciled-timeline";
+import { loadPendingTimelineCorrections } from "@/lib/auto-apply";
 import { loadDayOfContext, loadWeddingTimelineBlocks } from "@/lib/day-of-page";
 import { loadTimelineRelatedTasks } from "@/lib/tasks";
 import { requirePageSession } from "@/lib/session";
@@ -25,13 +24,7 @@ export default async function PlanTimelinePage({
     loadDayOfContext(),
     loadTimelineRoleNames(),
   ]);
-  const reconciledPlan = session.isMaster
-    ? planReconciledTimeline(
-        await prisma.timelineBlock.findMany({
-          select: { id: true, seedKey: true, schedule: true, startAt: true, endAt: true, notes: true, sortOrder: true },
-        }),
-      )
-    : null;
+  const reconciledPlan = session.isMaster ? await loadPendingTimelineCorrections() : null;
   const relatedByBlockId = await loadTimelineRelatedTasks(
     session,
     blocks.map((block) => block.id),

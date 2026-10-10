@@ -5,6 +5,12 @@ import { overnightPrisma, resetOvernightData } from "./db";
 
 loadEnv();
 
+/**
+ * The suite's pages start as if this build's changes were already applied, so the
+ * "Applied just now" pass does not run under every spec; auto-apply.spec.ts clears it.
+ */
+export const AUTO_APPLIED_KEY = "ws-auto-applied:local";
+
 async function storageState(accountId: string) {
   const secret = process.env.PIN_SESSION_SECRET;
   if (!secret) throw new Error("PIN_SESSION_SECRET is required");
@@ -26,7 +32,12 @@ async function storageState(accountId: string) {
         expires: Math.floor(Date.now() / 1000) + 8 * 60 * 60,
       },
     ],
-    origins: [] as [],
+    origins: [
+      {
+        origin: process.env.OVERNIGHT_BASE_URL || `http://127.0.0.1:${process.env.OVERNIGHT_PORT || 3200}`,
+        localStorage: [{ name: AUTO_APPLIED_KEY, value: "1" }],
+      },
+    ],
   };
 }
 

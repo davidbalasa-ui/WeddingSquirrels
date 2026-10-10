@@ -15,6 +15,12 @@ export type NewTaskDef = {
 };
 export type DoneMarkDef = { card: string; step: string };
 
+/** Card 3's note on the Harmony and Melody item, as it first wrote it. */
+const HARMONY_MELODY_NOTE_14_45 =
+  "Current schedule discussed (all PM): 12:15–12:30 Wedding party arrives; 1:15 Harmony and Melody arrive; Haley’s first look with her dad; 1:30 Haley’s portraits; 1:45 David’s portraits; 2:00 Wedding party dressed; your first look together; 2:15 Couple portraits; 2:45 Bridal-party photos. No revised arrival time was decided for the girls. Confirm when Skila will do their hair, allow dressing time before photos, and choose when to give them their gifts.";
+/** 16:33, David: "Keep kids at 115 for now." */
+const HARMONY_MELODY_NOTE = `${HARMONY_MELODY_NOTE_14_45} Kids stay at 1:15 for now (David, Oct 10).`;
+
 /** Monday and Tuesday jobs, word for word from David's own list. */
 export const NEW_TASKS: NewTaskDef[] = [
   { title: "Total Wine: Pick up the alcohol order", due: "2026-10-12" },
@@ -105,8 +111,7 @@ export const NEW_TASKS: NewTaskDef[] = [
   { title: "Pack and label supplies by table" },
   {
     title: "Harmony and Melody’s schedule: discuss with Avalon",
-    summary:
-      "Current schedule discussed (all PM): 12:15–12:30 Wedding party arrives; 1:15 Harmony and Melody arrive; Haley’s first look with her dad; 1:30 Haley’s portraits; 1:45 David’s portraits; 2:00 Wedding party dressed; your first look together; 2:15 Couple portraits; 2:45 Bridal-party photos. No revised arrival time was decided for the girls. Confirm when Skila will do their hair, allow dressing time before photos, and choose when to give them their gifts.",
+    summary: HARMONY_MELODY_NOTE,
   },
 ];
 
@@ -158,6 +163,14 @@ export const NOTE_FILLS: Array<{ title: string; summary: string }> = [
   { title: "Send the check to Precious Peony", summary: "Tracking number: 9505 5136 9476 6283 7277 06" },
 ];
 
+/**
+ * A note an earlier card wrote that David has since added to; rewritten only while the
+ * job's note still reads exactly as the card first wrote it.
+ */
+export const NOTE_REWORDS: Array<{ title: string; before: string; summary: string }> = [
+  { title: "Harmony and Melody’s schedule: discuss with Avalon", before: HARMONY_MELODY_NOTE_14_45, summary: HARMONY_MELODY_NOTE },
+];
+
 /** Cards whose every step is in DONE_MARKS: the card itself is finished too. */
 export const DONE_CARDS = ["Ceremony Flower Sword", "Rehearsal Dinner Menu"];
 
@@ -179,7 +192,8 @@ export type TaskCorrectionsPlan = {
   /** Jobs an earlier card added with no day that now get the day David gave. */
   dueFills: Array<{ id: string; title: string; due: string }>;
   /** Jobs an earlier card added with no note that now get the note David sent. */
-  noteFills: Array<{ id: string; title: string; summary: string }>;
+  /** `before`: the card's own earlier note this replaces; without it the job had no note. */
+  noteFills: Array<{ id: string; title: string; summary: string; before?: string }>;
 };
 
 /** Same noon-of-the-day time the Due date box saves. */
@@ -240,6 +254,10 @@ export function planTaskCorrections(tasks: TaskRow[]): TaskCorrectionsPlan {
   for (const def of NOTE_FILLS) {
     const task = tasks.find((row) => !row.parentId && row.title === def.title && !row.summary);
     if (task) noteFills.push({ id: task.id, title: task.title, summary: def.summary });
+  }
+  for (const def of NOTE_REWORDS) {
+    const task = tasks.find((row) => !row.parentId && row.title === def.title && row.summary === def.before);
+    if (task) noteFills.push({ id: task.id, title: task.title, summary: def.summary, before: def.before });
   }
   return { inserts, alreadyListed, marks, dueFills, noteFills };
 }
