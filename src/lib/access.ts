@@ -35,6 +35,15 @@ export function canManageDayOfContacts(session: SessionAccount): boolean {
   return session.canSeePeople && timelineEditable(session);
 }
 
+/**
+ * Contact rows (vendor and day-of phone numbers) are visible to a PIN only when it
+ * can see the timeline or the guest list. The People hub and the profile page
+ * must agree, so a direct profile link never shows more than the directory does.
+ */
+export function canSeeContactRecords(session: SessionAccount): boolean {
+  return session.canSeeTimeline || session.canSeeGuests;
+}
+
 export function canManageAccounts(session: SessionAccount): boolean {
   return session.isMaster || session.canManageAccounts;
 }

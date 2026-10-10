@@ -76,9 +76,24 @@ function masterSession(overrides: Partial<SessionAccount> = {}): SessionAccount 
 }
 
 test("greetingForHour follows time of day", () => {
-  assert.equal(greetingForHour(new Date("2026-08-01T08:00:00")), "Good morning");
-  assert.equal(greetingForHour(new Date("2026-08-01T14:00:00")), "Good afternoon");
-  assert.equal(greetingForHour(new Date("2026-08-01T20:00:00")), "Good evening");
+  assert.equal(greetingForHour(new Date("2026-08-01T08:00:00-04:00")), "Good morning");
+  assert.equal(greetingForHour(new Date("2026-08-01T14:00:00-04:00")), "Good afternoon");
+  assert.equal(greetingForHour(new Date("2026-08-01T20:00:00-04:00")), "Good evening");
+});
+
+test("greetingForHour uses the wedding timezone, not the server clock", () => {
+  // 3:35 PM in Detroit is 7:35 PM UTC: a UTC server must still say afternoon.
+  const ceremony = new Date("2026-10-16T15:35:00-04:00");
+  assert.equal(greetingForHour(ceremony, "America/Detroit"), "Good afternoon");
+  // 9:00 PM in Detroit is 1:00 AM UTC the next day: still evening in Detroit.
+  const night = new Date("2026-10-16T21:00:00-04:00");
+  assert.equal(greetingForHour(night, "America/Detroit"), "Good evening");
+  const hero = buildTodayHero(
+    { weddingDate: new Date("2026-10-16T12:00:00.000Z"), coupleNames: "David & Haley", timezone: "America/Detroit" },
+    "David",
+    ceremony,
+  );
+  assert.equal(hero.greeting, "Good afternoon");
 });
 
 test("buildTodayHero uses AppSettings fields and does not invent venue", () => {
