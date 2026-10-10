@@ -753,6 +753,7 @@ export function DayTimeline({
             />
             <textarea
               value={draft.notes}
+              aria-label="What happens at the new moment"
               placeholder="What happens — press Enter for a new line"
               rows={3}
               autoFocus
@@ -1047,6 +1048,7 @@ function EditCard({
   const [locationDraft, setLocationDraft] = useState<string | null>(null);
   const [notesDraft, setNotesDraft] = useState<string | null>(null);
   const location = locationDraft ?? parseBlockNotes(row.notes).location ?? "";
+  const momentTitle = parseBlockNotes(row.notes).title.trim() || "this moment";
   const notesBody = notesDraft ?? notesBodyForEditor(row.notes);
   const notesRef = useRef<HTMLTextAreaElement | null>(null);
   // Grow the notes box with its wrapped text so long lines are never clipped on a phone.
@@ -1114,6 +1116,7 @@ function EditCard({
       <textarea
         ref={notesRef}
         value={notesBody}
+        aria-label={`Notes for ${momentTitle}`}
         rows={Math.min(8, Math.max(2, notesBody.split(/\r?\n/).length))}
         onChange={(event) => {
           setNotesDraft(event.target.value);
