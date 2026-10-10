@@ -502,8 +502,9 @@ function PrintSection({
     case "stay":
       return (
         <section className="binder-section">
-          <h2>Stay</h2>
-          {document.stay.map((section) => (
+          <h2>{master ? "Mini moon" : "Stay"}</h2>
+          {/* The master packet carries no bed lists; its Stay page is the mini moon. */}
+          {(master ? [] : document.stay).map((section) => (
             <div key={section.title} className="binder-block">
               <h3>{section.title}</h3>
               {section.detail ? <p className="binder-note">{section.detail}</p> : null}
@@ -523,7 +524,7 @@ function PrintSection({
             </div>
           ))}
           <div className="binder-block" data-testid="print-mini-moon">
-            <h3>{MINI_MOON.title}</h3>
+            <h3>{master ? MINI_MOON.title.replace(/^Mini moon · /, "") : MINI_MOON.title}</h3>
             {MINI_MOON.lines.map((line) => (
               <p key={line} className="binder-note">
                 {line}
@@ -1091,4 +1092,5 @@ const MASTER_HEADINGS: Partial<Record<PrintSectionId, string>> = {
   contacts: "Vendor & day-of contacts",
   decor: "Décor / setup details",
   meals: "Meals / food & supplies",
+  stay: "Mini moon",
 };
