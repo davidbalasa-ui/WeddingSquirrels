@@ -10,7 +10,7 @@ test("every schedule job is quoted word for word from the reconciled timeline", 
 
 test("a job already on Day-of assignments is not added again", () => {
   assert.equal(planDayJobs([{ title: "Wendy and Kurt begin setup" }]).length, SCHEDULE_DAY_JOBS.length - 1);
-  assert.equal(planDayJobs([]).length, 4);
+  assert.equal(planDayJobs([]).length, SCHEDULE_DAY_JOBS.length);
 });
 
 // David, 2026-10-10: "it says san instead of dan, that needs corrected everywhere".
@@ -21,7 +21,7 @@ test("the getaway job card 2 added as San is corrected to Dan once, never added 
     notes: "8:20 PM · Getaway vehicle arrives. Show San where to park, give him the “Just Married” sign, and tell the groom.",
   };
   assert.ok(SCHEDULE_DAY_JOBS.every((job) => !/\bSan\b/.test(`${job.title} ${job.notes}`)));
-  assert.equal(planDayJobs([added]).length, 3);
+  assert.equal(planDayJobs([added]).length, SCHEDULE_DAY_JOBS.length - 1);
   assert.deepEqual(planDayJobRewords([added]), [
     {
       id: "job-1",
@@ -36,5 +36,5 @@ test("the getaway job card 2 added as San is corrected to Dan once, never added 
   // After the correction there is nothing left to do.
   const fixed = planDayJobRewords([added])[0]!;
   assert.deepEqual(planDayJobRewords([fixed]), []);
-  assert.equal(planDayJobs([fixed]).length, 3);
+  assert.equal(planDayJobs([fixed]).length, SCHEDULE_DAY_JOBS.length - 1);
 });

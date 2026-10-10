@@ -11,6 +11,7 @@ import {
   planReconciledTimeline,
   reconciledNotes,
   reconciledPlanIsEmpty,
+  rehearsalRowsToPrint,
   type ExistingTimelineRow,
   type ReconciledMoment,
 } from "./reconciled-timeline";
@@ -146,7 +147,7 @@ test("the app's original rehearsal rows (id = seed key, no seedKey) are the docu
   assert.equal(again.removals.length, 0);
 });
 
-test("after an Apply that doubled the rehearsal, the untouched legacy copies are folded away and an edited one replaces the document copy", () => {
+test("after an Apply that doubled the rehearsal, the untouched legacy copies are folded away and an edited one that adds a note is his to pick", () => {
   const legacy = REHEARSAL_SCHEDULE_SEED.map((block, index) => ({
     id: block.id,
     seedKey: null,
@@ -167,16 +168,11 @@ test("after an Apply that doubled the rehearsal, the untouched legacy copies are
   }));
   const plan = planReconciledTimeline([...legacy, ...seeded]);
   assert.equal(plan.inserts.filter((row) => row.schedule === "rehearsal").length, 0);
-  // David (2026-10-10): no moment twice. His edited 1:00 PM row stays; the unedited document copy beside it goes.
-  assert.deepEqual(
-    plan.removals.map((row) => row.id).sort(),
-    [...legacy.slice(1).map((row) => row.id), "seeded-0"].sort(),
-  );
-  assert.deepEqual(plan.untouched.filter((row) => row.id.startsWith("reh.") || row.id.startsWith("seeded")), []);
-  assert.deepEqual(
-    plan.updates.filter((row) => row.schedule === "rehearsal").map((row) => row.id),
-    ["reh.checkin"],
-  );
+  // David (2026-10-10): no moment twice. His edited 1:00 PM row carries a note the full moment
+  // lacks ("bring the keys"), so neither copy is removed for him: both are listed to keep either.
+  assert.deepEqual(plan.removals.map((row) => row.id).sort(), legacy.slice(1).map((row) => row.id).sort());
+  assert.deepEqual(plan.doubles.map((pair) => [pair.mine.id, pair.document.id]), [["reh.checkin", "seeded-0"]]);
+  assert.deepEqual(plan.updates.filter((row) => row.schedule === "rehearsal"), []);
 });
 
 test("rehearsal rows typed by hand at the document's times are matched, never doubled", () => {
@@ -205,7 +201,8 @@ test("rehearsal rows typed by hand at the document's times are matched, never do
   assert.equal(first.removals.length, 0);
   assert.ok(first.untouched.some((row) => row.id === "typed-5"));
 
-  // Already doubled by an earlier Apply: each unedited document copy goes, the typed row stays.
+  // Already doubled by an earlier Apply. David, 2026-10-10: keep the full moments. A typed row
+  // that says nothing the full moment does not goes on his Apply tap; the full copy stays.
   const doubled = [
     ...typed,
     ...RECONCILED_TIMELINE.filter((moment) => moment.schedule === "rehearsal").map((moment, index) => ({
@@ -219,10 +216,10 @@ test("rehearsal rows typed by hand at the document's times are matched, never do
     })),
   ];
   const second = planReconciledTimeline(doubled);
-  assert.deepEqual(second.removals.map((row) => row.id).sort(), ["doc-0", "doc-2", "doc-5", "doc-6"]);
-  // The dinner copy was edited too: both stay for the owner, nothing of his is removed.
-  assert.ok(second.untouched.some((row) => row.id === "typed-2"));
-  assert.equal(second.removals.some((row) => row.id.startsWith("typed")), false);
+  assert.deepEqual(second.removals.map((row) => row.id).sort(), ["typed-0", "typed-1", "typed-3", "typed-4"]);
+  // The dinner copy was edited too: both stay for the owner to pick between.
+  assert.deepEqual(second.doubles.map((pair) => [pair.mine.id, pair.document.id]), [["typed-2", "doc-3"]]);
+  assert.equal(second.removals.some((row) => row.id.startsWith("doc")), false);
   // Applying again changes nothing more.
   const after = doubled.filter((row) => !second.removals.some((gone) => gone.id === row.id));
   assert.equal(planReconciledTimeline(after).removals.length, 0);
@@ -366,4 +363,70 @@ test("Thursday's rehearsal dinner gains the Hawkshead dress code only while it r
   assert.deepEqual(planReconciledTimeline(rows).rewords.map((row) => [row.id, row.correction]), [["reh.dinner", "Hawkshead dress code"]]);
   const edited = planReconciledTimeline(rows.map((row) => (row.id === "reh.dinner" ? { ...row, notes: `${written}\nBring a jacket` } : row)));
   assert.equal(edited.rewords.length, 0);
+});
+
+// David, 2026-10-10 21:46, of his wedding party packet's Thursday: "tons of issues" (every moment twice).
+test("his short Thursday rows beside the full moments print once, as the full moments, and Apply folds his short rows away", () => {
+  const own = [
+    { startAt: "1:00 PM", notes: "Airbnb Check-in\n- Wedding party arrives" },
+    { startAt: "3:45 PM", notes: "Depart Airbnb" },
+    { startAt: "4:15 PM", endAt: "5:40 PM", notes: "Dinner\nLocation: Hawkshead" },
+    { startAt: "5:40 PM", notes: "Depart for Black Sheep Shelter" },
+    { startAt: "6:00 PM", endAt: "7:00 PM", notes: "Rehearsal" },
+    { startAt: "7:15 PM", notes: "Return to Airbnb" },
+  ].map((row, index) => ({ id: `own-${index}`, seedKey: null, schedule: "rehearsal", endAt: null, sortOrder: index, ...row }));
+  const full = RECONCILED_TIMELINE.filter((m) => m.schedule === "rehearsal").map((m, index) => ({
+    id: `doc-${index}`,
+    seedKey: m.seedKey,
+    schedule: "rehearsal",
+    startAt: m.startAt,
+    endAt: m.endAt,
+    notes: reconciledNotes(m),
+    sortOrder: 20 + index,
+  }));
+  const rows = [...own, ...full];
+  assert.deepEqual(planReconciledTimeline(rows).removals.map((row) => row.id).sort(), own.map((row) => row.id).sort());
+  const printed = rehearsalRowsToPrint(rows);
+  assert.deepEqual(printed.map((row) => row.id), full.map((row) => row.id));
+  // A short row with something of his own in it still prints, and nothing of his is folded away.
+  const withNote = rows.map((row) => (row.id === "own-1" ? { ...row, notes: "Depart Airbnb\nBring the cooler" } : row));
+  assert.ok(rehearsalRowsToPrint(withNote).some((row) => row.id === "own-1"));
+  assert.equal(planReconciledTimeline(withNote).removals.some((row) => row.id === "own-1"), false);
+});
+
+// David, 2026-10-10 22:00 and 22:03: the 8:00 goodbyes, the 8:15 music change, and two open items closed.
+test("his evening closures reword the moments the app wrote and close their open lines", () => {
+  const earlier: Record<string, Partial<ReconciledMoment>> = {
+    wedding_children_ready: { title: "Children get ready to leave", lines: ["Parents gather belongings and prepare children to leave."] },
+    wedding_music_change: {
+      title: "Music change and children’s send-off",
+      lines: ["Shift to the later-evening music plan.", "Pause for the children’s farewell/send-off."],
+      openItems: "Confirm each child’s ride and whether children leave at 8:00 PM or after the 8:15 PM send-off.",
+    },
+    wedding_last_dance: { openItems: "Confirm the correct version of “Moon” with the person handling the music." },
+    wedding_toasts_cake: { openItems: "Confirm who is giving a toast, the order, and how long each person gets." },
+    wedding_cocktail_hour: {
+      lines: ["Bar service begins at 4:00 PM.", "Guests receive drinks and appetizers while photography continues."],
+      openItems: "Confirm the bar will be ready at 4:00 PM.",
+    },
+    wedding_cake_cutting: {
+      lines: ["Cut the cake immediately after toasts.", "Photographer and videographer are cued before cutting begins."],
+      openItems: "Confirm when the cake arrives, who receives it, and who has the knife, plates, and serving plan.",
+    },
+    wedding_teardown: {
+      lines: ["Pack decor, gifts, personal belongings, remaining food, and vendor items."],
+      openItems: "Choose who cleans each area and who takes the gifts, decor, food, alcohol, and personal items.",
+    },
+  };
+  const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.map((m, index) => {
+    const was = { ...m, ...(earlier[m.seedKey] ?? {}) };
+    return { id: m.seedKey, seedKey: m.seedKey, schedule: m.schedule, startAt: was.startAt, endAt: was.endAt, notes: reconciledNotes(was), sortOrder: index };
+  });
+  const plan = planReconciledTimeline(rows);
+  assert.deepEqual(plan.updates, []);
+  assert.deepEqual(plan.rewords.map((row) => row.id).sort(), Object.keys(earlier).sort());
+  const stillOpen = ["wedding_toasts_cake", "wedding_children_ready", "wedding_cake_cutting"];
+  for (const row of plan.rewords.filter((r) => !stillOpen.includes(r.id))) {
+    assert.equal(/Open items:/.test(row.notes), false, row.id);
+  }
 });

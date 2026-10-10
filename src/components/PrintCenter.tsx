@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MINI_MOON } from "@/lib/mini-moon";
+import { MINI_MOON, MINI_MOON_CONTACT } from "@/lib/mini-moon";
 import { momentPrintRow, packetSchedule, type PacketScheduleRow, type ScheduleAudience } from "@/lib/print-packets";
 import {
   FULL_BINDER_SECTIONS,
@@ -320,7 +320,7 @@ function PrintSection({
         </section>
       );
     case "contacts": {
-      // The party packet skips the wedding party's own numbers: it already lists them in its roster.
+      // The party packet skips the wedding party's own numbers: it is a lineup, not a phone list.
       const roster = new Set(
         preset === "party"
           ? document.weddingParty.members.map((member) => member.name.toLowerCase())
@@ -329,13 +329,16 @@ function PrintSection({
       const dayOf = document.dayOfContacts.filter(
         (row) => !roster.has(row.name.trim().split(/\s+/)[0]!.toLowerCase()),
       );
+      // The mini moon is not a vendor; it prints only where the mini moon does (binder, Bride's Packet).
+      const miniMoonHere = preset === null || preset === "binder" || preset === "bride";
+      const vendors = document.vendorContacts.filter((row) => miniMoonHere || row.name.trim() !== MINI_MOON_CONTACT.name);
       return (
         <section className="binder-section">
           <h2>Vendor &amp; day-of contacts</h2>
-          {document.vendorContacts.length ? (
+          {vendors.length ? (
             <>
               <h3>Vendor contacts</h3>
-              <ContactList rows={document.vendorContacts} />
+              <ContactList rows={vendors} />
             </>
           ) : null}
           {dayOf.length ? (
@@ -595,13 +598,13 @@ function QuickReferenceSection({ document, showRsvp }: { document: PrintCenterDo
   return (
     <section className="binder-section">
       <h2>Quick reference</h2>
-      <p className="binder-lede">
-        {ref.coupleNames}
-        {ref.weddingDateLabel ? ` · ${ref.weddingDateLabel}` : ""}
-      </p>
+      {/* The cover already gives the couple's names and the date. */}
       <dl className="binder-ref">
         <RefBlock label="Ceremony" lines={[ref.ceremonyTime, ref.venueName, ...ref.venueAddress]} />
-        <RefBlock label="Airbnb" lines={[ref.airbnbName, ...ref.airbnbAddress]} />
+        <RefBlock
+          label="Airbnb"
+          lines={[ref.airbnbName?.trim().toLowerCase() === "airbnb" ? null : ref.airbnbName, ...ref.airbnbAddress]}
+        />
         <RefBlock label="Rehearsal dinner" lines={[ref.rehearsalDinnerName, ...ref.rehearsalDinnerAddress]} />
         <RefBlock label="Coordinator" lines={[ref.coordinatorName, ref.coordinatorPhone]} />
         <RefBlock label="Mistress of Ceremonies" lines={[ref.mistressOfCeremonies]} />
@@ -623,8 +626,6 @@ function WeddingPartySection({ document, preset }: { document: PrintCenterDocume
   // Parents walk in the processional; the roster and party call times are the party's own.
   const parents = preset === "brideParents" || preset === "groomParents";
   const ownSchedule = preset === "party" || parents;
-  // The party's own packet is who walks with whom and in what order; numbers stay in the binder and coordinator copies.
-  const showPhones = preset !== "party";
   if (parents) {
     return party.processional.length ? (
       <section className="binder-section" data-testid="print-section-party">
@@ -640,31 +641,6 @@ function WeddingPartySection({ document, preset }: { document: PrintCenterDocume
         {party.theme ? `${party.theme}` : "Wedding party"}
         {party.colors.length ? ` · ${party.colors.join(" · ")}` : ""}
       </p>
-      {party.members.length ? (
-        <>
-          <h3>Who&apos;s in the party</h3>
-          <table className="binder-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Walks with</th>
-                {showPhones ? <th>Phone</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {party.members.map((member) => (
-                <tr key={member.name}>
-                  <td>{member.name}</td>
-                  <td>{member.role}</td>
-                  <td>{member.walksWith ?? "—"}</td>
-                  {showPhones ? <td>{member.phone ?? "TBD"}</td> : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      ) : null}
       {party.processional.length ? (
         <>
           <h3>Ceremony processional{party.lineUpTime ? ` · line up at ${party.lineUpTime}` : ""}</h3>
