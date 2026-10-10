@@ -124,7 +124,8 @@ test.describe("login page PIN pad", () => {
   });
 
   test("Haley's PIN 1016 unlocks and the Log out button returns to the pad without a session", async ({ page, context }) => {
-    const guards = attachGuards(page);
+    // Safari brings the logged-out page back from history and logs its own line for the 401 its sync then gets.
+    const guards = attachGuards(page, { allow: /status of 401/ });
     await gotoReady(page, "/");
     await tapPin(page, "1016");
     await page.waitForURL(/\/today/, { timeout: 20_000 });
