@@ -49,6 +49,6 @@ test.describe("/work/[id] · Save decision", () => {
 
     await page.reload();
     await expect(page.locator('[name="summary"]')).toHaveValue(`Decision ${ROUNDS}`);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });

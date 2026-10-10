@@ -65,7 +65,7 @@ test.describe("/today note editor", () => {
     await expect(row).toContainText("Unassigned");
     await page.reload();
     await expect(noteRow(page, title)).toContainText("Unassigned");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("odd characters in the title and a cleared due date come back as typed", async ({ page }) => {
@@ -96,7 +96,7 @@ test.describe("/today note editor", () => {
     await expect(after).toContainText(next);
     await expect(after).not.toContainText("Oct 12");
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -120,7 +120,7 @@ test.describe("/today compose dock", () => {
     await page.getByRole("button", { name: "Send ask" }).click();
     await expect(page.locator('input[name="title"]')).toHaveCount(0);
     await expect.poll(() => prisma.request.count({ where: { title: `${PREFIX} ask` } })).toBe(1);
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("Buy with a blank item name says what is missing instead of closing the form", async ({ page }) => {
@@ -140,7 +140,7 @@ test.describe("/today compose dock", () => {
     await page.getByRole("button", { name: "Add to list" }).click();
     await expect(page.locator('input[name="name"]')).toHaveCount(0);
     await expect.poll(async () => (await prisma.shoppingItem.findFirst({ where: { name: `${PREFIX} buy 007` } }))?.ownerId).toBe("haley");
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -166,7 +166,7 @@ test.describe("/today ask rows", () => {
     await expect(row.getByRole("button", { name: "Mark done" })).toHaveCount(0);
     await row.getByRole("button", { name: "Reopen" }).click();
     await expect.poll(async () => (await prisma.request.findUnique({ where: { id: request.id } }))?.status).toBe("open");
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("ask edit form with a blank title says Add a title and keeps the old one", async ({ page }) => {
@@ -193,7 +193,7 @@ test.describe("/today ask rows", () => {
     await expect.poll(async () => (await prisma.request.findUnique({ where: { id: request.id } }))?.title).toBe(renamed);
     expect((await prisma.request.findUnique({ where: { id: request.id } }))?.note).toBeNull();
     await expect(row.getByText("Add a title.")).toHaveCount(0);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
 
@@ -220,7 +220,7 @@ test.describe("/messages", () => {
     await expect.poll(() => prisma.request.count({ where: { title: `${PREFIX} thread`, note: "hello" } })).toBe(1);
     await page.reload();
     await expect(page.getByRole("link", { name: new RegExp(`${PREFIX} thread`) })).toBeVisible();
-    guards.assertClean();
+    await guards.assertClean();
   });
 
   test("conversation composer: Enter adds a line, Ctrl+Enter sends, the sent text comes back intact", async ({ page }) => {
@@ -245,6 +245,6 @@ test.describe("/messages", () => {
     await page.reload();
     await expect(page.locator(".chat-bubble")).toContainText("line two 🎉 <b>x</b>");
     await expectNoSidewaysScroll(page);
-    guards.assertClean();
+    await guards.assertClean();
   });
 });
