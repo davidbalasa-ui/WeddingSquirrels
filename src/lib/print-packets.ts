@@ -114,13 +114,16 @@ const DETAIL_LABEL: Record<ReviewMoment["details"][number]["kind"], string> = {
  * lines, in the page's order, with the page's labels. The only changes are the two
  * schedule rules every schedule shares (scheduleLines): the individual shots read
  * "Bridal party photos", and a bare line repeated by a timed one is printed once.
+ * With openLines false the "Open:" lines stay off: the master packet lists each one in
+ * Open work, under its day and with this moment's time and title.
  */
-export function momentPrintRow(moment: ReviewMoment): PacketScheduleRow {
+export function momentPrintRow(moment: ReviewMoment, options: { openLines?: boolean } = {}): PacketScheduleRow {
+  const details = options.openLines === false ? moment.details.filter((detail) => detail.kind !== "open") : moment.details;
   return {
     time: moment.timeLabel,
     title: moment.title,
     location: moment.location,
-    lines: scheduleLines(moment.details.map(labeledLine)),
+    lines: scheduleLines(details.map(labeledLine)),
   };
 }
 

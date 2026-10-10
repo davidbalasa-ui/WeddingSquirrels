@@ -184,4 +184,6 @@ test("every line the binder prints for the reconciled day is a line of that page
     "Keep the vehicle details secret from the bride.",
     "Open: Confirm MOB will meet Dan and give her his phone number and arrival time.",
   ]);
+  // The master packet lists the open line in Open work, so its run sheet prints the rest only.
+  assert.deepEqual(momentPrintRow(getaway, { openLines: false }).lines, momentPrintRow(getaway).lines.slice(0, 3));
 });

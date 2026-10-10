@@ -41,6 +41,8 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
   const master = preset === "binder";
   const visible = useMemo(() => printableSections(document, selected, master), [document, selected, master]);
   const chapters = master ? masterChapters(visible) : [];
+  // Open work lists each "Open:" line of the two days, so the master's run sheets leave them off.
+  const openListed = master && visible.includes("tasks") && document.taskGroups.some((group) => /^Open on the /.test(group.title));
   // Once the bride's packet is picked, ticking sections on or off never brings back the getaway details.
   const forBride = preset === "bride" || chosen === "bride";
   const packet = preset ? printPacket(preset) : null;
@@ -121,7 +123,7 @@ export function PrintCenter({ document }: { document: PrintCenterDocument }) {
           {chapters.map((chapter) => (
             <div key={chapter.number} className="binder-chapter" data-chapter={String(chapter.number).padStart(2, "0")}>
               {chapter.sections.map((id) => (
-                <PrintSection key={id} id={id} document={document} preset={preset} audience={audience} forBride={forBride} />
+                <PrintSection key={id} id={id} document={document} preset={preset} audience={audience} forBride={forBride} openListed={openListed} />
               ))}
             </div>
           ))}
@@ -193,12 +195,14 @@ function PrintSection({
   preset,
   audience,
   forBride,
+  openListed = false,
 }: {
   id: PrintSectionId;
   document: PrintCenterDocument;
   preset: PrintPresetId | null;
   audience: ScheduleAudience;
   forBride: boolean;
+  openListed?: boolean;
 }) {
   const master = preset === "binder";
   switch (id) {
@@ -214,7 +218,7 @@ function PrintSection({
           {master ? <DayKicker label={document.dayLabels.rehearsal} /> : null}
           <h2>Rehearsal dinner + rehearsal</h2>
           {master ? <DayNote document={document} day={/rehearsal/i} /> : null}
-          <ScheduleRows rows={document.moments.rehearsal.map(momentPrintRow)} />
+          <ScheduleRows rows={document.moments.rehearsal.map((moment) => momentPrintRow(moment, { openLines: !openListed }))} />
         </section>
       );
     case "timeline":
@@ -223,7 +227,7 @@ function PrintSection({
           {master ? <DayKicker label={document.dayLabels.wedding} /> : null}
           <h2>Wedding-day run sheet</h2>
           {master ? <DayNote document={document} day={/wedding/i} /> : null}
-          <ScheduleRows rows={(forBride ? document.brideMoments : document.moments.wedding).map(momentPrintRow)} />
+          <ScheduleRows rows={(forBride ? document.brideMoments : document.moments.wedding).map((moment) => momentPrintRow(moment, { openLines: !openListed }))} />
         </section>
       );
     case "mc":
