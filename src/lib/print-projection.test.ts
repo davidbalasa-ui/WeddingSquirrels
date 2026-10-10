@@ -479,3 +479,25 @@ test("run sheet: a time moved to the margin keeps the verb and leaves no strande
   // An open question stays a note, unmangled.
   assert.deepEqual(phase!.notes, ["Open items: Confirm whether children leave at 8:00 PM or after the 8:15 PM send-off."]);
 });
+
+test("run sheet keeps a time range on one line and shares its AM/PM across both ends", () => {
+  const phases = projectRunSheet([
+    {
+      startAt: "10:30 AM",
+      endAt: "12:30 PM",
+      notes:
+        "Venue opens\nAvalon (coordinator) arrives 10:30 or 11:00 AM\nParty stations: bathrooms for hair, bedrooms for makeup (see Hair & Makeup page)\nWedding party arrives at 12:15–12:25 PM",
+      schedule: "wedding",
+      sortOrder: 1,
+    },
+  ]);
+  const venue = phases.find((phase) => phase.title === "Venue opens");
+  const lines = venue?.events.map((event) => `${event.timeLabel}|${event.title}`) ?? [];
+  assert.equal(lines.includes("10:30 AM – 11:00 AM|Avalon (coordinator) arrives"), true, lines.join("\n"));
+  assert.equal(lines.includes("12:15 PM – 12:25 PM|Wedding party arrives"), true, lines.join("\n"));
+  assert.equal(lines.some((line) => /–12:25|\(\s*\)/.test(line)), false, lines.join("\n"));
+  assert.equal(
+    professionalizePrintLine("Party stations: bathrooms for hair, bedrooms for makeup (see Hair & Makeup page)"),
+    "Party stations: bathrooms for hair, bedrooms for makeup",
+  );
+});
