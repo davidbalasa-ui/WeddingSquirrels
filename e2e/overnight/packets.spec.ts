@@ -72,7 +72,13 @@ test.describe("Print Center packets", () => {
         await page.pdf({ path: `${SAMPLE_DIR}/${slug}.pdf`, format: "Letter", printBackground: true, margin: { top: "0.5in", bottom: "0.5in", left: "0.5in", right: "0.5in" } });
       }
       await page.emulateMedia({ media: "screen" });
-      await doc.screenshot({ path: `${SAMPLE_DIR}/${slug}-${info.project.name}.png` });
+      // A long packet on a phone can be taller than a screenshot may be; the top of it is the sample then.
+      const height = await doc.evaluate((el) => el.getBoundingClientRect().height);
+      if (height < 30_000) {
+        await doc.screenshot({ path: `${SAMPLE_DIR}/${slug}-${info.project.name}.png` });
+      } else {
+        await page.screenshot({ path: `${SAMPLE_DIR}/${slug}-${info.project.name}.png` });
+      }
       guards.assertClean();
     });
   }

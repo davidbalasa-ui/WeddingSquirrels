@@ -13,6 +13,10 @@ import {
 
 const prisma = overnightPrisma();
 
+// These checks shape the network with page.route, which cannot see requests that a
+// service worker handles in WebKit and Firefox, so the worker stays out of these pages.
+test.use({ serviceWorkers: "block" });
+
 test.beforeAll(async () => {
   await resetOvernightData(prisma);
 });

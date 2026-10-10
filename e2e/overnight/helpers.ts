@@ -4,6 +4,9 @@ import { parseBlockNotes } from "../../src/lib/day-of-now";
 
 const IGNORE_CONSOLE = /Download the React DevTools|beforeinstallprompt|net::ERR_|favicon|hydrat/i;
 
+/** A request the browser itself gave up on because the page moved on (a prefetch or chunk cut short by a navigation or reload). */
+const CANCELLED = /cancel|abort|NS_BINDING_ABORTED/i;
+
 /** Collects browser and server errors so a test fails on anything the page logged. */
 export function attachGuards(page: Page, options: { allow?: RegExp } = {}) {
   const pageErrors: string[] = [];
@@ -21,14 +24,36 @@ export function attachGuards(page: Page, options: { allow?: RegExp } = {}) {
   });
   // Named in the failure message so a "Failed to fetch" says which request it was.
   const failedRequests: string[] = [];
+  const cancelledUrls = new Set<string>();
+  let realFailures = 0;
   page.on("requestfailed", (request) => {
-    failedRequests.push(`${request.method()} ${request.url()} (${request.failure()?.errorText ?? "?"})`);
+    const reason = request.failure()?.errorText ?? "?";
+    failedRequests.push(`${request.method()} ${request.url()} (${reason})`);
+    if (CANCELLED.test(reason)) cancelledUrls.add(request.url());
+    else realFailures += 1;
   });
+  /**
+   * WebKit and Firefox log a console error for every request a navigation or reload
+   * cut short (Chromium's equivalent, net::ERR_ABORTED, is already ignored above).
+   * Those are not errors in the app, so they are set aside when the request was cancelled.
+   */
+  function isCancellationNoise(text: string) {
+    if (/Load request cancelled/.test(text)) return true;
+    if (/ServiceWorker intercepted the request and encountered an unexpected error/.test(text)) {
+      return [...cancelledUrls].some((url) => text.includes(url));
+    }
+    // WebKit words a prefetch killed by navigation as an access-control failure.
+    if (/Fetch API cannot load .*[?&]_rsc=.* due to access control checks/.test(text)) return true;
+    // WebKit's unhandled rejection for a fetch cut short, when nothing else failed.
+    if (/^TypeError: Load failed$/.test(text) && realFailures === 0 && cancelledUrls.size > 0) return true;
+    return false;
+  }
   return {
     assertClean() {
+      const errors = pageErrors.filter((text) => !isCancellationNoise(text));
       expect(
-        pageErrors,
-        `console/page errors:\n${pageErrors.join("\n")}\nfailed requests:\n${failedRequests.join("\n")}`,
+        errors,
+        `console/page errors:\n${errors.join("\n")}\nfailed requests:\n${failedRequests.join("\n")}`,
       ).toEqual([]);
       expect(serverErrors, `server errors:\n${serverErrors.join("\n")}`).toEqual([]);
     },

@@ -70,8 +70,10 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Playwright browsers
-        run: npx playwright install --with-deps ${{ matrix.browsers }}
+      - name: Playwright browsers and PDF tools
+        run: |
+          npx playwright install --with-deps ${{ matrix.browsers }}
+          sudo apt-get install -y --no-install-recommends poppler-utils
 
       - name: Test database (schema + accounts + overnight data)
         run: |
