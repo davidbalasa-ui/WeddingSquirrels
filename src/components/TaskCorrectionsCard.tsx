@@ -92,6 +92,7 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
       <p className="text-sm font-semibold">Task update ready</p>
       <p className="mt-0.5 text-xs text-muted">
         From your printout: {count(plan.inserts.length, "new job")}, {count(plan.marks.length, "item")} marked done
+        {plan.dueFills.length ? `, ${count(plan.dueFills.length, "job")} given a day` : ""}
         {phonesToAdd.length ? `, ${count(phonesToAdd.length, "phone number")} added` : ""}
         {full.contacts.length ? `, ${count(full.contacts.length, "contact")} added` : ""}
         {full.dayJobs.length ? `, ${count(full.dayJobs.length, "Day-of job")} added` : ""}
@@ -116,6 +117,18 @@ export function TaskCorrectionsCard({ plan: full }: { plan: PrintoutCorrectionsP
                   <li key={row.title}>
                     {row.due ? `${dayLabel(row.due)} · ` : ""}{row.title}
                     {row.summary ? <span className="text-muted"> ({row.summary})</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {plan.dueFills.length ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Given a day</p>
+              <ul className="mt-1 list-none space-y-0.5 p-0">
+                {plan.dueFills.map((row) => (
+                  <li key={row.id}>
+                    {dayLabel(row.due)} · {row.title}
                   </li>
                 ))}
               </ul>
