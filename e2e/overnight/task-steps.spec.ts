@@ -49,16 +49,16 @@ async function waitForHydration(page: Page) {
 
 /** Every step title and note on the page shows all of its text: nothing scrolls inside a box or runs off the card. */
 async function expectStepsShowAllText(page: Page) {
-  const boxes = await page.locator("article textarea").evaluateAll((els) =>
-    els.map((el) => {
-      const box = el as HTMLTextAreaElement;
-      return { value: box.value.slice(0, 40), scrollHeight: box.scrollHeight, clientHeight: box.clientHeight };
-    }),
-  );
-  expect(boxes.length).toBeGreaterThan(0);
-  for (const box of boxes) {
-    expect(box.scrollHeight, `"${box.value}" scrolls inside its box`).toBeLessThanOrEqual(box.clientHeight + 1);
-  }
+  const overflowing = () =>
+    page.locator("article textarea").evaluateAll((els) =>
+      els
+        .map((el) => el as HTMLTextAreaElement)
+        .filter((box) => box.scrollHeight > box.clientHeight + 1)
+        .map((box) => `"${box.value.slice(0, 40)}" (${box.scrollHeight} > ${box.clientHeight})`),
+    );
+  expect(await page.locator("article textarea").count()).toBeGreaterThan(0);
+  // Polled: the boxes size themselves as soon as the page is interactive.
+  await expect.poll(overflowing, { message: "a step title or note scrolls inside its box" }).toEqual([]);
 }
 
 test.describe("task steps cards", () => {
@@ -157,6 +157,8 @@ test.describe("task steps cards", () => {
     await page.getByRole("button", { name: "Done", exact: true }).click();
     await expect(page.getByRole("button", { name: "+ Add a step" })).toBeVisible();
     await page.reload();
+    // The boxes size themselves once the page is interactive (Safari measured before that).
+    await waitForHydration(page);
     await expect(page.getByText("1/8 done")).toBeVisible();
     await expectStepsShowAllText(page);
     await expectNoSidewaysScroll(page);
