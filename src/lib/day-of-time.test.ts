@@ -375,6 +375,12 @@ test("typing a digit into a full clock box starts over instead of being dropped"
   assert.equal(nextClockDigits("3", "03", 2, true), "0");
   assert.equal(nextClockDigits("12", "912", 2, true), "9");
   assert.equal(nextClockDigits("5", "15", 2, true), "1");
+  // Or between them, where the finger landed on a two-digit box.
+  assert.equal(nextClockDigits("11", "171", 2, true), "7");
+  assert.equal(nextClockDigits("12", "192", 2, true), "9");
+  assert.equal(nextClockDigits("30", "345", 2, true), "45");
+  // Something other than an insertion is read as typed.
+  assert.equal(nextClockDigits("12", "345", 2, true), "45");
   // A replaced selection, or a second digit, is kept as typed.
   assert.equal(nextClockDigits("3", "1", 2, true), "1");
   assert.equal(nextClockDigits("1", "13", 2, false), "13");
