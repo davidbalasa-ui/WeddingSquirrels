@@ -166,12 +166,14 @@ test.describe("login page PIN pad", () => {
     await guards.assertClean();
   });
 
-  test("an account with no modules lands on /no-access and cannot open /accounts", async ({ page }) => {
+  test("an account with no modules lands on /no-access and cannot open /accounts", async ({ page, context }) => {
     // Leaving a page cuts the automatic offline sync's fetch short; that abort is not an app error.
     const guards = attachGuards(page, { allow: /Failed to fetch/ });
     await gotoReady(page, "/");
     await tapPin(page, RESTRICTED_PIN);
     await page.waitForURL(/\/no-access/, { timeout: 20_000 });
+    // The unlock's page comes back in the same response; the next full load needs the stored cookie.
+    expect((await context.cookies()).map((c) => c.name), "session cookie stored after unlock").toContain("ws_session");
     await expect(page.locator("body")).toContainText("does not have permission");
     await expectNoSidewaysScroll(page);
     // toHaveURL names the page actually landed on when it is not /no-access.
