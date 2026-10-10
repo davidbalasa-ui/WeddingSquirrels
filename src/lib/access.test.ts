@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { canManageDayOfContacts, timelineEditable } from "./access";
+import { canManageDayOfContacts, canSeeContactRecords, timelineEditable } from "./access";
 import type { SessionAccount } from "./types";
 
 function session(overrides: Partial<SessionAccount> = {}): SessionAccount {
@@ -37,4 +37,10 @@ test("Day-of Contact management stays limited to people editors with timeline ed
   assert.equal(canManageDayOfContacts(session({ canSeePeople: true, canEditTimeline: true })), true);
   assert.equal(canManageDayOfContacts(session({ canSeePeople: true, isMaster: true })), true);
   assert.equal(timelineEditable(session({ isMaster: true })), true);
+});
+
+test("contact records follow the same gate as the People hub", () => {
+  assert.equal(canSeeContactRecords(session({ canSeeTimeline: false, canSeeGuests: false })), false);
+  assert.equal(canSeeContactRecords(session({ canSeeTimeline: true, canSeeGuests: false })), true);
+  assert.equal(canSeeContactRecords(session({ canSeeTimeline: false, canSeeGuests: true })), true);
 });

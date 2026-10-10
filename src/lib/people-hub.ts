@@ -1,3 +1,4 @@
+import { canSeeContactRecords } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { guestAddressLine, rsvpStatusLabel, summarizeGuestRsvp, type GuestRsvpReport } from "@/lib/guest-gifts";
 import { guestInclude, mapGuestRecord, type GuestRecord } from "@/lib/guests";
@@ -83,7 +84,7 @@ export async function loadPeopleHubData(session: SessionAccount): Promise<People
         isDayOfContact: true,
       },
     }),
-    session.canSeeTimeline || session.canSeeGuests
+    canSeeContactRecords(session)
       ? prisma.contact.findMany({
           orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
           select: {
