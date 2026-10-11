@@ -1,4 +1,5 @@
 import { mkdirSync } from "node:fs";
+import { RECONCILED_TIMELINE, reconciledNotes } from "../../src/lib/reconciled-timeline";
 import { expect, test } from "@playwright/test";
 import { overnightPrisma, resetOvernightData } from "./db";
 import { PACKETS, attachGuards, expectNoSidewaysScroll, openPacket } from "./helpers";
@@ -157,4 +158,50 @@ test("Dan's number prints with the contacts, but never in the Bride's Packet", a
     await prisma.contact.delete({ where: { id: dan.id } });
     await prisma.$disconnect();
   }
+});
+
+// David, 2026-10-11 15:50: John is father of the bride, Pam mother of the groom; Denise and Lisa are helpers.
+test("family and helpers print with the day-of contacts under the roles David gave", async ({ page }) => {
+  const prisma = overnightPrisma();
+  // Saved the way the corrections card saves them; John's older label is not the one David gave.
+  const rows = await Promise.all([
+    prisma.contact.create({ data: { name: "John Wiewiora", phone: "231-798-5825", directoryLabel: "Guest", directoryList: "guests", isDayOfContact: true, sortOrder: 9990 } }),
+    prisma.contact.create({ data: { name: "Denise", phone: "(231) 740-3616", directoryLabel: "Helper", directoryList: "guests", isDayOfContact: true, sortOrder: 9991 } }),
+    prisma.contact.create({ data: { name: "Bryan Balasa", phone: "(269) 475-3495", directoryLabel: "Father of the Groom", directoryList: "guests", isDayOfContact: true, sortOrder: 9992 } }),
+  ]);
+  try {
+    const text = await openPacket(page, "binder");
+    const contacts = text.slice(text.indexOf("Day-of contacts"));
+    expect(contacts).toMatch(/John Wiewiora\s+Father of the Bride\s+231-798-5825/);
+    expect(contacts).toMatch(/Denise\s+Helper\s+\(231\) 740-3616/);
+    expect(contacts).toMatch(/Bryan Balasa\s+Father of the Groom\s+\(269\) 475-3495/);
+  } finally {
+    await prisma.contact.deleteMany({ where: { id: { in: rows.map((row) => row.id) } } });
+    await prisma.$disconnect();
+  }
+});
+
+// David, 2026-10-11 15:52: "add "SHARP" bolded to the 3:45 leave time on thursday".
+test("Thursday's 3:45 departure prints SHARP in bold", async ({ page }) => {
+  const prisma = overnightPrisma();
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "reh.depart-airbnb")!;
+  const row = await prisma.timelineBlock.findFirstOrThrow({ where: { schedule: "rehearsal", startAt: "3:45 PM" } });
+  try {
+    await prisma.timelineBlock.update({ where: { id: row.id }, data: { notes: reconciledNotes(moment) } });
+    await openPacket(page, "binder");
+    const sharp = page.locator(".binder-schedule strong.sharp-word", { hasText: "SHARP" });
+    await expect(sharp.first()).toBeVisible();
+    expect(Number(await sharp.first().evaluate((el) => getComputedStyle(el).fontWeight))).toBeGreaterThanOrEqual(800);
+    await expect(page.locator(".binder-schedule li", { has: page.locator("strong.sharp-word") }).first()).toContainText("3:45 PM");
+  } finally {
+    await prisma.timelineBlock.update({ where: { id: row.id }, data: { notes: row.notes } });
+    await prisma.$disconnect();
+  }
+});
+
+// David, 2026-10-11 15:57: "change bride with veil portriats to bride with tiara".
+test("the shot list prints the bride with her tiara, never with a veil", async ({ page }) => {
+  const text = await openPacket(page, "photo");
+  expect(text).toContain("Bride with tiara");
+  expect(text).not.toMatch(/bride[- ]with[- ]veil/i);
 });

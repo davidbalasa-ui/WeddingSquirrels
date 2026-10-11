@@ -11,6 +11,8 @@ test.afterAll(async () => prisma.$disconnect());
 const DOC_WEDDING = RECONCILED_TIMELINE.filter((m) => m.schedule === "wedding").length;
 const DOC_REHEARSAL = RECONCILED_TIMELINE.filter((m) => m.schedule === "rehearsal").length;
 
+const OWNER_TITLE_KEPT = ["Dinner begins"];
+
 async function titles(schedule: "wedding" | "rehearsal") {
   const rows = await prisma.timelineBlock.findMany({ where: { schedule } });
   return rows.map((row) => parseBlockNotes(row.notes).title);
@@ -33,7 +35,11 @@ test.describe("Apply the reconciled document", () => {
     expect(wedding.length, "wedding moments after Apply").toBe(DOC_WEDDING);
     expect(rehearsal.length, "rehearsal moments after Apply (the 7 old rows must not be doubled)").toBe(DOC_REHEARSAL);
     const dupes = [...rehearsal, ...wedding].filter((title, i, all) => all.indexOf(title) !== i);
-    expect(dupes, "repeated titles").toEqual([]);
+    // This test copy's own 5:00 PM row is still titled "Dinner begins" (Apply keeps an owner's wording and lists it
+    // as reading differently); the document's 5:15 PM moment has that title since David's 2026-10-11 15:50 change.
+    expect(dupes, "repeated titles").toEqual(OWNER_TITLE_KEPT);
+    const seedKeys = (await prisma.timelineBlock.findMany({ select: { seedKey: true } })).map((row) => row.seedKey).filter(Boolean);
+    expect(new Set(seedKeys).size, "no moment twice").toBe(seedKeys.length);
     // Every page section shows the document's rows, none twice.
     await expect(page.locator(".day-timeline-row")).toHaveCount(DOC_WEDDING);
     await guards.assertClean();

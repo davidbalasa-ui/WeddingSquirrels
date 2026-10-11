@@ -1,5 +1,6 @@
 "use client";
 
+import { SharpTitle } from "@/components/SharpTitle";
 import Link from "next/link";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { taskHref } from "@/lib/entity-links";
@@ -904,7 +905,7 @@ function ReviewRow({
       </p>
       <div className="min-w-0 flex-1">
         <p className="day-timeline-title text-[15px] font-semibold leading-5">
-          {moment.title}
+          <SharpTitle text={moment.title} />
           {moment.location ? (
             <span className="day-timeline-location font-normal text-muted"> · {moment.location}</span>
           ) : null}

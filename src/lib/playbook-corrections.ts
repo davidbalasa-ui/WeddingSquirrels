@@ -21,6 +21,12 @@ const EARLIER_PLAYBOOK_NOTES: Array<{ sourceKey: string; notes: string; correcti
     correction: "signing 3:50–4:00 PM",
   },
   {
+    // David, 2026-10-11 15:50: "dinner begins at 5:15, avalon is releasing then".
+    sourceKey: "avalon-release",
+    notes: "Avalon releases tables for dinner around 5:20 PM. Haley and David first.",
+    correction: "tables released at 5:15 PM",
+  },
+  {
     // David, 2026-10-11 15:21, on the girls' gifts and robes: "close this".
     sourceKey: "hm-1245-retouch",
     notes: "Get-ready robes: Harmony and Melody still TBD.",

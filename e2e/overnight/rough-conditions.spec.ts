@@ -145,7 +145,8 @@ test.describe("Wedding Day editor under rough conditions", () => {
     const second = await context.newPage();
     const guardsA = attachGuards(first);
     const guardsB = attachGuards(second);
-    const block = await blockByTitle(prisma, "Dinner begins");
+    // The 5:00 PM dinner row (this test copy still titles it "Dinner begins"; 5:15 PM is the document's "Dinner begins").
+    const block = await prisma.timelineBlock.findUniqueOrThrow({ where: { seedKey: "wedding_dinner" } });
     await openTimelineEditor(first);
     await openTimelineEditor(second);
 

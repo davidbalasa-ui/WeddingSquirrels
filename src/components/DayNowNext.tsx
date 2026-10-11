@@ -1,5 +1,6 @@
 "use client";
 
+import { SharpTitle } from "@/components/SharpTitle";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PersonAvatar } from "@/components/PersonAvatar";
@@ -96,7 +97,7 @@ function BlockRow({
               Up next
             </p>
           ) : null}
-          <p className="text-[15px] font-semibold leading-snug">{block.title}</p>
+          <p className="text-[15px] font-semibold leading-snug"><SharpTitle text={block.title} /></p>
           {block.location ? (
             <p className="mt-0.5 text-xs font-semibold text-[var(--accent)]">{block.location}</p>
           ) : null}

@@ -1,4 +1,5 @@
 import { isGrandparentPhoto } from "./no-grandparent-photos";
+import { familyRole } from "@/lib/family-contacts";
 import { parseBlockNotes } from "@/lib/day-of-now";
 import { parseDayOfTime } from "@/lib/day-of-time";
 import { parseRsvpStatus } from "@/lib/guest-gifts";
@@ -923,6 +924,8 @@ export function buildQuickReference(input: {
 }
 
 export function printContactRole(name: string, directoryLabel?: string | null): string | null {
+  const family = familyRole(name);
+  if (family) return family;
   const label = directoryLabel?.trim() || "";
   if (/mistress of ceremon/i.test(label)) return "Mistress of Ceremonies";
   if (label && (/(^|\b)mc(\b|$)/i.test(label) || /master of ceremon/i.test(label))) return "MC";

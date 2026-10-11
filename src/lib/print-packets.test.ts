@@ -79,7 +79,7 @@ test("Parents of the Bride get the instruction that follows the MOB's getaway li
 
 test("the wedding party's copy has the Thursday departures and the return", () => {
   const party = packetSchedule(moments, "party");
-  for (const title of ["Depart for Hawkshead", "Depart for Black Sheep Shelter", "Return to the Airbnb"]) {
+  for (const title of ["Depart for Hawkshead SHARP", "Depart for Black Sheep Shelter", "Return to the Airbnb"]) {
     assert.ok(titles(party.rehearsal).includes(title), title);
   }
   assert.equal(titles(packetSchedule(moments, "mc").rehearsal).length, 0);

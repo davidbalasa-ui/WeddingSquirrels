@@ -1237,3 +1237,9 @@ a {
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--line);
 }
+
+/* David, 2026-10-11: "SHARP" on Thursday's 3:45 departure stands out from its title. */
+.sharp-word {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}

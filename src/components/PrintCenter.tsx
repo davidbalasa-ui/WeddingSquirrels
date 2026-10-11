@@ -1,5 +1,6 @@
 "use client";
 
+import { SharpTitle } from "@/components/SharpTitle";
 import { useMemo, useState } from "react";
 import { GETAWAY_DRIVER_CONTACT, MINI_MOON, MINI_MOON_CONTACT } from "@/lib/mini-moon";
 import { momentPrintRow, packetSchedule, runSheetWithJobs, type PacketScheduleRow, type ScheduleAudience } from "@/lib/print-packets";
@@ -776,7 +777,7 @@ function ScheduleRows({ rows }: { rows: PacketScheduleRow[] }) {
               {end ? <span className="binder-time-end"> – {end}</span> : null}
             </p>
             <div>
-              <p className="binder-item-title">{row.title}</p>
+              <p className="binder-item-title"><SharpTitle text={row.title} /></p>
               {row.location ? <p className="binder-note">{row.location}</p> : null}
               {row.lines.map((line) => (
                 <ScheduleLine key={line} line={line} />
@@ -820,7 +821,7 @@ function TimelineList({ rows }: { rows: PrintCenterDocument["setupMoments"] }) {
       {rows.map((row, index) => (
         <li key={`${row.timeLabel}-${row.title}-${index}`} className="binder-card">
           <p className="binder-time">{row.timeLabel}</p>
-          <p className="binder-item-title">{row.title}</p>
+          <p className="binder-item-title"><SharpTitle text={row.title} /></p>
           {row.location ? <p className="binder-note">{row.location}</p> : null}
           {row.notes.map((line) => (
             <p key={line} className="binder-note">
