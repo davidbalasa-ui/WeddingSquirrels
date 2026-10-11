@@ -21,3 +21,11 @@ const REPLACED_MC_CUES = [/cocktail hour is nearing its end/i, /^MC cue(?: at)? 
 export function isReplacedMcCue(text: string): boolean {
   return /\bMC cue\b|^\s*\d{1,2}:\d{2}/i.test(text) && REPLACED_MC_CUES.some((re) => re.test(text));
 }
+
+/**
+ * David, 2026-10-11 15:13: "1:30 is the first look with dad, straight into parent photos."
+ * Older saved rows carry the app's earlier "1:15 PM — Haley first look with Dad"; it is not printed.
+ */
+export function isReplacedFirstLookTime(text: string): boolean {
+  return /^\s*1:15(?: PM)?\s*[—–-]\s*Haley(?:’s|'s)? first look with (?:her )?dad\b/i.test(text);
+}

@@ -20,6 +20,12 @@ const EARLIER_PLAYBOOK_NOTES: Array<{ sourceKey: string; notes: string; correcti
     notes: "Avalon is contracted to assist. Signing is at 4:00 PM, immediately after the recessional.",
     correction: "signing 3:50–4:00 PM",
   },
+  {
+    // David, 2026-10-11 15:21, on the girls' gifts and robes: "close this".
+    sourceKey: "hm-1245-retouch",
+    notes: "Get-ready robes: Harmony and Melody still TBD.",
+    correction: "robes closed",
+  },
 ];
 
 export function planPlaybookRewords(
@@ -27,7 +33,9 @@ export function planPlaybookRewords(
 ): PlaybookReword[] {
   return existing.flatMap((row) => {
     const old = EARLIER_PLAYBOOK_NOTES.find((entry) => entry.sourceKey === row.sourceKey && entry.notes === row.notes);
-    const now = old && playbookRecordByKey(old.sourceKey)?.notes;
-    return old && now ? [{ id: row.id, sourceKey: row.sourceKey, title: row.title, notes: now, before: old.notes, correction: old.correction }] : [];
+    // A row whose open line was closed now has no notes; it is cleared, never left with the old line.
+    const record = old && playbookRecordByKey(old.sourceKey);
+    const now = record ? (record.notes ?? "") : null;
+    return old && now != null ? [{ id: row.id, sourceKey: row.sourceKey, title: row.title, notes: now, before: old.notes, correction: old.correction }] : [];
   });
 }

@@ -26,7 +26,7 @@ test("the getaway job card 2 added as San is corrected to Dan once, never added 
     {
       id: "job-1",
       title: "MOB or another helper meets Dan Vandenheede.",
-      notes: "8:20 PM · Getaway vehicle arrives. Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
+      notes: "8:30 PM · Getaway vehicle arrives. Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
       before: added.title,
       correction: "San → Dan",
     },
@@ -37,4 +37,7 @@ test("the getaway job card 2 added as San is corrected to Dan once, never added 
   const fixed = planDayJobRewords([added])[0]!;
   assert.deepEqual(planDayJobRewords([fixed]), []);
   assert.equal(planDayJobs([fixed]).length, SCHEDULE_DAY_JOBS.length - 1);
+  // David, 2026-10-11 15:25: the Dan job the card wrote at 8:20 PM moves to 8:30 PM.
+  const at820 = { ...fixed, notes: fixed.notes.replace("8:30 PM", "8:20 PM") };
+  assert.deepEqual(planDayJobRewords([at820]).map((row) => [row.notes, row.correction]), [[fixed.notes, "Dan arrives 8:30 PM"]]);
 });

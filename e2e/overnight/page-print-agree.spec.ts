@@ -61,7 +61,7 @@ test("every schedule line a packet prints is a line of the same moment on the pa
         ).toBe(true);
       }
     }
-    // The 8:20 getaway moment prints the page's own lines (the bride's copy keeps only its time and title).
+    // The getaway moment prints the page's own lines (the bride's copy keeps only its time and title).
     const printedGetaway = rows.find((row) => row.title === getaway.title);
     if (packet.id === "binder" || packet.id === "packet") expect(printedGetaway?.lines, packet.id).toEqual(getaway.lines);
     if (packet.id === "bride") expect(printedGetaway?.lines, packet.id).toEqual([]);

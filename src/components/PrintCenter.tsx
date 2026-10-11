@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MINI_MOON, MINI_MOON_CONTACT } from "@/lib/mini-moon";
-import { momentPrintRow, packetSchedule, type PacketScheduleRow, type ScheduleAudience } from "@/lib/print-packets";
+import { GETAWAY_DRIVER_CONTACT, MINI_MOON, MINI_MOON_CONTACT } from "@/lib/mini-moon";
+import { momentPrintRow, packetSchedule, runSheetWithJobs, type PacketScheduleRow, type ScheduleAudience } from "@/lib/print-packets";
 import {
   FULL_BINDER_SECTIONS,
   PRINT_PACKETS,
@@ -191,13 +191,29 @@ function PrintSection({
           <ScheduleRows rows={document.moments.rehearsal.map(momentPrintRow)} />
         </section>
       );
-    case "timeline":
+    case "timeline": {
+      const moments = (forBride ? document.brideMoments : document.moments.wedding).map(momentPrintRow);
+      // Day-of jobs sit under their moment, by time; the bride's copy keeps to the schedule.
+      const sheet = forBride ? { rows: moments, unplaced: [] } : runSheetWithJobs(moments, document.assignments);
       return (
         <section className="binder-section">
           <h2>Wedding-day run sheet</h2>
-          <ScheduleRows rows={(forBride ? document.brideMoments : document.moments.wedding).map(momentPrintRow)} />
+          <ScheduleRows rows={sheet.rows} />
+          {sheet.unplaced.length ? (
+            <>
+              <h3>Day-of jobs with no set time</h3>
+              <ul className="binder-list">
+                {sheet.unplaced.map((job) => (
+                  <li key={job.title} className="binder-note">
+                    {job.title} ({job.owner})
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </section>
       );
+    }
     case "mc":
       return (
         <section className="binder-section">
@@ -326,12 +342,16 @@ function PrintSection({
           ? document.weddingParty.members.map((member) => member.name.toLowerCase())
           : [],
       );
+      // The getaway is a surprise: the bride's copy leaves out the driver's contact.
+      const secretFromBride = (row: { name: string }) => forBride && row.name.trim().toLowerCase() === GETAWAY_DRIVER_CONTACT.name.toLowerCase();
       const dayOf = document.dayOfContacts.filter(
-        (row) => !roster.has(row.name.trim().split(/\s+/)[0]!.toLowerCase()),
+        (row) => !roster.has(row.name.trim().split(/\s+/)[0]!.toLowerCase()) && !secretFromBride(row),
       );
       // The mini moon is not a vendor; it prints only where the mini moon does (binder, Bride's Packet).
       const miniMoonHere = preset === null || preset === "binder" || preset === "bride";
-      const vendors = document.vendorContacts.filter((row) => miniMoonHere || row.name.trim() !== MINI_MOON_CONTACT.name);
+      const vendors = document.vendorContacts.filter(
+        (row) => (miniMoonHere || row.name.trim() !== MINI_MOON_CONTACT.name) && !secretFromBride(row),
+      );
       return (
         <section className="binder-section">
           <h2>Vendor &amp; day-of contacts</h2>

@@ -27,7 +27,7 @@ const SHARED_REHEARSAL_MOMENT = /rehearsal dinner|ceremony rehearsal|^dinner\b|^
 const PARTY_REHEARSAL_TRAVEL = /^depart\b|^return to (?:the )?airbnb/i;
 
 const BRIDE_SIDE =
-  /\bMOB\b|\bFOB\b|mother of the bride|father of the bride|\bhaley with\b|haley[’']s (?:family|parents|mom|dad|paternal|maternal)|mom buttons|first look with dad|father[- ]daughter/i;
+  /\bMOB\b|\bFOB\b|mother of the bride|father of the bride|\bhaley with\b|haley[’']s (?:family|parents|mom|dad|paternal|maternal)|mom buttons|first look with (?:her )?dad|father[- ]daughter/i;
 const GROOM_SIDE =
   /\bMOG\b|\bFOG\b|mother of the groom|father of the groom|david[’']s (?:parents|mom|dad|family)|\bdavid with\b|\bhis parents\b|mother[- ]son/i;
 /** "Parents gather belongings and prepare children" is about guests' children, not the couple's parents. */
@@ -159,4 +159,31 @@ export function withoutBrideSecrets<T extends { notes: string }>(block: T): T {
     ...block,
     notes: composeBlockNotes({ title: parsed.title, location: secret ? null : parsed.location, detailLines }),
   };
+}
+
+/**
+ * David, 2026-10-11: "The master run of events needs to have everything ... jobs ... MC cues ... By time."
+ * Each Day-of job whose note starts "<time> · <moment>" (as the card writes them) prints under that
+ * moment on the run sheet; any other job is listed after the day. Print only; nothing is saved.
+ */
+export function runSheetWithJobs(
+  rows: PacketScheduleRow[],
+  jobs: Array<{ title: string; notes: string | null; assignees: string[] }>,
+): { rows: PacketScheduleRow[]; unplaced: Array<{ title: string; notes: string | null; owner: string }> } {
+  const placed = rows.map((row) => ({ ...row, lines: [...row.lines] }));
+  const unplaced: Array<{ title: string; notes: string | null; owner: string }> = [];
+  const norm = (text: string) => text.toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, " ").trim();
+  for (const job of jobs) {
+    const owner = job.assignees.length ? job.assignees.join(" · ") : "Unassigned";
+    const anchor = job.notes?.match(/^(\d{1,2}:\d{2}\s*[AP]M)\s*·\s*(.+)$/im);
+    const row = anchor
+      ? placed.find((candidate) => {
+          const start = candidate.time.split(" – ")[0]!.trim();
+          return norm(start) === norm(anchor[1]!) && norm(anchor[2]!).startsWith(norm(candidate.title));
+        })
+      : undefined;
+    if (row) row.lines.push(`Job: ${job.title} (${owner})`);
+    else unplaced.push({ title: job.title, notes: job.notes, owner });
+  }
+  return { rows: placed, unplaced };
 }

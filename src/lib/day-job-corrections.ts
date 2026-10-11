@@ -21,7 +21,7 @@ export const SCHEDULE_DAY_JOBS: DayJobDef[] = [
   },
   {
     title: "MOB or another helper meets Dan Vandenheede.",
-    notes: "8:20 PM · Getaway vehicle arrives. Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
+    notes: "8:30 PM · Getaway vehicle arrives. Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
   },
   // David, 2026-10-10 22:04: "Wendy is in charge of teardown".
   { title: "Wendy is in charge of teardown.", notes: "10:00 PM · Tear down and cleanup" },
@@ -45,6 +45,13 @@ const EARLIER_DAY_JOBS: Array<DayJobDef & { now: string; correction: string }> =
     notes: "4:00 PM · Sign the marriage license",
     now: "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen.",
     correction: "signing 3:50 PM",
+  },
+  {
+    // David, 2026-10-11 15:25: Dan arrives at 8:30.
+    title: "MOB or another helper meets Dan Vandenheede.",
+    notes: "8:20 PM · Getaway vehicle arrives. Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
+    now: "MOB or another helper meets Dan Vandenheede.",
+    correction: "Dan arrives 8:30 PM",
   },
 ];
 

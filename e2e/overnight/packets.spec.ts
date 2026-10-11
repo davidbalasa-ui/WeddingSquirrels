@@ -114,3 +114,47 @@ test("Schedules say Bridal party photos and the processional lines up when the s
     expect(text, `${id}: the schedule says the same line-up time`).toMatch(new RegExp(`${lineUp}[^\\n]*wedding party lines up`, "i"));
   }
 });
+
+// David, 2026-10-11: "The master run of events needs to have everything ... jobs ... MC cues ... By time."
+test("the binder's run sheet prints each day-of job under its moment, by time", async ({ page }) => {
+  const prisma = overnightPrisma();
+  const job = await prisma.dayAssignment.create({
+    data: { title: "Overnight check: hand the pen to Marie", notes: "3:50 PM · Sign the marriage license", sortOrder: 9999 },
+  });
+  try {
+    const text = await openPacket(page, "binder");
+    const sheet = text.slice(text.indexOf("Wedding-day run sheet"));
+    const signing = sheet.indexOf("Sign the marriage license");
+    const jobAt = sheet.indexOf("Job: Overnight check: hand the pen to Marie (Unassigned)");
+    expect(signing).toBeGreaterThan(-1);
+    expect(jobAt).toBeGreaterThan(signing);
+    // The next row is cocktail hour (this test copy titles it "Cocktail Hour").
+    const cocktail = sheet.search(/cocktail hour/i);
+    expect(cocktail).toBeGreaterThan(jobAt);
+  } finally {
+    await prisma.dayAssignment.delete({ where: { id: job.id } });
+    await prisma.$disconnect();
+  }
+});
+
+// David, 2026-10-11: "269-635-8458 is dans phone number for the get away vehicle".
+test("Dan's number prints with the contacts, but never in the Bride's Packet", async ({ page }) => {
+  const prisma = overnightPrisma();
+  // Saved the way the corrections card saves it.
+  const dan = await prisma.contact.create({
+    data: { name: "Dan Vandenheede", phone: "(269) 635-8458", directoryLabel: "Getaway vehicle", directoryList: "vendors", isDayOfContact: false, sortOrder: 9999 },
+  });
+  try {
+    for (const id of ["binder", "packet"] as const) {
+      const text = await openPacket(page, id);
+      expect(text, id).toContain("Dan Vandenheede");
+      expect(text, id).toContain("(269) 635-8458");
+    }
+    const bride = await openPacket(page, "bride");
+    expect(bride).not.toContain("Vandenheede");
+    expect(bride).not.toContain("635-8458");
+  } finally {
+    await prisma.contact.delete({ where: { id: dan.id } });
+    await prisma.$disconnect();
+  }
+});

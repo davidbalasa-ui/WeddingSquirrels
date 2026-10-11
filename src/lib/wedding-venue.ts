@@ -63,7 +63,8 @@ export type WeddingPlaces = {
  */
 const FROM_HIS_DOCUMENTS: WeddingPlaces = {
   venue: { name: "Black Sheep Shelter", address: ["342 62nd St", "South Haven, MI 49090"] },
-  rehearsalDinner: { name: "Hawkshead", address: ["523 Hawks Nest Dr", "South Haven, MI"] },
+  // ZIP looked up 2026-10-11 at David's word ("you have this or could look it up").
+  rehearsalDinner: { name: "Hawkshead", address: ["523 Hawks Nest Dr", "South Haven, MI 49090"] },
   lodging: { name: "Airbnb", address: ["10268 51st St", "Grand Junction, MI 49056"] },
 };
 

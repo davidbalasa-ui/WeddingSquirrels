@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { parseBlockNotes } from "../../src/lib/day-of-now";
 import { RECONCILED_TIMELINE, reconciledNotes } from "../../src/lib/reconciled-timeline";
+import { parsedTimeFields } from "../../src/lib/day-of-time";
 import { overnightPrisma, resetOvernightData, snapshotTasks } from "./db";
 import { attachGuards, blockByTitle, editCard, expectAllSaved, openPacket, openTimelineEditor } from "./helpers";
 
@@ -104,7 +105,7 @@ test.describe("Apply the reconciled document", () => {
 // At 21:46 the same doubling was on his packet ("tons of issues"); he keeps the full moments.
 test("a doubled rehearsal day prints once and Apply folds it back to the full moments, his short rows going on his tap", async ({ page }) => {
   await resetOvernightData(prisma, { reconciled: false });
-  const { parsedTimeFields } = await import("../../src/lib/day-of-time");
+
   const own = [
     { startAt: "1:00 PM", endAt: null, notes: "Airbnb Check-in\n- Wedding party arrives" },
     { startAt: "2:30 PM", endAt: null, notes: "Get ready; Hair and makeup" },
@@ -169,7 +170,7 @@ test("a doubled rehearsal day prints once and Apply folds it back to the full mo
 
 test("a timeline that matches the document says there is nothing to apply", async ({ page }) => {
   await resetOvernightData(prisma, { reconciled: false });
-  const { parsedTimeFields } = await import("../../src/lib/day-of-time");
+
   await prisma.task.updateMany({ where: { timelineBlockId: { not: null } }, data: { timelineBlockId: null } });
   await prisma.timelineBlock.deleteMany({});
   for (const [index, moment] of RECONCILED_TIMELINE.entries()) {
@@ -199,7 +200,7 @@ test("a timeline that matches the document says there is nothing to apply", asyn
 test("a doubled rehearsal moment with both copies edited is listed with one tap to keep either", async ({ page }) => {
   await resetOvernightData(prisma);
   const guards = attachGuards(page);
-  const { parsedTimeFields } = await import("../../src/lib/day-of-time");
+
   // The document's Thursday copies (as an earlier Apply left them), the dinner one edited,
   // next to David's own dinner row saved without a key.
   await prisma.timelineBlock.deleteMany({ where: { schedule: "rehearsal" } });
@@ -260,9 +261,15 @@ test("the getaway moment and its Day-of job read Dan after the Apply taps", asyn
   const restoreTasks = await snapshotTasks(prisma);
   const guards = attachGuards(page);
   const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_getaway_arrives")!;
-  const oldNotes = reconciledNotes(moment).replace(/\bDan\b/g, "San");
+  // As the app first wrote it (with San), before Dan's phone was added on Oct 11.
+  const oldNotes = reconciledNotes({
+    ...moment,
+    lines: ["MOB or another helper meets San Vandenheede.", "Show San where to park, give him the “Just Married” sign, and tell the groom.", "Keep the vehicle details secret from the bride."],
+    openItems: "Confirm MOB will meet San and give her his phone number and arrival time.",
+  });
   const row = await prisma.timelineBlock.findFirstOrThrow({ where: { seedKey: moment.seedKey } });
-  await prisma.timelineBlock.update({ where: { id: row.id }, data: { notes: oldNotes } });
+  // As the app first wrote it: 8:20–8:35 PM (David moved it to 8:30 PM on Oct 11).
+  await prisma.timelineBlock.update({ where: { id: row.id }, data: { notes: oldNotes, startAt: "8:20 PM", endAt: "8:35 PM", ...parsedTimeFields("8:20 PM", "8:35 PM") } });
   const job = await prisma.dayAssignment.create({
     data: {
       title: "MOB or another helper meets San Vandenheede.",

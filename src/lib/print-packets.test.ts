@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseBlockNotes } from "./day-of-now";
 import { reviewMoment } from "./day-timeline-view";
-import { momentForAudience, momentPrintRow, packetSchedule, withoutBrideSecrets } from "./print-packets";
+import { SCHEDULE_DAY_JOBS } from "./day-job-corrections";
+import { momentForAudience, momentPrintRow, packetSchedule, runSheetWithJobs, withoutBrideSecrets } from "./print-packets";
 import { RECONCILED_TIMELINE, reconciledNotes } from "./reconciled-timeline";
 import { REHEARSAL_SCHEDULE_SEED } from "./rehearsal";
 
@@ -181,7 +182,9 @@ test("every line the binder prints for the reconciled day is a line of that page
     "MOB or another helper meets Dan Vandenheede.",
     "Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
     "Keep the vehicle details secret from the bride.",
-    "Open: Confirm MOB will meet Dan and give her his phone number and arrival time.",
+    "Dan’s phone: (269) 635-8458 (David, Oct 11).",
+    "John drops off the car with someone else, who is not known yet (David, Oct 11).",
+    "Open: Confirm MOB will meet Dan.",
   ]);
 });
 
@@ -207,4 +210,27 @@ test("the 6:55 PM clear-the-center announcement is the MC's cue and on every eve
   }
   const mc = packetSchedule(moments, "mc").wedding.find((row) => row.title === "Clear the center for the first dance");
   assert.ok(mc?.lines.some((line) => /turn your chairs to the middle of the walk area/.test(line)));
+});
+
+// David, 2026-10-11: "the jobs should be on the master run list", by time.
+test("the run sheet prints each day-of job under its moment, and lists jobs with no time after the day", () => {
+  const rows = moments.wedding.map(momentPrintRow);
+  const sheet = runSheetWithJobs(rows, [
+    { title: "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen.", notes: "3:50 PM · Sign the marriage license", assignees: ["Andi", "Braxton"] },
+    { title: "Wendy is in charge of teardown.", notes: "10:00 PM · Tear down and cleanup", assignees: [] },
+    { title: "Bring the cooler", notes: null, assignees: ["Pam Balasa"] },
+  ]);
+  const signing = sheet.rows.find((row) => row.title === "Sign the marriage license")!;
+  assert.ok(signing.lines.includes("Job: Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen. (Andi · Braxton)"));
+  const teardown = sheet.rows.find((row) => row.title === "Tear down and cleanup")!;
+  assert.ok(teardown.lines.includes("Job: Wendy is in charge of teardown. (Unassigned)"));
+  assert.deepEqual(sheet.unplaced, [{ title: "Bring the cooler", notes: null, owner: "Pam Balasa" }]);
+  // The rows themselves are left as they were.
+  assert.equal(rows.find((row) => row.title === "Sign the marriage license")!.lines.some((line) => line.startsWith("Job:")), false);
+});
+
+test("every job the Day-of card adds lands under a moment on the run sheet", () => {
+  const rows = moments.wedding.map(momentPrintRow);
+  const sheet = runSheetWithJobs(rows, SCHEDULE_DAY_JOBS.map((job) => ({ ...job, assignees: [] })));
+  assert.deepEqual(sheet.unplaced.map((job) => job.title), []);
 });
