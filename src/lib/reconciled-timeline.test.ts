@@ -60,11 +60,11 @@ test("a moment edited on the page alone never brings the Apply card back", () =>
   assert.equal(reconciledPlanIsEmpty(plan), true);
 });
 
-test("David's 9 Oct edits: boutonniere first look with his parents, named party shots, family photos retired", () => {
-  const plan = planReconciledTimeline([
-    { id: "fam", seedKey: "wedding_family_photos_after", schedule: "wedding", startAt: "4:05 PM", endAt: "4:30 PM", notes: "Family photos after the ceremony", sortOrder: 0 },
-  ]);
-  assert.deepEqual(plan.removals.map((row) => row.seedKey), ["wedding_family_photos_after"]);
+test("David's 9 Oct edits: boutonniere first look with his parents, named party shots; family photos back at 4:05 (Oct 11)", () => {
+  // David, 2026-10-11 19:27: "Add from 4:05 to 4:30, family photos."
+  const family = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_family_photos_after")!;
+  assert.deepEqual([family.startAt, family.endAt, family.title, family.lines], ["4:05 PM", "4:30 PM", "Family photos", []]);
+  assert.equal(RECONCILED_RETIRED_SEED_KEYS.includes("wedding_family_photos_after"), false);
   const firstLook = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_david_parents_first_look");
   assert.equal(firstLook?.startAt, "1:00 PM");
   const dressed = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_getting_dressed");

@@ -46,7 +46,7 @@ export function pendingTaskCorrections(plan: PrintoutCorrectionsPlan, applied: R
     tasks,
     // A number David has to pick between is never applied on its own, so it stays.
     phones: plan.phones.filter((row) => row.status !== "add" || !applied.has(correctionKey.phone(row.label))),
-    contacts: plan.contacts.filter((row) => !applied.has(correctionKey.contact(row.name))),
+    contacts: plan.contacts.filter((row) => !applied.has(correctionKey.contact(row.ledgerName ?? row.name))),
     dayJobs: plan.dayJobs.filter((row) => !applied.has(correctionKey.dayJob(row.title))),
     dayJobRewords: plan.dayJobRewords.filter((row) => !applied.has(correctionKey.dayJobReword(row.title))),
     playbookRewords: plan.playbookRewords.filter((row) => !applied.has(correctionKey.playbookReword(row.sourceKey, row.correction))),
@@ -93,7 +93,7 @@ export function taskCorrectionsApplied(plan: PrintoutCorrectionsPlan): { keys: s
     lines.push(`Saved ${row.personName ?? row.label}’s number: ${row.phone}`);
   }
   for (const row of plan.contacts) {
-    keys.push(correctionKey.contact(row.name));
+    keys.push(correctionKey.contact(row.ledgerName ?? row.name));
     lines.push(`Added contact: ${row.name} · ${row.phone}`);
   }
   for (const row of plan.dayJobs) {

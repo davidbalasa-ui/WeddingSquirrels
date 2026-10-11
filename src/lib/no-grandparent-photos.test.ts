@@ -45,8 +45,10 @@ test("no source file the app ships adds a grandparent photo back", () => {
   }
 });
 
-test("the 4:05 family photos the app once wrote come off without a tap, and never print", () => {
-  const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.filter((m) => m.schedule === "wedding").map((m, index) => ({
+// David, 2026-10-11 19:27: "Add from 4:05 to 4:30, family photos." The row the app once wrote with the
+// grandparents becomes his "Family photos"; none of the grandparent lines print.
+test("the 4:05 family photos the app once wrote become David's family photos, with no grandparent line", () => {
+  const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.filter((m) => m.schedule === "wedding" && m.seedKey !== "wedding_family_photos_after").map((m, index) => ({
     id: m.seedKey,
     seedKey: m.seedKey,
     schedule: m.schedule,
@@ -57,15 +59,15 @@ test("the 4:05 family photos the app once wrote come off without a tap, and neve
   }));
   const old = { id: "fam", seedKey: "wedding_family_photos_after", schedule: "wedding", startAt: "4:05 PM", endAt: "4:30 PM", notes: OLD_FAMILY_PHOTOS, sortOrder: 99 };
   const plan = planReconciledTimeline([...rows, old]);
-  assert.deepEqual(plan.drops?.map((row) => [row.id, row.correction]), [["fam", "no grandparent photos"]]);
+  assert.deepEqual(plan.rewords.map((row) => [row.id, row.notes, row.correction]), [["fam", "Family photos", "family photos 4:05–4:30 PM"]]);
   assert.equal(plan.removals.length, 0);
-  assert.equal(weddingRowsToPrint([...rows, old]).some((row) => row.id === "fam"), false);
-  // One he edited himself waits for his tap, and still does not print.
+  assert.equal(plan.drops?.length ?? 0, 0);
+  // One he edited himself stays his; its grandparent lines still never print.
   const edited = { ...old, notes: `${OLD_FAMILY_PHOTOS}\nAsk Mom` };
-  const tapped = planReconciledTimeline([...rows, edited]);
-  assert.equal(tapped.drops?.length, 0);
-  assert.deepEqual(tapped.removals.map((row) => row.id), ["fam"]);
-  assert.equal(weddingRowsToPrint([...rows, edited]).some((row) => row.id === "fam"), false);
+  const printed = weddingRowsToPrint([...rows, edited]).find((row) => row.id === "fam");
+  assert.ok(printed);
+  const moment = reviewMoment(printed, { party: [], mc: [], photo: ["Barry"] });
+  assert.doesNotMatch(momentPrintRow(moment).lines.join("\n"), /grand|paternal|maternal|extended/i);
 });
 
 test("David's photos lose the old grandparents question while the row reads as the app wrote it", () => {

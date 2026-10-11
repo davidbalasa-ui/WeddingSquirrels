@@ -18,16 +18,13 @@ test.beforeAll(async () => {
       completed: true,
     },
   });
-  // The old 4:05 family photos row, edited so it waits for his tap: it still never prints.
-  await prisma.timelineBlock.create({
-    data: {
-      seedKey: "wedding_family_photos_after",
-      schedule: "wedding",
-      startAt: "4:05 PM",
-      endAt: "4:30 PM",
-      notes: "Family photos after the ceremony\nHaley with Grandma; Haley with Grandpa; Haley with grandparents.\nCouple with grandparents.\nAsk Mom",
-      sortOrder: 999,
-    },
+  // The old 4:05 family photos row with the grandparents, edited so Apply leaves it as he wrote it:
+  // its grandparent lines still never print (David's 4:05 "Family photos" is back since 2026-10-11 19:27).
+  const notes = "Family photos after the ceremony\nHaley with Grandma; Haley with Grandpa; Haley with grandparents.\nCouple with grandparents.\nAsk Mom";
+  await prisma.timelineBlock.upsert({
+    where: { seedKey: "wedding_family_photos_after" },
+    update: { notes },
+    create: { seedKey: "wedding_family_photos_after", schedule: "wedding", startAt: "4:05 PM", endAt: "4:30 PM", notes, sortOrder: 999 },
   });
 });
 test.afterAll(async () => {

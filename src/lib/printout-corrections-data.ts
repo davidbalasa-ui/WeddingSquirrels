@@ -10,7 +10,8 @@ import { checkinCarriesBunksNote, reconciledKeyForRow } from "@/lib/reconciled-t
 import { planTaskCorrections, type TaskCorrectionsPlan } from "@/lib/task-corrections";
 
 /** dayOf: a family member or helper David listed, printed with the day-of contacts rather than the vendors. */
-export type NewContactRow = { name: string; phone: string; directoryLabel: string; dayOf?: boolean };
+/** ledgerName: how the applied-corrections ledger knows this row, when a later number must apply again. */
+export type NewContactRow = { name: string; phone: string; directoryLabel: string; dayOf?: boolean; ledgerName?: string };
 
 export type PrintoutCorrectionsPlan = {
   tasks: TaskCorrectionsPlan;
@@ -84,7 +85,7 @@ export async function loadPrintoutCorrectionsPlan(db: Db = prisma): Promise<Prin
       // John's and Pam's numbers come through the phone corrections; with none from David, the one on the person's own guest record.
       const phone = family.phone ?? savedGuestPhone(snapshot, family.name) ?? "";
       if (!phone && !saved.length && !phoneCreates.has(family.name.toLowerCase())) return [];
-      return [{ name: family.name, phone, directoryLabel: family.role, dayOf: true }];
+      return [{ name: family.name, phone, directoryLabel: family.role, dayOf: true, ...(family.ledgerName ? { ledgerName: family.ledgerName } : {}) }];
     }),
   ];
   return { tasks: planTaskCorrections(tasks, { bunksOnJob }), phones, contacts, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments), playbookRewords: planPlaybookRewords(playbook) };

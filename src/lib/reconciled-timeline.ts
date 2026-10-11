@@ -178,6 +178,9 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
       "Bar service begins at 4:00 PM.",
       "Guests receive drinks and appetizers while photography continues.",
     ] },
+  // David, 2026-10-11 19:27: "Add from 4:05 to 4:30, family photos." (No grandparent photos: his words only.)
+  { seedKey: "wedding_family_photos_after", schedule: W, phase: "ceremony", startAt: "4:05 PM", endAt: "4:30 PM", title: "Family photos",
+    lines: [] },
   { seedKey: "wedding_final_touchups", schedule: W, phase: "ceremony", startAt: "4:45 PM", endAt: "4:50 PM", title: "Final touch-ups",
     lines: ["Bathroom break, touch-ups, and prepare for entrance."] },
   // David, 2026-10-11 12:42 and 12:44: "Last cocktail poures ending in 10 min" ... "The last pour announcement needs
@@ -250,39 +253,12 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
 export const RECONCILED_RETIRED_SEED_KEYS = [
   "wedding_settle_in",
   "wedding_final_getting_ready",
-  // David, 9 Oct 2026: the 4:00–4:30 family photos come off the day.
-  "wedding_family_photos_after",
   // David, 9 Oct 2026: no 4:30 break for the couple and no drinks/apps runners.
   "wedding_couple_cocktail",
 ];
 
-/**
- * Retired moments exactly as an earlier Apply wrote them. The 4:05 family photos (grandparents,
- * Haley's paternal and maternal sides) came off the day on 9 Oct; David, 2026-10-11 12:31:
- * "I never asked for pictures of grandparents and I keep telling you to remove them."
- */
-const RETIRED_AS_THE_APP_WROTE_THEM: Record<string, { startAt: string; endAt: string | null; notes: string; correction: string }> = {
-  wedding_family_photos_after: {
-    startAt: "4:05 PM",
-    endAt: "4:30 PM",
-    notes: reconciledNotes({
-      seedKey: "wedding_family_photos_after",
-      schedule: "wedding",
-      phase: "ceremony",
-      startAt: "4:05 PM",
-      endAt: "4:30 PM",
-      title: "Family photos after the ceremony",
-      lines: [
-        "Haley with Grandma; Haley with Grandpa; Haley with grandparents.",
-        "Couple with grandparents.",
-        "Couple with Haley’s paternal side of the family.",
-        "Couple with Haley’s maternal side of the family.",
-      ],
-      openItems: "Tell the grandparents and extended family to stay near the ceremony area, and choose someone to gather them.",
-    }),
-    correction: "no grandparent photos",
-  },
-};
+/** Retired moments exactly as an earlier Apply wrote them; Apply drops one only while it still reads like this. */
+const RETIRED_AS_THE_APP_WROTE_THEM: Record<string, { startAt: string; endAt: string | null; notes: string; correction: string }> = {};
 
 export function reconciledNotes(moment: ReconciledMoment): string {
   const detailLines = [...moment.lines];
@@ -298,6 +274,23 @@ export function reconciledNotes(moment: ReconciledMoment): string {
 type EarlierWording = Partial<Pick<ReconciledMoment, "title" | "lines" | "openItems" | "location" | "startAt" | "endAt">> & { correction: string };
 
 const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
+  // The 4:05 family photos as the app first wrote them, with the grandparent and extended-family lines
+  // David had taken off (2026-10-11 12:31). His 19:27 "family photos" 4:05–4:30 carries none of them.
+  wedding_family_photos_after: [
+    {
+      title: "Family photos after the ceremony",
+      lines: [
+        "Haley with Grandma; Haley with Grandpa; Haley with grandparents.",
+        "Couple with grandparents.",
+        "Couple with Haley’s paternal side of the family.",
+        "Couple with Haley’s maternal side of the family.",
+      ],
+      openItems: "Tell the grandparents and extended family to stay near the ceremony area, and choose someone to gather them.",
+      startAt: "4:05 PM",
+      endAt: "4:30 PM",
+      correction: "family photos 4:05–4:30 PM",
+    },
+  ],
   // Before David's 2026-10-11 16:00 gifts line.
   wedding_david_girls_first_look: [{ lines: [], correction: "girls' gifts at 1:45 PM" }],
   // David, 2026-10-10: Skila, Trinity and Bri claimed their bunks; his check-in gave the Airbnb address.

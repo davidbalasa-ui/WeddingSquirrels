@@ -264,3 +264,10 @@ test("the girls' gifts print at 1:45, the cake arrives Thursday at 7:00 with Bra
     await prisma.$disconnect();
   }
 });
+
+// David, 2026-10-11 19:27: "Add from 4:05 to 4:30, family photos."
+test("Friday's 4:05–4:30 family photos print on the run sheet, with no grandparent line", async ({ page }) => {
+  const text = await openPacket(page, "binder");
+  expect(text).toMatch(/4:05 PM\s*[–-]\s*4:30 PM\s+Family photos/);
+  expect(text).not.toMatch(/grand ?(?:ma|pa|parent|mother|father)/i);
+});
