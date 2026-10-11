@@ -3,12 +3,14 @@ import { prisma } from "@/lib/db";
 import type { EnrichmentSnapshot } from "@/lib/contact-enrichment";
 import { planPhoneCorrections, type PhoneCorrectionRow, type PhoneWrite } from "@/lib/phone-corrections";
 import { planDayJobRewords, planDayJobs, type DayJobDef, type DayJobReword } from "@/lib/day-job-corrections";
+import { FAMILY_CONTACTS } from "@/lib/family-contacts";
 import { BAND_CONTACT, GETAWAY_DRIVER_CONTACT, MINI_MOON_CONTACT } from "@/lib/mini-moon";
 import { planPlaybookRewords, type PlaybookReword } from "@/lib/playbook-corrections";
 import { checkinCarriesBunksNote, reconciledKeyForRow } from "@/lib/reconciled-timeline";
 import { planTaskCorrections, type TaskCorrectionsPlan } from "@/lib/task-corrections";
 
-export type NewContactRow = { name: string; phone: string; directoryLabel: string };
+/** dayOf: a family member or helper David listed, printed with the day-of contacts rather than the vendors. */
+export type NewContactRow = { name: string; phone: string; directoryLabel: string; dayOf?: boolean };
 
 export type PrintoutCorrectionsPlan = {
   tasks: TaskCorrectionsPlan;
@@ -63,6 +65,11 @@ export async function loadPrintoutCorrectionsPlan(db: Db = prisma): Promise<Prin
   const checkins = rehearsal.filter((row) => reconciledKeyForRow(row) === "reh.checkin");
   const checkin = checkins.find((row) => row.seedKey) ?? checkins[0];
   const bunksOnJob = checkin != null && !checkinCarriesBunksNote(checkin.notes);
+  const phones = planPhoneCorrections(snapshot);
+  // A contact the phone corrections create in the same Apply (John's, Pam's) is then marked day-of.
+  const phoneCreates = new Set(
+    phones.flatMap((row) => (row.status === "add" && row.write?.kind === "createContact" ? [row.write.name.trim().toLowerCase()] : [])),
+  );
   const contacts = [
     ...(snapshot.contacts.some((row) => /victoria resort/i.test(row.name)) ? [] : [{ ...MINI_MOON_CONTACT }]),
     ...(snapshot.contacts.some((row) => row.name.trim().toLowerCase() === BAND_CONTACT.name.toLowerCase()) ? [] : [{ ...BAND_CONTACT }]),
@@ -70,8 +77,29 @@ export async function loadPrintoutCorrectionsPlan(db: Db = prisma): Promise<Prin
     ...(snapshot.contacts.some((row) => row.name.trim().toLowerCase() === GETAWAY_DRIVER_CONTACT.name.toLowerCase() && row.phone?.trim())
       ? []
       : [{ ...GETAWAY_DRIVER_CONTACT }]),
+    // David, 2026-10-11 15:50: family and helpers on the day-of contact list, with his numbers.
+    ...FAMILY_CONTACTS.flatMap((family) => {
+      const saved = snapshot.contacts.filter((row) => row.name.trim().toLowerCase() === family.name.toLowerCase());
+      if (saved.some((row) => row.isDayOfContact && (row.phone?.trim() || !family.phone))) return [];
+      // John's and Pam's numbers come through the phone corrections; Shelly's is the one on her own guest record.
+      const phone = family.phone ?? savedGuestPhone(snapshot, family.name) ?? "";
+      if (!phone && !saved.length && !phoneCreates.has(family.name.toLowerCase())) return [];
+      return [{ name: family.name, phone, directoryLabel: family.role, dayOf: true }];
+    }),
   ];
-  return { tasks: planTaskCorrections(tasks, { bunksOnJob }), phones: planPhoneCorrections(snapshot), contacts, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments), playbookRewords: planPlaybookRewords(playbook) };
+  return { tasks: planTaskCorrections(tasks, { bunksOnJob }), phones, contacts, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments), playbookRewords: planPlaybookRewords(playbook) };
+}
+
+/**
+ * The number on this person's own guest record: one person by that name, alone on the record,
+ * so a household number someone else shares (John's) is never printed as hers.
+ */
+export function savedGuestPhone(snapshot: Pick<EnrichmentSnapshot, "guestPeople" | "guests">, name: string): string | null {
+  const people = snapshot.guestPeople.filter((row) => row.name.trim().toLowerCase() === name.toLowerCase());
+  if (people.length !== 1) return null;
+  const guestId = people[0]!.guestId;
+  if (snapshot.guestPeople.filter((row) => row.guestId === guestId).length !== 1) return null;
+  return snapshot.guests.find((guest) => guest.id === guestId)?.phone?.trim() || null;
 }
 
 /** One phone write, inside the caller's transaction. Only ever fills or (on David's pick) replaces one number. */
@@ -104,17 +132,19 @@ export async function addContact(tx: Pick<typeof prisma, "contact">, row: NewCon
   const saved = await tx.contact.findFirst({ where: { name: { equals: row.name, mode: "insensitive" } } });
   if (saved) {
     // A number only where none is saved; one David typed himself stays.
-    if (!saved.phone?.trim()) await tx.contact.updateMany({ where: { id: saved.id, OR: [{ phone: null }, { phone: "" }] }, data: { phone: row.phone } });
+    if (!saved.phone?.trim() && row.phone) await tx.contact.updateMany({ where: { id: saved.id, OR: [{ phone: null }, { phone: "" }] }, data: { phone: row.phone } });
+    if (row.dayOf && !saved.isDayOfContact) await tx.contact.update({ where: { id: saved.id }, data: { isDayOfContact: true } });
     return;
   }
+  if (!row.phone) return;
   const last = await tx.contact.findFirst({ orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
   await tx.contact.create({
     data: {
       name: row.name,
       phone: row.phone,
       directoryLabel: row.directoryLabel,
-      directoryList: "vendors",
-      isDayOfContact: false,
+      directoryList: row.dayOf ? "guests" : "vendors",
+      isDayOfContact: row.dayOf ?? false,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });

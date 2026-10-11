@@ -1,5 +1,6 @@
 "use client";
 
+import { SharpTitle } from "@/components/SharpTitle";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { lockAction } from "@/app/actions";
@@ -93,7 +94,7 @@ function TimelineRow({
       </p>
       <div className="min-w-0 flex-1">
         <p className={`leading-snug ${emphasis === "later" ? "font-semibold" : "font-semibold"}`}>
-          {moment.title}
+          <SharpTitle text={moment.title} />
         </p>
         {moment.location && !past ? (
           <p className="mt-0.5 text-sm text-muted">{moment.location}</p>
@@ -272,7 +273,7 @@ function LiveNow({ view }: { view: DayOfView }) {
           className="mt-2 font-[family-name:var(--font-display)] text-[2.15rem] leading-[1.08] tracking-tight"
           aria-live="polite"
         >
-          {current.title}
+          <SharpTitle text={current.title} />
         </h2>
         <p className="mt-3 text-base font-semibold text-[var(--accent)]">{current.timeLabel}</p>
         <MomentNotes moment={current} />
@@ -290,7 +291,7 @@ function LiveNow({ view }: { view: DayOfView }) {
         {nowBlocks.map((moment) => (
           <li key={moment.id}>
             <p className="font-[family-name:var(--font-display)] text-[1.55rem] leading-[1.12] tracking-tight">
-              {moment.title}
+              <SharpTitle text={moment.title} />
             </p>
             <p className="mt-1 text-sm font-semibold text-[var(--accent)]">{moment.timeLabel}</p>
           </li>
@@ -320,7 +321,7 @@ function LiveNext({ view }: { view: DayOfView }) {
       <ul className="mt-2 space-y-2">
         {nextBlocks.map((moment) => (
           <li key={moment.id}>
-            <p className="text-xl font-semibold leading-snug">{moment.title}</p>
+            <p className="text-xl font-semibold leading-snug"><SharpTitle text={moment.title} /></p>
             {moment.location ? <p className="mt-1 text-sm text-muted">{moment.location}</p> : null}
           </li>
         ))}
@@ -345,7 +346,7 @@ function AfterThat({ view }: { view: DayOfView }) {
       <ul className="mt-2 space-y-1.5">
         {afterBlocks.map((moment) => (
           <li key={moment.id} className="font-semibold leading-snug">
-            {moment.title}
+            <SharpTitle text={moment.title} />
           </li>
         ))}
       </ul>

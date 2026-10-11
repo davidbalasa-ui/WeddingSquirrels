@@ -249,7 +249,8 @@ const SHOTS: PlaybookRecord[] = [
   }),
   item("shot", "Details", 5, "Veil", { key: "shot-details-veil" }),
   item("shot", "Details", 6, "Hanging dresses", { key: "shot-details-dresses" }),
-  item("shot", "Portraits", 10, "Bride with veil", { key: "shot-portrait-veil" }),
+  // David, 2026-10-11 15:57: "change bride with veil portriats to bride with tiara".
+  item("shot", "Portraits", 10, "Bride with tiara", { key: "shot-portrait-veil" }),
   item("shot", "Portraits", 11, "Mom buttoning dress", { key: "shot-portrait-mom-button" }),
   item("shot", "Bridal party", 20, "Bride with wedding party", { key: "shot-party-bride-group" }),
   item("shot", "Bridal party", 21, "Groom with wedding party", { key: "shot-party-groom-group" }),
@@ -412,7 +413,7 @@ const COORDINATOR: PlaybookRecord[] = [
   }),
   item("coordinator", "Avalon / Green Garden Events", 10, "Dinner table release", {
     key: "avalon-release",
-    notes: "Avalon releases tables for dinner around 5:20 PM. Haley and David first.",
+    notes: "Avalon releases tables for dinner at 5:15 PM. Haley and David first.",
   }),
 ];
 

@@ -83,7 +83,8 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "reh.getready", schedule: R, phase: "rehearsal", startAt: "2:30 PM", endAt: "3:45 PM", title: "Get ready",
     lines: ["Hair, makeup, clothing, and final items before departure.", "Victoria meets the group at Hawkshead; Braxton meets the group at the reception/rehearsal.", NO_SIGNAL_NOTE],
     openItems: "Confirm whether anyone else will skip the Airbnb arrival window." },
-  { seedKey: "reh.depart-airbnb", schedule: R, phase: "rehearsal", startAt: "3:45 PM", endAt: null, title: "Depart for Hawkshead",
+  // David, 2026-10-11 15:52: "add "SHARP" bolded to the 3:45 leave time on thursday" (bold wherever it shows: SharpTitle).
+  { seedKey: "reh.depart-airbnb", schedule: R, phase: "rehearsal", startAt: "3:45 PM", endAt: null, title: "Depart for Hawkshead SHARP",
     location: "Hawkshead, 523 Hawks Nest Dr, South Haven, MI 49090", lines: ["Allow 25–30 minutes."] },
   { seedKey: "reh.dinner", schedule: R, phase: "rehearsal", startAt: "4:15 PM", endAt: "5:40 PM", title: "Rehearsal dinner",
     lines: ["Dinner, welcome toasts, reminders, and logistics.", HAWKSHEAD_DRESS_CODE_NOTE] },
@@ -131,7 +132,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_david_parents_first_look", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: null, title: "David’s first look with his parents",
     lines: ["David’s parents pin his boutonniere for their first look.", "Photos of David with his parents.", "Afterward, photos move to Haley getting dressed."] },
   { seedKey: "wedding_getting_dressed", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: "1:30 PM", title: "Haley gets dressed",
-    lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-veil portrait.", "Children arrive at 1:15 PM."] },
+    lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-tiara portrait.", "Children arrive at 1:15 PM."] },
   { seedKey: "wedding_haley_family_photos", schedule: W, phase: "photos", startAt: "1:30 PM", endAt: "1:45 PM", title: "Haley’s family photos",
     lines: [HALEY_DAD_FIRST_LOOK, "Haley with parents.", "Haley with mom.", "Haley with dad."] },
   // David, 2026-10-11 12:29: "At 1:45 pm, have David's first look with the girls".
@@ -182,10 +183,11 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
     openItems: "Give Wendy the entrance order and make sure she knows how to say every name." },
 
   // Dinner, dances and evening
-  { seedKey: "wedding_dinner", schedule: W, phase: "evening", startAt: "5:00 PM", endAt: null, title: "Grand entrance and dinner begins",
-    lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Once David and Haley have food, tables are called up.", "Precious Peony serves out of the food truck (David, Oct 10).", AVALON_RELEASES_TABLES] },
-  { seedKey: "wedding_dinner_service", schedule: W, phase: "evening", startAt: "5:00 PM", endAt: "6:00 PM", title: "Dinner service",
-    lines: ["Guests eat while the couple circulates only as time permits.", "Prepare toast speakers near the end of dinner."] },
+  // David, 2026-10-11 15:50: "dinner begins at 5:15, avalon is releasing then".
+  { seedKey: "wedding_dinner", schedule: W, phase: "evening", startAt: "5:00 PM", endAt: null, title: "Grand entrance",
+    lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Precious Peony serves out of the food truck (David, Oct 10)."] },
+  { seedKey: "wedding_dinner_service", schedule: W, phase: "evening", startAt: "5:15 PM", endAt: "6:00 PM", title: "Dinner begins",
+    lines: [AVALON_RELEASES_TABLES, "Once David and Haley have food, tables are called up.", "Guests eat while the couple circulates only as time permits.", "Prepare toast speakers near the end of dinner."] },
   // David, 2026-10-11 12:44: "we just need to start toasts 10 minutes earlier ... And then 6:15 will work for the dance announcement."
   { seedKey: "wedding_toasts_cake", schedule: W, phase: "evening", startAt: "5:50 PM", endAt: "6:05 PM", title: "Toasts",
     lines: ["MC cue 5:50 PM: \"As dinner winds down, please return to your seats.\"", "Best man, MOH, and FOB toasts."],
@@ -314,9 +316,11 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
   "reh.dinner": [{ lines: ["Dinner, welcome toasts, reminders, and logistics."], correction: "Hawkshead dress code" }],
   // The places source spells it one way (wedding-venue.ts); every printout now matches.
   "reh.depart-airbnb": [
-    { location: "Hawkshead, 523 Hawks Nest Drive, South Haven", correction: "one Hawkshead address" },
+    { title: "Depart for Hawkshead", location: "Hawkshead, 523 Hawks Nest Drive, South Haven", correction: "one Hawkshead address" },
     // David, 2026-10-11 15:21: "[Hawk's Head's ZIP code] you have this or could look it up." 49090.
-    { location: "Hawkshead, 523 Hawks Nest Dr, South Haven, MI", correction: "Hawkshead ZIP 49090" },
+    { title: "Depart for Hawkshead", location: "Hawkshead, 523 Hawks Nest Dr, South Haven, MI", correction: "Hawkshead ZIP 49090" },
+    // David, 2026-10-11 15:52: leave at 3:45 SHARP.
+    { title: "Depart for Hawkshead", correction: "3:45 SHARP" },
   ],
   "reh.return": [{ lines: ["Steam dresses and suits.", "Dessert and game night."], correction: "dessert most likely at the Airbnb" }],
   wedding_party_leaves: [
@@ -397,16 +401,32 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
   ],
   // David, 2026-10-10 22:27: "not sure about the call but precious peony serves out of the food truck".
   wedding_dinner: [
+    // David, 2026-10-11 15:50: dinner begins at 5:15 PM, when Avalon releases the tables; 5:00 PM is the grand entrance.
+    {
+      title: "Grand entrance and dinner begins",
+      lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Once David and Haley have food, tables are called up.", "Precious Peony serves out of the food truck (David, Oct 10).", AVALON_RELEASES_TABLES],
+      correction: "dinner begins 5:15 PM",
+    },
     // David, 2026-10-11 15:13: Avalon releases the tables.
     {
+      title: "Grand entrance and dinner begins",
       lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Once David and Haley have food, tables are called up.", "Precious Peony serves out of the food truck (David, Oct 10)."],
       openItems: "Choose who calls tables.",
       correction: "Avalon releases the tables",
     },
     {
+      title: "Grand entrance and dinner begins",
       lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Once David and Haley have food, tables are called up."],
       openItems: "Choose who calls tables and confirm how Precious Peony will serve dinner.",
       correction: "Precious Peony serves from the food truck",
+    },
+  ],
+  wedding_dinner_service: [
+    {
+      title: "Dinner service",
+      startAt: "5:00 PM",
+      lines: ["Guests eat while the couple circulates only as time permits.", "Prepare toast speakers near the end of dinner."],
+      correction: "dinner begins 5:15 PM",
     },
   ],
   // David, 2026-10-10 22:06: "Add, Cake placed in center and desserts rotated around on the glass plates on small plates".
@@ -448,6 +468,13 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
     {
       lines: ["Hair: Braxton in Bathroom 1; Andi in Bathroom 2; Kaylie in Bathroom 3.", "Makeup: Bri and Trinity in Bedroom 1; Victoria and Skila in Bedroom 3."],
       correction: "black get ready clothes",
+    },
+  ],
+  // David, 2026-10-11 15:57: "change bride with veil portriats to bride with tiara".
+  wedding_getting_dressed: [
+    {
+      lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-veil portrait.", "Children arrive at 1:15 PM."],
+      correction: "bride with tiara",
     },
   ],
   // David, 2026-10-11 15:13: Haley's first look with her dad opens the 1:30 parent photos.

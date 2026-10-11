@@ -60,7 +60,13 @@ export async function loadPlaybookItems(kind?: PlaybookKind): Promise<PlaybookIt
     return canonical;
   }
 
-  return mergeCanonicalPlaybookWithPersisted(canonical, persisted).filter(
-    (row) => !(row.kind === "shot" && isGrandparentPhoto(`${row.title} ${row.notes ?? ""}`)),
-  );
+  return mergeCanonicalPlaybookWithPersisted(canonical, persisted)
+    .filter((row) => !(row.kind === "shot" && isGrandparentPhoto(`${row.title} ${row.notes ?? ""}`)))
+    .map((row) => (row.kind === "shot" && RENAMED_SHOTS[row.title] ? { ...row, title: RENAMED_SHOTS[row.title]! } : row));
 }
+
+/** Shots David renamed; a saved row with the old name shows and prints the new one. */
+const RENAMED_SHOTS: Record<string, string> = {
+  // David, 2026-10-11 15:57: "change bride with veil portriats to bride with tiara".
+  "Bride with veil": "Bride with tiara",
+};
