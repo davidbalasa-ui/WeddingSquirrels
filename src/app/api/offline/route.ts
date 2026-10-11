@@ -5,6 +5,7 @@ import { loadPlaybookItems } from "@/lib/playbook-data";
 import { weddingPlacesFromPlan } from "@/lib/wedding-venue";
 import { requestVisibilityWhere } from "@/lib/requests";
 import { taskVisibilityWhere } from "@/lib/tasks";
+import { withoutRemovedJobs } from "@/lib/no-grandparent-photos";
 
 /** The same places the printed quick reference shows, read from the timeline. */
 function offlinePlaces(timeline: Array<{ notes: string }> | null) {
@@ -73,7 +74,7 @@ export async function GET() {
             assignees: { include: { person: { select: { id: true, name: true } } } },
           },
           orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
-        })
+        }).then(withoutRemovedJobs)
       : Promise.resolve([]),
     session.canSeeGuests
       ? prisma.guest.findMany({

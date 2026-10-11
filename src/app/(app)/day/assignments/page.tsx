@@ -5,6 +5,7 @@ import { timelineEditable } from "@/lib/access";
 import { loadDayOfContext } from "@/lib/day-of-page";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/session";
+import { withoutRemovedJobs } from "@/lib/no-grandparent-photos";
 
 export default async function DayAssignmentsPage() {
   const session = await requirePageSession({ need: "canSeeTimeline" });
@@ -17,7 +18,7 @@ export default async function DayAssignmentsPage() {
       include: {
         assignees: { include: { person: { select: { id: true, name: true } } } },
       },
-    }),
+    }).then(withoutRemovedJobs),
     prisma.person.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
   ]);
 

@@ -174,7 +174,7 @@ export function professionalizePrintLine(raw: string): string | null {
   line = line.replace(/\bnot a new task\.?/gi, "");
   line = line.replace(/\s*\(\s*see hair & makeup page\s*\)/gi, "");
   line = line.replace(/\s*see hair & makeup page\b/gi, "");
-  // The app's old 6:15 cake line; the cake moment carries its own time (6:05 PM since David, 2026-10-11).
+  // The app's old 6:15 cake line; the cake moment carries its own time (6:15–6:30 PM since David, 2026-10-11 16:15).
   if (/\bcake cutting stays at 6:15\b/i.test(line)) return null;
   line = line.replace(/\bdance floor opens at 7:00 pm in the glass house\b/gi, "Dance floor opens at 7:00 PM in the glass house");
 

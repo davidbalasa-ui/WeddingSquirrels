@@ -19,6 +19,7 @@ import { sortTimelineBlocks } from "@/lib/day-of-time";
 import { buildTodayHero, formatWeddingDateLabel } from "@/lib/today";
 import type { SessionAccount } from "@/lib/types";
 import { getWeddingPhase, type WeddingPhaseInfo } from "@/lib/wedding-phase";
+import { withoutRemovedJobs } from "@/lib/no-grandparent-photos";
 
 export type DayOfPageContext = {
   daysToGo: number | null;
@@ -195,7 +196,7 @@ export async function loadDayOfExperience(
         sortOrder: true,
         assignees: { select: { personId: true } },
       },
-    }),
+    }).then(withoutRemovedJobs),
     canSeeContacts
       ? prisma.guestPerson.findMany({
           where: { personId: { not: null } },
