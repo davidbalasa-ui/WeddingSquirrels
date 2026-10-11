@@ -89,7 +89,7 @@ test.describe("Apply the reconciled document", () => {
 
     // "Use the document's version" is the only way the document's wording comes back.
     await page.getByRole("button", { name: /reads? differently from the reconciled document/ }).click();
-    await page.getByRole("button", { name: /Use the document’s version \(3:30 PM – 4:00 PM · Ceremony\)/ }).click();
+    await page.getByRole("button", { name: /Use the document’s version \(3:30 PM – 3:50 PM · Ceremony\)/ }).click();
     await page.waitForLoadState("domcontentloaded");
     const document = RECONCILED_TIMELINE.find((moment) => moment.seedKey === "wedding_ceremony")!;
     await expect

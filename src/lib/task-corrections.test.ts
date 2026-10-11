@@ -141,7 +141,8 @@ test("the bank and post office job is ticked done, only while it reads as card 3
 
 test("David's 16:33 'Keep kids at 115 for now' joins card 3's Harmony and Melody note, only while it reads as the card wrote it", () => {
   const item = NEW_TASKS.find((def) => def.title === "Harmony and Melody’s schedule: discuss with Avalon")!;
-  const latest = " They arrive at 1:15; first look photos will need to fit with family photos maybe (David, Oct 10).";
+  const latest =
+    " They arrive at 1:15; first look photos will need to fit with family photos maybe (David, Oct 10). David’s first look with the girls is at 1:45 PM (David, Oct 11).";
   assert.ok(item.summary!.endsWith(` Kids stay at 1:15 for now (David, Oct 10).${latest}`));
   const was = item.summary!.replace(` Kids stay at 1:15 for now (David, Oct 10).${latest}`, "");
   const row = { id: "hm", title: item.title, status: "todo", parentId: null, summary: was };
@@ -152,6 +153,9 @@ test("David's 16:33 'Keep kids at 115 for now' joins card 3's Harmony and Melody
   // 22:27: the 16:33 note also comes up to date.
   const at1633 = item.summary!.replace(latest, "");
   assert.deepEqual(planTaskCorrections([{ ...row, summary: at1633 }]).noteFills, [{ id: "hm", title: item.title, summary: item.summary, before: at1633 }]);
+  // Oct 11: the 22:27 note also comes up to date with the 1:45 PM first look.
+  const at2227 = item.summary!.replace(" David’s first look with the girls is at 1:45 PM (David, Oct 11).", "");
+  assert.deepEqual(planTaskCorrections([{ ...row, summary: at2227 }]).noteFills, [{ id: "hm", title: item.title, summary: item.summary, before: at2227 }]);
 });
 
 test("David's 22:27 answers on the open list: two jobs closed, three noted, his own notes left alone", () => {

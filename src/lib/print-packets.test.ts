@@ -164,7 +164,6 @@ test("the binder prints each page moment with the page's own lines, in the page'
     "Avalon (coordinator) arrives 10:30 or 11:00 AM",
     "Katie does Haley's hair — confirmed, not DIY",
     "Children arrive at 1:15 PM.",
-    'MC cue: 4:55: "Honored guests, cocktail hour is nearing its end."',
     "Open: Confirm MOB will meet Dan.",
   ]);
 });
@@ -191,4 +190,21 @@ test("the wedding party schedule prints the Hawkshead dress code under the rehea
   const dinner = packetSchedule(moments, "party").rehearsal.find((row) => row.title === "Rehearsal dinner");
   assert.ok(dinner);
   assert.ok(dinner.lines.some((line) => line.includes("Hawkshead golf dress code") && line.includes("cut-offs are not permitted")));
+});
+
+// David, 2026-10-11 12:29: "At 1:45 pm, have David's first look with the girls".
+test("David's 1:45 PM first look with the girls is on the timeline and in the photographer's packet", () => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_david_girls_first_look");
+  assert.equal(moment?.startAt, "1:45 PM");
+  assert.equal(moment?.title, "David’s first look with the girls");
+  assert.ok(titles(packetSchedule(moments, "photo").wedding).includes("David’s first look with the girls"));
+});
+
+// David, 2026-10-11 12:37: the 6:55 PM MC announcement before the first dance.
+test("the 6:55 PM clear-the-center announcement is the MC's cue and on every evening schedule", () => {
+  for (const audience of ["party", "mc", "photo", "brideParents", "groomParents"] as const) {
+    assert.ok(titles(packetSchedule(moments, audience).wedding).includes("Clear the center for the first dance"), audience);
+  }
+  const mc = packetSchedule(moments, "mc").wedding.find((row) => row.title === "Clear the center for the first dance");
+  assert.ok(mc?.lines.some((line) => /turn your chairs to the middle of the walk area/.test(line)));
 });

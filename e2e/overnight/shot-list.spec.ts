@@ -18,8 +18,22 @@ test.beforeAll(async () => {
       completed: true,
     },
   });
+  // The old 4:05 family photos row, edited so it waits for his tap: it still never prints.
+  await prisma.timelineBlock.create({
+    data: {
+      seedKey: "wedding_family_photos_after",
+      schedule: "wedding",
+      startAt: "4:05 PM",
+      endAt: "4:30 PM",
+      notes: "Family photos after the ceremony\nHaley with Grandma; Haley with Grandpa; Haley with grandparents.\nCouple with grandparents.\nAsk Mom",
+      sortOrder: 999,
+    },
+  });
 });
-test.afterAll(async () => prisma.$disconnect());
+test.afterAll(async () => {
+  await prisma.timelineBlock.deleteMany({ where: { seedKey: "wedding_family_photos_after" } });
+  await prisma.$disconnect();
+});
 
 // David, 2026-10-10: no extended family photos (crossed out on page 12 of his printed binder).
 const REMOVED = [
@@ -53,6 +67,8 @@ test("No packet prints the extended family shots", async ({ page }) => {
   for (const packet of PACKETS) {
     const text = await openPacket(page, packet.id);
     for (const title of REMOVED) expect(text, packet.title).not.toContain(title);
+    // David, 2026-10-11 12:31: no grandparent photos anywhere, whatever an older row says.
+    expect(text, packet.title).not.toMatch(/grand ?(?:ma|pa|parent|mother|father)/i);
     if (/Photo shot list/i.test(text)) {
       withShotList++;
       for (const title of KEPT) expect(text, packet.title).toContain(title);

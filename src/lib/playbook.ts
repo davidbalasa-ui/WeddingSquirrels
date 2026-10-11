@@ -402,7 +402,7 @@ const COORDINATOR: PlaybookRecord[] = [
   }),
   item("coordinator", "Avalon / Green Garden Events", 7, "Marriage license signing", {
     key: "avalon-license",
-    notes: "Avalon is contracted to assist. Signing is at 4:00 PM, immediately after the recessional.",
+    notes: "Avalon is contracted to assist. Signing is 3:50–4:00 PM, immediately after the recessional.",
   }),
   item("coordinator", "Avalon / Green Garden Events", 8, "Family photo assistance", {
     key: "avalon-family-photos",

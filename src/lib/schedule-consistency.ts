@@ -1,3 +1,4 @@
+import { isGrandparentPhoto, isReplacedMcCue } from "./no-grandparent-photos";
 import { parseBlockNotes } from "@/lib/day-of-now";
 import { compareParsedTimes, parseDayOfTime, parseTimelineSchedule } from "@/lib/day-of-time";
 
@@ -24,6 +25,7 @@ function sameWords(line: string): string {
 
 /** Lines as a schedule prints them: one "Bridal party photos" line, no repeated times. */
 export function scheduleLines(lines: string[]): string[] {
+  lines = lines.filter((line) => !isGrandparentPhoto(line) && !isReplacedMcCue(line));
   // "Wedding party lines up" beside "3:20 PM — wedding party lines up" reads as two
   // different times; the timed line says it, so the bare copy is dropped.
   const timed = new Set(

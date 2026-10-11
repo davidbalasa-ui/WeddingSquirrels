@@ -14,7 +14,7 @@ export default async function HairMakeupPage() {
     <>
       <PlanChapterHeader
         title="Hair & Makeup"
-        subtitle="Who is in which room, and when. Katie does Haley's hair. The bridal party uses assigned bathrooms and bedrooms at the Airbnb."
+        subtitle="Who is in which room, and when. Katie Wiewiora does Haley's hair. The bridal party uses assigned bathrooms and bedrooms at the Airbnb."
         backHref="/day"
         backLabel="Day-of"
       />

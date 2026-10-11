@@ -123,6 +123,9 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
     lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-veil portrait.", "Children arrive at 1:15 PM."] },
   { seedKey: "wedding_haley_family_photos", schedule: W, phase: "photos", startAt: "1:30 PM", endAt: "1:45 PM", title: "Haley’s family photos",
     lines: ["Haley with parents.", "Haley with mom.", "Haley with dad.", "Haley first look with Dad."] },
+  // David, 2026-10-11 12:29: "At 1:45 pm, have David's first look with the girls".
+  { seedKey: "wedding_david_girls_first_look", schedule: W, phase: "photos", startAt: "1:45 PM", endAt: null, title: "David’s first look with the girls",
+    lines: [] },
   { seedKey: "wedding_david_photos", schedule: W, phase: "photos", startAt: "1:45 PM", endAt: "2:00 PM", title: "David’s photos",
     lines: ["David solo portraits and groom-party candids.", "The children join David for photos.", "Barry positions David and clears the first-look area."] },
   { seedKey: "wedding_first_look", schedule: W, phase: "photos", startAt: "2:00 PM", endAt: "2:15 PM", title: "David and Haley first look",
@@ -145,18 +148,24 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
     lines: ["Wedding party moves out of guest view.", "Guests are seated.", "3:20 PM — wedding party lines up.", "Barry photographs ceremony details and guest arrivals.", "No early bar service is planned."] },
 
   // Ceremony and cocktail hour
-  { seedKey: "wedding_ceremony", schedule: W, phase: "ceremony", startAt: "3:30 PM", endAt: "4:00 PM", title: "Ceremony",
+  // David, 2026-10-11 12:31: "Change the ceremony to 3:30 to 3:50 and the signing will be [3:50] to 4:00".
+  { seedKey: "wedding_ceremony", schedule: W, phase: "ceremony", startAt: "3:30 PM", endAt: "3:50 PM", title: "Ceremony",
     location: "Under the shelter", lines: [] },
-  { seedKey: "wedding_license_signing", schedule: W, phase: "ceremony", startAt: "4:00 PM", endAt: null, title: "Sign the marriage license",
+  { seedKey: "wedding_license_signing", schedule: W, phase: "ceremony", startAt: "3:50 PM", endAt: "4:00 PM", title: "Sign the marriage license",
     lines: ["Immediately after the recessional.", "David, Haley, Marie, and the witnesses move directly to the signing table.", "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen."] },
+  // David, 2026-10-11 12:46: "Cocktail hour ends at 5."
   { seedKey: "wedding_cocktail_hour", schedule: W, phase: "ceremony", startAt: "4:00 PM", endAt: "5:00 PM", title: "Cocktail hour and bar opening",
     lines: [
-      "Bartender arrives at 3:00 PM and will be ready by 4:00 PM (David, Oct 10).",
+      "Bartender arrives at 3:00 PM (David, Oct 10).",
       "Bar service begins at 4:00 PM.",
       "Guests receive drinks and appetizers while photography continues.",
     ] },
   { seedKey: "wedding_final_touchups", schedule: W, phase: "ceremony", startAt: "4:45 PM", endAt: "4:50 PM", title: "Final touch-ups",
     lines: ["Bathroom break, touch-ups, and prepare for entrance."] },
+  // David, 2026-10-11 12:42 and 12:44: "Last cocktail poures ending in 10 min" ... "The last pour announcement needs
+  // to be at 10 minutes till the end of cocktail hour" (cocktail hour ends at 5:00).
+  { seedKey: "wedding_last_pour", schedule: W, phase: "ceremony", startAt: "4:50 PM", endAt: null, title: "Last cocktail pours",
+    lines: ["MC cue 4:50 PM: Last cocktail pours, ending in 10 minutes."] },
   { seedKey: "wedding_entrance_lineup", schedule: W, phase: "ceremony", startAt: "4:50 PM", endAt: "5:00 PM", title: "Wedding party lines up",
     lines: ["Guests move to dinner seating.", "MC confirms names and entrance order."],
     openItems: "Give Wendy the entrance order and make sure she knows how to say every name." },
@@ -167,15 +176,21 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
     openItems: "Choose who calls tables." },
   { seedKey: "wedding_dinner_service", schedule: W, phase: "evening", startAt: "5:00 PM", endAt: "6:00 PM", title: "Dinner service",
     lines: ["Guests eat while the couple circulates only as time permits.", "Prepare toast speakers near the end of dinner."] },
-  { seedKey: "wedding_toasts_cake", schedule: W, phase: "evening", startAt: "6:00 PM", endAt: "6:15 PM", title: "Toasts",
-    lines: ["Best man, MOH, and FOB toasts."], openItems: "Confirm the toast order and how long each person gets." },
-  { seedKey: "wedding_cake_cutting", schedule: W, phase: "evening", startAt: "6:15 PM", endAt: null, title: "Cake cutting",
+  // David, 2026-10-11 12:44: "we just need to start toasts 10 minutes earlier ... And then 6:15 will work for the dance announcement."
+  { seedKey: "wedding_toasts_cake", schedule: W, phase: "evening", startAt: "5:50 PM", endAt: "6:05 PM", title: "Toasts",
+    lines: ["MC cue 5:50 PM: \"As dinner winds down, please return to your seats.\"", "Best man, MOH, and FOB toasts."],
+    openItems: "Confirm the toast order and how long each person gets." },
+  { seedKey: "wedding_cake_cutting", schedule: W, phase: "evening", startAt: "6:05 PM", endAt: null, title: "Cake cutting",
     lines: [
       "Cut the cake immediately after toasts.",
       "Photographer and videographer are cued before cutting begins.",
       "Cake placed in center and desserts rotated around on the glass plates on small plates (David, Oct 10).",
     ] },
-  { seedKey: "wedding_first_dances", schedule: W, phase: "evening", startAt: "6:25 PM", endAt: "6:45 PM", title: "Formal dances",
+  // David, 2026-10-11 12:37: "we need an announcement from the MC to clear the center area and turn your chairs to the
+  // middle of the walk area for the bride and groom's first dance. Followed by the bride and her father." 12:44: at 6:15.
+  { seedKey: "wedding_first_dance_announcement", schedule: W, phase: "evening", startAt: "6:15 PM", endAt: null, title: "Clear the center for the first dance",
+    lines: ["MC cue 6:15 PM: Clear the center area and turn your chairs to the middle of the walk area for the bride and groom’s first dance, followed by the bride and her father."] },
+  { seedKey: "wedding_first_dances", schedule: W, phase: "evening", startAt: "6:20 PM", endAt: "6:45 PM", title: "Formal dances",
     lines: ["First dance.", "Father of the bride dance.", "Any additional formal dance must be confirmed before the event."] },
   { seedKey: "wedding_golden_hour", schedule: W, phase: "evening", startAt: "6:23 PM", endAt: "7:18 PM", title: "Golden-hour photos",
     lines: ["Golden hour in South Haven is about 6:23–7:18 PM.", "Sunset is approximately 7:01 PM.", "Plan for outdoor photos from 6:45–6:55 PM."],
@@ -216,6 +231,34 @@ export const RECONCILED_RETIRED_SEED_KEYS = [
   // David, 9 Oct 2026: no 4:30 break for the couple and no drinks/apps runners.
   "wedding_couple_cocktail",
 ];
+
+/**
+ * Retired moments exactly as an earlier Apply wrote them. The 4:05 family photos (grandparents,
+ * Haley's paternal and maternal sides) came off the day on 9 Oct; David, 2026-10-11 12:31:
+ * "I never asked for pictures of grandparents and I keep telling you to remove them."
+ */
+const RETIRED_AS_THE_APP_WROTE_THEM: Record<string, { startAt: string; endAt: string | null; notes: string; correction: string }> = {
+  wedding_family_photos_after: {
+    startAt: "4:05 PM",
+    endAt: "4:30 PM",
+    notes: reconciledNotes({
+      seedKey: "wedding_family_photos_after",
+      schedule: "wedding",
+      phase: "ceremony",
+      startAt: "4:05 PM",
+      endAt: "4:30 PM",
+      title: "Family photos after the ceremony",
+      lines: [
+        "Haley with Grandma; Haley with Grandpa; Haley with grandparents.",
+        "Couple with grandparents.",
+        "Couple with Haley’s paternal side of the family.",
+        "Couple with Haley’s maternal side of the family.",
+      ],
+      openItems: "Tell the grandparents and extended family to stay near the ceremony area, and choose someone to gather them.",
+    }),
+    correction: "no grandparent photos",
+  },
+};
 
 export function reconciledNotes(moment: ReconciledMoment): string {
   const detailLines = [...moment.lines];
@@ -267,8 +310,17 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
   wedding_couple_departs: [{ startAt: "12:20 PM", endAt: "12:30 PM", correction: "leave at 12:30 PM" }],
   // The moment's own line already names who toasts (best man, MOH, FOB); only order and length are open.
   wedding_toasts_cake: [
-    { openItems: "Confirm who is giving a toast, the order, and how long each person gets.", correction: "toasts: who is set" },
+    {
+      startAt: "6:00 PM",
+      endAt: "6:15 PM",
+      lines: ["Best man, MOH, and FOB toasts."],
+      openItems: "Confirm who is giving a toast, the order, and how long each person gets.",
+      correction: "toasts: who is set",
+    },
+    // David, 2026-10-11 12:44 and 12:46: toasts start 10 minutes earlier, with the MC's cue at 5:50.
+    { startAt: "6:00 PM", endAt: "6:15 PM", lines: ["Best man, MOH, and FOB toasts."], correction: "toasts 5:50–6:05 PM" },
   ],
+  wedding_first_dances: [{ startAt: "6:25 PM", correction: "first dance at 6:20 PM" }],
   // David, 2026-10-10 22:00: "8 Is when we say our good byes to the kids and have a good bye song
   // and then music changes at 8:15. Close the open item".
   wedding_children_ready: [
@@ -299,8 +351,27 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
       openItems: "Confirm the bar will be ready at 4:00 PM.",
       correction: "bartender at 3:00 PM, bar ready by 4:00",
     },
+    // David, 2026-10-11 12:33: the 3:00 line carries one time, not "ready by 4".
+    {
+      lines: [
+        "Bartender arrives at 3:00 PM and will be ready by 4:00 PM (David, Oct 10).",
+        "Bar service begins at 4:00 PM.",
+        "Guests receive drinks and appetizers while photography continues.",
+      ],
+      correction: "bartender line carries only 3:00 PM",
+    },
   ],
-  // David, 2026-10-10 22:06: "Add, Cake placed in center and desserts rotated around on the glass plates on small plates".
+  // David, 2026-10-11 12:31: ceremony 3:30–3:50 PM, signing 3:50–4:00 PM, cocktail hour at 4:00 PM.
+  wedding_ceremony: [{ endAt: "4:00 PM", correction: "ceremony ends 3:50 PM" }],
+  wedding_license_signing: [{ startAt: "4:00 PM", endAt: null, correction: "signing 3:50–4:00 PM" }],
+  // The app's first wording asked about grandparent photos; David never asked for them (2026-10-11 12:31).
+  wedding_david_photos: [
+    {
+      lines: ["David solo portraits and groom-party candids.", "Barry positions David and clears the first-look area."],
+      openItems: "Add any photos wanted with David’s parents, grandparents, or extended family.",
+      correction: "no grandparent photos",
+    },
+  ],
   // David, 2026-10-10 22:27: "not sure about the call but precious peony serves out of the food truck".
   wedding_dinner: [
     {
@@ -309,9 +380,11 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
       correction: "Precious Peony serves from the food truck",
     },
   ],
+  // David, 2026-10-10 22:06: "Add, Cake placed in center and desserts rotated around on the glass plates on small plates".
   wedding_cake_cutting: [
     {
       lines: ["Cut the cake immediately after toasts.", "Photographer and videographer are cued before cutting begins."],
+      startAt: "6:15 PM",
       openItems: "Confirm when the cake arrives, who receives it, and who has the knife, plates, and serving plan.",
       correction: "cake and dessert layout",
     },
@@ -322,9 +395,12 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
         "Photographer and videographer are cued before cutting begins.",
         "Cake placed in center and desserts rotated around on the glass plates on small plates (David, Oct 10).",
       ],
+      startAt: "6:15 PM",
       openItems: "Confirm when the cake arrives, who receives it, and who has the knife.",
       correction: "cake question closed",
     },
+    // David, 2026-10-11 12:44: desserts move up with the toasts.
+    { startAt: "6:15 PM", correction: "cake at 6:05 PM" },
   ],
   wedding_quiet_time: [
     {
@@ -427,6 +503,11 @@ export type ReconciledPlan = {
   updates: Array<ReconciledWrite & { id: string; before: { startAt: string; endAt: string | null; title: string } }>;
   unchanged: string[];
   removals: Array<{ id: string; seedKey: string; title: string }>;
+  /**
+   * Retired moments David asked to have taken off, still reading exactly as the app wrote
+   * them: removed without a tap. One he edited himself stays in `removals` for his tap.
+   */
+  drops?: Array<{ id: string; seedKey: string; title: string; notes: string; correction: string }>;
   /** Moments still worded exactly as the app first wrote them, brought up to the document's corrected wording. */
   rewords: Array<ReconciledWrite & { id: string; correction: string; before: { startAt: string; endAt: string | null; title: string } }>;
   /** Rows in the database the document does not mention. Left alone. */
@@ -507,7 +588,7 @@ function saysNothingMore(shortNotes: string, fullNotes: string): boolean {
 }
 
 export function planReconciledTimeline(existing: ExistingTimelineRow[]): ReconciledPlan {
-  const plan: ReconciledPlan = { inserts: [], updates: [], rewords: [], unchanged: [], removals: [], untouched: [], doubles: [] };
+  const plan: ReconciledPlan = { inserts: [], updates: [], rewords: [], unchanged: [], removals: [], drops: [], untouched: [], doubles: [] };
   const wanted = new Set(RECONCILED_TIMELINE.map((moment) => moment.seedKey));
   const bySeed = new Map<string, ExistingTimelineRow>();
   for (const row of existing) {
@@ -607,7 +688,12 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
     }
     const title = parseBlockNotes(row.notes).title;
     if (row.seedKey && RECONCILED_RETIRED_SEED_KEYS.includes(row.seedKey)) {
-      plan.removals.push({ id: row.id, seedKey: row.seedKey, title });
+      const asWritten = RETIRED_AS_THE_APP_WROTE_THEM[row.seedKey];
+      if (asWritten && asWritten.notes === row.notes && asWritten.startAt === row.startAt && asWritten.endAt === (row.endAt ?? null)) {
+        plan.drops!.push({ id: row.id, seedKey: row.seedKey, title, notes: row.notes, correction: asWritten.correction });
+      } else {
+        plan.removals.push({ id: row.id, seedKey: row.seedKey, title });
+      }
     } else {
       plan.untouched.push({ id: row.id, seedKey: row.seedKey, title, startAt: row.startAt });
     }
@@ -621,12 +707,16 @@ export function planReconciledTimeline(existing: ExistingTimelineRow[]): Reconci
  * as the moment that stays, before he has tapped Apply.
  */
 export function rehearsalRowsToPrint<T extends ExistingTimelineRow>(rows: T[]): T[] {
-  const folded = new Set(planReconciledTimeline(rows).removals.map((row) => row.id));
+  const plan = planReconciledTimeline(rows);
+  const folded = new Set([...plan.removals, ...(plan.drops ?? [])].map((row) => row.id));
   return rows.filter((row) => !folded.has(row.id));
 }
 
+/** Friday's rows a printout shows: a moment David took off the day never prints, tapped or not. */
+export const weddingRowsToPrint = rehearsalRowsToPrint;
+
 export function reconciledPlanIsEmpty(plan: ReconciledPlan): boolean {
-  return plan.inserts.length === 0 && plan.removals.length === 0 && (plan.rewords ?? []).length === 0;
+  return plan.inserts.length === 0 && plan.removals.length === 0 && (plan.drops ?? []).length === 0 && (plan.rewords ?? []).length === 0;
 }
 
 /** The other copy of a doubled moment, when `keepId` is one of a pair the owner can choose between. */

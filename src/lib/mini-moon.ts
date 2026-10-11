@@ -20,3 +20,10 @@ export const MINI_MOON_CONTACT = {
   phone: "(269) 637-6414",
   directoryLabel: "Mini moon",
 } as const;
+
+/** David, 2026-10-11 12:27: "Here is band member Steves info to add. +17346463360". Added like Victoria Resort. */
+export const BAND_CONTACT = {
+  name: "Steve Crossbow",
+  phone: "(734) 646-3360",
+  directoryLabel: "Band",
+} as const;

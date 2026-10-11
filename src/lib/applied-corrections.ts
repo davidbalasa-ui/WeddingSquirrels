@@ -20,9 +20,12 @@ export const correctionKey = {
   contact: (name: string) => `contact:${name}`,
   dayJob: (title: string) => `dayjob:add:${title}`,
   dayJobReword: (title: string) => `dayjob:reword:${title}`,
-  playbookReword: (sourceKey: string) => `playbook:reword:${sourceKey}`,
+  // The first correction kept its original key, so a row already corrected once is not corrected again under it.
+  playbookReword: (sourceKey: string, correction?: string) =>
+    correction && correction !== "time TBD → 4:00 PM" ? `playbook:reword:${sourceKey}:${correction}` : `playbook:reword:${sourceKey}`,
   momentAdd: (seedKey: string) => `timeline:add:${seedKey}`,
   momentReword: (seedKey: string, correction: string) => `timeline:reword:${seedKey}:${correction}`,
+  momentDrop: (seedKey: string, correction: string) => `timeline:drop:${seedKey}:${correction}`,
 };
 
 /** A note filled in, or a card's own note brought up to date: each is its own change. */
@@ -46,7 +49,7 @@ export function pendingTaskCorrections(plan: PrintoutCorrectionsPlan, applied: R
     contacts: plan.contacts.filter((row) => !applied.has(correctionKey.contact(row.name))),
     dayJobs: plan.dayJobs.filter((row) => !applied.has(correctionKey.dayJob(row.title))),
     dayJobRewords: plan.dayJobRewords.filter((row) => !applied.has(correctionKey.dayJobReword(row.title))),
-    playbookRewords: plan.playbookRewords.filter((row) => !applied.has(correctionKey.playbookReword(row.sourceKey))),
+    playbookRewords: plan.playbookRewords.filter((row) => !applied.has(correctionKey.playbookReword(row.sourceKey, row.correction))),
   };
 }
 
@@ -102,7 +105,7 @@ export function taskCorrectionsApplied(plan: PrintoutCorrectionsPlan): { keys: s
     lines.push(`Corrected Day-of job: ${row.title} (${row.correction})`);
   }
   for (const row of plan.playbookRewords) {
-    keys.push(correctionKey.playbookReword(row.sourceKey));
+    keys.push(correctionKey.playbookReword(row.sourceKey, row.correction));
     lines.push(`Corrected Coordinator scope: ${row.title} (${row.correction})`);
   }
   return { keys, lines };
@@ -119,6 +122,10 @@ export function timelineCorrectionsApplied(plan: ReconciledPlan): { keys: string
   for (const row of plan.rewords) {
     keys.push(correctionKey.momentReword(row.seedKey, row.correction));
     lines.push(`Corrected ${row.startAt} ${parseBlockNotes(row.notes).title} (${row.correction})`);
+  }
+  for (const row of plan.drops ?? []) {
+    keys.push(correctionKey.momentDrop(row.seedKey, row.correction));
+    lines.push(`Removed “${row.title}” (${row.correction})`);
   }
   return { keys, lines };
 }

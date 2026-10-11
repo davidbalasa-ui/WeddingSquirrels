@@ -280,6 +280,8 @@ test.describe("stay", () => {
     // The old address hands over to Plan in the browser, which cuts off the first page's prefetches.
     await page.goto("/plan/stay");
     await expect(page).toHaveURL(/\/plan$/);
+    // Let the hand-over page finish its own prefetches, so the reload below does not cut them off under the guards.
+    await page.waitForLoadState("networkidle");
     const guards = attachGuards(page);
     await page.goto("/plan", { waitUntil: "networkidle" });
     await expect(page.locator("#main-content")).toContainText("Shopping");

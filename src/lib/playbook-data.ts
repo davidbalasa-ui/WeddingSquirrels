@@ -1,4 +1,5 @@
 import { prisma, supportsPlaybookItems } from "@/lib/db";
+import { isGrandparentPhoto } from "@/lib/no-grandparent-photos";
 import {
   CANONICAL_PLAYBOOK,
   isPlaybookKind,
@@ -59,5 +60,7 @@ export async function loadPlaybookItems(kind?: PlaybookKind): Promise<PlaybookIt
     return canonical;
   }
 
-  return mergeCanonicalPlaybookWithPersisted(canonical, persisted);
+  return mergeCanonicalPlaybookWithPersisted(canonical, persisted).filter(
+    (row) => !(row.kind === "shot" && isGrandparentPhoto(`${row.title} ${row.notes ?? ""}`)),
+  );
 }

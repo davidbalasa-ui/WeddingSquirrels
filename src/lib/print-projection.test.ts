@@ -26,15 +26,16 @@ import { BLACK_CLOTHES_NOTE, RECONCILED_TIMELINE, reconciledNotes } from "./reco
 test("print projection strips reconstruction language and keeps operational meaning", () => {
   assert.equal(
     professionalizePrintLine("Katie does Haley's hair — confirmed, not DIY"),
-    "Katie — Haley's hairstylist",
+    "Katie Wiewiora — Haley's hairstylist",
   );
   assert.equal(
     professionalizePrintLine("Dance floor opens at 7:00 PM in the glass house (not the older 7:45 PDF time)"),
     "Dance floor opens at 7:00 PM in the glass house",
   );
   assert.equal(
+    // The cake moment carries its own time now (6:05 PM, David 2026-10-11), so the old 6:15 line is dropped.
     professionalizePrintLine("Cake cutting stays at 6:15 with toasts (not the 5:15 if-by-the-bar maybe)"),
-    "Cake cutting at 6:15 PM with toasts",
+    null,
   );
   assert.equal(
     professionalizePrintLine("$1,200 total. Signed January 2026. Week-of remaining balance is a Money fact, not a new Task."),
@@ -129,13 +130,23 @@ test("duplicate MC cues keep the complete spoken version once", () => {
       startAt: "4:00 PM",
       endAt: "5:00 PM",
       notes:
-        'Cocktail Hour\nMC cue 4:55: "Honored guests, cocktail hour is nearing its end."\nMC cue 4:55 PM: "Honored guests, cocktail hour is nearing its end. Please begin making your way to the dinner tables."',
+        'Cocktail Hour\nMC cue 4:55: "Honored guests, please find your seats."\nMC cue 4:55 PM: "Honored guests, please find your seats. Please begin making your way to the dinner tables."',
       schedule: "wedding",
     },
   ]);
   const seating = cues.filter((cue) => /4:55/.test(cue.time ?? ""));
   assert.equal(seating.length, 1);
   assert.match(seating[0]!.spoken, /Please begin making your way/);
+});
+
+// David, 2026-10-11 12:46: the 4:50 last-pour announcement replaces the old 4:55 "nearing its end" cue.
+test("the old 4:55 cocktail-hour cue on a saved row is not read out or printed", () => {
+  const cues = extractMcCues([
+    { startAt: "4:00 PM", endAt: "5:00 PM", notes: 'Cocktail Hour\nMC cue 4:55: "Honored guests, cocktail hour is nearing its end."', schedule: "wedding" },
+    { startAt: "4:50 PM", endAt: null, notes: "Last cocktail pours\nMC cue 4:50 PM: Last cocktail pours, ending in 10 minutes.", schedule: "wedding" },
+    { startAt: "6:00 PM", endAt: "6:15 PM", notes: 'Toasts\nMC cue 6:00: "As dinner winds down, please return to your seats."', schedule: "wedding" },
+  ]);
+  assert.deepEqual(cues.map((cue) => cue.time), ["4:50 PM"]);
 });
 
 test("hair print uses a room key and prints each time once", () => {
@@ -352,7 +363,7 @@ test("coordinator print keeps operational scope and drops architecture notes", (
   );
   assert.match(
     rows.find((row) => /Marriage license/i.test(row.title))?.notes.join(" ") ?? "",
-    /Signing is at 4:00 PM, immediately after the recessional/,
+    /Signing is 3:50–4:00 PM, immediately after the recessional/,
   );
   assert.equal(/Time TBD/.test(blob), false);
 });
