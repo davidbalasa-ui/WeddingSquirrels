@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseBlockNotes } from "./day-of-now";
 import { REHEARSAL_SCHEDULE_SEED } from "./rehearsal";
+import { scheduleLines } from "./schedule-consistency";
 import {
   RECONCILED_RETIRED_SEED_KEYS,
   RECONCILED_TIMELINE,
@@ -239,6 +240,33 @@ test("rehearsal rows typed by hand at the document's times are matched, never do
   assert.equal(planReconciledTimeline(picked).inserts.filter((row) => row.schedule === "rehearsal").length, 0);
 });
 
+// David, 2026-10-11: "269-635-8458 is dans phone number for the get away vehicle".
+test("the getaway moment as the app wrote it on Oct 10 gains Dan’s phone; the open item keeps only meeting him", () => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_getaway_arrives")!;
+  assert.ok(moment.lines.includes("Dan’s phone: (269) 635-8458 (David, Oct 11)."));
+  assert.equal(moment.openItems, "Confirm MOB will meet Dan.");
+  const written = reconciledNotes({
+    ...moment,
+    lines: moment.lines.filter((line) => !line.startsWith("Dan’s phone") && !line.startsWith("John drops off")),
+    openItems: "Confirm MOB will meet Dan and give her his phone number and arrival time.",
+  });
+  const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.map((m, index) => ({
+    id: m.seedKey,
+    seedKey: m.seedKey,
+    schedule: m.schedule,
+    // The app wrote it at 8:20–8:35 PM; David moved it to 8:30 PM on Oct 11.
+    startAt: m === moment ? "8:20 PM" : m.startAt,
+    endAt: m === moment ? "8:35 PM" : m.endAt,
+    notes: m === moment ? written : reconciledNotes(m),
+    sortOrder: index,
+  }));
+  const plan = planReconciledTimeline(rows);
+  assert.equal(plan.rewords.length, 1);
+  assert.equal(plan.rewords[0]!.correction, "Dan’s phone, arrives 8:30 PM");
+  assert.equal(plan.rewords[0]!.startAt, "8:30 PM");
+  assert.equal(plan.rewords[0]!.notes, reconciledNotes(moment));
+});
+
 // David, 2026-10-10: the getaway driver is Dan; the document said San.
 test("a getaway moment still worded as the app wrote it is corrected to Dan by Apply; an edited one stays his", () => {
   const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_getaway_arrives")!;
@@ -252,8 +280,9 @@ test("a getaway moment still worded as the app wrote it is corrected to Dan by A
     id: m.seedKey,
     seedKey: m.seedKey,
     schedule: m.schedule,
-    startAt: m.startAt,
-    endAt: m.endAt,
+    // The app wrote it at 8:20–8:35 PM; David moved it to 8:30 PM on Oct 11.
+    startAt: m === moment ? "8:20 PM" : m.startAt,
+    endAt: m === moment ? "8:35 PM" : m.endAt,
     notes: m === moment ? written : reconciledNotes(m),
     sortOrder: index,
   }));
@@ -446,13 +475,15 @@ test("his evening closures reword the moments the app wrote and close their open
 });
 
 // David, 2026-10-10 22:27: "not sure about the call but precious peony serves out of the food truck".
-test("the 5:00 PM dinner moment says Precious Peony serves from the food truck and asks only who calls tables", () => {
+test("the 5:00 PM dinner moment says Precious Peony serves from the food truck and Avalon releases the tables", () => {
   const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_dinner")!;
   assert.ok(moment.lines.includes("Precious Peony serves out of the food truck (David, Oct 10)."));
-  assert.equal(moment.openItems, "Choose who calls tables.");
+  // David, 2026-10-11 15:13: "Avalon will do it, close it out as she is responsible."
+  assert.ok(moment.lines.includes("Avalon releases the tables and is responsible for it (David, Oct 11)."));
+  assert.equal(moment.openItems, undefined);
   const before = reconciledNotes({
     ...moment,
-    lines: moment.lines.filter((line) => !/food truck/.test(line)),
+    lines: moment.lines.filter((line) => !/food truck|Avalon releases/.test(line)),
     openItems: "Choose who calls tables and confirm how Precious Peony will serve dinner.",
   });
   const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.map((m, index) => ({
@@ -467,6 +498,10 @@ test("the 5:00 PM dinner moment says Precious Peony serves from the food truck a
   const plan = planReconciledTimeline(rows);
   assert.deepEqual(plan.rewords.map((row) => [row.id, row.correction]), [["wedding_dinner", "Precious Peony serves from the food truck"]]);
   assert.equal(planReconciledTimeline(rows.map((row) => (row.id === moment.seedKey ? { ...row, notes: `${before}\nAsk Wendy` } : row))).rewords.length, 0);
+  // The Oct 10 wording, which still asked who calls tables, closes that open line.
+  const oct10 = reconciledNotes({ ...moment, lines: moment.lines.filter((line) => !/Avalon releases/.test(line)), openItems: "Choose who calls tables." });
+  const later = planReconciledTimeline(rows.map((row) => (row.id === moment.seedKey ? { ...row, notes: oct10 } : row)));
+  assert.deepEqual(later.rewords.map((row) => [row.id, row.correction, row.notes]), [["wedding_dinner", "Avalon releases the tables", reconciledNotes(moment)]]);
 });
 
 // David, 2026-10-11 12:33 and 12:46: the bartender line carries one time; cocktail hour ends at 5:00, last pours at 4:50.
@@ -515,4 +550,30 @@ test("the evening re-time: toasts 5:50–6:05 with the MC's cue, cake 6:05, anno
       ["wedding_toasts_cake", "5:50 PM", "toasts 5:50–6:05 PM"],
     ],
   );
+});
+
+// David, 2026-10-11 15:13: "1:30 is the first look with dad, straight into parent photos."
+test("Haley's first look with her dad opens the 1:30 PM parent photos, and the old 1:15 PM line never prints", () => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_haley_family_photos")!;
+  assert.equal(moment.startAt, "1:30 PM");
+  assert.equal(moment.lines[0], "Haley’s first look with her dad, then straight into parent photos (David, Oct 11).");
+  const oct10 = reconciledNotes({ ...moment, lines: ["Haley with parents.", "Haley with mom.", "Haley with dad.", "Haley first look with Dad."] });
+  const rows: ExistingTimelineRow[] = RECONCILED_TIMELINE.map((m, index) => ({
+    id: m.seedKey,
+    seedKey: m.seedKey,
+    schedule: m.schedule,
+    startAt: m.startAt,
+    endAt: m.endAt,
+    notes: m === moment ? oct10 : reconciledNotes(m),
+    sortOrder: index,
+  }));
+  assert.deepEqual(planReconciledTimeline(rows).rewords.map((row) => [row.id, row.correction]), [["wedding_haley_family_photos", "first look with dad at 1:30 PM"]]);
+  assert.deepEqual(scheduleLines(["1:15 PM — Haley first look with Dad", "1:30 PM — bridal portraits"]), ["1:30 PM — bridal portraits"]);
+});
+
+// David, 2026-10-11 15:18: "bonfire time start is 7PM".
+test("the bonfire starts at 7:00 PM on the wedding timeline", () => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_bonfire")!;
+  assert.equal(moment.startAt, "7:00 PM");
+  assert.equal(moment.title, "Bonfire and s’mores");
 });

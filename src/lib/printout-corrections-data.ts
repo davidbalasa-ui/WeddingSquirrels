@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import type { EnrichmentSnapshot } from "@/lib/contact-enrichment";
 import { planPhoneCorrections, type PhoneCorrectionRow, type PhoneWrite } from "@/lib/phone-corrections";
 import { planDayJobRewords, planDayJobs, type DayJobDef, type DayJobReword } from "@/lib/day-job-corrections";
-import { BAND_CONTACT, MINI_MOON_CONTACT } from "@/lib/mini-moon";
+import { BAND_CONTACT, GETAWAY_DRIVER_CONTACT, MINI_MOON_CONTACT } from "@/lib/mini-moon";
 import { planPlaybookRewords, type PlaybookReword } from "@/lib/playbook-corrections";
 import { checkinCarriesBunksNote, reconciledKeyForRow } from "@/lib/reconciled-timeline";
 import { planTaskCorrections, type TaskCorrectionsPlan } from "@/lib/task-corrections";
@@ -66,6 +66,10 @@ export async function loadPrintoutCorrectionsPlan(db: Db = prisma): Promise<Prin
   const contacts = [
     ...(snapshot.contacts.some((row) => /victoria resort/i.test(row.name)) ? [] : [{ ...MINI_MOON_CONTACT }]),
     ...(snapshot.contacts.some((row) => row.name.trim().toLowerCase() === BAND_CONTACT.name.toLowerCase()) ? [] : [{ ...BAND_CONTACT }]),
+    // Dan may already be saved with no number; addContact then fills only the empty number.
+    ...(snapshot.contacts.some((row) => row.name.trim().toLowerCase() === GETAWAY_DRIVER_CONTACT.name.toLowerCase() && row.phone?.trim())
+      ? []
+      : [{ ...GETAWAY_DRIVER_CONTACT }]),
   ];
   return { tasks: planTaskCorrections(tasks, { bunksOnJob }), phones: planPhoneCorrections(snapshot), contacts, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments), playbookRewords: planPlaybookRewords(playbook) };
 }
@@ -97,7 +101,12 @@ export async function writePhone(
 
 /** Adds one contact at the end of the vendors list, inside the caller's transaction. */
 export async function addContact(tx: Pick<typeof prisma, "contact">, row: NewContactRow): Promise<void> {
-  if (await tx.contact.findFirst({ where: { name: { equals: row.name, mode: "insensitive" } } })) return;
+  const saved = await tx.contact.findFirst({ where: { name: { equals: row.name, mode: "insensitive" } } });
+  if (saved) {
+    // A number only where none is saved; one David typed himself stays.
+    if (!saved.phone?.trim()) await tx.contact.updateMany({ where: { id: saved.id, OR: [{ phone: null }, { phone: "" }] }, data: { phone: row.phone } });
+    return;
+  }
   const last = await tx.contact.findFirst({ orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
   await tx.contact.create({
     data: {

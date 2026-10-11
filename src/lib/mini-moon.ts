@@ -27,3 +27,13 @@ export const BAND_CONTACT = {
   phone: "(734) 646-3360",
   directoryLabel: "Band",
 } as const;
+
+/**
+ * David, 2026-10-11 14:44: "269-635-8458 is dans phone number for the get away vehicle".
+ * The getaway is a surprise for Haley, so the Bride's Packet leaves this contact out.
+ */
+export const GETAWAY_DRIVER_CONTACT = {
+  name: "Dan Vandenheede",
+  phone: "(269) 635-8458",
+  directoryLabel: "Getaway vehicle",
+} as const;

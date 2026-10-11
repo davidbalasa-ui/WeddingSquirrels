@@ -216,7 +216,6 @@ const HAIR_MAKEUP: PlaybookRecord[] = [
     key: "hm-1245-retouch",
     startAt: "12:45 PM",
     location: "Black Sheep Shelter",
-    notes: "Get-ready robes: Harmony and Melody still TBD.",
   }),
 ];
 

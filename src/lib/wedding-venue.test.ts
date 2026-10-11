@@ -7,7 +7,7 @@ import { REHEARSAL_SCHEDULE_SEED } from "./rehearsal";
 test("the places come from the plan, with no typing: venue, rehearsal dinner and lodging", () => {
   const places = weddingPlacesFromPlan([]);
   assert.deepEqual(places.venue, { name: "Black Sheep Shelter", address: ["342 62nd St", "South Haven, MI 49090"] });
-  assert.deepEqual(places.rehearsalDinner, { name: "Hawkshead", address: ["523 Hawks Nest Dr", "South Haven, MI"] });
+  assert.deepEqual(places.rehearsalDinner, { name: "Hawkshead", address: ["523 Hawks Nest Dr", "South Haven, MI 49090"] });
   assert.deepEqual(places.lodging, { name: "Airbnb", address: ["10268 51st St", "Grand Junction, MI 49056"] });
   assert.equal(weddingVenueLabel(places), "Black Sheep Shelter · 342 62nd St, South Haven, MI 49090");
 });
@@ -20,7 +20,7 @@ test("an address on a page moment is the one used, so a correction on the page r
   assert.deepEqual(places.rehearsalDinner.address, ["523 Hawks Nest Drive, South Haven"]);
   assert.deepEqual(places.venue.address, ["342 62nd Street", "South Haven, MI 49090"]);
   // A moment that only names the place leaves the address from his documents.
-  assert.deepEqual(weddingPlacesFromPlan([{ notes: "Depart for Hawkshead" }]).rehearsalDinner.address, ["523 Hawks Nest Dr", "South Haven, MI"]);
+  assert.deepEqual(weddingPlacesFromPlan([{ notes: "Depart for Hawkshead" }]).rehearsalDinner.address, ["523 Hawks Nest Dr", "South Haven, MI 49090"]);
 });
 
 test("his reconciled day and the app's first rehearsal rows both give the same three places", () => {

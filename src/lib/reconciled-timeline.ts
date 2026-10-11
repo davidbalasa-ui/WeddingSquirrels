@@ -10,6 +10,7 @@
 import { parseDayOfTime, parsedTimeFields } from "@/lib/day-of-time";
 import { composeBlockNotes, parseBlockNotes } from "@/lib/day-of-now";
 import { REHEARSAL_SCHEDULE_SEED } from "@/lib/rehearsal";
+import { GETAWAY_DRIVER_CONTACT } from "@/lib/mini-moon";
 
 export type TimelinePhase = {
   id: string;
@@ -60,6 +61,16 @@ export const HAWKSHEAD_DRESS_CODE_NOTE =
 /** David, 2026-10-10 22:27, on "Confirm who has check-in access.": "Its not an open item, haley will be getting the access". */
 export const CHECKIN_ACCESS_NOTE = "Haley will be getting the access (David, Oct 10).";
 export const BLACK_CLOTHES_NOTE = "Get ready clothes for the bridal party are black (David, Oct 10).";
+/** David, 2026-10-11: Dan's phone for the getaway vehicle; the same number the contacts print. */
+const GETAWAY_DRIVER_PHONE = GETAWAY_DRIVER_CONTACT.phone;
+/** David, 2026-10-11 15:13: "1:30 is the first look with dad, straight into parent photos." */
+export const HALEY_DAD_FIRST_LOOK = "Haley’s first look with her dad, then straight into parent photos (David, Oct 11).";
+/** David, 2026-10-11 15:13: "Avalon will be releasing tables. she will take care of it ... she is responsible." */
+export const AVALON_RELEASES_TABLES = "Avalon releases the tables and is responsible for it (David, Oct 11).";
+/** David, 2026-10-11 15:13: "john will be dropping off the car, but its going to be with someone else, we just dont know who." */
+/** David, 2026-10-11 15:21: Harmony does not walk in the processional; "she will sit with her mom". */
+export const HARMONY_SITS_WITH_MOM = "Harmony does not walk in the processional; she sits with her mom (David, Oct 11).";
+export const JOHN_DROPS_OFF_CAR = "John drops off the car with someone else, who is not known yet (David, Oct 11).";
 
 const W = "wedding" as const;
 const R = "rehearsal" as const;
@@ -73,7 +84,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
     lines: ["Hair, makeup, clothing, and final items before departure.", "Victoria meets the group at Hawkshead; Braxton meets the group at the reception/rehearsal.", NO_SIGNAL_NOTE],
     openItems: "Confirm whether anyone else will skip the Airbnb arrival window." },
   { seedKey: "reh.depart-airbnb", schedule: R, phase: "rehearsal", startAt: "3:45 PM", endAt: null, title: "Depart for Hawkshead",
-    location: "Hawkshead, 523 Hawks Nest Dr, South Haven, MI", lines: ["Allow 25–30 minutes."] },
+    location: "Hawkshead, 523 Hawks Nest Dr, South Haven, MI 49090", lines: ["Allow 25–30 minutes."] },
   { seedKey: "reh.dinner", schedule: R, phase: "rehearsal", startAt: "4:15 PM", endAt: "5:40 PM", title: "Rehearsal dinner",
     lines: ["Dinner, welcome toasts, reminders, and logistics.", HAWKSHEAD_DRESS_CODE_NOTE] },
   { seedKey: "reh.depart-bss", schedule: R, phase: "rehearsal", startAt: "5:40 PM", endAt: null, title: "Depart for Black Sheep Shelter",
@@ -122,7 +133,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_getting_dressed", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: "1:30 PM", title: "Haley gets dressed",
     lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-veil portrait.", "Children arrive at 1:15 PM."] },
   { seedKey: "wedding_haley_family_photos", schedule: W, phase: "photos", startAt: "1:30 PM", endAt: "1:45 PM", title: "Haley’s family photos",
-    lines: ["Haley with parents.", "Haley with mom.", "Haley with dad.", "Haley first look with Dad."] },
+    lines: [HALEY_DAD_FIRST_LOOK, "Haley with parents.", "Haley with mom.", "Haley with dad."] },
   // David, 2026-10-11 12:29: "At 1:45 pm, have David's first look with the girls".
   { seedKey: "wedding_david_girls_first_look", schedule: W, phase: "photos", startAt: "1:45 PM", endAt: null, title: "David’s first look with the girls",
     lines: [] },
@@ -150,7 +161,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   // Ceremony and cocktail hour
   // David, 2026-10-11 12:31: "Change the ceremony to 3:30 to 3:50 and the signing will be [3:50] to 4:00".
   { seedKey: "wedding_ceremony", schedule: W, phase: "ceremony", startAt: "3:30 PM", endAt: "3:50 PM", title: "Ceremony",
-    location: "Under the shelter", lines: [] },
+    location: "Under the shelter", lines: [HARMONY_SITS_WITH_MOM] },
   { seedKey: "wedding_license_signing", schedule: W, phase: "ceremony", startAt: "3:50 PM", endAt: "4:00 PM", title: "Sign the marriage license",
     lines: ["Immediately after the recessional.", "David, Haley, Marie, and the witnesses move directly to the signing table.", "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen."] },
   // David, 2026-10-11 12:46: "Cocktail hour ends at 5."
@@ -172,8 +183,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
 
   // Dinner, dances and evening
   { seedKey: "wedding_dinner", schedule: W, phase: "evening", startAt: "5:00 PM", endAt: null, title: "Grand entrance and dinner begins",
-    lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Once David and Haley have food, tables are called up.", "Precious Peony serves out of the food truck (David, Oct 10)."],
-    openItems: "Choose who calls tables." },
+    lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Once David and Haley have food, tables are called up.", "Precious Peony serves out of the food truck (David, Oct 10).", AVALON_RELEASES_TABLES] },
   { seedKey: "wedding_dinner_service", schedule: W, phase: "evening", startAt: "5:00 PM", endAt: "6:00 PM", title: "Dinner service",
     lines: ["Guests eat while the couple circulates only as time permits.", "Prepare toast speakers near the end of dinner."] },
   // David, 2026-10-11 12:44: "we just need to start toasts 10 minutes earlier ... And then 6:15 will work for the dance announcement."
@@ -195,15 +205,20 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_golden_hour", schedule: W, phase: "evening", startAt: "6:23 PM", endAt: "7:18 PM", title: "Golden-hour photos",
     lines: ["Golden hour in South Haven is about 6:23–7:18 PM.", "Sunset is approximately 7:01 PM.", "Plan for outdoor photos from 6:45–6:55 PM."],
     openItems: "Ask Barry to confirm the best 10 minutes for outdoor photos." },
+  // David, 2026-10-11 15:18: "bonfire time start is 7PM".
+  // 15:21: "smores are at 7".
+  { seedKey: "wedding_bonfire", schedule: W, phase: "evening", startAt: "7:00 PM", endAt: null, title: "Bonfire and s’mores",
+    lines: [] },
   { seedKey: "wedding_open_dancing", schedule: W, phase: "evening", startAt: "7:00 PM", endAt: "8:00 PM", title: "Open dancing",
     lines: ["Dance floor opens and the couple stays on the floor as much as possible."] },
   { seedKey: "wedding_children_ready", schedule: W, phase: "evening", startAt: "8:00 PM", endAt: null, title: "Goodbyes to the kids and goodbye song",
     lines: ["We say our goodbyes to the kids and have a goodbye song (David, Oct 10).", "Parents gather belongings and prepare children to leave."] },
   { seedKey: "wedding_music_change", schedule: W, phase: "evening", startAt: "8:15 PM", endAt: null, title: "Music change",
     lines: ["Shift to the later-evening music plan."] },
-  { seedKey: "wedding_getaway_arrives", schedule: W, phase: "evening", startAt: "8:20 PM", endAt: "8:35 PM", title: "Getaway vehicle arrives",
-    lines: ["MOB or another helper meets Dan Vandenheede.", "Show Dan where to park, give him the “Just Married” sign, and tell the groom.", "Keep the vehicle details secret from the bride."],
-    openItems: "Confirm MOB will meet Dan and give her his phone number and arrival time." },
+  // David, 2026-10-11 15:25: Dan arrives at 8:30; the moment reads 8:30 PM ("yes").
+  { seedKey: "wedding_getaway_arrives", schedule: W, phase: "evening", startAt: "8:30 PM", endAt: null, title: "Getaway vehicle arrives",
+    lines: ["MOB or another helper meets Dan Vandenheede.", "Show Dan where to park, give him the “Just Married” sign, and tell the groom.", "Keep the vehicle details secret from the bride.", `Dan’s phone: ${GETAWAY_DRIVER_PHONE} (David, Oct 11).`, JOHN_DROPS_OFF_CAR],
+    openItems: "Confirm MOB will meet Dan." },
   { seedKey: "wedding_dollar_dance", schedule: W, phase: "evening", startAt: "8:30 PM", endAt: "8:40 PM", title: "Dollar dance",
     lines: ["MC announces the dollar dance.", "Barry photographs the dance."] },
   { seedKey: "wedding_getaway_photos", schedule: W, phase: "evening", startAt: "8:40 PM", endAt: "8:50 PM", title: "Getaway vehicle photos",
@@ -298,7 +313,11 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
   ],
   "reh.dinner": [{ lines: ["Dinner, welcome toasts, reminders, and logistics."], correction: "Hawkshead dress code" }],
   // The places source spells it one way (wedding-venue.ts); every printout now matches.
-  "reh.depart-airbnb": [{ location: "Hawkshead, 523 Hawks Nest Drive, South Haven", correction: "one Hawkshead address" }],
+  "reh.depart-airbnb": [
+    { location: "Hawkshead, 523 Hawks Nest Drive, South Haven", correction: "one Hawkshead address" },
+    // David, 2026-10-11 15:21: "[Hawk's Head's ZIP code] you have this or could look it up." 49090.
+    { location: "Hawkshead, 523 Hawks Nest Dr, South Haven, MI", correction: "Hawkshead ZIP 49090" },
+  ],
   "reh.return": [{ lines: ["Steam dresses and suits.", "Dessert and game night."], correction: "dessert most likely at the Airbnb" }],
   wedding_party_leaves: [
     {
@@ -362,7 +381,11 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
     },
   ],
   // David, 2026-10-11 12:31: ceremony 3:30–3:50 PM, signing 3:50–4:00 PM, cocktail hour at 4:00 PM.
-  wedding_ceremony: [{ endAt: "4:00 PM", correction: "ceremony ends 3:50 PM" }],
+  wedding_ceremony: [
+    { endAt: "4:00 PM", lines: [], correction: "ceremony ends 3:50 PM" },
+    // David, 2026-10-11 15:21: "[Does Harmony walk in the processional?] no, she will sit with her mom."
+    { lines: [], correction: "Harmony sits with her mom" },
+  ],
   wedding_license_signing: [{ startAt: "4:00 PM", endAt: null, correction: "signing 3:50–4:00 PM" }],
   // The app's first wording asked about grandparent photos; David never asked for them (2026-10-11 12:31).
   wedding_david_photos: [
@@ -374,6 +397,12 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
   ],
   // David, 2026-10-10 22:27: "not sure about the call but precious peony serves out of the food truck".
   wedding_dinner: [
+    // David, 2026-10-11 15:13: Avalon releases the tables.
+    {
+      lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Once David and Haley have food, tables are called up.", "Precious Peony serves out of the food truck (David, Oct 10)."],
+      openItems: "Choose who calls tables.",
+      correction: "Avalon releases the tables",
+    },
     {
       lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Once David and Haley have food, tables are called up."],
       openItems: "Choose who calls tables and confirm how Precious Peony will serve dinner.",
@@ -421,12 +450,29 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
       correction: "black get ready clothes",
     },
   ],
+  // David, 2026-10-11 15:13: Haley's first look with her dad opens the 1:30 parent photos.
+  wedding_haley_family_photos: [
+    {
+      lines: ["Haley with parents.", "Haley with mom.", "Haley with dad.", "Haley first look with Dad."],
+      correction: "first look with dad at 1:30 PM",
+    },
+  ],
   // David, 2026-10-10: the driver is Dan, not San (the document had it wrong).
   wedding_getaway_arrives: [
     {
       lines: ["MOB or another helper meets San Vandenheede.", "Show San where to park, give him the “Just Married” sign, and tell the groom.", "Keep the vehicle details secret from the bride."],
       openItems: "Confirm MOB will meet San and give her his phone number and arrival time.",
+      startAt: "8:20 PM",
+      endAt: "8:35 PM",
       correction: "San → Dan",
+    },
+    // David, 2026-10-11: "269-635-8458 is dans phone number for the get away vehicle".
+    {
+      lines: ["MOB or another helper meets Dan Vandenheede.", "Show Dan where to park, give him the “Just Married” sign, and tell the groom.", "Keep the vehicle details secret from the bride."],
+      openItems: "Confirm MOB will meet Dan and give her his phone number and arrival time.",
+      startAt: "8:20 PM",
+      endAt: "8:35 PM",
+      correction: "Dan’s phone, arrives 8:30 PM",
     },
   ],
 };
