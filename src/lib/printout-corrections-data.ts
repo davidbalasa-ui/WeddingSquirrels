@@ -81,7 +81,7 @@ export async function loadPrintoutCorrectionsPlan(db: Db = prisma): Promise<Prin
     ...FAMILY_CONTACTS.flatMap((family) => {
       const saved = snapshot.contacts.filter((row) => row.name.trim().toLowerCase() === family.name.toLowerCase());
       if (saved.some((row) => row.isDayOfContact && (row.phone?.trim() || !family.phone))) return [];
-      // John's and Pam's numbers come through the phone corrections; Shelly's is the one on her own guest record.
+      // John's and Pam's numbers come through the phone corrections; with none from David, the one on the person's own guest record.
       const phone = family.phone ?? savedGuestPhone(snapshot, family.name) ?? "";
       if (!phone && !saved.length && !phoneCreates.has(family.name.toLowerCase())) return [];
       return [{ name: family.name, phone, directoryLabel: family.role, dayOf: true }];
