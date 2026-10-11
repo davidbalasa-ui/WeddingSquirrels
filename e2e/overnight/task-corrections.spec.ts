@@ -77,6 +77,9 @@ test("Apply adds the dated jobs once and ticks only the marked steps", async ({ 
   await card.getByRole("button", { name: "Apply to tasks" }).click();
   await reloaded;
   await expect(page.getByTestId("task-corrections-card")).toHaveCount(0);
+  // David, 2026-10-11 18:51: Shelly's number fills her saved day-of contact, which had none.
+  const shelly = await prisma.contact.findFirstOrThrow({ where: { name: "Shelly Wiewiora" } });
+  expect([shelly.phone, shelly.isDayOfContact]).toEqual(["(231) 903-8127", true]);
 
   for (const def of NEW_TASKS) {
     const rows = await prisma.task.findMany({ where: { title: def.title } });

@@ -22,6 +22,7 @@ test("David's numbers for family and helpers, as he sent them", () => {
   assert.equal(phone("Denise"), "2317403616");
   assert.equal(phone("Lisa"), "2317404390");
   assert.equal(phone("Bryan Balasa"), "2694753495");
+  assert.equal(phone("Shelly Wiewiora"), "2319038127");
   // John's and Pam's numbers are saved by the phone corrections, which wait for David's pick on a clash.
   assert.equal(FAMILY_CONTACTS.find((row) => row.name === "John Wiewiora")?.phone, null);
 });

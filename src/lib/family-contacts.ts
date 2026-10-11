@@ -13,8 +13,8 @@ export type FamilyContact = { name: string; role: string; phone: string | null }
 export const FAMILY_CONTACTS: FamilyContact[] = [
   { name: "John Wiewiora", role: "Father of the Bride", phone: null },
   { name: "Pam Balasa", role: "Mother of the Groom", phone: null },
-  // Her number is not in anything David sent; the app uses the one already saved on her own guest record, if any.
-  { name: "Shelly Wiewiora", role: "Mother of the Bride", phone: null },
+  // David, 2026-10-11 18:51: "You didn't add Shelly's phone number to the contacts. 2319038127".
+  { name: "Shelly Wiewiora", role: "Mother of the Bride", phone: "(231) 903-8127" },
   { name: "Bryan Balasa", role: "Father of the Groom", phone: "(269) 475-3495" },
   { name: "Denise", role: "Helper", phone: "(231) 740-3616" },
   { name: "Lisa", role: "Helper", phone: "(231) 740-4390" },
