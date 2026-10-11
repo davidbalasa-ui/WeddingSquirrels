@@ -8,10 +8,18 @@ test("the license signing gets its 4:00 PM time while the row reads as the app w
   const [row] = planPlaybookRewords([{ id: "p1", sourceKey: "avalon-license", title: "Marriage license signing", notes: OLD }]);
   assert.equal(row?.before, OLD);
   assert.equal(row?.correction, "time TBD → 4:00 PM");
-  assert.equal(row?.notes, "Avalon is contracted to assist. Signing is at 4:00 PM, immediately after the recessional.");
+  assert.equal(row?.notes, "Avalon is contracted to assist. Signing is 3:50–4:00 PM, immediately after the recessional.");
 });
 
 test("a license note David changed is left alone", () => {
   assert.deepEqual(planPlaybookRewords([{ id: "p1", sourceKey: "avalon-license", title: "Marriage license signing", notes: "Ask Avalon" }]), []);
   assert.deepEqual(planPlaybookRewords([{ id: "p1", sourceKey: "avalon-license", title: "Marriage license signing", notes: null }]), []);
+});
+
+// David, 2026-10-11 12:31: "the signing will be [3:50] to 4:00".
+test("the 4:00 PM signing note becomes 3:50–4:00 PM while it reads as the app wrote it", () => {
+  const was = "Avalon is contracted to assist. Signing is at 4:00 PM, immediately after the recessional.";
+  const [row] = planPlaybookRewords([{ id: "p1", sourceKey: "avalon-license", title: "Marriage license signing", notes: was }]);
+  assert.equal(row?.correction, "signing 3:50–4:00 PM");
+  assert.equal(row?.notes, "Avalon is contracted to assist. Signing is 3:50–4:00 PM, immediately after the recessional.");
 });

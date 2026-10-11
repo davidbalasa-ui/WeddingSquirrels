@@ -103,10 +103,10 @@ test("MC extraction uses canonical note cues and does not invent Kurt contact da
   assert.deepEqual(times, [
     "3:25 PM",
     "4:00 PM",
-    "4:55 PM",
+    // The 4:55 "nearing its end" cue was replaced by David's 4:50 last pour, and the
+    // 6:00 toasts cue moved to 5:50 on the timeline itself (2026-10-11).
     "5:00 PM",
     "Immediately after 5:00 PM entrance",
-    "6:00 PM",
     "6:15 PM",
     "6:30 PM",
     "7:00 PM",

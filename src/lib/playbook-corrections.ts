@@ -14,6 +14,12 @@ const EARLIER_PLAYBOOK_NOTES: Array<{ sourceKey: string; notes: string; correcti
     notes: "Avalon is contracted to assist. Exact timing (before ceremony vs 4:00 PM) is still TBD.",
     correction: "time TBD → 4:00 PM",
   },
+  {
+    // David, 2026-10-11 12:31: "the signing will be [3:50] to 4:00".
+    sourceKey: "avalon-license",
+    notes: "Avalon is contracted to assist. Signing is at 4:00 PM, immediately after the recessional.",
+    correction: "signing 3:50–4:00 PM",
+  },
 ];
 
 export function planPlaybookRewords(

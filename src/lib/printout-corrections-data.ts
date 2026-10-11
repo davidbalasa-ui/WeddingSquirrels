@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import type { EnrichmentSnapshot } from "@/lib/contact-enrichment";
 import { planPhoneCorrections, type PhoneCorrectionRow, type PhoneWrite } from "@/lib/phone-corrections";
 import { planDayJobRewords, planDayJobs, type DayJobDef, type DayJobReword } from "@/lib/day-job-corrections";
-import { MINI_MOON_CONTACT } from "@/lib/mini-moon";
+import { BAND_CONTACT, MINI_MOON_CONTACT } from "@/lib/mini-moon";
 import { planPlaybookRewords, type PlaybookReword } from "@/lib/playbook-corrections";
 import { checkinCarriesBunksNote, reconciledKeyForRow } from "@/lib/reconciled-timeline";
 import { planTaskCorrections, type TaskCorrectionsPlan } from "@/lib/task-corrections";
@@ -63,7 +63,10 @@ export async function loadPrintoutCorrectionsPlan(db: Db = prisma): Promise<Prin
   const checkins = rehearsal.filter((row) => reconciledKeyForRow(row) === "reh.checkin");
   const checkin = checkins.find((row) => row.seedKey) ?? checkins[0];
   const bunksOnJob = checkin != null && !checkinCarriesBunksNote(checkin.notes);
-  const contacts = snapshot.contacts.some((row) => /victoria resort/i.test(row.name)) ? [] : [{ ...MINI_MOON_CONTACT }];
+  const contacts = [
+    ...(snapshot.contacts.some((row) => /victoria resort/i.test(row.name)) ? [] : [{ ...MINI_MOON_CONTACT }]),
+    ...(snapshot.contacts.some((row) => row.name.trim().toLowerCase() === BAND_CONTACT.name.toLowerCase()) ? [] : [{ ...BAND_CONTACT }]),
+  ];
   return { tasks: planTaskCorrections(tasks, { bunksOnJob }), phones: planPhoneCorrections(snapshot), contacts, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments), playbookRewords: planPlaybookRewords(playbook) };
 }
 

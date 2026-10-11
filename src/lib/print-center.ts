@@ -1,3 +1,4 @@
+import { isReplacedMcCue } from "./no-grandparent-photos";
 import { weddingPlacesFromPlan } from "@/lib/wedding-venue";
 import { parseBlockNotes } from "@/lib/day-of-now";
 import { compareParsedTimes, parseDayOfTime, parseTimelineSchedule } from "@/lib/day-of-time";
@@ -620,6 +621,7 @@ export function extractMcCues(
         musicItems.push(music);
         continue;
       }
+      if (isReplacedMcCue(line)) continue;
       const cue = parseCueLine(line, parsed.title);
       if (cue) blockCues.push(cue);
     }

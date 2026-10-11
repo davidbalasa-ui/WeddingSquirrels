@@ -1,3 +1,4 @@
+import { isGrandparentPhoto } from "./no-grandparent-photos";
 import { parseBlockNotes } from "@/lib/day-of-now";
 import { parseDayOfTime } from "@/lib/day-of-time";
 import { parseRsvpStatus } from "@/lib/guest-gifts";
@@ -126,7 +127,7 @@ const SHOT_SECTION_LABELS: Record<string, string> = {
 
 export function professionalizePrintLine(raw: string): string | null {
   let line = raw.replace(/\s+/g, " ").trim();
-  if (!line) return null;
+  if (!line || isGrandparentPhoto(line)) return null;
 
   if (/money fact/i.test(line) && /not a new task/i.test(line)) {
     line = line
@@ -137,10 +138,10 @@ export function professionalizePrintLine(raw: string): string | null {
   }
 
   if (/katie/i.test(line) && /haley'?s hair/i.test(line) && /(not diy|confirmed)/i.test(line)) {
-    return "Katie — Haley's hairstylist";
+    return "Katie Wiewiora — Haley's hairstylist";
   }
   if (/katie is confirmed for haley'?s hair/i.test(line) || /do not treat this as diy/i.test(line)) {
-    return /katie/i.test(line) ? "Katie — Haley's hairstylist" : null;
+    return /katie/i.test(line) ? "Katie Wiewiora — Haley's hairstylist" : null;
   }
 
   if (
@@ -172,7 +173,8 @@ export function professionalizePrintLine(raw: string): string | null {
   line = line.replace(/\bnot a new task\.?/gi, "");
   line = line.replace(/\s*\(\s*see hair & makeup page\s*\)/gi, "");
   line = line.replace(/\s*see hair & makeup page\b/gi, "");
-  line = line.replace(/\bcake cutting stays at 6:15 with toasts\b/gi, "Cake cutting at 6:15 PM with toasts");
+  // The app's old 6:15 cake line; the cake moment carries its own time (6:05 PM since David, 2026-10-11).
+  if (/\bcake cutting stays at 6:15\b/i.test(line)) return null;
   line = line.replace(/\bdance floor opens at 7:00 pm in the glass house\b/gi, "Dance floor opens at 7:00 PM in the glass house");
 
   if (

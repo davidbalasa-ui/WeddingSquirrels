@@ -1,4 +1,4 @@
-import { rehearsalRowsToPrint } from "@/lib/reconciled-timeline";
+import { rehearsalRowsToPrint, weddingRowsToPrint } from "@/lib/reconciled-timeline";
 import { loadAppSettings, prisma } from "@/lib/db";
 import { canSeeDinnerTab } from "@/lib/access";
 import { collectDayOfContactInputs, guestPhoneByPersonId } from "@/lib/day-of";
@@ -238,7 +238,7 @@ export async function loadPrintCenterDocument(
     ? formatPrintWeddingDate(settings.weddingDate, timezone)
     : "Friday, October 16, 2026";
 
-  const weddingSorted = sortTimelineBlocks(weddingBlocks);
+  const weddingSorted = sortTimelineBlocks(weddingRowsToPrint(weddingBlocks));
   // A Thursday moment on his page twice (his older short row beside the document's full one) prints once.
   const rehearsalSorted = sortTimelineBlocks(rehearsalRowsToPrint(rehearsalBlocks));
   const dayOfInputs = collectDayOfContactInputs({

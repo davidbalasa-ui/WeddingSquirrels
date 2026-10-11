@@ -107,6 +107,8 @@ async function writeTimelineCorrections(tx: Tx, plan: ReconciledPlan, removals: 
   if (removals) {
     for (const row of plan.removals) await tx.timelineBlock.delete({ where: { id: row.id } });
   }
+  // A retired moment David asked to have taken off, only while it still reads exactly as the app wrote it.
+  for (const row of plan.drops ?? []) await tx.timelineBlock.deleteMany({ where: { id: row.id, notes: row.notes } });
   for (const data of plan.inserts) await tx.timelineBlock.create({ data });
   // Only rows still worded exactly as the app wrote them; the owner's own wording is never touched.
   for (const { id, before: _before, sortOrder: _sortOrder, correction: _correction, ...data } of plan.rewords) {

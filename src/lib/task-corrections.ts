@@ -23,6 +23,8 @@ const HARMONY_MELODY_NOTE_14_45 =
 const HARMONY_MELODY_NOTE_16_33 = `${HARMONY_MELODY_NOTE_14_45} Kids stay at 1:15 for now (David, Oct 10).`;
 /** 22:27, David: "arrive at 1:15, first look photos will need to fit with family photos maybe". */
 const HARMONY_MELODY_NOTE = `${HARMONY_MELODY_NOTE_16_33} They arrive at 1:15; first look photos will need to fit with family photos maybe (David, Oct 10).`;
+/** 2026-10-11 12:29, David: "At 1:45 pm, have David's first look with the girls". */
+const HARMONY_MELODY_NOTE_OCT_11 = `${HARMONY_MELODY_NOTE} David’s first look with the girls is at 1:45 PM (David, Oct 11).`;
 /** Card 3's dinnerware and $800 notes as it first wrote them; David's 22:27 answers follow them. */
 const DINNERWARE_NOTE_14_45 =
   "Four sets and $150 were mentioned; clarify what the $150 covers. Black Sheep is paid except for the refundable dinnerware payment.";
@@ -118,7 +120,7 @@ export const NEW_TASKS: NewTaskDef[] = [
   { title: "Pack and label supplies by table" },
   {
     title: "Harmony and Melody’s schedule: discuss with Avalon",
-    summary: HARMONY_MELODY_NOTE,
+    summary: HARMONY_MELODY_NOTE_OCT_11,
   },
 ];
 
@@ -188,8 +190,9 @@ export const NOTE_FILLS: Array<{ title: string; summary: string }> = [
  * job's note still reads exactly as the card first wrote it.
  */
 export const NOTE_REWORDS: Array<{ title: string; before: string; summary: string }> = [
-  { title: "Harmony and Melody’s schedule: discuss with Avalon", before: HARMONY_MELODY_NOTE_14_45, summary: HARMONY_MELODY_NOTE },
-  { title: "Harmony and Melody’s schedule: discuss with Avalon", before: HARMONY_MELODY_NOTE_16_33, summary: HARMONY_MELODY_NOTE },
+  { title: "Harmony and Melody’s schedule: discuss with Avalon", before: HARMONY_MELODY_NOTE_14_45, summary: HARMONY_MELODY_NOTE_OCT_11 },
+  { title: "Harmony and Melody’s schedule: discuss with Avalon", before: HARMONY_MELODY_NOTE_16_33, summary: HARMONY_MELODY_NOTE_OCT_11 },
+  { title: "Harmony and Melody’s schedule: discuss with Avalon", before: HARMONY_MELODY_NOTE, summary: HARMONY_MELODY_NOTE_OCT_11 },
   { title: "Confirm/pay the dinnerware amount", before: DINNERWARE_NOTE_14_45, summary: `${DINNERWARE_NOTE_14_45} Need to send (David, Oct 10).` },
   { title: "Set aside the $800 payment discussed", before: SET_ASIDE_NOTE_14_45, summary: `${SET_ASIDE_NOTE_14_45} Need to find (David, Oct 10).` },
 ];

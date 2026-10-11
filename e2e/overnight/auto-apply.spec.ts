@@ -171,3 +171,31 @@ test("the bunks note lands on Thursday's check-in moment, or on the sleeping job
   expect((await prisma.task.findUniqueOrThrow({ where: { id: sleeping2.id } })).summary).toBe(BUNKS_NOTE_ON_JOB.summary);
   await context.close();
 });
+
+// David, 2026-10-11 12:31: "I never asked for pictures of grandparents and I keep telling you to remove them."
+test("the old 4:05 family photos with the grandparents come off on the first page load and print nowhere", async ({ browser }) => {
+  await resetOvernightData(prisma);
+  await restoreTasks?.();
+  const notes = [
+    "Family photos after the ceremony",
+    "Haley with Grandma; Haley with Grandpa; Haley with grandparents.",
+    "Couple with grandparents.",
+    "Couple with Haley’s paternal side of the family.",
+    "Couple with Haley’s maternal side of the family.",
+    "Open items: Tell the grandparents and extended family to stay near the ceremony area, and choose someone to gather them.",
+  ].join("\n");
+  const row = await prisma.timelineBlock.create({
+    data: { seedKey: "wedding_family_photos_after", schedule: "wedding", startAt: "4:05 PM", endAt: "4:30 PM", notes, sortOrder: 999 },
+  });
+  const context = await freshMaster(browser);
+  const page = await context.newPage();
+  await page.goto("/today");
+  const applied = page.getByTestId("auto-applied");
+  await applied.getByRole("button", { name: /Show all \d+/ }).click({ timeout: 30_000 });
+  await expect(applied).toContainText("Removed “Family photos after the ceremony” (no grandparent photos)");
+  expect(await prisma.timelineBlock.findUnique({ where: { id: row.id } })).toBeNull();
+  await page.goto("/day/shots");
+  await expect(page.locator("main")).toContainText("Bride with parents");
+  expect(await page.locator("main").innerText()).not.toMatch(/grand ?(?:ma|pa|parent)/i);
+  await context.close();
+});
