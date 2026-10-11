@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { RECONCILED_TIMELINE, reconciledNotes } from "../../src/lib/reconciled-timeline";
+import { parsedTimeFields } from "../../src/lib/day-of-time";
 import { expect, test } from "@playwright/test";
 import { overnightPrisma, resetOvernightData } from "./db";
 import { PACKETS, attachGuards, expectNoSidewaysScroll, openPacket } from "./helpers";
@@ -204,4 +205,62 @@ test("the shot list prints the bride with her tiara, never with a veil", async (
   const text = await openPacket(page, "photo");
   expect(text).toContain("Bride with tiara");
   expect(text).not.toMatch(/bride[- ]with[- ]veil/i);
+});
+
+// David, 2026-10-11 16:00: "David will give the gifts to the girls at 1:45 during first look with the girls".
+// 16:01: "remove the 2 pm line about denise and lise picking up the cake from the air BNB. Braxton is responsible to
+// bring the cake from the air bnb to the venue the night before. cake arrives at black sheep thursday at 7pm."
+// 16:03: "make sure the 2-230 time frame also doesnt have the cake reference anymore".
+test("the girls' gifts print at 1:45, the cake arrives Thursday at 7:00 with Braxton, and Friday 2:00–2:30 has no cake", async ({ page }) => {
+  const prisma = overnightPrisma();
+  const created: string[] = [];
+  const restore: Array<{ id: string; notes: string }> = [];
+  const place = async (seedKey: string) => {
+    const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === seedKey)!;
+    const row = await prisma.timelineBlock.findUnique({ where: { seedKey } });
+    if (row) {
+      restore.push({ id: row.id, notes: row.notes });
+      await prisma.timelineBlock.update({ where: { id: row.id }, data: { notes: reconciledNotes(moment) } });
+    } else {
+      const added = await prisma.timelineBlock.create({
+        data: {
+          seedKey,
+          schedule: moment.schedule,
+          startAt: moment.startAt,
+          endAt: moment.endAt,
+          notes: reconciledNotes(moment),
+          sortOrder: 9000,
+          ...parsedTimeFields(moment.startAt, moment.endAt),
+        },
+      });
+      created.push(added.id);
+    }
+  };
+  await place("wedding_david_girls_first_look");
+  await place("reh.cake-arrives");
+  // An older saved Friday row still carrying the app's cake line, and a job David's data may still hold.
+  const two = await prisma.timelineBlock.findUniqueOrThrow({ where: { seedKey: "wedding_first_look" } });
+  restore.push({ id: two.id, notes: two.notes });
+  await prisma.timelineBlock.update({
+    where: { id: two.id },
+    data: { notes: `${two.notes}\n2:00 PM — Denise and Lisa pick up cake at Airbnb; 2:30 PM arrive at BSS (fridge by suites)` },
+  });
+  const job = await prisma.dayAssignment.create({
+    data: { title: "Denise and Lisa pick up the cake from the Airbnb", notes: "2:00 PM · Cake pickup", sortOrder: 9999 },
+  });
+  try {
+    const text = await openPacket(page, "binder");
+    expect(text).toContain("David gives the girls their gifts during the first look (David, Oct 11).");
+    expect(text).toContain("Cake arrives at Black Sheep Shelter");
+    expect(text).toContain("Braxton brings the cake from the Airbnb to Black Sheep Shelter (David, Oct 11).");
+    expect(text).not.toMatch(/Denise and Lisa pick up/i);
+    expect(text).not.toMatch(/fridge by suites/i);
+    await page.goto("/day/assignments");
+    await expect(page.getByText("Denise and Lisa pick up the cake from the Airbnb")).toHaveCount(0);
+  } finally {
+    await prisma.dayAssignment.delete({ where: { id: job.id } });
+    for (const row of restore) await prisma.timelineBlock.update({ where: { id: row.id }, data: { notes: row.notes } });
+    if (created.length) await prisma.timelineBlock.deleteMany({ where: { id: { in: created } } });
+    await prisma.$disconnect();
+  }
 });

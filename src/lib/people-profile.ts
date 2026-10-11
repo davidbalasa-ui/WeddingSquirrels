@@ -31,6 +31,7 @@ import { countOpenActionableTasks, dueLabel, listAssignedTasksForPerson } from "
 import type { SessionAccount } from "@/lib/types";
 import { STAY_SECTIONS } from "@/lib/stay";
 import { placeAddressLines } from "@/lib/wedding-venue";
+import { withoutRemovedJobs } from "@/lib/no-grandparent-photos";
 
 export type ProfileTaskRow = {
   id: string;
@@ -260,7 +261,7 @@ export async function loadPeopleProfile(
       ? prisma.dayAssignment.findMany({
           include: { assignees: { include: { person: { select: { id: true, name: true } } } } },
           orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
-        })
+        }).then(withoutRemovedJobs)
       : Promise.resolve([]),
     session.canSeeBudget
       ? prisma.budgetItem.findMany({

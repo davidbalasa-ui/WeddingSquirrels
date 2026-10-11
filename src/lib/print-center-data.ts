@@ -43,6 +43,7 @@ import {
 } from "@/lib/print-center";
 import { taskVisibilityWhere } from "@/lib/tasks";
 import type { SessionAccount } from "@/lib/types";
+import { withoutRemovedJobs } from "@/lib/no-grandparent-photos";
 
 function availableForSession(session: SessionAccount): PrintSectionId[] {
   const dinner = session.isMaster || canSeeDinnerTab(session);
@@ -161,7 +162,7 @@ export async function loadPrintCenterDocument(
       ? prisma.dayAssignment.findMany({
           include: { assignees: { include: { person: { select: { name: true } } } } },
           orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
-        })
+        }).then(withoutRemovedJobs)
       : Promise.resolve([]),
     peopleOn
       ? prisma.person.findMany({

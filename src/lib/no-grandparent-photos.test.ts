@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { reviewMoment } from "./day-timeline-view";
-import { isGrandparentPhoto } from "./no-grandparent-photos";
+import { isGrandparentPhoto, isRemovedCakePickup, withoutRemovedJobs } from "./no-grandparent-photos";
 import { CANONICAL_PLAYBOOK } from "./playbook";
 import { momentPrintRow, packetSchedule } from "./print-packets";
 import { professionalizePrintLine } from "./print-projection";
@@ -91,4 +91,20 @@ test("a grandparent photo line saved on an older row never prints, in any packet
   assert.equal(professionalizePrintLine("Bride with Grandma"), null);
   // A line that only mentions family without photos is his, and stays.
   assert.equal(isGrandparentPhoto("Mom sits in the front row."), false);
+});
+
+// David, 2026-10-11 16:01 and 16:03: no cake pickup by Denise and Lisa, nothing about the cake at 2:00–2:30.
+test("the Friday cake pickup never shows as a line or a job; Braxton's Thursday cake line does", () => {
+  assert.equal(isRemovedCakePickup("2:00 PM — Denise and Lisa pick up cake at Airbnb; 2:30 PM arrive at BSS (fridge by suites)"), true);
+  assert.equal(isRemovedCakePickup("2:00 PM — Denise and Lisa pick up cake at Airbnb"), true);
+  assert.equal(isRemovedCakePickup("2:30 PM arrive at BSS (fridge by suites)"), true);
+  assert.equal(isRemovedCakePickup("Braxton brings the cake from the Airbnb to Black Sheep Shelter (David, Oct 11)."), false);
+  assert.equal(isRemovedCakePickup("Cake placed in center and desserts rotated around on the glass plates on small plates (David, Oct 10)."), false);
+  assert.equal(isRemovedCakePickup("12:00 PM — cake topper"), false);
+  const jobs = [
+    { title: "Denise and Lisa pick up the cake from the Airbnb", notes: "2:00 PM · Cake pickup" },
+    { title: "Cake arrives at BSS; fridge by the suites", notes: "2:30 PM · Cake arrival" },
+    { title: "Wendy is in charge of teardown.", notes: "10:00 PM · Tear down and cleanup" },
+  ];
+  assert.deepEqual(withoutRemovedJobs(jobs).map((job) => job.title), ["Wendy is in charge of teardown."]);
 });

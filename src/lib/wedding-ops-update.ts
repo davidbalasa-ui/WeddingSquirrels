@@ -241,7 +241,6 @@ const TIMELINE_ADD_LINES: Record<string, string[]> = {
     "2:00 PM — Haley and David first look",
     "2:15 PM — couple portraits",
     "2:15 PM — Harmony and Melody ready; Skila helps hair and makeup",
-    "2:00 PM — Denise and Lisa pick up cake at Airbnb; 2:30 PM arrive at BSS (fridge by suites)",
     "2:30 PM — immediate family portraits",
     "2:45 PM — bridal party photos",
   ],

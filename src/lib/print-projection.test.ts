@@ -140,13 +140,14 @@ test("duplicate MC cues keep the complete spoken version once", () => {
 });
 
 // David, 2026-10-11 12:46: the 4:50 last-pour announcement replaces the old 4:55 "nearing its end" cue.
-test("the old 4:55 cocktail-hour cue on a saved row is not read out or printed", () => {
+// 16:15: "toasts will be 6-6:15", so the 6:00 toasts cue is read out again.
+test("the old 4:55 cocktail-hour cue on a saved row is not read out or printed; the 6:00 toasts cue is", () => {
   const cues = extractMcCues([
     { startAt: "4:00 PM", endAt: "5:00 PM", notes: 'Cocktail Hour\nMC cue 4:55: "Honored guests, cocktail hour is nearing its end."', schedule: "wedding" },
     { startAt: "4:50 PM", endAt: null, notes: "Last cocktail pours\nMC cue 4:50 PM: Last cocktail pours, ending in 10 minutes.", schedule: "wedding" },
     { startAt: "6:00 PM", endAt: "6:15 PM", notes: 'Toasts\nMC cue 6:00: "As dinner winds down, please return to your seats."', schedule: "wedding" },
   ]);
-  assert.deepEqual(cues.map((cue) => cue.time), ["4:50 PM"]);
+  assert.deepEqual(cues.map((cue) => cue.time), ["4:50 PM", "6:00 PM"]);
 });
 
 test("hair print uses a room key and prints each time once", () => {
