@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import type { EnrichmentSnapshot } from "@/lib/contact-enrichment";
 import { planPhoneCorrections, type PhoneCorrectionRow, type PhoneWrite } from "@/lib/phone-corrections";
 import { planDayJobRewords, planDayJobs, type DayJobDef, type DayJobReword } from "@/lib/day-job-corrections";
+import { planContactEmails, type ContactEmail } from "@/lib/contact-emails";
 import { FAMILY_CONTACTS } from "@/lib/family-contacts";
 import { BAND_CONTACT, GETAWAY_DRIVER_CONTACT, MINI_MOON_CONTACT } from "@/lib/mini-moon";
 import { planPlaybookRewords, type PlaybookReword } from "@/lib/playbook-corrections";
@@ -18,6 +19,8 @@ export type PrintoutCorrectionsPlan = {
   phones: PhoneCorrectionRow[];
   /** Contacts to add; one already saved under the same name is left as it is. */
   contacts: NewContactRow[];
+  /** Emails David gave, filled only where the contact has none. */
+  emails: ContactEmail[];
   /** Day-of jobs written into the schedule that are not on Day-of → Assignments yet. */
   dayJobs: DayJobDef[];
   /** Day-of jobs this card added that still read as it first wrote them, with corrected words. */
@@ -80,7 +83,8 @@ export async function loadPrintoutCorrectionsPlan(db: Db = prisma): Promise<Prin
       : [{ ...GETAWAY_DRIVER_CONTACT }]),
     // David, 2026-10-11 15:50: family and helpers on the day-of contact list, with his numbers.
     ...FAMILY_CONTACTS.flatMap((family) => {
-      const saved = snapshot.contacts.filter((row) => row.name.trim().toLowerCase() === family.name.toLowerCase());
+      const known = [family.name, ...(family.earlierName ? [family.earlierName] : [])].map((name) => name.toLowerCase());
+      const saved = snapshot.contacts.filter((row) => known.includes(row.name.trim().toLowerCase()));
       if (saved.some((row) => row.isDayOfContact && (row.phone?.trim() || !family.phone))) return [];
       // John's and Pam's numbers come through the phone corrections; with none from David, the one on the person's own guest record.
       const phone = family.phone ?? savedGuestPhone(snapshot, family.name) ?? "";
@@ -88,7 +92,8 @@ export async function loadPrintoutCorrectionsPlan(db: Db = prisma): Promise<Prin
       return [{ name: family.name, phone, directoryLabel: family.role, dayOf: true, ...(family.ledgerName ? { ledgerName: family.ledgerName } : {}) }];
     }),
   ];
-  return { tasks: planTaskCorrections(tasks, { bunksOnJob }), phones, contacts, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments), playbookRewords: planPlaybookRewords(playbook) };
+  const emails = planContactEmails(snapshot, contacts.map((row) => row.name));
+  return { tasks: planTaskCorrections(tasks, { bunksOnJob }), phones, contacts, emails, dayJobs: planDayJobs(assignments), dayJobRewords: planDayJobRewords(assignments), playbookRewords: planPlaybookRewords(playbook) };
 }
 
 /**

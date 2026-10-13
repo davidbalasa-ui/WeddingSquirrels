@@ -15,6 +15,7 @@ import {
   timelineCorrectionsApplied,
 } from "@/lib/applied-corrections";
 import { addContact, loadPrintoutCorrectionsPlan, writePhone, type PrintoutCorrectionsPlan } from "@/lib/printout-corrections-data";
+import { writeContactEmail } from "@/lib/contact-emails";
 import { planReconciledTimeline, type ReconciledPlan } from "@/lib/reconciled-timeline";
 import { BUNKS_NOTE_ON_JOB, dueDateFor } from "@/lib/task-corrections";
 
@@ -87,6 +88,7 @@ async function writeTaskCorrections(tx: Tx, plan: PrintoutCorrectionsPlan, now: 
     if (row.status === "add" && row.write) await writePhone(tx, row.write);
   }
   for (const row of plan.contacts) await addContact(tx, row);
+  for (const row of plan.emails) await writeContactEmail(tx, row);
   if (plan.dayJobs.length) {
     const last = await tx.dayAssignment.findFirst({ orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
     let next = (last?.sortOrder ?? -1) + 1;

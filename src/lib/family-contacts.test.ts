@@ -12,6 +12,7 @@ test("family and helpers print under the role David gave, whatever an older save
   assert.equal(printContactRole("Bryan Balasa", null), "Father of the Groom");
   assert.equal(printContactRole("Denise", null), "Helper");
   assert.equal(printContactRole("Lisa", null), "Helper");
+  assert.equal(printContactRole("Lisa Pelfresne", null), "Helper");
   assert.equal(printContactRole("Shelly Wiewiora", null), "Mother of the Bride");
   // Everyone else keeps their own label.
   assert.equal(printContactRole("Steve Crossbow", "Band"), "Band");
@@ -21,7 +22,7 @@ test("family and helpers print under the role David gave, whatever an older save
 test("David's numbers for family and helpers, as he sent them", () => {
   const phone = (name: string) => FAMILY_CONTACTS.find((row) => row.name === name)?.phone?.replace(/\D/g, "");
   assert.equal(phone("Denise"), "2317403616");
-  assert.equal(phone("Lisa"), "2317404390");
+  assert.equal(phone("Lisa Pelfresne"), "2317404390");
   assert.equal(phone("Bryan Balasa"), "2694753495");
   assert.equal(phone("Shelly Wiewiora"), "2319038127");
   // John's and Pam's numbers are saved by the phone corrections, which wait for David's pick on a clash.
@@ -42,7 +43,7 @@ test("Shelly's number comes only from her own guest record, never a household nu
 // David, 2026-10-11 18:51: Shelly's number applies even where her contact was applied once before without one.
 test("Shelly's number still applies after her name is in the applied ledger", () => {
   const shelly = { name: "Shelly Wiewiora", phone: "(231) 903-8127", directoryLabel: "Mother of the Bride", dayOf: true, ledgerName: FAMILY_CONTACTS.find((row) => row.name === "Shelly Wiewiora")!.ledgerName };
-  const plan = { tasks: { inserts: [], marks: [], dueFills: [], noteFills: [], alreadyListed: [] }, phones: [], contacts: [shelly], dayJobs: [], dayJobRewords: [], playbookRewords: [] };
+  const plan = { tasks: { inserts: [], marks: [], dueFills: [], noteFills: [], alreadyListed: [] }, phones: [], contacts: [shelly], emails: [], dayJobs: [], dayJobRewords: [], playbookRewords: [] };
   assert.equal(pendingTaskCorrections(plan as never, new Set([correctionKey.contact("Shelly Wiewiora")])).contacts.length, 1);
   assert.equal(pendingTaskCorrections(plan as never, new Set([correctionKey.contact(shelly.ledgerName!)])).contacts.length, 0);
 });

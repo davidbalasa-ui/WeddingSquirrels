@@ -13,6 +13,7 @@ function plan(): PrintoutCorrectionsPlan {
       { label: "John Wiewiora", personName: "John Wiewiora", phone: "231-798-5825", current: "555", status: "differs", write: { kind: "guest", guestId: "h", phone: "231-798-5825" } },
     ],
     contacts: [{ name: "Victoria Resort", phone: "(269) 637-6414", directoryLabel: "Mini moon" }],
+    emails: [{ name: "Wendy Rush", email: "Wrush2021@gmail.com", role: "Mistress of Ceremonies" }],
     dayJobs: [{ title: "Wendy and Kurt begin setup.", notes: "10:30 AM" }],
     dayJobRewords: [],
     playbookRewords: [],
@@ -25,6 +26,7 @@ test("everything applied is recorded, and a recorded change is never planned aga
   assert.ok(applied.keys.includes(correctionKey.taskDone(null, "Bank and post office before the post office closes at noon")));
   assert.ok(applied.lines.includes("Marked done: Bank and post office before the post office closes at noon"));
   assert.ok(applied.lines.includes("Saved Pam Balasa’s number: 269-475-3751"));
+  assert.ok(applied.lines.includes("Saved Wendy Rush’s email: Wrush2021@gmail.com"));
   // A number David has to pick between is not applied on its own.
   assert.equal(applied.lines.some((line) => /John/.test(line)), false);
 
@@ -32,6 +34,7 @@ test("everything applied is recorded, and a recorded change is never planned aga
   assert.equal(again.tasks.inserts.length, 0);
   assert.equal(again.tasks.marks.length, 0);
   assert.equal(again.contacts.length, 0);
+  assert.equal(again.emails.length, 0);
   assert.equal(again.dayJobs.length, 0);
   assert.deepEqual(again.phones.map((row) => row.label), ["John Wiewiora"]);
   assert.deepEqual(taskCorrectionsApplied(again).keys, []);

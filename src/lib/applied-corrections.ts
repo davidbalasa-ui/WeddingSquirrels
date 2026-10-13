@@ -18,6 +18,7 @@ export const correctionKey = {
   taskNote: (title: string, summary?: string) => (summary ? `task:note:${title}:${summary.slice(-60)}` : `task:note:${title}`),
   phone: (label: string) => `phone:${label}`,
   contact: (name: string) => `contact:${name}`,
+  contactEmail: (name: string) => `contact-email:${name}`,
   dayJob: (title: string) => `dayjob:add:${title}`,
   dayJobReword: (title: string) => `dayjob:reword:${title}`,
   // The first correction kept its original key, so a row already corrected once is not corrected again under it.
@@ -47,6 +48,7 @@ export function pendingTaskCorrections(plan: PrintoutCorrectionsPlan, applied: R
     // A number David has to pick between is never applied on its own, so it stays.
     phones: plan.phones.filter((row) => row.status !== "add" || !applied.has(correctionKey.phone(row.label))),
     contacts: plan.contacts.filter((row) => !applied.has(correctionKey.contact(row.ledgerName ?? row.name))),
+    emails: plan.emails.filter((row) => !applied.has(correctionKey.contactEmail(row.name))),
     dayJobs: plan.dayJobs.filter((row) => !applied.has(correctionKey.dayJob(row.title))),
     dayJobRewords: plan.dayJobRewords.filter((row) => !applied.has(correctionKey.dayJobReword(row.title))),
     playbookRewords: plan.playbookRewords.filter((row) => !applied.has(correctionKey.playbookReword(row.sourceKey, row.correction))),
@@ -95,6 +97,10 @@ export function taskCorrectionsApplied(plan: PrintoutCorrectionsPlan): { keys: s
   for (const row of plan.contacts) {
     keys.push(correctionKey.contact(row.ledgerName ?? row.name));
     lines.push(`Added contact: ${row.name} · ${row.phone}`);
+  }
+  for (const row of plan.emails) {
+    keys.push(correctionKey.contactEmail(row.name));
+    lines.push(`Saved ${row.name}’s email: ${row.email}`);
   }
   for (const row of plan.dayJobs) {
     keys.push(correctionKey.dayJob(row.title));
