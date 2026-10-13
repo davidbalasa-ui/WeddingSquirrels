@@ -162,7 +162,7 @@ test("the binder prints each page moment with the page's own lines, in the page'
   assert.equal(printed.title, "Venue opens");
   // Nothing reworded, re-timed or moved: the words David sees on the page.
   assert.deepEqual(printed.lines, [
-    "Avalon (coordinator) arrives 10:30 or 11:00 AM",
+    "Avalon’s time frame is 11:00 AM to 7:00 PM (David, Oct 13). She is the main point of contact.",
     "Katie does Haley's hair — confirmed, not DIY",
     "Children arrive at 1:15 PM.",
     "Open: Confirm MOB will meet Dan.",
