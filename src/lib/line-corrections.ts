@@ -10,14 +10,21 @@ const CORRECTED: Array<{ from: RegExp; to: string | null }> = [
   { from: /^Avalon \(coordinator\) arrives 10:30 or 11:00 AM\.?$/i, to: AVALON_TIME_FRAME_LINE },
   // His 11 to 7 answers how late she stays.
   { from: /^Open items:\s*Confirm how late Avalon stays\.?$/i, to: null },
+  // David, 2026-10-13 22:57: "push the dances back 10 minutes". Formal dances are 6:40–6:55 PM.
+  { from: /^MC cue 6:30: "Please turn your attention to the center of the space\."$/, to: 'MC cue 6:40: "Please turn your attention to the center of the space."' },
+  // His golden hour at 6:25 answers which 10 minutes Barry takes outside.
+  { from: /^Open items:\s*Ask Barry to confirm the best 10 minutes for outdoor photos\.?$/i, to: null },
 ];
+
+const TARGETS = new Set(CORRECTED.map((row) => row.to).filter((to): to is string => to != null));
 
 export function withLineCorrections(lines: string[]): string[] {
   const out: string[] = [];
   for (const line of lines) {
     const fix = CORRECTED.find((row) => row.from.test(line.trim()));
-    if (!fix) out.push(line);
-    else if (fix.to != null && !out.includes(fix.to)) out.push(fix.to);
+    const next = fix ? fix.to : line;
+    // A corrected line shows once, even where the row also carries the newer words.
+    if (next != null && !(TARGETS.has(next.trim()) && out.some((seen) => seen.trim() === next.trim()))) out.push(next);
   }
   return out;
 }

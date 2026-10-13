@@ -3,7 +3,8 @@ import { test } from "node:test";
 import { parseBlockNotes } from "./day-of-now";
 import { SCHEDULE_DAY_JOBS, planDayJobRewords } from "./day-job-corrections";
 import { withLineCorrections } from "./line-corrections";
-import { AVALON_TIME_FRAME, RECONCILED_TIMELINE, WENDY_MEETS_AVALON, planReconciledTimeline } from "./reconciled-timeline";
+import { projectHairMakeup } from "./print-projection";
+import { AVALON_TIME_FRAME, RECONCILED_TIMELINE, ROTATION_PRACTICE, WENDY_MEETS_AVALON, planReconciledTimeline, reconciledNotes } from "./reconciled-timeline";
 
 // David, 2026-10-13 22:01: "Avalon is now planning on 11 am to 7 pm for her time frame".
 const OLD_VENUE = [
@@ -57,4 +58,75 @@ test("the cleanup note says Wendy needs to meet with Avalon before 7:00 PM, on t
   assert.ok(reworded.notes.includes(WENDY_MEETS_AVALON));
   const rewords = planDayJobRewords([{ id: "w", title: "Wendy is in charge of teardown.", notes: "10:00 PM · Tear down and cleanup" }]);
   assert.deepEqual(rewords.map((row) => [row.notes, row.correction]), [["10:00 PM · Tear down and cleanup. Wendy needs to meet with Avalon before 7:00 PM.", "Wendy meets Avalon before 7:00 PM"]]);
+});
+
+// David, 2026-10-13 22:37: "Thursday night we need to do rotations like the same way as makeup rotations. It will be like a practice run."
+test("Thursday's 7:15 PM return to the Airbnb carries the rotation practice run, worded as the Master", () => {
+  const back = RECONCILED_TIMELINE.find((moment) => moment.seedKey === "reh.return")!;
+  assert.equal(back.startAt, "7:15 PM");
+  assert.deepEqual(back.lines.slice(0, 4), [
+    "Steam dresses and suits.",
+    "Practice run: do the rotations the same way as the makeup rotations.",
+    "First round. Hair: Braxton in Bathroom 1; Andi in Bathroom 2; Kaylie in Bathroom 3. Makeup: Bri and Trinity in Bedroom 1; Victoria and Skila in Bedroom 3.",
+    "Swap. Makeup: Braxton in Bedroom 1; Andi and Kaylie in Bedroom 3. Hair: Bri and Trinity in Bathroom 1; Victoria in Bathroom 2; Skila in Bathroom 3.",
+  ]);
+  const oldLines = back.lines.filter((line) => !ROTATION_PRACTICE.includes(line));
+  const plan = planReconciledTimeline([
+    { id: "r", seedKey: "reh.return", schedule: "rehearsal", startAt: "7:15 PM", endAt: null, notes: reconciledNotes({ ...back, lines: oldLines }), sortOrder: 1 },
+  ]);
+  const reworded = plan.rewords.find((row) => row.seedKey === "reh.return");
+  assert.ok(reworded, "return row reworded");
+  assert.equal(reworded.correction, "Thursday night rotation practice run");
+});
+
+// David, 2026-10-13 22:37–22:44: "push up leaving the air bnb" ... "15 min not 30!" ... "on Friday for both groups."
+test("both Friday groups leave the Airbnb 15 minutes earlier, with their arrivals, as the Master has them", () => {
+  const at = (key: string) => RECONCILED_TIMELINE.find((moment) => moment.seedKey === key)!;
+  assert.deepEqual([at("wedding_pack_up").endAt, at("wedding_pack_up").lines[1]], ["11:45 AM", "Wedding party prepares to leave at 11:45 AM."]);
+  assert.deepEqual([at("wedding_party_leaves").startAt, at("wedding_party_leaves").endAt], ["11:45 AM", "12:15 PM"]);
+  assert.deepEqual([at("wedding_vendor_arrival").startAt, at("wedding_vendor_arrival").endAt], ["12:00 PM", "12:15 PM"]);
+  assert.equal(at("wedding_couple_departs").startAt, "12:15 PM");
+  assert.equal(at("wedding_couple_arrives").startAt, "12:30 PM");
+  assert.equal(at("wedding_photographer_arrives").startAt, "12:30 PM");
+  const was: Record<string, { startAt: string; endAt: string | null; lines?: string[] }> = {
+    wedding_pack_up: { startAt: "11:30 AM", endAt: "12:00 PM", lines: ["Pack wedding and personal items.", "Wedding party prepares to leave at noon."] },
+    wedding_party_leaves: { startAt: "12:00 PM", endAt: "12:30 PM" },
+    wedding_vendor_arrival: { startAt: "12:15 PM", endAt: "12:30 PM" },
+    wedding_couple_departs: { startAt: "12:30 PM", endAt: null },
+    wedding_couple_arrives: { startAt: "12:45 PM", endAt: null },
+  };
+  const rows = Object.entries(was).map(([key, row], index) => ({
+    id: key, seedKey: key, schedule: "wedding" as const, startAt: row.startAt, endAt: row.endAt, sortOrder: index,
+    notes: reconciledNotes({ ...at(key), lines: row.lines ?? at(key).lines }),
+  }));
+  assert.deepEqual(planReconciledTimeline(rows).rewords.map((row) => [row.id, row.startAt, row.endAt]).sort(), [
+    ["wedding_couple_arrives", "12:30 PM", null],
+    ["wedding_couple_departs", "12:15 PM", null],
+    ["wedding_pack_up", "11:30 AM", "11:45 AM"],
+    ["wedding_party_leaves", "11:45 AM", "12:15 PM"],
+    ["wedding_vendor_arrival", "12:00 PM", "12:15 PM"],
+  ]);
+});
+
+test("the hair and makeup schedule prints Friday's new leave and arrival times", () => {
+  const item = (sortOrder: number, startAt: string, title: string, notes: string | null = null) => ({ section: "Schedule", startAt, title, location: null, notes, detail: null, sortOrder });
+  const { rows } = projectHairMakeup([
+    item(80, "12:00 PM", "Bridal party leaves the Airbnb"),
+    item(90, "12:15 PM", "Bridal party arrives at Black Sheep Shelter"),
+    item(100, "12:30 PM", "Photographer arrives · Haley, David, and Belle leave Airbnb", "Bridal party brings Haley's dress, shoes, accessories, and the detail box."),
+    item(110, "12:45 PM", "Haley retouch + get-ready photos"),
+  ]);
+  assert.deepEqual(rows.map((row) => row.timeLabel), ["11:45 AM", "12:00 PM", "12:15 PM", "12:30 PM", "12:30 PM"]);
+  assert.equal(rows.some((row) => /12:45/.test(row.timeLabel)), false);
+  // One he retimed himself prints as he has it.
+  assert.equal(projectHairMakeup([item(80, "12:05 PM", "Bridal party leaves the Airbnb")]).rows[0]!.timeLabel, "12:05 PM");
+});
+
+// David, 2026-10-13 22:57: "push the dances back 10 minutes".
+test("an older saved 6:30 dance cue shows at 6:40, once", () => {
+  const now = 'MC cue 6:40: "Please turn your attention to the center of the space."';
+  assert.deepEqual(withLineCorrections(['MC cue 6:30: "Please turn your attention to the center of the space."']), [now]);
+  assert.deepEqual(withLineCorrections(['MC cue 6:30: "Please turn your attention to the center of the space."', now]), [now]);
+  assert.deepEqual(withLineCorrections([now, 'MC cue 6:30: "Please turn your attention to the center of the space."']), [now]);
+  assert.deepEqual(withLineCorrections(["Open items: Ask Barry to confirm the best 10 minutes for outdoor photos."]), []);
 });

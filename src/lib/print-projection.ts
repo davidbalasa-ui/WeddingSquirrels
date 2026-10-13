@@ -652,6 +652,39 @@ function parseHairTitle(title: string): { person: string; service: string | null
   return { person: title, service: null };
 }
 
+/**
+ * Friday's leave times as the hair and makeup rows first wrote them. David, 2026-10-13: both groups leave the Airbnb
+ * 15 minutes earlier (wedding party 11:45 AM, David, Haley and Belle 12:15 PM), and the arrivals move with them.
+ * A row he retimed or renamed himself is his and prints as it is.
+ */
+const HAIR_ROW_RETIMES: Array<{ title: string; startAt: string; now: Array<{ title?: string; startAt: string; notes?: null; sortOrderDelta?: number }> }> = [
+  { title: "Bridal party leaves the Airbnb", startAt: "12:00 PM", now: [{ startAt: "11:45 AM" }] },
+  { title: "Bridal party arrives at Black Sheep Shelter", startAt: "12:15 PM", now: [{ startAt: "12:00 PM" }] },
+  {
+    title: "Photographer arrives · Haley, David, and Belle leave Airbnb",
+    startAt: "12:30 PM",
+    now: [
+      { title: "Haley, David, and Belle leave Airbnb", startAt: "12:15 PM", notes: null, sortOrderDelta: -1 },
+      { title: "Photographer arrives · Haley, David, and Belle arrive", startAt: "12:30 PM" },
+    ],
+  },
+  { title: "Haley retouch + get-ready photos", startAt: "12:45 PM", now: [{ startAt: "12:30 PM" }] },
+];
+
+function withHairRetimes<T extends { title: string; startAt: string | null; notes: string | null; sortOrder: number }>(items: T[]): T[] {
+  return items.flatMap((item) => {
+    const retime = HAIR_ROW_RETIMES.find((row) => row.title === item.title && row.startAt === item.startAt);
+    if (!retime) return [item];
+    return retime.now.map((row) => ({
+      ...item,
+      title: row.title ?? item.title,
+      startAt: row.startAt,
+      notes: row.notes === null ? null : item.notes,
+      sortOrder: item.sortOrder + (row.sortOrderDelta ?? 0) / 10,
+    }));
+  });
+}
+
 export function projectHairMakeup(
   items: Array<{
     section: string;
@@ -663,7 +696,7 @@ export function projectHairMakeup(
     sortOrder: number;
   }>,
 ): { rooms: PrintHairRoom[]; rows: PrintHairRow[] } {
-  const ordered = [...items].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title));
+  const ordered = withHairRetimes([...items]).sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title));
   const rooms = ordered
     .filter((item) => !item.startAt && (/rooms/i.test(item.section) || /bedroom|bathroom|living/i.test(item.title)))
     .map((item) => ({

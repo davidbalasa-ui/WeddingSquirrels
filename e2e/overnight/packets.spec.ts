@@ -251,6 +251,9 @@ test("the girls' gifts print at 1:45, the cake arrives Thursday at 7:00 with Bra
   try {
     const text = await openPacket(page, "binder");
     expect(text).toContain("David gives the girls their gifts during the first look (David, Oct 11).");
+    // David, 2026-10-13 22:27: the kids' first look is at 2:15 with David and Haley.
+    expect(text).toContain("Kids’ first look with David and Haley");
+    expect(text).toContain("The kids must remain hidden from Haley and David until then");
     expect(text).toContain("Cake arrives at Black Sheep Shelter");
     expect(text).toContain("Braxton brings the cake from the Airbnb to Black Sheep Shelter (David, Oct 11).");
     expect(text).not.toMatch(/Denise and Lisa pick up/i);
