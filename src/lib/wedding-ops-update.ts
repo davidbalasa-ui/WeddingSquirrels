@@ -165,7 +165,7 @@ const REQUIRED_MC_LINES: Record<string, string[]> = {
   ],
   wedding_first_dances: [
     MC_SONGS.firstDances,
-    'MC cue 6:30: "Please turn your attention to the center of the space."',
+    'MC cue 6:40: "Please turn your attention to the center of the space."',
   ],
   wedding_open_dancing: [
     'MC cue 7:00: "The dance floor is officially open in the glass house."',

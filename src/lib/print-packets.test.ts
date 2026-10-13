@@ -196,11 +196,12 @@ test("the wedding party schedule prints the Hawkshead dress code under the rehea
 });
 
 // David, 2026-10-11 12:29: "At 1:45 pm, have David's first look with the girls".
-test("David's 1:45 PM first look with the girls is on the timeline and in the photographer's packet", () => {
+// David, 2026-10-13 22:27: "Let's push kids first look to 2:15 and it will be first look with Dad and Haley."
+test("the kids' 2:15 PM first look with David and Haley is on the timeline and in the photographer's packet", () => {
   const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_david_girls_first_look");
-  assert.equal(moment?.startAt, "1:45 PM");
-  assert.equal(moment?.title, "David’s first look with the girls");
-  assert.ok(titles(packetSchedule(moments, "photo").wedding).includes("David’s first look with the girls"));
+  assert.equal(moment?.startAt, "2:15 PM");
+  assert.equal(moment?.title, "Kids’ first look with David and Haley");
+  assert.ok(titles(packetSchedule(moments, "photo").wedding).includes("Kids’ first look with David and Haley"));
 });
 
 // David, 2026-10-11 12:37: the 6:55 PM MC announcement before the first dance.

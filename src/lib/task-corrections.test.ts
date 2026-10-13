@@ -145,9 +145,13 @@ test("David's 16:33 'Keep kids at 115 for now' joins card 3's Harmony and Melody
   const dadAt130 = " Haley’s first look with her dad is at 1:30, straight into parent photos (David, Oct 11).";
   // Oct 11 16:00: the girls get their gifts at 1:45 during David's first look with them.
   const gifts = " David gives the girls their gifts at 1:45 during his first look with them (David, Oct 11).";
-  assert.ok(item.summary!.endsWith(`${dadAt130}${gifts}`));
+  // Oct 13 22:27: the kids' first look moves to 2:15 PM, with David and Haley.
+  const kids215 =
+    " The kids’ first look moves to 2:15 PM and is with David and Haley; the kids remain hidden from Haley and David until then and are brought to wherever they are (David, Oct 13).";
+  assert.ok(item.summary!.endsWith(`${dadAt130}${gifts}${kids215}`));
   assert.ok(item.summary!.includes("1:15 Harmony and Melody arrive; 1:30 Haley’s portraits"));
-  const at1513 = item.summary!.replace(gifts, "");
+  const at1600 = item.summary!.replace(kids215, "");
+  const at1513 = at1600.replace(gifts, "");
   // The note as it read before 15:13; every earlier wording below is built from it.
   const oct11 = at1513.replace(dadAt130, "").replace("1:15 Harmony and Melody arrive; ", "1:15 Harmony and Melody arrive; Haley’s first look with her dad; ");
   const latest =
@@ -167,6 +171,8 @@ test("David's 16:33 'Keep kids at 115 for now' joins card 3's Harmony and Melody
   assert.deepEqual(planTaskCorrections([{ ...row, summary: at2227 }]).noteFills, [{ id: "hm", title: item.title, summary: item.summary, before: at2227 }]);
   // Oct 11 15:13: the 12:29 note also comes up to date.
   assert.deepEqual(planTaskCorrections([{ ...row, summary: oct11 }]).noteFills, [{ id: "hm", title: item.title, summary: item.summary, before: oct11 }]);
+  // Oct 13 22:27: the 16:00 note also comes up to date with the 2:15 PM first look.
+  assert.deepEqual(planTaskCorrections([{ ...row, summary: at1600 }]).noteFills, [{ id: "hm", title: item.title, summary: item.summary, before: at1600 }]);
   // Oct 11 16:00: the 15:13 note also comes up to date with the gifts.
   assert.deepEqual(planTaskCorrections([{ ...row, summary: at1513 }]).noteFills, [{ id: "hm", title: item.title, summary: item.summary, before: at1513 }]);
 });
