@@ -10,6 +10,7 @@ import { parseBlockNotes } from "@/lib/day-of-now";
 import { MC_SONGS } from "@/lib/mc-songs";
 import { isMcDirectoryLabel } from "@/lib/print-center";
 import { CANONICAL_PLAYBOOK, type PlaybookRecord } from "@/lib/playbook";
+import { AVALON_TIME_FRAME } from "@/lib/reconciled-timeline";
 
 export const EXPECTED_COUPLE_NAMES = "David & Haley";
 export const EXPECTED_WEDDING_DATE = "2026-10-16";
@@ -199,7 +200,7 @@ const TIMELINE_ADD_LINES: Record<string, string[]> = {
   ],
   wedding_venue_opens: [
     "Wendy Rush (Mistress of Ceremonies) and Kurt Huizenga (MC) arrive",
-    "Avalon (coordinator) arrives 10:30 or 11:00 AM",
+    AVALON_TIME_FRAME,
     "Who goes to the venue now: vendors, Avalon, Kurt, Wendy",
     "Who stays at the Airbnb: everyone else",
   ],

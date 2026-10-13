@@ -67,6 +67,10 @@ const GETAWAY_DRIVER_PHONE = GETAWAY_DRIVER_CONTACT.phone;
 export const HALEY_DAD_FIRST_LOOK = "Haley’s first look with her dad, then straight into parent photos (David, Oct 11).";
 export const GIRLS_GIFTS = "David gives the girls their gifts during the first look (David, Oct 11).";
 /** David, 2026-10-11 15:13: "Avalon will be releasing tables. she will take care of it ... she is responsible." */
+/** David, 2026-10-13 22:01: "Avalon is now planning on 11 am to 7 pm for her time frame". */
+export const AVALON_TIME_FRAME = "Avalon’s time frame is 11:00 AM to 7:00 PM (David, Oct 13). She is the main point of contact.";
+/** David, 2026-10-13 22:13: "Update the clean up note say that Wendy needs to meet with Avalon to say before 7 pm." */
+export const WENDY_MEETS_AVALON = "Wendy needs to meet with Avalon before 7:00 PM.";
 export const AVALON_RELEASES_TABLES = "Avalon releases the tables and is responsible for it (David, Oct 11).";
 /** David, 2026-10-11 15:13: "john will be dropping off the car, but its going to be with someone else, we just dont know who." */
 /** David, 2026-10-11 15:21: Harmony does not walk in the processional; "she will sit with her mom". */
@@ -112,8 +116,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
     lines: ["Katie arrives at the Airbnb and works with Haley in Bedroom 2.", "Haley’s makeup should be finished. Haley eats, drinks, and takes a bathroom break before hair."] },
   { seedKey: "wedding_venue_opens", schedule: W, phase: "morning", startAt: "10:30 AM", endAt: "11:00 AM", title: "Set up the venue",
     location: "Black Sheep Shelter",
-    lines: ["Black Sheep Shelter access begins at 10:30 AM.", "Wendy and Kurt begin setup.", "Avalon arrives at 10:30 AM and is the main point of contact."],
-    openItems: "Confirm how late Avalon stays." },
+    lines: ["Black Sheep Shelter access begins at 10:30 AM.", "Wendy and Kurt begin setup.", AVALON_TIME_FRAME] },
   { seedKey: "wedding_belle_arrives", schedule: W, phase: "morning", startAt: "11:00 AM", endAt: null, title: "Belle arrives",
     location: "Airbnb",
     lines: ["Belle arrives at the Airbnb and begins wedding-day video coverage."] },
@@ -246,7 +249,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_reception_ends", schedule: W, phase: "evening", startAt: "10:00 PM", endAt: null, title: "Reception ends",
     lines: ["Guest departure and final send-off if used."] },
   { seedKey: "wedding_teardown", schedule: W, phase: "evening", startAt: "10:00 PM", endAt: "11:00 PM", title: "Tear down and cleanup",
-    lines: ["Wendy is in charge of teardown.", "Pack decor, gifts, personal belongings, remaining food, and vendor items."] },
+    lines: ["Wendy is in charge of teardown.", WENDY_MEETS_AVALON, "Pack decor, gifts, personal belongings, remaining food, and vendor items."] },
 ];
 
 /** Bootstrap rows the document folds into other moments. Removed on apply so they do not show twice. */
@@ -289,6 +292,14 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
       startAt: "4:05 PM",
       endAt: "4:30 PM",
       correction: "family photos 4:05–4:30 PM",
+    },
+  ],
+  // Before David's 2026-10-13 22:01 "11 am to 7 pm" for Avalon, which also answers how late she stays.
+  wedding_venue_opens: [
+    {
+      lines: ["Black Sheep Shelter access begins at 10:30 AM.", "Wendy and Kurt begin setup.", "Avalon arrives at 10:30 AM and is the main point of contact."],
+      openItems: "Confirm how late Avalon stays.",
+      correction: "Avalon 11:00 AM–7:00 PM",
     },
   ],
   // Before David's 2026-10-11 16:00 gifts line.
@@ -386,6 +397,11 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
       lines: ["Pack decor, gifts, personal belongings, remaining food, and vendor items."],
       openItems: "Choose who cleans each area and who takes the gifts, decor, food, alcohol, and personal items.",
       correction: "Wendy on teardown",
+    },
+    // Before David's 2026-10-13 22:13 "Wendy needs to meet with Avalon before 7 pm".
+    {
+      lines: ["Wendy is in charge of teardown.", "Pack decor, gifts, personal belongings, remaining food, and vendor items."],
+      correction: "Wendy meets Avalon before 7:00 PM",
     },
   ],
   // David, 2026-10-10 22:05: "bartender arrives at 3 pm, will be ready by 4, close it out".

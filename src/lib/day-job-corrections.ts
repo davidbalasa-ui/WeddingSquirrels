@@ -9,7 +9,8 @@ export type DayJobDef = { title: string; notes: string };
 export const SCHEDULE_DAY_JOBS: DayJobDef[] = [
   {
     title: "Wendy and Kurt begin setup.",
-    notes: "10:30 AM · Set up the venue. Avalon arrives at 10:30 AM and is the main point of contact.",
+    // David, 2026-10-13 22:01: "Avalon is now planning on 11 am to 7 pm for her time frame".
+    notes: "10:30 AM · Set up the venue. Avalon’s time frame is 11:00 AM to 7:00 PM. She is the main point of contact.",
   },
   {
     title: "Harmony is on ring security and stands next to the entry table for the half hour before the ceremony starts.",
@@ -24,7 +25,8 @@ export const SCHEDULE_DAY_JOBS: DayJobDef[] = [
     notes: "8:30 PM · Getaway vehicle arrives. Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
   },
   // David, 2026-10-10 22:04: "Wendy is in charge of teardown".
-  { title: "Wendy is in charge of teardown.", notes: "10:00 PM · Tear down and cleanup" },
+  // David, 2026-10-13 22:13: "Wendy needs to meet with Avalon to say before 7 pm."
+  { title: "Wendy is in charge of teardown.", notes: "10:00 PM · Tear down and cleanup. Wendy needs to meet with Avalon before 7:00 PM." },
 ];
 
 /**
@@ -52,6 +54,20 @@ const EARLIER_DAY_JOBS: Array<DayJobDef & { now: string; correction: string }> =
     notes: "8:20 PM · Getaway vehicle arrives. Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
     now: "MOB or another helper meets Dan Vandenheede.",
     correction: "Dan arrives 8:30 PM",
+  },
+  {
+    // David, 2026-10-13 22:01: Avalon's time frame is 11 AM to 7 PM.
+    title: "Wendy and Kurt begin setup.",
+    notes: "10:30 AM · Set up the venue. Avalon arrives at 10:30 AM and is the main point of contact.",
+    now: "Wendy and Kurt begin setup.",
+    correction: "Avalon 11:00 AM–7:00 PM",
+  },
+  {
+    // David, 2026-10-13 22:13: Wendy meets with Avalon before 7 PM.
+    title: "Wendy is in charge of teardown.",
+    notes: "10:00 PM · Tear down and cleanup",
+    now: "Wendy is in charge of teardown.",
+    correction: "Wendy meets Avalon before 7:00 PM",
   },
 ];
 
