@@ -4,7 +4,7 @@ import { parseBlockNotes } from "../../src/lib/day-of-now";
 import { BUNKS_NOTE, CHECKIN_ACCESS_NOTE, RECONCILED_RETIRED_SEED_KEYS, RECONCILED_TIMELINE, reconciledNotes } from "../../src/lib/reconciled-timeline";
 import { BUNKS_NOTE_ON_JOB, NEW_TASKS } from "../../src/lib/task-corrections";
 import { overnightPrisma, resetOvernightData, snapshotTasks } from "./db";
-import { attachGuards } from "./helpers";
+import { attachGuards, openPacket } from "./helpers";
 
 // David, 2026-10-10: "can you auto apply the changes so I stop needing to hit apply?"
 const prisma = overnightPrisma();
@@ -200,5 +200,35 @@ test("the old 4:05 family photos with the grandparents become his Family photos 
   await page.goto("/day/shots");
   await expect(page.locator("main")).toContainText("Bride with parents");
   expect(await page.locator("main").innerText()).not.toMatch(/grand ?(?:ma|pa|parent)/i);
+  await context.close();
+});
+
+// David, 2026-10-13 20:29: Kurt's, Wendy's and Lisa Pelfresne's emails.
+test("Kurt's, Wendy's and Lisa's emails fill on the first page load, and Lisa gets her full name once", async ({ browser }) => {
+  await resetOvernightData(prisma);
+  await restoreTasks?.();
+  await prisma.contact.deleteMany({ where: { name: { in: ["Lisa", "Lisa Pelfresne", "Kurt Huizenga"] } } });
+  // Lisa saved the way the corrections card first saved her.
+  await prisma.contact.create({ data: { name: "Lisa", phone: "(231) 740-4390", directoryLabel: "Helper", directoryList: "guests", isDayOfContact: true, sortOrder: 9995 } });
+  const context = await freshMaster(browser);
+  const page = await context.newPage();
+  await page.goto("/today");
+  const applied = page.getByTestId("auto-applied");
+  await applied.getByRole("button", { name: /Show all \d+/ }).click({ timeout: 30_000 });
+  await expect(applied).toContainText("Saved Kurt Huizenga’s email: kurthuizenga@yahoo.com");
+  await expect(applied).toContainText("Saved Wendy Rush’s email: Wrush2021@gmail.com");
+  await expect(applied).toContainText("Saved Lisa Pelfresne’s email: lpelf@comcast.net");
+  const lisa = await prisma.contact.findMany({ where: { name: { startsWith: "Lisa" } } });
+  expect(lisa.map((row) => [row.name, row.email, row.phone])).toEqual([["Lisa Pelfresne", "lpelf@comcast.net", "(231) 740-4390"]]);
+  expect((await prisma.contact.findFirstOrThrow({ where: { name: "Wendy Rush" } })).email).toBe("Wrush2021@gmail.com");
+  const kurt = await prisma.contact.findMany({ where: { name: "Kurt Huizenga" } });
+  expect(kurt.map((row) => [row.email, row.personId])).toEqual([["kurthuizenga@yahoo.com", "kurt_huizenga"]]);
+  await page.goto("/day/contacts");
+  for (const email of ["kurthuizenga@yahoo.com", "Wrush2021@gmail.com", "lpelf@comcast.net"]) {
+    await expect(page.locator(`a[href="mailto:${email}"]`).first()).toBeAttached();
+  }
+  const text = await openPacket(page, "binder");
+  const contacts = text.slice(text.indexOf("Day-of contacts"));
+  expect(contacts).toMatch(/Lisa Pelfresne\s+Helper\s+\(231\) 740-4390\s+lpelf@comcast\.net/);
   await context.close();
 });

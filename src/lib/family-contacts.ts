@@ -9,7 +9,8 @@
  */
 /** phone null: the number is saved through the phone corrections (which wait for David's pick on a clash). */
 /** ledgerName: set when a number came after the contact was first applied, so the number still applies. */
-export type FamilyContact = { name: string; role: string; phone: string | null; ledgerName?: string };
+/** earlierName: the name the app first saved, still matched so the same person is never added twice. */
+export type FamilyContact = { name: string; role: string; phone: string | null; ledgerName?: string; earlierName?: string };
 
 export const FAMILY_CONTACTS: FamilyContact[] = [
   { name: "John Wiewiora", role: "Father of the Bride", phone: null },
@@ -18,11 +19,12 @@ export const FAMILY_CONTACTS: FamilyContact[] = [
   { name: "Shelly Wiewiora", role: "Mother of the Bride", phone: "(231) 903-8127", ledgerName: "Shelly Wiewiora · (231) 903-8127" },
   { name: "Bryan Balasa", role: "Father of the Groom", phone: "(269) 475-3495" },
   { name: "Denise", role: "Helper", phone: "(231) 740-3616" },
-  { name: "Lisa", role: "Helper", phone: "(231) 740-4390" },
+  // David, 2026-10-13 20:29: "Lisa Pelfresne".
+  { name: "Lisa Pelfresne", role: "Helper", phone: "(231) 740-4390", ledgerName: "Lisa", earlierName: "Lisa" },
 ];
 
 const ROLE_BY_NAME = new Map<string, string>([
-  ...FAMILY_CONTACTS.map((row) => [row.name.toLowerCase(), row.role] as const),
+  ...FAMILY_CONTACTS.flatMap((row) => [row.name, ...(row.earlierName ? [row.earlierName] : [])].map((name) => [name.toLowerCase(), row.role] as const)),
   ["pamela balasa", "Mother of the Groom"],
 ]);
 
