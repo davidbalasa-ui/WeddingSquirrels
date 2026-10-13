@@ -1,3 +1,4 @@
+import { withMcSongs } from "./mc-songs";
 import { isReplacedMcCue } from "./no-grandparent-photos";
 import { weddingPlacesFromPlan } from "@/lib/wedding-venue";
 import { parseBlockNotes } from "@/lib/day-of-now";
@@ -608,11 +609,13 @@ export function extractMcCues(
     blocks.filter((row) => parseTimelineSchedule(row.schedule) === "wedding"),
   )) {
     const parsed = parseBlockNotes(block.notes);
-    const lines = block.notes
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .slice(1);
+    const lines = withMcSongs(
+      block.notes
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .slice(1),
+    );
     const blockCues: PrintMcCue[] = [];
     const musicItems: Array<{ kind: string; value: string; label: string }> = [];
     for (const line of lines) {

@@ -135,8 +135,8 @@ test("MC extraction uses canonical note cues and does not invent Kurt contact da
   assert.equal(cues.some((cue) => /First Dance/i.test(cue.music.join(" "))), true);
   assert.equal(cues.some((cue) => /Kids Section/i.test(cue.music.join(" "))), true);
   assert.equal(cues.some((cue) => /Adults Section/i.test(cue.music.join(" "))), false);
-  assert.equal(cues.some((cue) => /Dollar Dance Song/i.test(cue.music.join(" "))), true);
-  assert.equal(cues.some((cue) => /Last Dance Song/i.test(cue.music.join(" "))), true);
+  assert.equal(cues.some((cue) => /Dollar Dance- Isn’t She Lovely/i.test(cue.music.join(" "))), true);
+  assert.equal(cues.some((cue) => /Last Dance- Moon/i.test(cue.music.join(" "))), true);
   assert.equal(cues.every((cue) => !/Kurt/.test(cue.spoken)), true);
   const conclusion = cues.find((cue) => /ceremony has concluded/i.test(cue.spoken));
   assert.equal(conclusion?.music.some((line) => /Walking Down The Aisle/i.test(line)), false);

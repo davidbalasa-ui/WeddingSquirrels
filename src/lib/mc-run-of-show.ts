@@ -92,10 +92,14 @@ function musicBedsFromBlocks(
       const value = music[2]!.trim();
       const clock = value.match(TIME_IN_MUSIC);
       const processional = /aisle|processional|walking down/i.test(value);
-      if (!clock && !processional) continue;
+      // The recessional plays as the ceremony ends.
+      const recessional = /recessional/i.test(value);
+      if (!clock && !processional && !recessional) continue;
       const rawTime = clock
         ? clock[1]!.replace(/\s+/g, " ").trim()
-        : block.startAt;
+        : recessional
+          ? block.endAt ?? block.startAt
+          : block.startAt;
       const timed = afternoonClock(rawTime);
       beds.push({
         time: timed.kind === "timed" ? timed.display : rawTime,

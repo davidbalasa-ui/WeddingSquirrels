@@ -7,6 +7,7 @@
  */
 
 import { parseBlockNotes } from "@/lib/day-of-now";
+import { MC_SONGS } from "@/lib/mc-songs";
 import { isMcDirectoryLabel } from "@/lib/print-center";
 import { CANONICAL_PLAYBOOK, type PlaybookRecord } from "@/lib/playbook";
 
@@ -145,13 +146,14 @@ const REQUIRED_MC_LINES: Record<string, string[]> = {
   ],
   wedding_ceremony: [
     "Playlist: Walking Down The Aisle",
+    MC_SONGS.recessional,
     'MC cue at 4:00: "The ceremony has concluded - let the celebration begin!"',
   ],
   wedding_cocktail_hour: [
     'MC cue 4:55: "Honored guests, cocktail hour is nearing its end."',
   ],
   wedding_dinner: [
-    "Grand Entrance Song: Special Dances Playlist",
+    MC_SONGS.grandEntrance,
     'MC cue 5:00: "If I may have your attention - it’s time! Please welcome the wedding party, and then join me in cheering for the newlyweds, David and Haley!"',
     'Dinner cue immediately after entrance: "Our couple has arrived - let the feast begin!"',
     "Playlist: Dinner Minstrels, start of dinner through start of toasts",
@@ -161,7 +163,7 @@ const REQUIRED_MC_LINES: Record<string, string[]> = {
     'MC cue 6:15: "With the toasts complete, gather near the cake table."',
   ],
   wedding_first_dances: [
-    "Music: First Dance and Father Daughter",
+    MC_SONGS.firstDances,
     'MC cue 6:30: "Please turn your attention to the center of the space."',
   ],
   wedding_open_dancing: [
@@ -170,9 +172,9 @@ const REQUIRED_MC_LINES: Record<string, string[]> = {
     'MC cue 8:00: "A gentle reminder for our younger travelers."',
     "Playlist: Wedding - Adults Section 8:15–8:30",
     'MC cue 8:30 — Dollar Dance: "It’s time for a cherished tradition - the dollar dance."',
-    "Music: Dollar Dance Song, Special Dances Playlist",
+    MC_SONGS.dollarDance,
     'MC cue 9:55 — Last Call + Final Dance: "As the evening winds down, this is the last call for drinks."',
-    "Music: Last Dance Song, Special Dances Playlist",
+    MC_SONGS.lastDance,
     'MC cue 10:00 — Reception Conclusion: "Our celebration has reached its end."',
   ],
 };

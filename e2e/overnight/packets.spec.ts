@@ -271,3 +271,23 @@ test("Friday's 4:05–4:30 family photos print on the run sheet, with no grandpa
   expect(text).toMatch(/4:05 PM\s*[–-]\s*4:30 PM\s+Family photos/);
   expect(text).not.toMatch(/grand ?(?:ma|pa|parent|mother|father)/i);
 });
+
+// David's MC tab ("MC Schedule/Script"), word for word: an older saved placeholder prints as his song.
+test("the MC packet prints every song from David's MC tab, never a placeholder", async ({ page }) => {
+  const prisma = overnightPrisma();
+  const row = await prisma.timelineBlock.findUniqueOrThrow({ where: { seedKey: "wedding_dollar_dance" } });
+  await prisma.timelineBlock.update({
+    where: { id: row.id },
+    data: { notes: `${row.notes}\nMusic: Dollar Dance Song, Special Dances Playlist` },
+  });
+  try {
+    const text = await openPacket(page, "mc");
+    for (const song of ["Heather on the Hill", "Long Night Ahead", "My Girl", "Isn’t She Lovely", "Last Dance- Moon"]) {
+      expect(text).toContain(song);
+    }
+    expect(text).not.toMatch(/Dollar Dance Song|Last Dance Song|Grand Entrance Song: Special/);
+  } finally {
+    await prisma.timelineBlock.update({ where: { id: row.id }, data: { notes: row.notes } });
+    await prisma.$disconnect();
+  }
+});
