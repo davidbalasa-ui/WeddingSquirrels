@@ -15,7 +15,8 @@ test("older saved placeholders read as the songs on David's MC tab", () => {
     ]),
     [MC_SONGS.grandEntrance, MC_SONGS.firstDances, MC_SONGS.dollarDance, MC_SONGS.lastDance],
   );
-  assert.equal(MC_SONGS.dollarDance, "Music: Dollar Dance- Isn’t She Lovely (In Special Dances Playlist)");
+  assert.deepEqual(withMcSongs(["Music: Dollar Dance- Isn’t She Lovely (In Special Dances Playlist)"]), [MC_SONGS.dollarDance]);
+  assert.equal(MC_SONGS.dollarDance, "Music: Dollar Dance- Gold Digger by Kanye West radio edit");
 });
 
 test("the recessional song follows the aisle playlist once", () => {
@@ -32,7 +33,7 @@ test("a line David typed himself stays as he wrote it", () => {
 test("the MC run of show prints every song from the MC tab, none of the placeholders", () => {
   const show = buildMcRunOfShow(PRODUCTION_CUE_BLOCKS.map((row) => ({ ...row, schedule: "wedding" })));
   const music = show.cues.flatMap((cue) => cue.music).join("\n");
-  for (const song of ["Heather on the Hill", "Long Night Ahead", "Fairytale", "My Girl", "Isn’t She Lovely", "Last Dance- Moon"]) {
+  for (const song of ["Heather on the Hill", "Long Night Ahead", "Fairytale", "My Girl", "Gold Digger by Kanye West radio edit", "Last Dance- Moon"]) {
     assert.match(music, new RegExp(song), song);
   }
   assert.doesNotMatch(music, /Dollar Dance Song|Last Dance Song|Grand Entrance Song: Special/);

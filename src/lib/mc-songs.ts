@@ -3,12 +3,13 @@
  * Older saved rows still carry the app's placeholders ("Dollar Dance Song, Special Dances
  * Playlist"); wherever one is read it shows and prints his song instead. A line David
  * typed himself never matches, so it stays as he wrote it.
+ * David, 2026-10-13 15:04, on the dollar dance: "That needs to be changed to Gold Digger by Kanye West radio edit."
  */
 export const MC_SONGS = {
   recessional: "Music: Recessional Song- Heather on the Hill (In Special Dances Playlist)",
   grandEntrance: "Music: Grand Entrance Song- Long Night Ahead (In Special Dances Playlist)",
   firstDances: "Music: First Dance- Fairytale and Father Daughter- My Girl (In Special Dances Playlist)",
-  dollarDance: "Music: Dollar Dance- Isn’t She Lovely (In Special Dances Playlist)",
+  dollarDance: "Music: Dollar Dance- Gold Digger by Kanye West radio edit",
   lastDance: "Music: Last Dance- Moon (In Special Dances Playlist)",
 } as const;
 
@@ -16,6 +17,7 @@ const PLACEHOLDERS: Array<{ from: RegExp; to: string }> = [
   { from: /^Grand Entrance Song:\s*Special Dances Playlist\.?$/i, to: MC_SONGS.grandEntrance },
   { from: /^Music:\s*First Dance and Father Daughter\.?$/i, to: MC_SONGS.firstDances },
   { from: /^Music:\s*Dollar Dance Song,\s*Special Dances Playlist\.?$/i, to: MC_SONGS.dollarDance },
+  { from: /^Music:\s*Dollar Dance- Isn[’']t She Lovely \(In Special Dances Playlist\)\.?$/i, to: MC_SONGS.dollarDance },
   { from: /^Music:\s*Last Dance Song,\s*Special Dances Playlist\.?$/i, to: MC_SONGS.lastDance },
 ];
 

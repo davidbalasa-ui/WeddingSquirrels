@@ -282,10 +282,10 @@ test("the MC packet prints every song from David's MC tab, never a placeholder",
   });
   try {
     const text = await openPacket(page, "mc");
-    for (const song of ["Heather on the Hill", "Long Night Ahead", "My Girl", "Isn’t She Lovely", "Last Dance- Moon"]) {
+    for (const song of ["Heather on the Hill", "Long Night Ahead", "My Girl", "Gold Digger by Kanye West radio edit", "Last Dance- Moon"]) {
       expect(text).toContain(song);
     }
-    expect(text).not.toMatch(/Dollar Dance Song|Last Dance Song|Grand Entrance Song: Special/);
+    expect(text).not.toMatch(/Dollar Dance Song|Last Dance Song|Grand Entrance Song: Special|She Lovely/);
   } finally {
     await prisma.timelineBlock.update({ where: { id: row.id }, data: { notes: row.notes } });
     await prisma.$disconnect();
