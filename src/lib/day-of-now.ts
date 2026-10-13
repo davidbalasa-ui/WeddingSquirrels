@@ -1,6 +1,7 @@
 import { vendorPrimaryName } from "@/lib/connections";
 import { formatClock, parseDayOfTime, sortTimelineBlocks } from "@/lib/day-of-time";
 import { namesMatch, normalizePersonName, profileIdForContact, profileIdForPerson } from "@/lib/people-directory";
+import { withMcSongs } from "@/lib/mc-songs";
 
 export type TimelineBlockInput = {
   id: string;
@@ -87,10 +88,11 @@ export function formatNowClock(now: Date): string {
 }
 
 export function parseBlockNotes(notes: string): ParsedBlockNotes {
-  const lines = notes
+  const raw = notes
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+  const lines = [...raw.slice(0, 1), ...withMcSongs(raw.slice(1))];
   const title = lines[0] ?? "Timeline moment";
   const detailLines: string[] = [];
   let location: string | null = null;
