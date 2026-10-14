@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { parseBlockNotes } from "./day-of-now";
 import { SCHEDULE_DAY_JOBS, planDayJobRewords } from "./day-job-corrections";
 import { withLineCorrections } from "./line-corrections";
+import { planPlaybookRewords } from "./playbook-corrections";
 import { projectHairMakeup } from "./print-projection";
 import { AVALON_TIME_FRAME, RECONCILED_TIMELINE, ROTATION_PRACTICE, WENDY_MEETS_AVALON, planReconciledTimeline, reconciledNotes } from "./reconciled-timeline";
 
@@ -142,4 +143,19 @@ test("David's 1:45 photos no longer have the children join him, as the Master ha
   const was = reconciledNotes({ ...moment, lines: ["David solo portraits and groom-party candids.", "The children join David for photos.", "Barry positions David and clears the first-look area."] });
   const plan = planReconciledTimeline([{ id: "dp", seedKey: moment.seedKey, schedule: "wedding", startAt: moment.startAt, endAt: moment.endAt, notes: was, sortOrder: 0 }]);
   assert.deepEqual(plan.rewords.map((row) => [row.id, row.correction, row.notes]), [["dp", "kids hidden until 2:15 PM", reconciledNotes(moment)]]);
+});
+
+// David, 2026-10-14 15:09: "On our schedule, we do need to update trash to being Tracy and Victor."
+test("trash is Tracy and Victor: the saved line, the playbook row as the app wrote it, and the setup page", () => {
+  assert.deepEqual(withLineCorrections(["Trash: Haley's parents", "Decor goes with Haley's parents and anyone staying with them"]), ["Trash: Tracy and Victor", "Decor goes with Haley's parents and anyone staying with them"]);
+  assert.deepEqual(withLineCorrections(["Trash: Haley's parents", "Trash: Tracy and Victor"]), ["Trash: Tracy and Victor"]);
+  const rewords = planPlaybookRewords([
+    { id: "t", sourceKey: "decor-trash", title: "Trash", notes: "Haley's parents take trash." },
+    { id: "a", sourceKey: "avalon-breakdown", title: "Décor breakdown for the point person", notes: "Full décor clean-up/breakdown for the client's point person. That is not Avalon personally owning removal or transport of all decor. Haley's parents take trash and take decor home." },
+    { id: "own", sourceKey: "decor-trash", title: "Trash", notes: "Mom has it." },
+  ]);
+  assert.deepEqual(rewords.map((row) => [row.id, row.notes, row.detail ?? null]), [
+    ["t", "Tracy and Victor take trash.", { before: "Haley's parents", now: "Tracy and Victor" }],
+    ["a", "Full décor clean-up/breakdown for the client's point person. That is not Avalon personally owning removal or transport of all decor. Tracy and Victor take trash. Haley's parents take decor home.", null],
+  ]);
 });

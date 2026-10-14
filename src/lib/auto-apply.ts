@@ -102,6 +102,8 @@ async function writeTaskCorrections(tx: Tx, plan: PrintoutCorrectionsPlan, now: 
   }
   for (const row of plan.playbookRewords) {
     await tx.playbookItem.updateMany({ where: { id: row.id, notes: row.before }, data: { notes: row.notes } });
+    // The detail only while it still reads as the app wrote it.
+    if (row.detail) await tx.playbookItem.updateMany({ where: { id: row.id, detail: row.detail.before }, data: { detail: row.detail.now } });
   }
 }
 

@@ -4,10 +4,19 @@
  */
 import { playbookRecordByKey } from "./playbook";
 
-export type PlaybookReword = { id: string; sourceKey: string; title: string; notes: string; before: string; correction: string };
+export type PlaybookReword = {
+  id: string;
+  sourceKey: string;
+  title: string;
+  notes: string;
+  before: string;
+  correction: string;
+  /** The row's detail as the app wrote it, and as it reads now; only rewritten while it still reads as before. */
+  detail?: { before: string; now: string | null };
+};
 
 /** What the app first wrote, and why it changed. The new words are the canonical row's. */
-const EARLIER_PLAYBOOK_NOTES: Array<{ sourceKey: string; notes: string; correction: string }> = [
+const EARLIER_PLAYBOOK_NOTES: Array<{ sourceKey: string; notes: string; correction: string; detail?: string }> = [
   {
     // The reconciled timeline has "Sign the marriage license" at 4:00 PM, immediately after the recessional.
     sourceKey: "avalon-license",
@@ -32,6 +41,18 @@ const EARLIER_PLAYBOOK_NOTES: Array<{ sourceKey: string; notes: string; correcti
     notes: "Get-ready robes: Harmony and Melody still TBD.",
     correction: "robes closed",
   },
+  {
+    // David, 2026-10-14 15:09: "we do need to update trash to being Tracy and Victor."
+    sourceKey: "decor-trash",
+    notes: "Haley's parents take trash.",
+    detail: "Haley's parents",
+    correction: "trash: Tracy and Victor",
+  },
+  {
+    sourceKey: "avalon-breakdown",
+    notes: "Full décor clean-up/breakdown for the client's point person. That is not Avalon personally owning removal or transport of all decor. Haley's parents take trash and take decor home.",
+    correction: "trash: Tracy and Victor",
+  },
 ];
 
 export function planPlaybookRewords(
@@ -42,6 +63,8 @@ export function planPlaybookRewords(
     // A row whose open line was closed now has no notes; it is cleared, never left with the old line.
     const record = old && playbookRecordByKey(old.sourceKey);
     const now = record ? (record.notes ?? "") : null;
-    return old && now != null ? [{ id: row.id, sourceKey: row.sourceKey, title: row.title, notes: now, before: old.notes, correction: old.correction }] : [];
+    if (!old || now == null) return [];
+    const detail = old.detail != null ? { before: old.detail, now: record?.detail ?? null } : undefined;
+    return [{ id: row.id, sourceKey: row.sourceKey, title: row.title, notes: now, before: old.notes, correction: old.correction, ...(detail ? { detail } : {}) }];
   });
 }

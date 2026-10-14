@@ -323,8 +323,9 @@ const DECOR: PlaybookRecord[] = [
   }),
   item("decor", "Cleanup", 60, "Trash", {
     key: "decor-trash",
-    detail: "Haley's parents",
-    notes: "Haley's parents take trash.",
+    // David, 2026-10-14 15:09: "we do need to update trash to being Tracy and Victor."
+    detail: "Tracy and Victor",
+    notes: "Tracy and Victor take trash.",
   }),
   item("decor", "Cleanup", 61, "Decor goes home with Haley's parents", {
     key: "decor-take-home",
@@ -409,7 +410,7 @@ const COORDINATOR: PlaybookRecord[] = [
   }),
   item("coordinator", "Avalon / Green Garden Events", 9, "Décor breakdown for the point person", {
     key: "avalon-breakdown",
-    notes: "Full décor clean-up/breakdown for the client's point person. That is not Avalon personally owning removal or transport of all decor. Haley's parents take trash and take decor home.",
+    notes: "Full décor clean-up/breakdown for the client's point person. That is not Avalon personally owning removal or transport of all decor. Tracy and Victor take trash. Haley's parents take decor home.",
   }),
   item("coordinator", "Avalon / Green Garden Events", 10, "Dinner table release", {
     key: "avalon-release",

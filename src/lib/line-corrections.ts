@@ -17,6 +17,8 @@ const CORRECTED: Array<{ from: RegExp; to: string | null }> = [
   { from: /^Dance floor opens at 7:00 PM in the glass house \(not the older 7:45 PDF time\)$/i, to: "Dance floor opens at 6:45 PM in the glass house (not the older 7:45 PDF time)" },
   // His golden hour at 6:25 answers which 10 minutes Barry takes outside.
   { from: /^Open items:\s*Ask Barry to confirm the best 10 minutes for outdoor photos\.?$/i, to: null },
+  // David, 2026-10-14 15:09: "we do need to update trash to being Tracy and Victor."
+  { from: /^Trash: Haley's parents\.?$/i, to: "Trash: Tracy and Victor" },
 ];
 
 const TARGETS = new Set(CORRECTED.map((row) => row.to).filter((to): to is string => to != null));
