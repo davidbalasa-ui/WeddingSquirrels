@@ -37,7 +37,7 @@ test("MC and photographer schedules skip the rehearsal and keep their own lines"
   const dollar = mc.wedding.find((row) => row.title === "Dollar dance");
   assert.deepEqual(dollar?.lines, ["MC announces the dollar dance."]);
   const photo = packetSchedule(moments, "photo");
-  assert.ok(titles(photo.wedding).includes("Golden-hour photos"));
+  assert.ok(titles(photo.wedding).includes("Outdoor golden-hour photos"));
 });
 
 test("parents' schedules split by side: father-daughter dance for the bride's, couple photos for both", () => {
@@ -197,9 +197,10 @@ test("the wedding party schedule prints the Hawkshead dress code under the rehea
 
 // David, 2026-10-11 12:29: "At 1:45 pm, have David's first look with the girls".
 // David, 2026-10-13 22:27: "Let's push kids first look to 2:15 and it will be first look with Dad and Haley."
-test("the kids' 2:15 PM first look with David and Haley is on the timeline and in the photographer's packet", () => {
+// David, 2026-10-14 14:59: "For the girls, first look, 225 should be fine."
+test("the kids' 2:25 PM first look with David and Haley is on the timeline and in the photographer's packet", () => {
   const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_david_girls_first_look");
-  assert.equal(moment?.startAt, "2:15 PM");
+  assert.equal(moment?.startAt, "2:25 PM");
   assert.equal(moment?.title, "Kids’ first look with David and Haley");
   assert.ok(titles(packetSchedule(moments, "photo").wedding).includes("Kids’ first look with David and Haley"));
 });

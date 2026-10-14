@@ -74,6 +74,20 @@ export const HALEY_DAD_FIRST_LOOK_FIELD = "Haley’s first look with her dad is 
 export const KIDS_FIRST_LOOK = "The kids must remain hidden from Haley and David until then, and are brought to wherever David and Haley are (David, Oct 13).";
 /** David, 2026-10-13 22:27: "David and Haley first look to be first look at viniard fence." */
 export const VINEYARD_FENCE_FIRST_LOOK = "Private first look at the vineyard fence, followed by immediate couple portraits (David, Oct 13).";
+/** The Master's 1:15 PM "Harmony and Melody arrive" row (David, 2026-10-14). */
+export const GIRLS_ARRIVE = [
+  "Harmony and Melody arrive at 1:15 PM.",
+  "Skila helps Harmony and Melody with their hair and makeup.",
+  "Skila takes Harmony and Melody straight inside so they remain hidden from Haley and David until their first look.",
+];
+/** David, 2026-10-14 14:53: "We do want the bartender arriving at 2:30." Worded as the Master's 2:30 PM row. */
+export const BARTENDER_ARRIVES = "The bartender arrives at Black Sheep Shelter at 2:30 PM (David, Oct 14).";
+const PARTY_PHOTO_LINES = [
+  "Bride with wedding party.",
+  "Groom with wedding party.",
+  ...["Skila", "Trinity", "Victoria", "Bri", "Kaylie", "Braxton", "Andi"].map((name) => `Bride with ${name}.`),
+  ...["Skila", "Trinity", "Victoria", "Bri", "Kaylie", "Evan", "Braxton"].map((name) => `Groom with ${name}.`),
+];
 /**
  * David, 2026-10-13 22:37: "Thursday night we need to do rotations like the same way as makeup rotations. It will be like a
  * practice run." Worded as the Master's 7:15 PM "Return to the Airbnb" row, with Friday's two rotations.
@@ -159,8 +173,10 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_david_parents_first_look", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: null, title: "David’s first look with his parents",
     lines: ["David’s parents pin his boutonniere for their first look.", "Photos of David with his parents.", "Afterward, photos move to Haley getting dressed."] },
   { seedKey: "wedding_getting_dressed", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: "1:30 PM", title: "Haley gets dressed",
-    lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-tiara portrait.", "Children arrive at 1:15 PM."] },
-  { seedKey: "wedding_haley_family_photos", schedule: W, phase: "photos", startAt: "1:30 PM", endAt: "1:45 PM", title: "Haley’s family photos",
+    // David, 2026-10-14: Skila takes the girls straight inside at 1:15 so they stay hidden (the Master's 1:15 row).
+    lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-tiara portrait.", ...GIRLS_ARRIVE] },
+  // David, 2026-10-14 14:53: "1:15 should be fine for the first look with her dad."
+  { seedKey: "wedding_haley_family_photos", schedule: W, phase: "photos", startAt: "1:15 PM", endAt: "1:45 PM", title: "Haley’s family photos",
     lines: [HALEY_DAD_FIRST_LOOK_FIELD, "Haley with parents.", "Haley with mom.", "Haley with dad."] },
   { seedKey: "wedding_david_photos", schedule: W, phase: "photos", startAt: "1:45 PM", endAt: "2:00 PM", title: "David’s photos",
     // David, 2026-10-13 22:27: the kids stay hidden from David and Haley until their 2:15 first look.
@@ -170,17 +186,14 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   // David, 2026-10-11 12:29: "At 1:45 pm, have David's first look with the girls".
   // David, 2026-10-11 16:00: "David will give the gifts to the girls at 1:45 during first look with the girls".
   // David, 2026-10-13 22:27: the kids' first look moves to 2:15 PM, with David and Haley.
-  { seedKey: "wedding_david_girls_first_look", schedule: W, phase: "photos", startAt: "2:15 PM", endAt: null, title: "Kids’ first look with David and Haley",
+  // David, 2026-10-14 14:59: "For the girls, first look, 225 should be fine."
+  { seedKey: "wedding_david_girls_first_look", schedule: W, phase: "photos", startAt: "2:25 PM", endAt: null, title: "Kids’ first look with David and Haley",
     lines: [KIDS_FIRST_LOOK, GIRLS_GIFTS] },
   { seedKey: "wedding_couple_parent_photos", schedule: W, phase: "photos", startAt: "2:15 PM", endAt: "2:30 PM", title: "Couple and parent photos",
     lines: ["Couple with parents.", "Couple with mom.", "Couple with dad.", "Additional couple portraits as time permits."] },
+  // David, 2026-10-14 14:53: "We do want the bartender arriving at 2:30."
   { seedKey: "wedding_party_photos", schedule: W, phase: "photos", startAt: "2:30 PM", endAt: "3:00 PM", title: "Wedding party photos",
-    lines: [
-      "Bride with wedding party.",
-      "Groom with wedding party.",
-      ...["Skila", "Trinity", "Victoria", "Bri", "Kaylie", "Braxton", "Andi"].map((name) => `Bride with ${name}.`),
-      ...["Skila", "Trinity", "Victoria", "Bri", "Kaylie", "Evan", "Braxton"].map((name) => `Groom with ${name}.`),
-    ] },
+    lines: [...PARTY_PHOTO_LINES, BARTENDER_ARRIVES] },
   { seedKey: "wedding_quiet_time", schedule: W, phase: "photos", startAt: "3:00 PM", endAt: "3:15 PM", title: "Touch-ups and quiet time",
     lines: ["Guests may begin arriving at 3:00 PM.", "Bathroom, water, touch-ups, and schedule recovery if portraits run long."] },
   { seedKey: "wedding_ring_security", schedule: W, phase: "photos", startAt: "3:00 PM", endAt: "3:30 PM", title: "Harmony on ring security",
@@ -197,11 +210,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
     lines: ["Immediately after the recessional.", "David, Haley, Marie, and the witnesses move directly to the signing table.", "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen."] },
   // David, 2026-10-11 12:46: "Cocktail hour ends at 5."
   { seedKey: "wedding_cocktail_hour", schedule: W, phase: "ceremony", startAt: "4:00 PM", endAt: "5:00 PM", title: "Cocktail hour and bar opening",
-    lines: [
-      "Bartender arrives at 3:00 PM (David, Oct 10).",
-      "Bar service begins at 4:00 PM.",
-      "Guests receive drinks and appetizers while photography continues.",
-    ] },
+    lines: ["Bar service begins at 4:00 PM.", "Guests receive drinks and appetizers while photography continues."] },
   // David, 2026-10-11 19:27: "Add from 4:05 to 4:30, family photos." (No grandparent photos: his words only.)
   { seedKey: "wedding_family_photos_after", schedule: W, phase: "ceremony", startAt: "4:05 PM", endAt: "4:30 PM", title: "Family photos",
     lines: [] },
@@ -235,17 +244,20 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   // David, 2026-10-11 12:37: "we need an announcement from the MC to clear the center area and turn your chairs to the
   // middle of the walk area for the bride and groom's first dance. Followed by the bride and her father." 16:15: at 6:25.
   // David, 2026-10-13 22:57: "move golden hour photos to 6:25 and push the dances back 10 minutes" (and the announcement with them).
-  { seedKey: "wedding_first_dance_announcement", schedule: W, phase: "evening", startAt: "6:35 PM", endAt: null, title: "Clear the center for the first dance",
-    lines: ["MC cue 6:35 PM: Clear the center area and turn your chairs to the middle of the walk area for the bride and groom’s first dance, followed by the bride and her father."] },
-  { seedKey: "wedding_first_dances", schedule: W, phase: "evening", startAt: "6:40 PM", endAt: "6:55 PM", title: "Formal dances",
+  // David, 2026-10-14 14:53: "We can't do the cake cutting and golden hour photos at the same time"; dances back at 6:30.
+  { seedKey: "wedding_first_dance_announcement", schedule: W, phase: "evening", startAt: "6:30 PM", endAt: null, title: "Clear the center for the first dance",
+    lines: ["MC cue 6:30 PM: Clear the center area and turn your chairs to the middle of the walk area for the bride and groom’s first dance, followed by the bride and her father."] },
+  { seedKey: "wedding_first_dances", schedule: W, phase: "evening", startAt: "6:30 PM", endAt: "6:45 PM", title: "Formal dances",
     lines: ["First dance.", "Father of the bride dance.", "Any additional formal dance must be confirmed before the event."] },
-  { seedKey: "wedding_golden_hour", schedule: W, phase: "evening", startAt: "6:23 PM", endAt: "7:18 PM", title: "Golden-hour photos",
-    lines: ["Golden hour in South Haven is about 6:23–7:18 PM.", "Sunset is approximately 7:01 PM.", "Plan for outdoor photos from 6:25–6:35 PM."] },
+  // David, 2026-10-14 14:55: "Can we move golden hour photos up to 5:45 like hers suggest?"
+  { seedKey: "wedding_golden_hour", schedule: W, phase: "evening", startAt: "5:45 PM", endAt: "5:55 PM", title: "Outdoor golden-hour photos",
+    lines: ["Outdoor portraits with Barry."] },
   // David, 2026-10-11 15:18: "bonfire time start is 7PM".
   // 15:21: "smores are at 7".
   { seedKey: "wedding_bonfire", schedule: W, phase: "evening", startAt: "7:00 PM", endAt: null, title: "Bonfire and s’mores",
     lines: [] },
-  { seedKey: "wedding_open_dancing", schedule: W, phase: "evening", startAt: "7:00 PM", endAt: "8:00 PM", title: "Open dancing",
+  // David, 2026-10-14 14:53: "open dancing would probably move forward a little bit to 6:45 since we only have two first dances."
+  { seedKey: "wedding_open_dancing", schedule: W, phase: "evening", startAt: "6:45 PM", endAt: "8:00 PM", title: "Open dancing",
     lines: ["Dance floor opens and the couple stays on the floor as much as possible."] },
   { seedKey: "wedding_children_ready", schedule: W, phase: "evening", startAt: "8:00 PM", endAt: null, title: "Goodbyes to the kids and goodbye song",
     lines: ["We say our goodbyes to the kids and have a goodbye song (David, Oct 10).", "Parents gather belongings and prepare children to leave."] },
@@ -328,7 +340,11 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
     { lines: [], title: "David’s first look with the girls", startAt: "1:45 PM", correction: "girls' gifts at 1:45 PM" },
     // Before David's 2026-10-13 22:27 "push kids first look to 2:15 ... with Dad and Haley".
     { lines: [GIRLS_GIFTS], title: "David’s first look with the girls", startAt: "1:45 PM", correction: "kids' first look 2:15 PM with David and Haley" },
+    // Before David's 2026-10-14 14:59 "225 should be fine".
+    { startAt: "2:15 PM", correction: "kids' first look 2:25 PM" },
   ],
+  // Before David's 2026-10-14 "bartender arriving at 2:30".
+  wedding_party_photos: [{ lines: PARTY_PHOTO_LINES, correction: "bartender arrives 2:30 PM" }],
   // Before David's 2026-10-13 22:27 "David and Haley first look to be first look at viniard fence".
   wedding_first_look: [{ lines: ["Private first look followed by immediate couple portraits."], correction: "first look at the vineyard fence" }],
   // David, 2026-10-10: Skila, Trinity and Bri claimed their bunks; his check-in gave the Airbnb address.
@@ -407,16 +423,23 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
     { startAt: "6:25 PM", endAt: "6:45 PM", correction: "first dance at 6:20 PM" },
     // David, 2026-10-11 16:15: formal dances 6:30–6:45 PM.
     { startAt: "6:20 PM", endAt: "6:45 PM", correction: "formal dances 6:30–6:45 PM" },
-    // Before David's 2026-10-13 22:57 "push the dances back 10 minutes".
-    { startAt: "6:30 PM", endAt: "6:45 PM", correction: "formal dances 6:40–6:55 PM" },
+    // Before David's 2026-10-14 14:53: the dances are back at 6:30–6:45 PM.
+    { startAt: "6:40 PM", endAt: "6:55 PM", correction: "formal dances 6:30–6:45 PM" },
   ],
   wedding_golden_hour: [
     {
+      title: "Golden-hour photos",
+      startAt: "6:23 PM",
+      endAt: "7:18 PM",
       lines: ["Golden hour in South Haven is about 6:23–7:18 PM.", "Sunset is approximately 7:01 PM.", "Plan for outdoor photos from 6:45–6:55 PM."],
       openItems: "Ask Barry to confirm the best 10 minutes for outdoor photos.",
-      correction: "outdoor photos 6:25–6:35 PM",
+      correction: "outdoor photos 5:45–5:55 PM",
     },
+    // Before David's 2026-10-14 14:55 "move golden hour photos up to 5:45".
+    { title: "Golden-hour photos", startAt: "6:23 PM", endAt: "7:18 PM", lines: ["Golden hour in South Haven is about 6:23–7:18 PM.", "Sunset is approximately 7:01 PM.", "Plan for outdoor photos from 6:25–6:35 PM."], correction: "outdoor photos 5:45–5:55 PM" },
   ],
+  // Before David's 2026-10-14 14:53 "open dancing ... to 6:45".
+  wedding_open_dancing: [{ startAt: "7:00 PM", endAt: "8:00 PM", correction: "open dancing 6:45 PM" }],
   wedding_first_dance_announcement: [
     {
       startAt: "6:15 PM",
@@ -429,6 +452,13 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
       endAt: null,
       lines: ["MC cue 6:25 PM: Clear the center area and turn your chairs to the middle of the walk area for the bride and groom’s first dance, followed by the bride and her father."],
       correction: "dance announcement 6:35 PM",
+    },
+    // Before David's 2026-10-14 14:53: the announcement is back at 6:30 PM.
+    {
+      startAt: "6:35 PM",
+      endAt: null,
+      lines: ["MC cue 6:35 PM: Clear the center area and turn your chairs to the middle of the walk area for the bride and groom’s first dance, followed by the bride and her father."],
+      correction: "dance announcement 6:30 PM",
     },
   ],
   // David, 2026-10-10 22:00: "8 Is when we say our good byes to the kids and have a good bye song
@@ -474,6 +504,11 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
         "Guests receive drinks and appetizers while photography continues.",
       ],
       correction: "bartender line carries only 3:00 PM",
+    },
+    // Before David's 2026-10-14 "bartender arriving at 2:30" (the 2:30 PM wedding party photos carry it now).
+    {
+      lines: ["Bartender arrives at 3:00 PM (David, Oct 10).", "Bar service begins at 4:00 PM.", "Guests receive drinks and appetizers while photography continues."],
+      correction: "bartender arrives 2:30 PM",
     },
   ],
   // David, 2026-10-11 12:31: ceremony 3:30–3:50 PM, signing 3:50–4:00 PM, cocktail hour at 4:00 PM.
@@ -577,15 +612,20 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
       lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-veil portrait.", "Children arrive at 1:15 PM."],
       correction: "bride with tiara",
     },
+    // Before David's 2026-10-14: Skila takes the girls straight inside at 1:15.
+    { lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-tiara portrait.", "Children arrive at 1:15 PM."], correction: "girls hidden from 1:15 PM" },
   ],
   // David, 2026-10-11 15:13: Haley's first look with her dad opens the 1:30 parent photos.
   wedding_haley_family_photos: [
     {
+      startAt: "1:30 PM",
       lines: ["Haley with parents.", "Haley with mom.", "Haley with dad.", "Haley first look with Dad."],
       correction: "first look with dad at 1:30 PM",
     },
     // Before David's 2026-10-13 22:27 "Haley and dad first look in the field".
-    { lines: [HALEY_DAD_FIRST_LOOK, "Haley with parents.", "Haley with mom.", "Haley with dad."], correction: "first look with dad in the field" },
+    { startAt: "1:30 PM", lines: [HALEY_DAD_FIRST_LOOK, "Haley with parents.", "Haley with mom.", "Haley with dad."], correction: "first look with dad in the field" },
+    // Before David's 2026-10-14 14:53 "1:15 should be fine for the first look with her dad".
+    { startAt: "1:30 PM", correction: "first look with dad at 1:15 PM" },
   ],
   // David, 2026-10-10: the driver is Dan, not San (the document had it wrong).
   wedding_getaway_arrives: [
