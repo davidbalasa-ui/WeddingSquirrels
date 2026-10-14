@@ -130,3 +130,12 @@ test("an older saved 6:30 dance cue shows at 6:40, once", () => {
   assert.deepEqual(withLineCorrections([now, 'MC cue 6:30: "Please turn your attention to the center of the space."']), [now]);
   assert.deepEqual(withLineCorrections(["Open items: Ask Barry to confirm the best 10 minutes for outdoor photos."]), []);
 });
+
+// David, 2026-10-13 22:27: "Kids must remain hidden from Haley and dad during this time." The Master's 1:45 row is David's photos only.
+test("David's 1:45 photos no longer have the children join him, as the Master has it", () => {
+  const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_david_photos")!;
+  assert.deepEqual(moment.lines, ["David solo portraits and groom-party candids.", "Barry positions David and clears the first-look area."]);
+  const was = reconciledNotes({ ...moment, lines: ["David solo portraits and groom-party candids.", "The children join David for photos.", "Barry positions David and clears the first-look area."] });
+  const plan = planReconciledTimeline([{ id: "dp", seedKey: moment.seedKey, schedule: "wedding", startAt: moment.startAt, endAt: moment.endAt, notes: was, sortOrder: 0 }]);
+  assert.deepEqual(plan.rewords.map((row) => [row.id, row.correction, row.notes]), [["dp", "kids hidden until 2:15 PM", reconciledNotes(moment)]]);
+});

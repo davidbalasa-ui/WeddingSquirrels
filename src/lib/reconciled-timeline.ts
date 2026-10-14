@@ -163,7 +163,8 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_haley_family_photos", schedule: W, phase: "photos", startAt: "1:30 PM", endAt: "1:45 PM", title: "Haley’s family photos",
     lines: [HALEY_DAD_FIRST_LOOK_FIELD, "Haley with parents.", "Haley with mom.", "Haley with dad."] },
   { seedKey: "wedding_david_photos", schedule: W, phase: "photos", startAt: "1:45 PM", endAt: "2:00 PM", title: "David’s photos",
-    lines: ["David solo portraits and groom-party candids.", "The children join David for photos.", "Barry positions David and clears the first-look area."] },
+    // David, 2026-10-13 22:27: the kids stay hidden from David and Haley until their 2:15 first look.
+    lines: ["David solo portraits and groom-party candids.", "Barry positions David and clears the first-look area."] },
   { seedKey: "wedding_first_look", schedule: W, phase: "photos", startAt: "2:00 PM", endAt: "2:15 PM", title: "David and Haley first look",
     lines: [VINEYARD_FENCE_FIRST_LOOK] },
   // David, 2026-10-11 12:29: "At 1:45 pm, have David's first look with the girls".
@@ -488,6 +489,11 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
       lines: ["David solo portraits and groom-party candids.", "Barry positions David and clears the first-look area."],
       openItems: "Add any photos wanted with David’s parents, grandparents, or extended family.",
       correction: "no grandparent photos",
+    },
+    // Before David's 2026-10-13 22:27 "Kids must remain hidden from Haley and dad during this time".
+    {
+      lines: ["David solo portraits and groom-party candids.", "The children join David for photos.", "Barry positions David and clears the first-look area."],
+      correction: "kids hidden until 2:15 PM",
     },
   ],
   // David, 2026-10-10 22:27: "not sure about the call but precious peony serves out of the food truck".
