@@ -290,7 +290,8 @@ const TIMELINE_ADD_LINES: Record<string, string[]> = {
     "9:55 PM — private last dance after last call",
   ],
   wedding_teardown: [
-    "Trash: Haley's parents",
+    // David, 2026-10-14 15:09: "we do need to update trash to being Tracy and Victor."
+    "Trash: Tracy and Victor",
     "Decor goes with Haley's parents and anyone staying with them",
     "Avalon breaks down decor for the point person — not transport/removal of everything",
     "Tables stay; wood tables under the shelter",
@@ -804,7 +805,7 @@ export function planWeddingOpsUpdate(snapshot: WeddingOpsSnapshot): WeddingOpsPl
   const teardown = snapshot.assignments.find((row) => /tear|clean/i.test(row.title));
   if (teardown) {
     const wanted =
-      "Trash: Haley's parents. Decor goes home with Haley's parents. Avalon breaks down for the point person but does not own transport.";
+      "Trash: Tracy and Victor. Decor goes home with Haley's parents. Avalon breaks down for the point person but does not own transport.";
     if (teardown.notes && notesHasLine(teardown.notes, "Haley's parents")) {
       plan.skips.push({ action: "skip", reason: "teardown assignment already notes parents", identity: teardown.id });
     } else {

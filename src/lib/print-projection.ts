@@ -814,7 +814,8 @@ export function projectSetupPlan(input: {
       continue;
     }
     if (/trash/i.test(row.title)) {
-      confirmed.push({ owner: "Haley's parents", work: "Trash" });
+      // David, 2026-10-14 15:09: trash is Tracy and Victor.
+      confirmed.push({ owner: "Tracy and Victor", work: "Trash" });
       continue;
     }
     if (/goes home|take-home|take home/i.test(row.title) || /decor leaves with/i.test(row.notes ?? "")) {
