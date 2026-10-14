@@ -122,12 +122,16 @@ test("the hair and makeup schedule prints Friday's new leave and arrival times",
   assert.equal(projectHairMakeup([item(80, "12:05 PM", "Bridal party leaves the Airbnb")]).rows[0]!.timeLabel, "12:05 PM");
 });
 
-// David, 2026-10-13 22:57: "push the dances back 10 minutes".
-test("an older saved 6:30 dance cue shows at 6:40, once", () => {
-  const now = 'MC cue 6:40: "Please turn your attention to the center of the space."';
-  assert.deepEqual(withLineCorrections(['MC cue 6:30: "Please turn your attention to the center of the space."']), [now]);
-  assert.deepEqual(withLineCorrections(['MC cue 6:30: "Please turn your attention to the center of the space."', now]), [now]);
-  assert.deepEqual(withLineCorrections([now, 'MC cue 6:30: "Please turn your attention to the center of the space."']), [now]);
+// David, 2026-10-14 14:53: the dances are back at 6:30–6:45 PM and open dancing starts at 6:45 PM.
+test("a saved 6:40 dance cue shows at 6:30, and the 7:00 open-dancing lines at 6:45, once", () => {
+  const now = 'MC cue 6:30: "Please turn your attention to the center of the space."';
+  assert.deepEqual(withLineCorrections(['MC cue 6:40: "Please turn your attention to the center of the space."']), [now]);
+  assert.deepEqual(withLineCorrections(['MC cue 6:40: "Please turn your attention to the center of the space."', now]), [now]);
+  assert.deepEqual(withLineCorrections([now, 'MC cue 6:40: "Please turn your attention to the center of the space."']), [now]);
+  assert.deepEqual(
+    withLineCorrections(['MC cue 7:00: "The dance floor is officially open in the glass house."', "Playlist: Wedding - Kids Section 7:00–8:15", "Dance floor opens at 7:00 PM in the glass house (not the older 7:45 PDF time)"]),
+    ['MC cue 6:45: "The dance floor is officially open in the glass house."', "Playlist: Wedding - Kids Section 6:45–8:15", "Dance floor opens at 6:45 PM in the glass house (not the older 7:45 PDF time)"],
+  );
   assert.deepEqual(withLineCorrections(["Open items: Ask Barry to confirm the best 10 minutes for outdoor photos."]), []);
 });
 

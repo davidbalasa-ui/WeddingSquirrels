@@ -165,11 +165,11 @@ const REQUIRED_MC_LINES: Record<string, string[]> = {
   ],
   wedding_first_dances: [
     MC_SONGS.firstDances,
-    'MC cue 6:40: "Please turn your attention to the center of the space."',
+    'MC cue 6:30: "Please turn your attention to the center of the space."',
   ],
   wedding_open_dancing: [
-    'MC cue 7:00: "The dance floor is officially open in the glass house."',
-    "Playlist: Wedding - Kids Section 7:00–8:15",
+    'MC cue 6:45: "The dance floor is officially open in the glass house."',
+    "Playlist: Wedding - Kids Section 6:45–8:15",
     'MC cue 8:00: "A gentle reminder for our younger travelers."',
     "Playlist: Wedding - Adults Section 8:15–8:30",
     'MC cue 8:30 — Dollar Dance: "It’s time for a cherished tradition - the dollar dance."',
@@ -282,7 +282,7 @@ const TIMELINE_ADD_LINES: Record<string, string[]> = {
     "Father-daughter: My Girl by The Temptations",
   ],
   wedding_open_dancing: [
-    "Dance floor opens at 7:00 PM in the glass house (not the older 7:45 PDF time)",
+    "Dance floor opens at 6:45 PM in the glass house (not the older 7:45 PDF time)",
     "Starting song: Cupid Shuffle",
     "8:30 PM — night-sky photos",
     "9:00 PM — photographer leaves",
