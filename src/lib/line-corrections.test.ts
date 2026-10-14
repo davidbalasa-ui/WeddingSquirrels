@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseBlockNotes } from "./day-of-now";
 import { SCHEDULE_DAY_JOBS, planDayJobRewords } from "./day-job-corrections";
+import { CAKE_CUE, TOASTS_CUE } from "./evening-cues";
 import { withLineCorrections } from "./line-corrections";
 import { planPlaybookRewords } from "./playbook-corrections";
 import { projectHairMakeup } from "./print-projection";
@@ -124,15 +125,24 @@ test("the hair and makeup schedule prints Friday's new leave and arrival times",
 });
 
 // David, 2026-10-14 14:53: the dances are back at 6:30–6:45 PM and open dancing starts at 6:45 PM.
-test("a saved 6:40 dance cue shows at 6:30, and the 7:00 open-dancing lines at 6:45, once", () => {
-  const now = 'MC cue 6:30: "Please turn your attention to the center of the space."';
-  assert.deepEqual(withLineCorrections(['MC cue 6:40: "Please turn your attention to the center of the space."']), [now]);
-  assert.deepEqual(withLineCorrections(['MC cue 6:40: "Please turn your attention to the center of the space."', now]), [now]);
-  assert.deepEqual(withLineCorrections([now, 'MC cue 6:40: "Please turn your attention to the center of the space."']), [now]);
+// David, 2026-10-14 16:57, his edit of the Master, and 19:00: "The kids playlist is just starting at 7 now."
+test("saved evening lines show the Master's times: cake then toasts at 6:30, dances 6:50, dancing and the kids playlist 7:00, once", () => {
+  const now = 'MC cue 6:50: "Please turn your attention to the center of the space."';
+  for (const was of ['MC cue 6:40: "Please turn your attention to the center of the space."', 'MC cue 6:30: "Please turn your attention to the center of the space."']) {
+    assert.deepEqual(withLineCorrections([was]), [now]);
+    assert.deepEqual(withLineCorrections([was, now]), [now]);
+    assert.deepEqual(withLineCorrections([now, was]), [now]);
+  }
   assert.deepEqual(
-    withLineCorrections(['MC cue 7:00: "The dance floor is officially open in the glass house."', "Playlist: Wedding - Kids Section 7:00–8:15", "Dance floor opens at 7:00 PM in the glass house (not the older 7:45 PDF time)"]),
-    ['MC cue 6:45: "The dance floor is officially open in the glass house."', "Playlist: Wedding - Kids Section 6:45–8:15", "Dance floor opens at 6:45 PM in the glass house (not the older 7:45 PDF time)"],
+    withLineCorrections(['MC cue 6:45: "The dance floor is officially open in the glass house."', "Playlist: Wedding - Kids Section 6:45–8:15", "Dance floor opens at 6:45 PM in the glass house (not the older 7:45 PDF time)"]),
+    ['MC cue 7:00: "The dance floor is officially open in the glass house."', "Playlist: Wedding - Kids Section 7:00–8:15", "Dance floor opens at 7:00 PM in the glass house (not the older 7:45 PDF time)"],
   );
+  // The app's toasts-first cues show as his cake line, then his toasts line.
+  assert.deepEqual(
+    withLineCorrections(['MC cue 6:00 PM: "As dinner winds down, please return to your seats."', "Best man, MOH, and FOB toasts.", 'MC cue 6:00: "As dinner winds down, please return to your seats."', 'MC cue 6:15: "With the toasts complete, gather near the cake table."', "Speeches: Braxton, Andi, John"]),
+    [CAKE_CUE, TOASTS_CUE, "Speeches: Braxton, Andi, John"],
+  );
+  assert.deepEqual(withLineCorrections(["Avalon releases tables around 5:20 PM — Haley and David first", "5:45 PM — sunset photos", "Cake cutting stays at 6:15 with toasts (not the 5:15 if-by-the-bar maybe)"]), ["Avalon releases tables around 5:20 PM — Haley and David first", "6:15 PM — sunset photos"]);
   assert.deepEqual(withLineCorrections(["Open items: Ask Barry to confirm the best 10 minutes for outdoor photos."]), []);
 });
 

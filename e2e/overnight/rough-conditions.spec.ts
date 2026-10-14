@@ -71,7 +71,7 @@ test.describe("Wedding Day editor under rough conditions", () => {
 
   test("a slow connection while typing never puts older text back and ends with everything typed saved", async ({ page }) => {
     const guards = attachGuards(page);
-    const block = await blockByTitle(prisma, "Cake cutting");
+    const block = await blockByTitle(prisma, "Sunset photos");
     await openTimelineEditor(page);
 
     // Every save takes 2.5 seconds; the person types through two of them.

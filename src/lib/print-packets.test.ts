@@ -23,7 +23,7 @@ test("wedding party schedule: their moments plus the shared ones, no open questi
   const wedding = titles(schedule.wedding);
   assert.ok(wedding.includes("Wedding party first hair and makeup rotation"));
   assert.ok(wedding.includes("Ceremony"));
-  assert.ok(wedding.includes("Toasts"));
+  assert.ok(wedding.includes("Cake cutting and toasts"));
   assert.ok(!wedding.includes("Haley makeup"));
   assert.ok(!wedding.includes("Dollar dance"));
   assert.ok(titles(schedule.rehearsal).includes("Ceremony rehearsal"));
@@ -37,7 +37,7 @@ test("MC and photographer schedules skip the rehearsal and keep their own lines"
   const dollar = mc.wedding.find((row) => row.title === "Dollar dance");
   assert.deepEqual(dollar?.lines, ["MC announces the dollar dance."]);
   const photo = packetSchedule(moments, "photo");
-  assert.ok(titles(photo.wedding).includes("Outdoor golden-hour photos"));
+  assert.ok(titles(photo.wedding).includes("Sunset photos"));
 });
 
 test("parents' schedules split by side: father-daughter dance for the bride's, couple photos for both", () => {
@@ -206,12 +206,16 @@ test("the kids' 2:25 PM first look with David and Haley is on the timeline and i
 });
 
 // David, 2026-10-11 12:37: the 6:55 PM MC announcement before the first dance.
-test("the 6:55 PM clear-the-center announcement is the MC's cue and on every evening schedule", () => {
+// David, 2026-10-14 19:00: "Put the clear the center area and turn your chairs line directly before the formal dances".
+test("the clear-the-center line is the MC's first cue of the 6:50 PM formal dances, on every evening schedule", () => {
   for (const audience of ["party", "mc", "photo", "brideParents", "groomParents"] as const) {
-    assert.ok(titles(packetSchedule(moments, audience).wedding).includes("Clear the center for the first dance"), audience);
+    const wedding = titles(packetSchedule(moments, audience).wedding);
+    assert.ok(wedding.includes("Formal dances"), audience);
+    assert.ok(!wedding.includes("Clear the center for the first dance"), audience);
   }
-  const mc = packetSchedule(moments, "mc").wedding.find((row) => row.title === "Clear the center for the first dance");
-  assert.ok(mc?.lines.some((line) => /turn your chairs to the middle of the walk area/.test(line)));
+  const mc = packetSchedule(moments, "mc").wedding.find((row) => row.title === "Formal dances");
+  assert.equal(mc?.time.startsWith("6:50"), true);
+  assert.match(mc!.lines[0]!, /turn your chairs to the middle of the walk area/);
 });
 
 // David, 2026-10-11: "the jobs should be on the master run list", by time.

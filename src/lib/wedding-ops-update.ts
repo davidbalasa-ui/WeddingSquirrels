@@ -10,6 +10,7 @@ import { parseBlockNotes } from "@/lib/day-of-now";
 import { MC_SONGS } from "@/lib/mc-songs";
 import { isMcDirectoryLabel } from "@/lib/print-center";
 import { CANONICAL_PLAYBOOK, type PlaybookRecord } from "@/lib/playbook";
+import { CAKE_CUE, CLEAR_THE_CENTER_CUE, TOASTS_CUE } from "@/lib/evening-cues";
 import { AVALON_TIME_FRAME } from "@/lib/reconciled-timeline";
 
 export const EXPECTED_COUPLE_NAMES = "David & Haley";
@@ -159,17 +160,17 @@ const REQUIRED_MC_LINES: Record<string, string[]> = {
     'Dinner cue immediately after entrance: "Our couple has arrived - let the feast begin!"',
     "Playlist: Dinner Minstrels, start of dinner through start of toasts",
   ],
-  wedding_toasts_cake: [
-    'MC cue 6:00: "As dinner winds down, please return to your seats."',
-    'MC cue 6:15: "With the toasts complete, gather near the cake table."',
-  ],
+  // David's 2026-10-14 16:57 edit of the Master: the cake line, then the toasts line, at 6:30 PM.
+  wedding_toasts_cake: [CAKE_CUE, TOASTS_CUE],
   wedding_first_dances: [
+    CLEAR_THE_CENTER_CUE,
     MC_SONGS.firstDances,
-    'MC cue 6:30: "Please turn your attention to the center of the space."',
+    'MC cue 6:50: "Please turn your attention to the center of the space."',
   ],
   wedding_open_dancing: [
-    'MC cue 6:45: "The dance floor is officially open in the glass house."',
-    "Playlist: Wedding - Kids Section 6:45–8:15",
+    'MC cue 7:00: "The dance floor is officially open in the glass house."',
+    // David, 2026-10-14 19:00: "The kids playlist is just starting at 7 now."
+    "Playlist: Wedding - Kids Section 7:00–8:15",
     'MC cue 8:00: "A gentle reminder for our younger travelers."',
     "Playlist: Wedding - Adults Section 8:15–8:30",
     'MC cue 8:30 — Dollar Dance: "It’s time for a cherished tradition - the dollar dance."',
@@ -270,8 +271,7 @@ const TIMELINE_ADD_LINES: Record<string, string[]> = {
   ],
   wedding_dinner: [
     "Avalon releases tables around 5:20 PM — Haley and David first",
-    "5:45 PM — sunset photos",
-    "Cake cutting stays at 6:15 with toasts (not the 5:15 if-by-the-bar maybe)",
+    "6:15 PM — sunset photos",
   ],
   wedding_toasts_cake: [
     "Speeches: Braxton, Andi, John",
@@ -282,7 +282,7 @@ const TIMELINE_ADD_LINES: Record<string, string[]> = {
     "Father-daughter: My Girl by The Temptations",
   ],
   wedding_open_dancing: [
-    "Dance floor opens at 6:45 PM in the glass house (not the older 7:45 PDF time)",
+    "Dance floor opens at 7:00 PM in the glass house (not the older 7:45 PDF time)",
     "Starting song: Cupid Shuffle",
     "8:30 PM — night-sky photos",
     "9:00 PM — photographer leaves",

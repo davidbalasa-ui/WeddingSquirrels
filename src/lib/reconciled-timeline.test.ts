@@ -444,6 +444,7 @@ test("his evening closures reword the moments the app wrote and close their open
     },
     wedding_last_dance: { openItems: "Confirm the correct version of “Moon” with the person handling the music." },
     wedding_toasts_cake: {
+      title: "Toasts",
       startAt: "6:00 PM",
       endAt: "6:15 PM",
       lines: ["Best man, MOH, and FOB toasts."],
@@ -452,12 +453,6 @@ test("his evening closures reword the moments the app wrote and close their open
     wedding_cocktail_hour: {
       lines: ["Bar service begins at 4:00 PM.", "Guests receive drinks and appetizers while photography continues."],
       openItems: "Confirm the bar will be ready at 4:00 PM.",
-    },
-    wedding_cake_cutting: {
-      startAt: "6:15 PM",
-      endAt: null,
-      lines: ["Cut the cake immediately after toasts.", "Photographer and videographer are cued before cutting begins."],
-      openItems: "Confirm when the cake arrives, who receives it, and who has the knife, plates, and serving plan.",
     },
     wedding_teardown: {
       lines: ["Pack decor, gifts, personal belongings, remaining food, and vendor items."],
@@ -471,7 +466,7 @@ test("his evening closures reword the moments the app wrote and close their open
   const plan = planReconciledTimeline(rows);
   assert.deepEqual(plan.updates, []);
   assert.deepEqual(plan.rewords.map((row) => row.id).sort(), Object.keys(earlier).sort());
-  const stillOpen = ["wedding_toasts_cake", "wedding_children_ready"];
+  const stillOpen = ["wedding_children_ready"];
   for (const row of plan.rewords.filter((r) => !stillOpen.includes(r.id))) {
     assert.equal(/Open items:/.test(row.notes), false, row.id);
   }
@@ -558,65 +553,65 @@ test("cocktail hour runs 4:00–5:00 PM, the last-pour cue is at 4:50, and 4:45 
 // formal dances are 6:30 to 6:45".
 // David, 2026-10-13 22:57: "move golden hour photos to 6:25 and push the dances back 10 minutes".
 // David, 2026-10-14 14:53–14:55: cake cutting and golden hour can't overlap; golden hour photos 5:45; dances back at 6:30–6:45.
-test("the evening re-time: toasts 6:00–6:15 with the MC's cue, cake 6:15–6:30, announcement 6:30, dances 6:30–6:45", () => {
+// David, 2026-10-14 16:57, his own edit of the Master, and 19:00: the clear-the-center line goes directly before the dances.
+test("the evening matches his Master: sunset 6:15, cake and toasts 6:30, dances 6:50 with the clear-the-center line, dancing 7:00", () => {
   const at = (key: string) => RECONCILED_TIMELINE.find((m) => m.seedKey === key)!;
-  assert.deepEqual([at("wedding_toasts_cake").startAt, at("wedding_toasts_cake").endAt], ["6:00 PM", "6:15 PM"]);
-  assert.deepEqual([at("wedding_cake_cutting").startAt, at("wedding_cake_cutting").endAt], ["6:15 PM", "6:30 PM"]);
-  assert.equal(at("wedding_first_dance_announcement").startAt, "6:30 PM");
-  assert.match(at("wedding_first_dance_announcement").lines[0]!, /^MC cue 6:30 PM: Clear the center area/);
-  assert.deepEqual([at("wedding_first_dances").startAt, at("wedding_first_dances").endAt], ["6:30 PM", "6:45 PM"]);
-  assert.deepEqual([at("wedding_golden_hour").startAt, at("wedding_golden_hour").endAt, at("wedding_golden_hour").title], ["5:45 PM", "5:55 PM", "Outdoor golden-hour photos"]);
-  assert.deepEqual(at("wedding_golden_hour").lines, ["Outdoor portraits with Barry."]);
-  assert.equal(at("wedding_golden_hour").openItems, undefined);
-  assert.deepEqual([at("wedding_open_dancing").startAt, at("wedding_open_dancing").endAt], ["6:45 PM", "8:00 PM"]);
-  assert.match(at("wedding_toasts_cake").lines[0]!, /^MC cue 6:00 PM: "As dinner winds down, please return to your seats\."/);
-  // His rows as the app wrote them earlier today (5:50, 6:05, 6:15, 6:20) move with the new times.
-  const old: Record<string, { startAt: string; endAt: string | null; lines?: string[] }> = {
-    wedding_toasts_cake: { startAt: "5:50 PM", endAt: "6:05 PM", lines: ['MC cue 5:50 PM: "As dinner winds down, please return to your seats."', "Best man, MOH, and FOB toasts."] },
-    wedding_cake_cutting: { startAt: "6:05 PM", endAt: null },
-    wedding_first_dance_announcement: {
-      startAt: "6:15 PM",
-      endAt: null,
-      lines: ["MC cue 6:15 PM: Clear the center area and turn your chairs to the middle of the walk area for the bride and groom’s first dance, followed by the bride and her father."],
-    },
-    wedding_first_dances: { startAt: "6:20 PM", endAt: "6:45 PM" },
-  };
-  const rows: ExistingTimelineRow[] = Object.entries(old).map(([key, was], index) => {
-    const m = at(key);
-    return { id: key, seedKey: key, schedule: "wedding", startAt: was.startAt, endAt: was.endAt, notes: reconciledNotes({ ...m, lines: was.lines ?? m.lines }), sortOrder: index };
-  });
-  const plan = planReconciledTimeline(rows);
-  assert.deepEqual(
-    plan.rewords.map((r) => [r.id, r.startAt, r.endAt, r.correction]).sort(),
-    [
-      ["wedding_cake_cutting", "6:15 PM", "6:30 PM", "cake cutting 6:15–6:30 PM"],
-      ["wedding_first_dance_announcement", "6:30 PM", null, "dance announcement 6:25 PM"],
-      ["wedding_first_dances", "6:30 PM", "6:45 PM", "formal dances 6:30–6:45 PM"],
-      ["wedding_toasts_cake", "6:00 PM", "6:15 PM", "toasts 6:00–6:15 PM"],
-    ],
-  );
-  // As corrections 26 wrote them (announcement 6:35, dances 6:40–6:55, outdoor photos 6:25–6:35, dancing 7:00), they move too.
-  const golden = at("wedding_golden_hour");
-  const announce = at("wedding_first_dance_announcement");
-  const before1453: ExistingTimelineRow[] = [
-    { id: "a", seedKey: "wedding_first_dance_announcement", schedule: "wedding", startAt: "6:35 PM", endAt: null, sortOrder: 1,
-      notes: reconciledNotes({ ...announce, lines: [announce.lines[0]!.replace("6:30 PM", "6:35 PM")] }) },
-    { id: "d", seedKey: "wedding_first_dances", schedule: "wedding", startAt: "6:40 PM", endAt: "6:55 PM", sortOrder: 2, notes: reconciledNotes(at("wedding_first_dances")) },
-    { id: "g", seedKey: "wedding_golden_hour", schedule: "wedding", startAt: "6:23 PM", endAt: "7:18 PM", sortOrder: 3,
-      notes: reconciledNotes({ ...golden, title: "Golden-hour photos", lines: ["Golden hour in South Haven is about 6:23–7:18 PM.", "Sunset is approximately 7:01 PM.", "Plan for outdoor photos from 6:25–6:35 PM."] }) },
-    { id: "o", seedKey: "wedding_open_dancing", schedule: "wedding", startAt: "7:00 PM", endAt: "8:00 PM", sortOrder: 4, notes: reconciledNotes(at("wedding_open_dancing")) },
+  assert.deepEqual([at("wedding_golden_hour").startAt, at("wedding_golden_hour").endAt, at("wedding_golden_hour").title], ["6:15 PM", "6:30 PM", "Sunset photos"]);
+  const cake = at("wedding_toasts_cake");
+  assert.deepEqual([cake.startAt, cake.endAt, cake.title], ["6:30 PM", "6:45 PM", "Cake cutting and toasts"]);
+  assert.match(cake.lines[0]!, /^MC cue 6:30 PM: "Gather near the cake table/);
+  assert.match(cake.lines[1]!, /^MC cue: "Please return to your seats\. Our storytellers/);
+  assert.equal(cake.openItems, undefined);
+  const dances = at("wedding_first_dances");
+  assert.deepEqual([dances.startAt, dances.endAt], ["6:50 PM", "7:00 PM"]);
+  assert.match(dances.lines[0]!, /^MC cue 6:50 PM: Clear the center area and turn your chairs/);
+  assert.deepEqual([at("wedding_open_dancing").startAt, at("wedding_open_dancing").endAt], ["7:00 PM", "8:00 PM"]);
+  assert.equal(at("wedding_bonfire").startAt, "7:00 PM");
+  assert.equal(RECONCILED_TIMELINE.some((m) => m.seedKey === "wedding_cake_cutting" || m.seedKey === "wedding_first_dance_announcement"), false);
+  assert.equal(RECONCILED_TIMELINE.some((m) => m.lines.some((line) => /golden.hour|toasts? 6:00|MC cue 6:00/i.test(line))), false);
+
+  // His rows as corrections 28 wrote them move to the Master's times.
+  const announce = "MC cue 6:30 PM: Clear the center area and turn your chairs to the middle of the walk area for the bride and groom’s first dance, followed by the bride and her father.";
+  const cakeLines = [
+    "Cut the cake immediately after toasts.",
+    "Photographer and videographer are cued before cutting begins.",
+    "Cake placed in center and desserts rotated around on the glass plates on small plates (David, Oct 10).",
   ];
-  assert.deepEqual(planReconciledTimeline(before1453).rewords.map((r) => [r.id, r.startAt, r.endAt, r.correction]).sort(), [
-    ["a", "6:30 PM", null, "dance announcement 6:30 PM"],
-    ["d", "6:30 PM", "6:45 PM", "formal dances 6:30–6:45 PM"],
-    ["g", "5:45 PM", "5:55 PM", "outdoor photos 5:45–5:55 PM"],
-    ["o", "6:45 PM", "8:00 PM", "open dancing 6:45 PM"],
+  const before: ExistingTimelineRow[] = [
+    { id: "g", seedKey: "wedding_golden_hour", schedule: "wedding", startAt: "5:45 PM", endAt: "5:55 PM", sortOrder: 1,
+      notes: reconciledNotes({ ...at("wedding_golden_hour"), title: "Outdoor golden-hour photos", lines: ["Outdoor portraits with Barry."] }) },
+    { id: "t", seedKey: "wedding_toasts_cake", schedule: "wedding", startAt: "6:00 PM", endAt: "6:15 PM", sortOrder: 2,
+      notes: reconciledNotes({ ...cake, title: "Toasts", lines: ['MC cue 6:00 PM: "As dinner winds down, please return to your seats."', "Best man, MOH, and FOB toasts."], openItems: "Confirm the toast order and how long each person gets." }) },
+    { id: "c", seedKey: "wedding_cake_cutting", schedule: "wedding", startAt: "6:15 PM", endAt: "6:30 PM", sortOrder: 3,
+      notes: reconciledNotes({ ...cake, title: "Cake cutting", lines: cakeLines, openItems: undefined }) },
+    { id: "a", seedKey: "wedding_first_dance_announcement", schedule: "wedding", startAt: "6:30 PM", endAt: null, sortOrder: 4,
+      notes: reconciledNotes({ ...cake, title: "Clear the center for the first dance", lines: [announce], openItems: undefined }) },
+    { id: "d", seedKey: "wedding_first_dances", schedule: "wedding", startAt: "6:30 PM", endAt: "6:45 PM", sortOrder: 5,
+      notes: reconciledNotes({ ...dances, lines: dances.lines.slice(1) }) },
+    { id: "o", seedKey: "wedding_open_dancing", schedule: "wedding", startAt: "6:45 PM", endAt: "8:00 PM", sortOrder: 6, notes: reconciledNotes(at("wedding_open_dancing")) },
+  ];
+  const plan = planReconciledTimeline(before);
+  assert.deepEqual(plan.rewords.map((r) => [r.id, r.startAt, r.endAt, r.correction]).sort(), [
+    ["d", "6:50 PM", "7:00 PM", "formal dances 6:50–7:00 PM"],
+    ["g", "6:15 PM", "6:30 PM", "sunset photos 6:15–6:30 PM"],
+    ["o", "7:00 PM", "8:00 PM", "open dancing 7:00 PM"],
+    ["t", "6:30 PM", "6:45 PM", "cake cutting and toasts 6:30–6:45 PM"],
   ]);
-  // An older saved "MC cue 6:00: …" beside the moment's own cue prints once.
-  assert.deepEqual(
-    scheduleLines(['MC cue 6:00 PM: "As dinner winds down, please return to your seats."', 'MC cue 6:00: "As dinner winds down, please return to your seats."', "Best man, MOH, and FOB toasts."]),
-    ['MC cue 6:00 PM: "As dinner winds down, please return to your seats."', "Best man, MOH, and FOB toasts."],
-  );
+  // The cake and announcement moments, as the app wrote them, go without a tap; their words live on in the moments above.
+  assert.deepEqual(plan.drops!.map((r) => r.id).sort(), ["a", "c"]);
+  assert.deepEqual(plan.removals, []);
+  // An older wording of either (the 6:35 announcement, the 6:05 cake) goes too.
+  const older: ExistingTimelineRow[] = [
+    { id: "a2", seedKey: "wedding_first_dance_announcement", schedule: "wedding", startAt: "6:35 PM", endAt: null, sortOrder: 1,
+      notes: reconciledNotes({ ...cake, title: "Clear the center for the first dance", lines: [announce.replace("6:30 PM", "6:35 PM")], openItems: undefined }) },
+    { id: "c2", seedKey: "wedding_cake_cutting", schedule: "wedding", startAt: "6:05 PM", endAt: null, sortOrder: 2,
+      notes: reconciledNotes({ ...cake, title: "Cake cutting", lines: cakeLines, openItems: undefined }) },
+  ];
+  assert.deepEqual(planReconciledTimeline(older).drops!.map((r) => r.id).sort(), ["a2", "c2"]);
+  // One he edited himself waits for his tap.
+  const edited = planReconciledTimeline([{ ...before[2]!, notes: before[2]!.notes + "\nBring the dagger." }]);
+  assert.deepEqual(edited.removals.map((r) => r.id), ["c"]);
+  assert.deepEqual(edited.drops, []);
 });
 
 // David, 2026-10-11 15:13: "1:30 is the first look with dad, straight into parent photos."

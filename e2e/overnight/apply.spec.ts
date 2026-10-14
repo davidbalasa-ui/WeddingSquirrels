@@ -48,7 +48,7 @@ test.describe("Apply the reconciled document", () => {
   test("the card stays away after ordinary edits", async ({ page }) => {
     await resetOvernightData(prisma);
     const guards = attachGuards(page);
-    const block = await blockByTitle(prisma, "Cake cutting");
+    const block = await blockByTitle(prisma, "Sunset photos");
     await openTimelineEditor(page);
     const card = editCard(page, block.id);
     await card.scrollIntoViewIfNeeded();
