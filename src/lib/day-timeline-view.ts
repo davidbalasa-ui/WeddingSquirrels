@@ -140,7 +140,7 @@ export function reviewMoment(
  * "Toasts + Cake cutting"), since Apply keeps the owner's titles.
  */
 export const SHARED_WEDDING_MOMENT =
-  /^ceremony$|grand entrance|dinner begins|^toasts?\b|cake cutting|formal dances|first dances?|last (?:open )?dance|reception ends/i;
+  /^ceremony$|grand entrance|dinner begins|^toasts?\b|^speeches\b|cake cutting|formal dances|first dances?|last (?:open )?dance|reception ends/i;
 
 /**
  * The moment as one role sees it: everything when the title names the role,

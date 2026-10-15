@@ -11,9 +11,9 @@ const doc = RECONCILED_TIMELINE.filter((moment) => moment.schedule === "wedding"
 
 test("a schedule shows one bridal party photos line in place of the individual shots", () => {
   const photos = RECONCILED_TIMELINE.find((moment) => moment.seedKey === "wedding_party_photos")!;
-  // The 16 shots, then David's 2026-10-14 bartender line.
-  assert.equal(photos.lines.length, 17);
-  assert.deepEqual(scheduleLines(photos.lines), [BRIDAL_PARTY_PHOTOS_LINE, "The bartender arrives at Black Sheep Shelter at 2:30 PM (David, Oct 14)."]);
+  // The 16 shots; the bartender has his own 2:30 PM row on the Master of Oct 15.
+  assert.equal(photos.lines.length, 16);
+  assert.deepEqual(scheduleLines(photos.lines), [BRIDAL_PARTY_PHOTOS_LINE]);
   assert.deepEqual(scheduleLines(["Haley with mom.", "Bride with wedding party."]), ["Haley with mom.", "Bride with wedding party."]);
   assert.deepEqual(scheduleLines(["Arrive.", "Bride with Skila.", "Groom with Evan.", "Then quiet time."]), ["Arrive.", BRIDAL_PARTY_PHOTOS_LINE, "Then quiet time."]);
 });

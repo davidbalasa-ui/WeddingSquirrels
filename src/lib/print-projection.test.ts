@@ -405,9 +405,11 @@ test("wedding party packet lists the lineup pairs, colors, call times, and open 
   );
   assert.equal(view.members[0]?.phone, "269-419-7847");
   assert.equal(view.members[1]?.phone, null);
-  assert.equal(view.processional.length, 9);
-  assert.equal(view.processional[0]?.title, "Mother of the Groom & Father of the Groom");
-  assert.equal(view.processional[8]?.title, "Haley with Dad");
+  // The Master of Oct 15: "1. Harmony and nieces for pre-ceremony" leads the lineup; they are not wedding party members.
+  assert.equal(view.processional.length, 10);
+  assert.equal(view.processional[0]?.title, "Harmony and nieces — pre-ceremony");
+  assert.equal(view.processional[1]?.title, "Mother of the Groom & Father of the Groom");
+  assert.equal(view.processional[9]?.title, "Haley with Dad");
   // The schedule says the party lines up in the 3:15 PM moment, so the processional says 3:15 too
   // (David, 2026-10-10: "We need this all to be consistent").
   assert.equal(view.lineUpTime, "3:15 PM");

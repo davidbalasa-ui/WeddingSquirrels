@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseBlockNotes } from "./day-of-now";
 import { SCHEDULE_DAY_JOBS, planDayJobRewords } from "./day-job-corrections";
-import { CAKE_CUE, TOASTS_CUE } from "./evening-cues";
+import { CAKE_CUE, CAKE_CUE_OCT14, TOASTS_CUE, TOASTS_CUE_OCT14 } from "./evening-cues";
 import { withLineCorrections } from "./line-corrections";
 import { planPlaybookRewords } from "./playbook-corrections";
 import { projectHairMakeup } from "./print-projection";
@@ -126,7 +126,7 @@ test("the hair and makeup schedule prints Friday's new leave and arrival times",
 
 // David, 2026-10-14 14:53: the dances are back at 6:30–6:45 PM and open dancing starts at 6:45 PM.
 // David, 2026-10-14 16:57, his edit of the Master, and 19:00: "The kids playlist is just starting at 7 now."
-test("saved evening lines show the Master's times: cake then toasts at 6:30, dances 6:50, dancing and the kids playlist 7:00, once", () => {
+test("saved evening lines show the Master's times: cake at 6:10, dances 6:50, dancing and the kids playlist 7:00, once", () => {
   const now = 'MC cue 6:50: "Please turn your attention to the center of the space."';
   for (const was of ['MC cue 6:40: "Please turn your attention to the center of the space."', 'MC cue 6:30: "Please turn your attention to the center of the space."']) {
     assert.deepEqual(withLineCorrections([was]), [now]);
@@ -137,22 +137,30 @@ test("saved evening lines show the Master's times: cake then toasts at 6:30, dan
     withLineCorrections(['MC cue 6:45: "The dance floor is officially open in the glass house."', "Playlist: Wedding - Kids Section 6:45–8:15", "Dance floor opens at 6:45 PM in the glass house (not the older 7:45 PDF time)"]),
     ['MC cue 7:00: "The dance floor is officially open in the glass house."', "Playlist: Wedding - Kids Section 7:00–8:15", "Dance floor opens at 7:00 PM in the glass house (not the older 7:45 PDF time)"],
   );
-  // The app's toasts-first cues show as his cake line, then his toasts line.
+  // The Master of Oct 15: the app's older cake-moment cues show as his 6:10 PM cake line, once; the toasts line and the
+  // speakers belong to the 6:35 PM speeches.
   assert.deepEqual(
-    withLineCorrections(['MC cue 6:00 PM: "As dinner winds down, please return to your seats."', "Best man, MOH, and FOB toasts.", 'MC cue 6:00: "As dinner winds down, please return to your seats."', 'MC cue 6:15: "With the toasts complete, gather near the cake table."', "Speeches: Braxton, Andi, John"]),
-    [CAKE_CUE, TOASTS_CUE, "Speeches: Braxton, Andi, John"],
+    withLineCorrections(['MC cue 6:00 PM: "As dinner winds down, please return to your seats."', "Best man, MOH, and FOB toasts.", 'MC cue 6:00: "As dinner winds down, please return to your seats."', 'MC cue 6:15: "With the toasts complete, gather near the cake table."', "Speeches: Braxton, Andi, John", "Cake cutting uses the dagger"]),
+    [CAKE_CUE, "Cake cutting uses the dagger"],
+  );
+  assert.deepEqual(withLineCorrections([CAKE_CUE_OCT14, TOASTS_CUE_OCT14, "The cake is cut with the dagger."]), [CAKE_CUE, "The cake is cut with the dagger."]);
+  assert.deepEqual(withLineCorrections([TOASTS_CUE, "Braxton, Andi and John."]), [TOASTS_CUE, "Braxton, Andi and John."]);
+  // The Master of Oct 15's photo times over the app's older timed lines.
+  assert.deepEqual(
+    withLineCorrections(["1:15 PM — Haley first look with Dad", "1:30 PM — bridal portraits", "1:45 PM — groom portraits", "2:30 PM — immediate family portraits", "4:05 PM — family photos; Wendy to help", "Marriage license signing time still TBD (before ceremony vs 4:00 PM)"]),
+    ["1:30 PM — Haley first look with Dad", "1:45 PM — bridal portraits", "1:15 PM — groom portraits", "2:35 PM — couple with parents and girls portraits", "4:10 PM — family photos; Wendy to help"],
   );
   assert.deepEqual(withLineCorrections(["Avalon releases tables around 5:20 PM — Haley and David first", "5:45 PM — sunset photos", "Cake cutting stays at 6:15 with toasts (not the 5:15 if-by-the-bar maybe)"]), ["Avalon releases tables around 5:20 PM — Haley and David first", "6:15 PM — sunset photos"]);
   assert.deepEqual(withLineCorrections(["Open items: Ask Barry to confirm the best 10 minutes for outdoor photos."]), []);
 });
 
 // David, 2026-10-13 22:27: "Kids must remain hidden from Haley and dad during this time." The Master's 1:45 row is David's photos only.
-test("David's 1:45 photos no longer have the children join him, as the Master has it", () => {
+test("David's photos are the Master's 1:15 PM groom portraits, without the children", () => {
   const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_david_photos")!;
-  assert.deepEqual(moment.lines, ["David solo portraits and groom-party candids.", "Barry positions David and clears the first-look area."]);
-  const was = reconciledNotes({ ...moment, lines: ["David solo portraits and groom-party candids.", "The children join David for photos.", "Barry positions David and clears the first-look area."] });
-  const plan = planReconciledTimeline([{ id: "dp", seedKey: moment.seedKey, schedule: "wedding", startAt: moment.startAt, endAt: moment.endAt, notes: was, sortOrder: 0 }]);
-  assert.deepEqual(plan.rewords.map((row) => [row.id, row.correction, row.notes]), [["dp", "kids hidden until 2:15 PM", reconciledNotes(moment)]]);
+  assert.deepEqual([moment.startAt, moment.endAt, moment.title, moment.lines], ["1:15 PM", null, "Groom portraits", ["David solo portraits and groom-party candids."]]);
+  const was = reconciledNotes({ ...moment, title: "David’s photos", lines: ["David solo portraits and groom-party candids.", "The children join David for photos.", "Barry positions David and clears the first-look area."] });
+  const plan = planReconciledTimeline([{ id: "dp", seedKey: moment.seedKey, schedule: "wedding", startAt: "1:45 PM", endAt: "2:00 PM", notes: was, sortOrder: 0 }]);
+  assert.deepEqual(plan.rewords.map((row) => [row.id, row.correction, row.startAt, row.notes]), [["dp", "the Master of Oct 15", "1:15 PM", reconciledNotes(moment)]]);
 });
 
 // David, 2026-10-14 15:09: "On our schedule, we do need to update trash to being Tracy and Victor."
