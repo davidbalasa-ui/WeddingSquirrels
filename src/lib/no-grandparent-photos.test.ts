@@ -59,7 +59,10 @@ test("the 4:05 family photos the app once wrote become David's family photos, wi
   }));
   const old = { id: "fam", seedKey: "wedding_family_photos_after", schedule: "wedding", startAt: "4:05 PM", endAt: "4:30 PM", notes: OLD_FAMILY_PHOTOS, sortOrder: 99 };
   const plan = planReconciledTimeline([...rows, old]);
-  assert.deepEqual(plan.rewords.map((row) => [row.id, row.notes, row.correction]), [["fam", "Family photos", "family photos 4:05–4:30 PM"]]);
+  // The Master of Oct 15 takes it straight to its 4:10 PM family photos.
+  const now = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_family_photos_after")!;
+  assert.deepEqual(plan.rewords.map((row) => [row.id, row.notes, row.startAt, row.correction]), [["fam", reconciledNotes(now), "4:10 PM", "the Master of Oct 15"]]);
+  assert.doesNotMatch(reconciledNotes(now), /grand|paternal|maternal|extended/i);
   assert.equal(plan.removals.length, 0);
   assert.equal(plan.drops?.length ?? 0, 0);
   // One he edited himself stays his; its grandparent lines still never print.
@@ -74,12 +77,14 @@ test("David's photos lose the old grandparents question while the row reads as t
   const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_david_photos")!;
   const was = reconciledNotes({
     ...moment,
+    title: "David’s photos",
     lines: ["David solo portraits and groom-party candids.", "Barry positions David and clears the first-look area."],
     openItems: "Add any photos wanted with David’s parents, grandparents, or extended family.",
   });
-  const row = { id: "dp", seedKey: moment.seedKey, schedule: "wedding", startAt: moment.startAt, endAt: moment.endAt, notes: was, sortOrder: 0 };
+  const row = { id: "dp", seedKey: moment.seedKey, schedule: "wedding", startAt: "1:45 PM", endAt: "2:00 PM", notes: was, sortOrder: 0 };
   const plan = planReconciledTimeline([row]);
-  assert.deepEqual(plan.rewords.map((r) => [r.id, r.correction, r.notes]), [["dp", "no grandparent photos", reconciledNotes(moment)]]);
+  assert.deepEqual(plan.rewords.map((r) => [r.id, r.correction, r.notes]), [["dp", "the Master of Oct 15", reconciledNotes(moment)]]);
+  assert.doesNotMatch(reconciledNotes(moment), /grand|extended/i);
 });
 
 test("a grandparent photo line saved on an older row never prints, in any packet or the binder", () => {

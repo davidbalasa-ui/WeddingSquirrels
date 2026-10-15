@@ -1054,7 +1054,7 @@ export type PrintWeddingPartyView = {
 
 /** Lineup rows that are family or the couple, not wedding party members. */
 const LINEUP_NOT_PARTY =
-  /mother|father|officiant|\bmom\b|\bdad\b|\bwith dad\b|^david$|^haley\b/i;
+  /mother|father|officiant|\bmom\b|\bdad\b|\bwith dad\b|^david$|^haley\b|^harmony\b/i;
 
 /** Wedding-day moments where the wedding party has a job or a call time. */
 const PARTY_MOMENT =

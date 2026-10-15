@@ -160,8 +160,9 @@ const REQUIRED_MC_LINES: Record<string, string[]> = {
     'Dinner cue immediately after entrance: "Our couple has arrived - let the feast begin!"',
     "Playlist: Dinner Minstrels, start of dinner through start of toasts",
   ],
-  // David's 2026-10-14 16:57 edit of the Master: the cake line, then the toasts line, at 6:30 PM.
-  wedding_toasts_cake: [CAKE_CUE, TOASTS_CUE],
+  // The Master of Oct 15: the cake line at the 6:10 PM cake cutting, the toasts line at the 6:35 PM speeches.
+  wedding_toasts_cake: [CAKE_CUE],
+  wedding_speeches: [TOASTS_CUE],
   wedding_first_dances: [
     CLEAR_THE_CENTER_CUE,
     MC_SONGS.firstDances,
@@ -236,16 +237,16 @@ const TIMELINE_ADD_LINES: Record<string, string[]> = {
     "Caterer arrival time TBD",
   ],
   wedding_getting_dressed: [
-    "1:15 PM — Haley first look with Dad",
-    "1:30 PM — bridal portraits",
-    "1:45 PM — groom portraits",
+    "1:15 PM — groom portraits",
+    "1:30 PM — Haley first look with Dad",
+    "1:45 PM — bridal portraits",
     "2:00 PM — bridal party dressed",
   ],
   wedding_first_look: [
     "2:00 PM — Haley and David first look",
     "2:15 PM — couple portraits",
     "2:15 PM — Harmony and Melody ready; Skila helps hair and makeup",
-    "2:30 PM — immediate family portraits",
+    "2:35 PM — couple with parents and girls portraits",
     "2:45 PM — bridal party photos",
   ],
   wedding_pre_ceremony: [
@@ -263,8 +264,7 @@ const TIMELINE_ADD_LINES: Record<string, string[]> = {
   wedding_cocktail_hour: [
     "Officiant asks family to stay for photos",
     "4:00 PM — bar opens; couple cocktails and app plates",
-    "Marriage license signing time still TBD (before ceremony vs 4:00 PM)",
-    "4:05 PM — family photos; Wendy to help",
+    "4:10 PM — family photos; Wendy to help",
     "4:30 PM — couple re-enters cocktail hour",
     "4:45 PM — touch-ups; get couple drink for table",
     "4:50 PM — bridal party lines up for reception entrances",
@@ -273,10 +273,7 @@ const TIMELINE_ADD_LINES: Record<string, string[]> = {
     "Avalon releases tables around 5:20 PM — Haley and David first",
     "6:15 PM — sunset photos",
   ],
-  wedding_toasts_cake: [
-    "Speeches: Braxton, Andi, John",
-    "Cake cutting uses the dagger",
-  ],
+  wedding_toasts_cake: ["Cake cutting uses the dagger"],
   wedding_first_dances: [
     "First dance: Fairytale (Violin Version) by Dramatica",
     "Father-daughter: My Girl by The Temptations",

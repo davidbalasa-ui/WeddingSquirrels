@@ -338,6 +338,11 @@ const DECOR: PlaybookRecord[] = [
 ];
 
 const LINEUP: PlaybookRecord[] = [
+  // The Master of Oct 15 (David, 01:48 "Ok let's update"): "1. Harmony and nieces for pre-ceremony", ahead of everyone.
+  item("lineup", "Ceremony processional", -1, "Harmony and nieces — pre-ceremony", {
+    key: "lineup-harmony-nieces",
+    startAt: "3:20 PM",
+  }),
   item("lineup", "Ceremony processional", 0, "Mother of the Groom & Father of the Groom", {
     key: "lineup-mog-fog",
     startAt: "3:20 PM",

@@ -157,8 +157,10 @@ test("a doubled rehearsal day prints once and Apply folds it back to the full mo
   await expect(page.getByRole("button", { name: /Apply(ing…| to the timeline)/ })).toHaveCount(0, { timeout: 20_000 });
 
   const rows = await prisma.timelineBlock.findMany({ where: { schedule: "rehearsal" } });
-  const times = rows.map((row) => row.startAt);
-  expect(times.filter((time, i) => times.indexOf(time) !== i), "a start time twice").toEqual([]);
+  // Each Thursday time as often as the document has it (the Master of Oct 15 has two at 2:30 PM), never more.
+  const times = rows.map((row) => row.startAt).sort();
+  const docTimes = RECONCILED_TIMELINE.filter((m) => m.schedule === "rehearsal").map((m) => m.startAt).sort();
+  expect(times, "a start time twice").toEqual(docTimes);
   // His short rows said nothing the full moments do not, so they went; every full moment stayed.
   expect(rows.filter((r) => r.id.startsWith("own-"))).toEqual([]);
   for (const moment of RECONCILED_TIMELINE.filter((m) => m.schedule === "rehearsal")) {

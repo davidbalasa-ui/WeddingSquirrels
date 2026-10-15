@@ -23,7 +23,9 @@ test("wedding party schedule: their moments plus the shared ones, no open questi
   const wedding = titles(schedule.wedding);
   assert.ok(wedding.includes("Wedding party first hair and makeup rotation"));
   assert.ok(wedding.includes("Ceremony"));
-  assert.ok(wedding.includes("Cake cutting and toasts"));
+  // The Master of Oct 15: cake cutting at 6:10 PM, speeches at 6:35 PM.
+  assert.ok(wedding.includes("Cake cutting"));
+  assert.ok(wedding.includes("Speeches"));
   assert.ok(!wedding.includes("Haley makeup"));
   assert.ok(!wedding.includes("Dollar dance"));
   assert.ok(titles(schedule.rehearsal).includes("Ceremony rehearsal"));
@@ -43,11 +45,11 @@ test("MC and photographer schedules skip the rehearsal and keep their own lines"
 test("parents' schedules split by side: father-daughter dance for the bride's, couple photos for both", () => {
   const bride = packetSchedule(moments, "brideParents");
   const groom = packetSchedule(moments, "groomParents");
-  assert.ok(titles(bride.wedding).includes("Haley’s family photos"));
-  assert.ok(!titles(groom.wedding).includes("Haley’s family photos"));
+  assert.ok(titles(bride.wedding).includes("Haley’s first look with Dad"));
+  assert.ok(!titles(groom.wedding).includes("Haley’s first look with Dad"));
   assert.deepEqual(bride.wedding.find((row) => row.title === "Formal dances")?.lines, ["Father of the bride dance."]);
   assert.deepEqual(groom.wedding.find((row) => row.title === "Formal dances")?.lines, []);
-  assert.ok(groom.wedding.find((row) => row.title === "Couple and parent photos")?.lines.includes("Couple with dad."));
+  assert.ok(groom.wedding.find((row) => row.title === "Couple with parents and girls portraits")?.lines.includes("Harmony, Melody, Pam, Bryan, Shelly and John."));
   assert.ok(titles(bride.wedding).includes("Getaway vehicle arrives"));
   assert.ok(!titles(groom.wedding).includes("Goodbyes to the kids and goodbye song"));
   assert.equal(momentForAudience(moments.wedding.find((m) => m.title === "Haley makeup")!, "groomParents", "wedding"), null);
@@ -198,9 +200,9 @@ test("the wedding party schedule prints the Hawkshead dress code under the rehea
 // David, 2026-10-11 12:29: "At 1:45 pm, have David's first look with the girls".
 // David, 2026-10-13 22:27: "Let's push kids first look to 2:15 and it will be first look with Dad and Haley."
 // David, 2026-10-14 14:59: "For the girls, first look, 225 should be fine."
-test("the kids' 2:25 PM first look with David and Haley is on the timeline and in the photographer's packet", () => {
+test("the kids' 2:30 PM first look with David and Haley is on the timeline and in the photographer's packet", () => {
   const moment = RECONCILED_TIMELINE.find((m) => m.seedKey === "wedding_david_girls_first_look");
-  assert.equal(moment?.startAt, "2:25 PM");
+  assert.equal(moment?.startAt, "2:30 PM");
   assert.equal(moment?.title, "Kids’ first look with David and Haley");
   assert.ok(titles(packetSchedule(moments, "photo").wedding).includes("Kids’ first look with David and Haley"));
 });
@@ -222,7 +224,7 @@ test("the clear-the-center line is the MC's first cue of the 6:50 PM formal danc
 test("the run sheet prints each day-of job under its moment, and lists jobs with no time after the day", () => {
   const rows = moments.wedding.map(momentPrintRow);
   const sheet = runSheetWithJobs(rows, [
-    { title: "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen.", notes: "3:50 PM · Sign the marriage license", assignees: ["Andi", "Braxton"] },
+    { title: "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen.", notes: "4:05 PM · Sign the marriage license", assignees: ["Andi", "Braxton"] },
     { title: "Wendy is in charge of teardown.", notes: "10:00 PM · Tear down and cleanup", assignees: [] },
     { title: "Bring the cooler", notes: null, assignees: ["Pam Balasa"] },
   ]);

@@ -11,7 +11,7 @@ import { parseDayOfTime, parsedTimeFields } from "@/lib/day-of-time";
 import { composeBlockNotes, parseBlockNotes } from "@/lib/day-of-now";
 import { REHEARSAL_SCHEDULE_SEED } from "@/lib/rehearsal";
 import { GETAWAY_DRIVER_CONTACT } from "@/lib/mini-moon";
-import { CAKE_CUE, CLEAR_THE_CENTER_CUE, TOASTS_CUE } from "@/lib/evening-cues";
+import { CAKE_CUE, CAKE_CUE_OCT14, CLEAR_THE_CENTER_CUE, TOASTS_CUE, TOASTS_CUE_OCT14 } from "@/lib/evening-cues";
 
 export type TimelinePhase = {
   id: string;
@@ -82,6 +82,10 @@ export const GIRLS_ARRIVE = [
   "Skila takes Harmony and Melody straight inside so they remain hidden from Haley and David until their first look.",
 ];
 /** David, 2026-10-14 14:53: "We do want the bartender arriving at 2:30." Worded as the Master's 2:30 PM row. */
+/** The Master of Oct 15 (David, 01:48 "Ok let's update"): Harmony's ring security, her walk at 3:25, and Kurt at the entrance. */
+export const HARMONY_RING_SECURITY = "Harmony is on ring security and stands next to the entry table from 3:00 until 3:25 PM.";
+export const HARMONY_WALKS_DOWN = "3:25 PM — Harmony leaves the entry table and walks down with the rose; the nieces go next, then the announcement is made.";
+export const KURT_ANNOUNCES_NAMES = "Kurt announces the names of the wedding party as they come in.";
 export const BARTENDER_ARRIVES = "The bartender arrives at Black Sheep Shelter at 2:30 PM (David, Oct 14).";
 
 const PARTY_PHOTO_LINES = [
@@ -137,6 +141,9 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   // cake arrives at black sheep thursday at 7pm."
   { seedKey: "reh.cake-arrives", schedule: R, phase: "rehearsal", startAt: "7:00 PM", endAt: null, title: "Cake arrives at Black Sheep Shelter",
     lines: ["Braxton brings the cake from the Airbnb to Black Sheep Shelter (David, Oct 11)."] },
+  // The Master of Oct 15 (David, 01:48 "Ok let's update").
+  { seedKey: "reh.cake-delivery", schedule: R, phase: "rehearsal", startAt: "2:30 PM", endAt: null, title: "Cake delivery to the Airbnb",
+    lines: [] },
 
   // Friday morning
   { seedKey: "wedding_hair_rotation_1", schedule: W, phase: "morning", startAt: "9:00 AM", endAt: "10:00 AM", title: "Wedding party first hair and makeup rotation",
@@ -171,75 +178,85 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_couple_arrives", schedule: W, phase: "morning", startAt: "12:30 PM", endAt: null, title: "David, Haley and Belle arrive",
     lines: ["Haley retouches makeup and prepares for getting-ready photos."] },
 
-  // Wedding photos
-  { seedKey: "wedding_david_parents_first_look", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: null, title: "David’s first look with his parents",
-    lines: ["David’s parents pin his boutonniere for their first look.", "Photos of David with his parents.", "Afterward, photos move to Haley getting dressed."] },
-  { seedKey: "wedding_getting_dressed", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: "1:30 PM", title: "Haley gets dressed",
-    // David, 2026-10-14: Skila takes the girls straight inside at 1:15 so they stay hidden (the Master's 1:15 row).
-    lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-tiara portrait.", ...GIRLS_ARRIVE] },
-  // David, 2026-10-14 14:53: "1:15 should be fine for the first look with her dad."
-  { seedKey: "wedding_haley_family_photos", schedule: W, phase: "photos", startAt: "1:15 PM", endAt: "1:45 PM", title: "Haley’s family photos",
-    lines: [HALEY_DAD_FIRST_LOOK_FIELD, "Haley with parents.", "Haley with mom.", "Haley with dad."] },
-  { seedKey: "wedding_david_photos", schedule: W, phase: "photos", startAt: "1:45 PM", endAt: "2:00 PM", title: "David’s photos",
-    // David, 2026-10-13 22:27: the kids stay hidden from David and Haley until their 2:15 first look.
-    lines: ["David solo portraits and groom-party candids.", "Barry positions David and clears the first-look area."] },
-  { seedKey: "wedding_first_look", schedule: W, phase: "photos", startAt: "2:00 PM", endAt: "2:15 PM", title: "David and Haley first look",
-    lines: [VINEYARD_FENCE_FIRST_LOOK] },
-  // David, 2026-10-11 12:29: "At 1:45 pm, have David's first look with the girls".
-  // David, 2026-10-11 16:00: "David will give the gifts to the girls at 1:45 during first look with the girls".
-  // David, 2026-10-13 22:27: the kids' first look moves to 2:15 PM, with David and Haley.
-  // David, 2026-10-14 14:59: "For the girls, first look, 225 should be fine."
-  { seedKey: "wedding_david_girls_first_look", schedule: W, phase: "photos", startAt: "2:25 PM", endAt: null, title: "Kids’ first look with David and Haley",
-    lines: [KIDS_FIRST_LOOK, GIRLS_GIFTS] },
-  { seedKey: "wedding_couple_parent_photos", schedule: W, phase: "photos", startAt: "2:15 PM", endAt: "2:30 PM", title: "Couple and parent photos",
-    lines: ["Couple with parents.", "Couple with mom.", "Couple with dad.", "Additional couple portraits as time permits."] },
-  // David, 2026-10-14 14:53: "We do want the bartender arriving at 2:30."
-  { seedKey: "wedding_party_photos", schedule: W, phase: "photos", startAt: "2:30 PM", endAt: "3:00 PM", title: "Wedding party photos",
-    lines: [...PARTY_PHOTO_LINES, BARTENDER_ARRIVES] },
+  // Wedding photos: the Master of Oct 15 (David, 2026-10-15 01:48 "Ok let's update"), row for row.
+  { seedKey: "wedding_david_parents_first_look", schedule: W, phase: "photos", startAt: "1:05 PM", endAt: null, title: "David’s first look with his parents",
+    lines: ["David’s parents pin his boutonniere for their first look.", "Photos of David with his parents."] },
+  { seedKey: "wedding_girls_arrive", schedule: W, phase: "photos", startAt: "1:15 PM", endAt: null, title: "Harmony and Melody arrive",
+    lines: ["Skila brings Harmony and Melody inside once Haley leaves the bridal suite, so they remain hidden from Haley and David until their first look."] },
+  { seedKey: "wedding_getting_dressed", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: null, title: "Haley gets dressed",
+    lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-tiara portrait."] },
+  { seedKey: "wedding_haley_family_photos", schedule: W, phase: "photos", startAt: "1:30 PM", endAt: null, title: "Haley’s first look with Dad",
+    lines: ["Haley’s first look with Dad in the field."] },
+  { seedKey: "wedding_bridal_portraits", schedule: W, phase: "photos", startAt: "1:45 PM", endAt: null, title: "Bridal portraits",
+    lines: [] },
+  { seedKey: "wedding_bridal_party_dressed", schedule: W, phase: "photos", startAt: "2:00 PM", endAt: null, title: "Bridal party dressed",
+    lines: [] },
+  { seedKey: "wedding_david_photos", schedule: W, phase: "photos", startAt: "1:15 PM", endAt: null, title: "Groom portraits",
+    lines: ["David solo portraits and groom-party candids."] },
+  { seedKey: "wedding_caterer_arrives", schedule: W, phase: "photos", startAt: "1:30 PM", endAt: null, title: "Caterer arrives",
+    lines: ["Precious Peony arrives at Black Sheep Shelter."] },
+  { seedKey: "wedding_first_look", schedule: W, phase: "photos", startAt: "2:00 PM", endAt: null, title: "First look",
+    lines: ["Private first look at the vineyard fence."] },
+  { seedKey: "wedding_couple_portraits", schedule: W, phase: "photos", startAt: "2:15 PM", endAt: null, title: "Couple portraits",
+    lines: [] },
+  { seedKey: "wedding_girls_ready", schedule: W, phase: "photos", startAt: "2:15 PM", endAt: null, title: "Harmony and Melody ready",
+    lines: ["Skila helps Harmony and Melody with their hair and makeup."] },
+  { seedKey: "wedding_david_girls_first_look", schedule: W, phase: "photos", startAt: "2:30 PM", endAt: null, title: "Kids’ first look with David and Haley",
+    lines: ["Harmony and Melody are brought to wherever David and Haley are for their first look with David and Haley.", "David gives the gifts to the girls during first look with the girls."] },
+  { seedKey: "wedding_helpers_bartender_arrive", schedule: W, phase: "photos", startAt: "2:30 PM", endAt: null, title: "Denise and Lisa arrive; bartender arrives",
+    lines: ["Denise and Lisa arrive at Black Sheep Shelter.", "The bartender arrives at Black Sheep Shelter."] },
+  { seedKey: "wedding_couple_parent_photos", schedule: W, phase: "photos", startAt: "2:35 PM", endAt: null, title: "Couple with parents and girls portraits",
+    lines: ["Harmony, Melody, Pam, Bryan, Shelly and John."] },
+  { seedKey: "wedding_party_photos", schedule: W, phase: "photos", startAt: "2:45 PM", endAt: null, title: "Wedding party photos",
+    lines: PARTY_PHOTO_LINES },
   { seedKey: "wedding_quiet_time", schedule: W, phase: "photos", startAt: "3:00 PM", endAt: "3:15 PM", title: "Touch-ups and quiet time",
     lines: ["Guests may begin arriving at 3:00 PM.", "Bathroom, water, touch-ups, and schedule recovery if portraits run long."] },
-  { seedKey: "wedding_ring_security", schedule: W, phase: "photos", startAt: "3:00 PM", endAt: "3:30 PM", title: "Harmony on ring security",
+  { seedKey: "wedding_ring_security", schedule: W, phase: "photos", startAt: "3:00 PM", endAt: "3:25 PM", title: "Harmony on ring security",
     location: "Entry table",
-    lines: ["Harmony is on ring security and stands next to the entry table for the half hour before the ceremony starts."] },
+    lines: [HARMONY_RING_SECURITY] },
   { seedKey: "wedding_pre_ceremony", schedule: W, phase: "photos", startAt: "3:15 PM", endAt: "3:30 PM", title: "Get ready for the ceremony",
-    lines: ["Wedding party moves out of guest view.", "Guests are seated.", "3:20 PM — wedding party lines up.", "Barry photographs ceremony details and guest arrivals.", "No early bar service is planned."] },
+    lines: ["Wedding party moves out of guest view.", "Guests are seated.", "3:20 PM — wedding party lines up.", "Everyone needs roses.", HARMONY_WALKS_DOWN, "Barry photographs ceremony details and guest arrivals.", "No early bar service is planned."] },
 
   // Ceremony and cocktail hour
   // David, 2026-10-11 12:31: "Change the ceremony to 3:30 to 3:50 and the signing will be [3:50] to 4:00".
   { seedKey: "wedding_ceremony", schedule: W, phase: "ceremony", startAt: "3:30 PM", endAt: "3:50 PM", title: "Ceremony",
-    location: "Under the shelter", lines: [HARMONY_SITS_WITH_MOM] },
-  { seedKey: "wedding_license_signing", schedule: W, phase: "ceremony", startAt: "3:50 PM", endAt: "4:00 PM", title: "Sign the marriage license",
-    lines: ["Immediately after the recessional.", "David, Haley, Marie, and the witnesses move directly to the signing table.", "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen."] },
+    location: "Under the shelter", lines: [HARMONY_SITS_WITH_MOM, "Officiant makes the announcement for family to stay for photos."] },
+  { seedKey: "wedding_license_signing", schedule: W, phase: "ceremony", startAt: "4:05 PM", endAt: null, title: "Sign the marriage license",
+    lines: ["David, Haley, Marie and witnesses Andi and Braxton sign the license in the smokers area.", "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen.", "Marie takes the license home and mails it."] },
   // David, 2026-10-11 12:46: "Cocktail hour ends at 5."
   { seedKey: "wedding_cocktail_hour", schedule: W, phase: "ceremony", startAt: "4:00 PM", endAt: "5:00 PM", title: "Cocktail hour and bar opening",
     lines: ["Bar service begins at 4:00 PM.", "Guests receive drinks and appetizers while photography continues."] },
-  // David, 2026-10-11 19:27: "Add from 4:05 to 4:30, family photos." (No grandparent photos: his words only.)
-  { seedKey: "wedding_family_photos_after", schedule: W, phase: "ceremony", startAt: "4:05 PM", endAt: "4:30 PM", title: "Family photos",
+  // No grandparent photos (David, 2026-10-11): the Master's 4:10 PM list, word for word.
+  { seedKey: "wedding_family_photos_after", schedule: W, phase: "ceremony", startAt: "4:10 PM", endAt: null, title: "Family photos",
+    lines: ["Wendy helps.", "Haley’s siblings, aunt and uncles; David’s siblings, nieces and nephews.", "Tracy, Victor, Susan, David, Leslie, Cynthia."] },
+  { seedKey: "wedding_couple_reenters", schedule: W, phase: "ceremony", startAt: "4:30 PM", endAt: null, title: "Couple re-enters cocktail hour",
     lines: [] },
   { seedKey: "wedding_final_touchups", schedule: W, phase: "ceremony", startAt: "4:45 PM", endAt: "4:50 PM", title: "Final touch-ups",
-    lines: ["Bathroom break, touch-ups, and prepare for entrance."] },
+    lines: ["Bathroom break, touch-ups, and prepare for entrance.", "Get the couple a drink for the table."] },
   // David, 2026-10-11 12:42 and 12:44: "Last cocktail poures ending in 10 min" ... "The last pour announcement needs
   // to be at 10 minutes till the end of cocktail hour" (cocktail hour ends at 5:00).
   { seedKey: "wedding_last_pour", schedule: W, phase: "ceremony", startAt: "4:50 PM", endAt: null, title: "Last cocktail pours",
     lines: ["MC cue 4:50 PM: Last cocktail pours, ending in 10 minutes."] },
   { seedKey: "wedding_entrance_lineup", schedule: W, phase: "ceremony", startAt: "4:50 PM", endAt: "5:00 PM", title: "Wedding party lines up",
-    lines: ["Guests move to dinner seating.", "MC confirms names and entrance order."],
+    lines: ["Guests move to dinner seating.", "MC confirms names and entrance order.", "The caterer needs time to flip the tent, so dinner is ready before the grand entrance."],
     openItems: "Give Wendy the entrance order and make sure she knows how to say every name." },
 
   // Dinner, dances and evening
   // David, 2026-10-11 15:50: "dinner begins at 5:15, avalon is releasing then".
   { seedKey: "wedding_dinner", schedule: W, phase: "evening", startAt: "5:00 PM", endAt: null, title: "Grand entrance",
-    lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Precious Peony serves out of the food truck (David, Oct 10)."] },
+    lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Precious Peony serves out of the food truck (David, Oct 10).", KURT_ANNOUNCES_NAMES] },
   { seedKey: "wedding_dinner_service", schedule: W, phase: "evening", startAt: "5:15 PM", endAt: "6:00 PM", title: "Dinner begins",
     lines: [AVALON_RELEASES_TABLES, "Once David and Haley have food, tables are called up.", "Guests eat while the couple circulates only as time permits.", "Prepare toast speakers near the end of dinner."] },
   // David, 2026-10-14 16:57, his own edit of the Master: sunset photos 6:15–6:30 PM; cake cutting and toasts
   // 6:30–6:45 PM, cake line then toasts line; formal dances 6:50–7:00 PM; open dancing 7:00–8:00 PM.
   // Golden hour 5:45–5:55, toasts 6:00–6:15 and the 6:30 dance announcement are gone.
   // 19:00: "Put the clear the center area and turn your chairs line directly before the formal dances".
-  { seedKey: "wedding_golden_hour", schedule: W, phase: "evening", startAt: "6:15 PM", endAt: "6:30 PM", title: "Sunset photos",
-    lines: [] },
-  { seedKey: "wedding_toasts_cake", schedule: W, phase: "evening", startAt: "6:30 PM", endAt: "6:45 PM", title: "Cake cutting and toasts",
-    lines: [CAKE_CUE, TOASTS_CUE, "Photographer and videographer cued first.", "The cake is cut with the dagger.", "Cake placed in center and desserts rotated around on the glass plates on small plates."] },
+  { seedKey: "wedding_golden_hour", schedule: W, phase: "evening", startAt: "6:15 PM", endAt: null, title: "Sunset photos",
+    lines: ["Golden hour. The sun sets at 7:03 PM."] },
+  { seedKey: "wedding_speeches", schedule: W, phase: "evening", startAt: "6:35 PM", endAt: null, title: "Speeches",
+    lines: [TOASTS_CUE, "Braxton, Andi and John."] },
+  { seedKey: "wedding_toasts_cake", schedule: W, phase: "evening", startAt: "6:10 PM", endAt: null, title: "Cake cutting",
+    lines: [CAKE_CUE, "Photographer and videographer cued first.", "The cake is cut with the dagger.", "Cake placed in center and desserts rotated around on the glass plates on small plates.", "Put a pre-made dessert plate on the sweetheart table."] },
   { seedKey: "wedding_first_dances", schedule: W, phase: "evening", startAt: "6:50 PM", endAt: "7:00 PM", title: "Formal dances",
     lines: [CLEAR_THE_CENTER_CUE, "First dance.", "Father of the bride dance.", "Any additional formal dance must be confirmed before the event."] },
   // David, 2026-10-11 15:18: "bonfire time start is 7PM".
@@ -247,7 +264,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_bonfire", schedule: W, phase: "evening", startAt: "7:00 PM", endAt: null, title: "Bonfire and s’mores",
     lines: [] },
   { seedKey: "wedding_open_dancing", schedule: W, phase: "evening", startAt: "7:00 PM", endAt: "8:00 PM", title: "Open dancing",
-    lines: ["Dance floor opens and the couple stays on the floor as much as possible."] },
+    lines: ["Dance floor opens and the couple stays on the floor as much as possible.", "Avalon, the coordinator, leaves."] },
   { seedKey: "wedding_children_ready", schedule: W, phase: "evening", startAt: "8:00 PM", endAt: null, title: "Goodbyes to the kids and goodbye song",
     lines: ["We say our goodbyes to the kids and have a goodbye song (David, Oct 10).", "Parents gather belongings and prepare children to leave."] },
   { seedKey: "wedding_music_change", schedule: W, phase: "evening", startAt: "8:15 PM", endAt: null, title: "Music change",
@@ -263,7 +280,7 @@ export const RECONCILED_TIMELINE: ReconciledMoment[] = [
   { seedKey: "wedding_night_sky_photos", schedule: W, phase: "evening", startAt: "8:50 PM", endAt: "9:00 PM", title: "Night-sky photos and Barry finishes",
     lines: ["Final outdoor portraits with Barry.", "Return to dancing at 9:00 PM."] },
   { seedKey: "wedding_open_dancing_2", schedule: W, phase: "evening", startAt: "9:00 PM", endAt: "9:45 PM", title: "Open dancing",
-    lines: ["David and Haley return to the dance floor."] },
+    lines: ["David and Haley return to the dance floor.", "Barry, the photographer, leaves."] },
   { seedKey: "wedding_last_dance", schedule: W, phase: "evening", startAt: "9:45 PM", endAt: null, title: "Last open dance",
     lines: ["“Moon” by Logan Bowden."] },
   { seedKey: "wedding_private_dance", schedule: W, phase: "evening", startAt: "9:55 PM", endAt: null, title: "Private final dance",
@@ -320,6 +337,59 @@ export function reconciledNotes(moment: ReconciledMoment): string {
   if (moment.openItems) detailLines.push(`Open items: ${moment.openItems}`);
   return composeBlockNotes({ title: moment.title, location: moment.location ?? null, detailLines });
 }
+
+/**
+ * The moments the Master of Oct 15 changed, as the app wrote them before it (David, 2026-10-15 01:48:
+ * "Ok let's update"). Their earlier wordings below were written against these, and a row still
+ * reading like one of these is brought to the Master's rows.
+ */
+const BEFORE_MASTER_OCT15: ReconciledMoment[] = [
+  { seedKey: "wedding_david_parents_first_look", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: null, title: "David’s first look with his parents",
+    lines: ["David’s parents pin his boutonniere for their first look.", "Photos of David with his parents.", "Afterward, photos move to Haley getting dressed."] },
+  { seedKey: "wedding_getting_dressed", schedule: W, phase: "photos", startAt: "1:00 PM", endAt: "1:30 PM", title: "Haley gets dressed",
+    // David, 2026-10-14: Skila takes the girls straight inside at 1:15 so they stay hidden (the Master's 1:15 row).
+    lines: ["Haley gets into her dress with MOB and MOH helping.", "Mom buttons the dress; bride-with-tiara portrait.", ...GIRLS_ARRIVE] },
+  { seedKey: "wedding_haley_family_photos", schedule: W, phase: "photos", startAt: "1:15 PM", endAt: "1:45 PM", title: "Haley’s family photos",
+    lines: [HALEY_DAD_FIRST_LOOK_FIELD, "Haley with parents.", "Haley with mom.", "Haley with dad."] },
+  { seedKey: "wedding_david_photos", schedule: W, phase: "photos", startAt: "1:45 PM", endAt: "2:00 PM", title: "David’s photos",
+    // David, 2026-10-13 22:27: the kids stay hidden from David and Haley until their 2:15 first look.
+    lines: ["David solo portraits and groom-party candids.", "Barry positions David and clears the first-look area."] },
+  { seedKey: "wedding_first_look", schedule: W, phase: "photos", startAt: "2:00 PM", endAt: "2:15 PM", title: "David and Haley first look",
+    lines: [VINEYARD_FENCE_FIRST_LOOK] },
+  { seedKey: "wedding_david_girls_first_look", schedule: W, phase: "photos", startAt: "2:25 PM", endAt: null, title: "Kids’ first look with David and Haley",
+    lines: [KIDS_FIRST_LOOK, GIRLS_GIFTS] },
+  { seedKey: "wedding_couple_parent_photos", schedule: W, phase: "photos", startAt: "2:15 PM", endAt: "2:30 PM", title: "Couple and parent photos",
+    lines: ["Couple with parents.", "Couple with mom.", "Couple with dad.", "Additional couple portraits as time permits."] },
+  { seedKey: "wedding_party_photos", schedule: W, phase: "photos", startAt: "2:30 PM", endAt: "3:00 PM", title: "Wedding party photos",
+    lines: [...PARTY_PHOTO_LINES, BARTENDER_ARRIVES] },
+  { seedKey: "wedding_ring_security", schedule: W, phase: "photos", startAt: "3:00 PM", endAt: "3:30 PM", title: "Harmony on ring security",
+    location: "Entry table",
+    lines: ["Harmony is on ring security and stands next to the entry table for the half hour before the ceremony starts."] },
+  { seedKey: "wedding_pre_ceremony", schedule: W, phase: "photos", startAt: "3:15 PM", endAt: "3:30 PM", title: "Get ready for the ceremony",
+    lines: ["Wedding party moves out of guest view.", "Guests are seated.", "3:20 PM — wedding party lines up.", "Barry photographs ceremony details and guest arrivals.", "No early bar service is planned."] },
+  { seedKey: "wedding_ceremony", schedule: W, phase: "ceremony", startAt: "3:30 PM", endAt: "3:50 PM", title: "Ceremony",
+    location: "Under the shelter", lines: [HARMONY_SITS_WITH_MOM] },
+  { seedKey: "wedding_license_signing", schedule: W, phase: "ceremony", startAt: "3:50 PM", endAt: "4:00 PM", title: "Sign the marriage license",
+    lines: ["Immediately after the recessional.", "David, Haley, Marie, and the witnesses move directly to the signing table.", "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen."] },
+  { seedKey: "wedding_family_photos_after", schedule: W, phase: "ceremony", startAt: "4:05 PM", endAt: "4:30 PM", title: "Family photos",
+    lines: [] },
+  { seedKey: "wedding_final_touchups", schedule: W, phase: "ceremony", startAt: "4:45 PM", endAt: "4:50 PM", title: "Final touch-ups",
+    lines: ["Bathroom break, touch-ups, and prepare for entrance."] },
+  { seedKey: "wedding_entrance_lineup", schedule: W, phase: "ceremony", startAt: "4:50 PM", endAt: "5:00 PM", title: "Wedding party lines up",
+    lines: ["Guests move to dinner seating.", "MC confirms names and entrance order."],
+    openItems: "Give Wendy the entrance order and make sure she knows how to say every name." },
+  { seedKey: "wedding_dinner", schedule: W, phase: "evening", startAt: "5:00 PM", endAt: null, title: "Grand entrance",
+    lines: ["Grand entrance starts at 5:00 PM.", "Immediately after the entrance, David and Haley get their food.", "Precious Peony serves out of the food truck (David, Oct 10)."] },
+  { seedKey: "wedding_golden_hour", schedule: W, phase: "evening", startAt: "6:15 PM", endAt: "6:30 PM", title: "Sunset photos",
+    lines: [] },
+  { seedKey: "wedding_toasts_cake", schedule: W, phase: "evening", startAt: "6:30 PM", endAt: "6:45 PM", title: "Cake cutting and toasts",
+    lines: [CAKE_CUE_OCT14, TOASTS_CUE_OCT14, "Photographer and videographer cued first.", "The cake is cut with the dagger.", "Cake placed in center and desserts rotated around on the glass plates on small plates."] },
+  { seedKey: "wedding_open_dancing", schedule: W, phase: "evening", startAt: "7:00 PM", endAt: "8:00 PM", title: "Open dancing",
+    lines: ["Dance floor opens and the couple stays on the floor as much as possible."] },
+  { seedKey: "wedding_open_dancing_2", schedule: W, phase: "evening", startAt: "9:00 PM", endAt: "9:45 PM", title: "Open dancing",
+    lines: ["David and Haley return to the dance floor."] },
+];
+const MASTER_OCT15 = "the Master of Oct 15";
 
 /**
  * Earlier wordings of a moment as the app itself wrote them. A row that still reads
@@ -684,13 +754,28 @@ const EARLIER_WORDINGS: Record<string, EarlierWording[]> = {
   ],
 };
 
+/** Every wording the app wrote for a moment the Master of Oct 15 changed, oldest last. */
+export function wordingsBeforeMasterOct15(seedKey: string): ReconciledMoment[] {
+  const before = BEFORE_MASTER_OCT15.find((old) => old.seedKey === seedKey);
+  if (!before) return [];
+  return [before, ...(EARLIER_WORDINGS[seedKey] ?? []).map(({ correction: _correction, ...wording }) => ({ ...before, ...wording }))];
+}
+
+export const MASTER_OCT15_KEYS = BEFORE_MASTER_OCT15.map((moment) => moment.seedKey);
+
 /** The correction for a row that still reads, and is timed, exactly as the app wrote it earlier. */
 function earlierWording(moment: ReconciledMoment, row: { notes: string; startAt: string; endAt: string | null }): string | null {
-  const match = (EARLIER_WORDINGS[moment.seedKey] ?? []).find((wording) => {
-    const earlier = { ...moment, ...wording };
+  // Wordings from before the Master of Oct 15 were written against the moment as it stood then.
+  const before = BEFORE_MASTER_OCT15.find((old) => old.seedKey === moment.seedKey);
+  const base = before ?? moment;
+  const wordings: EarlierWording[] = [...(before ? [{ correction: MASTER_OCT15 }] : []), ...(EARLIER_WORDINGS[moment.seedKey] ?? [])];
+  const match = wordings.find((wording) => {
+    const earlier = { ...base, ...wording };
     return reconciledNotes(earlier) === row.notes && earlier.startAt === row.startAt && (earlier.endAt ?? null) === (row.endAt ?? null);
   });
-  return match ? match.correction : null;
+  if (!match) return null;
+  // Every older wording of a moment the Master changed is brought straight to its Oct 15 row.
+  return before ? MASTER_OCT15 : match.correction;
 }
 
 /**

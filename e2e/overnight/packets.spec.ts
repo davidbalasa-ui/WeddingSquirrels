@@ -121,7 +121,7 @@ test("Schedules say Bridal party photos and the processional lines up when the s
 test("the binder's run sheet prints each day-of job under its moment, by time", async ({ page }) => {
   const prisma = overnightPrisma();
   const job = await prisma.dayAssignment.create({
-    data: { title: "Overnight check: hand the pen to Marie", notes: "3:50 PM · Sign the marriage license", sortOrder: 9999 },
+    data: { title: "Overnight check: hand the pen to Marie", notes: "4:05 PM · Sign the marriage license", sortOrder: 9999 },
   });
   try {
     const text = await openPacket(page, "binder");
@@ -130,9 +130,9 @@ test("the binder's run sheet prints each day-of job under its moment, by time", 
     const jobAt = sheet.indexOf("Job: Overnight check: hand the pen to Marie (Unassigned)");
     expect(signing).toBeGreaterThan(-1);
     expect(jobAt).toBeGreaterThan(signing);
-    // The next row is cocktail hour (this test copy titles it "Cocktail Hour").
-    const cocktail = sheet.search(/cocktail hour/i);
-    expect(cocktail).toBeGreaterThan(jobAt);
+    // The next row is the 4:10 PM family photos (the Master of Oct 15).
+    const family = sheet.indexOf("Family photos", signing);
+    expect(family).toBeGreaterThan(jobAt);
   } finally {
     await prisma.dayAssignment.delete({ where: { id: job.id } });
     await prisma.$disconnect();
@@ -211,7 +211,7 @@ test("the shot list prints the bride with her tiara, never with a veil", async (
 // 16:01: "remove the 2 pm line about denise and lise picking up the cake from the air BNB. Braxton is responsible to
 // bring the cake from the air bnb to the venue the night before. cake arrives at black sheep thursday at 7pm."
 // 16:03: "make sure the 2-230 time frame also doesnt have the cake reference anymore".
-test("the girls' gifts print at 1:45, the cake arrives Thursday at 7:00 with Braxton, and Friday 2:00–2:30 has no cake", async ({ page }) => {
+test("the girls' gifts print at 2:30, the cake arrives Thursday at 7:00 with Braxton, and Friday 2:00–2:30 has no cake", async ({ page }) => {
   const prisma = overnightPrisma();
   const created: string[] = [];
   const restore: Array<{ id: string; notes: string }> = [];
@@ -250,10 +250,10 @@ test("the girls' gifts print at 1:45, the cake arrives Thursday at 7:00 with Bra
   });
   try {
     const text = await openPacket(page, "binder");
-    expect(text).toContain("David gives the girls their gifts during the first look (David, Oct 11).");
-    // David, 2026-10-13 22:27: the kids' first look is at 2:15 with David and Haley.
+    // The Master of Oct 15: the kids' first look with David and Haley is at 2:30, with the gifts.
+    expect(text).toContain("David gives the gifts to the girls during first look with the girls.");
     expect(text).toContain("Kids’ first look with David and Haley");
-    expect(text).toContain("The kids must remain hidden from Haley and David until then");
+    expect(text).toContain("Harmony and Melody are brought to wherever David and Haley are");
     expect(text).toContain("Cake arrives at Black Sheep Shelter");
     expect(text).toContain("Braxton brings the cake from the Airbnb to Black Sheep Shelter (David, Oct 11).");
     expect(text).not.toMatch(/Denise and Lisa pick up/i);
@@ -268,10 +268,10 @@ test("the girls' gifts print at 1:45, the cake arrives Thursday at 7:00 with Bra
   }
 });
 
-// David, 2026-10-11 19:27: "Add from 4:05 to 4:30, family photos."
-test("Friday's 4:05–4:30 family photos print on the run sheet, with no grandparent line", async ({ page }) => {
+// The Master of Oct 15: family photos at 4:10 PM.
+test("Friday's 4:10 family photos print on the run sheet, with no grandparent line", async ({ page }) => {
   const text = await openPacket(page, "binder");
-  expect(text).toMatch(/4:05 PM\s*[–-]\s*4:30 PM\s+Family photos/);
+  expect(text).toMatch(/4:10 PM\s+Family photos/);
   expect(text).not.toMatch(/grand ?(?:ma|pa|parent|mother|father)/i);
 });
 

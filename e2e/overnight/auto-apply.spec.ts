@@ -195,8 +195,11 @@ test("the old 4:05 family photos with the grandparents become his Family photos 
   await page.goto("/today");
   const applied = page.getByTestId("auto-applied");
   await applied.getByRole("button", { name: /Show all \d+/ }).click({ timeout: 30_000 });
-  await expect(applied).toContainText("Corrected 4:05 PM Family photos (family photos 4:05–4:30 PM)");
-  expect((await prisma.timelineBlock.findUniqueOrThrow({ where: { id: row.id } })).notes).toBe("Family photos");
+  // The Master of Oct 15 takes it straight to its 4:10 PM family photos.
+  await expect(applied).toContainText("Corrected 4:10 PM Family photos (the Master of Oct 15)");
+  const saved = await prisma.timelineBlock.findUniqueOrThrow({ where: { id: row.id } });
+  expect([saved.startAt, saved.endAt]).toEqual(["4:10 PM", null]);
+  expect(saved.notes).toBe("Family photos\nWendy helps.\nHaley’s siblings, aunt and uncles; David’s siblings, nieces and nephews.\nTracy, Victor, Susan, David, Leslie, Cynthia.");
   await page.goto("/day/shots");
   await expect(page.locator("main")).toContainText("Bride with parents");
   expect(await page.locator("main").innerText()).not.toMatch(/grand ?(?:ma|pa|parent)/i);

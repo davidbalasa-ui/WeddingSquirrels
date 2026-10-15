@@ -12,14 +12,16 @@ export const SCHEDULE_DAY_JOBS: DayJobDef[] = [
     // David, 2026-10-13 22:01: "Avalon is now planning on 11 am to 7 pm for her time frame".
     notes: "10:30 AM · Set up the venue. Avalon’s time frame is 11:00 AM to 7:00 PM. She is the main point of contact.",
   },
+  // The Master of Oct 15 (David, 01:48 "Ok let's update").
   {
-    title: "Harmony is on ring security and stands next to the entry table for the half hour before the ceremony starts.",
+    title: "Harmony is on ring security and stands next to the entry table from 3:00 until 3:25 PM.",
     notes: "3:00 PM · Harmony on ring security",
   },
   {
     title: "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen.",
-    notes: "3:50 PM · Sign the marriage license",
+    notes: "4:05 PM · Sign the marriage license",
   },
+  { title: "Kurt announces the names of the wedding party as they come in.", notes: "5:00 PM · Grand entrance" },
   {
     title: "MOB or another helper meets Dan Vandenheede.",
     notes: "8:30 PM · Getaway vehicle arrives. Show Dan where to park, give him the “Just Married” sign, and tell the groom.",
@@ -46,7 +48,21 @@ const EARLIER_DAY_JOBS: Array<DayJobDef & { now: string; correction: string }> =
     title: "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen.",
     notes: "4:00 PM · Sign the marriage license",
     now: "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen.",
-    correction: "signing 3:50 PM",
+    correction: "signing 4:05 PM",
+  },
+  {
+    // The Master of Oct 15: the signing is at 4:05 PM in the smokers area.
+    title: "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen.",
+    notes: "3:50 PM · Sign the marriage license",
+    now: "Andi (Best Man) and Braxton (Maid of Honor) are the witnesses and are in charge of the license and pen.",
+    correction: "signing 4:05 PM",
+  },
+  {
+    // The Master of Oct 15: Harmony stands at the entry table from 3:00 until 3:25 PM.
+    title: "Harmony is on ring security and stands next to the entry table for the half hour before the ceremony starts.",
+    notes: "3:00 PM · Harmony on ring security",
+    now: "Harmony is on ring security and stands next to the entry table from 3:00 until 3:25 PM.",
+    correction: "ring security until 3:25 PM",
   },
   {
     // David, 2026-10-11 15:25: Dan arrives at 8:30.
